@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* New Palette - Design System */
+
+  /* Primary Gradients */
+  --grad-blue-purple: linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%);
+  --grad-green-cyan: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
+  --grad-orange-pink: linear-gradient(135deg, #F59E0B 0%, #EC4899 100%);
+
+  /* Neutrals */
+  --bg-dark: #0A0A0F;
+  --bg-surface: #1A1A24;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+
+  /* Functional Accents */
+  --accent-success: #10B981;
+  --accent-warning: #F59E0B;
+  --accent-error: #EF4444;
+  --accent-info: #3B82F6;
+
+  /* Legacy Compatibility (mapping to new system where possible) */
+  --bg: var(--bg-dark);
+  --bg-2: var(--bg-surface);
+  --accent-1: #10B981;
+  /* Green Neon as primary accent */
+  --accent-2: #06B6D4;
+  /* Cyan */
+  --accent-3: #8B5CF6;
+  /* Purple */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--text-primary);
+  background: var(--bg-dark);
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  width: 100%;
+  position: relative;
+  cursor: none;
+  /* Custom cursor takes over */
+}
+
+/* Typography Overrides */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-inter), sans-serif;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--font-mono), monospace;
+}
+
+/* Utilities */
+.text-balance {
+  text-wrap: balance;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animations from Proposal */
+@keyframes gradient-cycle {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-cycle {
+  background-size: 200% 200%;
+  animation: gradient-cycle 5s ease infinite;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(26, 26, 36, 0.6);
+  /* surface with opacity */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-panel-heavy {
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Helper for text gradients */
+.text-gradient-blue-purple {
+  background: var(--grad-blue-purple);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-green-cyan {
+  background: var(--grad-green-cyan);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-orange-pink {
+  background: var(--grad-orange-pink);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Mouse cursor handling overrides */
+button,
+a,
+[role="button"] {
+  cursor: none !important;
+}

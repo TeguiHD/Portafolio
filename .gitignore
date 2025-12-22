@@ -1,0 +1,57 @@
+﻿## Editor and OS
+.vscode/
+.idea/
+.DS_Store
+
+## Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+## Next.js
+.next/
+out/
+*.next
+
+## Environment
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+## Logs
+logs
+*.log
+debug.log*
+.next/dev/logs/
+
+## Local-only / not for GitHub
+Archivos/
+/MejoraUI.txt
+/prompt.txt
+/efectomouse.html
+/Cotizacion/
+/PENDIENTES/
+
+## Dev artifacts
+**/*.tsbuildinfo
+/*.tsbuildinfo
+**/build_output*.txt
+**/db_push_log*.txt
+**/prisma_log*.txt
+**/seed_log*.txt
+**/seed_error*.txt
+
+## Nginx secrets
+DOCKER/nginx/ssl/
+
+## Build
+dist/
+build/
+
+## Misc
+coverage/
+cache/
+thumbs.db

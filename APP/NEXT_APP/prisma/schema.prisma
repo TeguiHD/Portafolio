@@ -1,0 +1,1013 @@
+// Prisma Schema for Portfolio Admin System
+// Includes: Users, Roles, Analytics, Quotations, CV Editor
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============= AUTHENTICATION =============
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  MODERATOR
+  USER
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique  // Now stores emailHash for lookups
+  emailEncrypted  String?   // AES-256-GCM encrypted email
+  password        String    // Argon2id hashed
+  name            String?
+  role            Role      @default(USER)
+  isActive        Boolean   @default(true)
+  avatar          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Account lockout fields
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  
+  // Relations - Core
+  quotations      Quotation[]
+  cvVersions      CvVersion[]
+  sessions        Session[]
+  chatSessions    QuotationChatSession[]
+  permissions     UserPermission[]
+  auditLogs       AuditLog[]
+  
+  // Relations - Finance Module
+  financeAccounts      FinanceAccount[]
+  financeCategories    FinanceCategory[]
+  transactions         Transaction[]
+  receipts             Receipt[]
+  recurringPayments    RecurringPayment[]
+  budgets              Budget[]
+  savingsGoals         SavingsGoal[]
+  categoryFeedbacks    CategoryFeedback[]
+  categorizationRules  UserCategorizationRule[]
+  financeAuditLogs     FinanceAuditLog[]
+  products             Product[]
+  
+  // Security - Session tracking
+  userSessions         UserSession[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Extended session tracking for security monitoring
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // JWT token identifier (jti claim)
+  tokenId      String   @unique
+  
+  // Device/Browser info
+  ipAddress    String?
+  userAgent    String?
+  browser      String?    // Chrome, Firefox, Safari, etc.
+  device       String?    // desktop, mobile, tablet
+  os           String?    // Windows, macOS, iOS, Android
+  
+  // Location (from IP geolocation)
+  city         String?
+  country      String?
+  countryCode  String?
+  
+  // Activity tracking
+  lastActivity DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  expiresAt    DateTime
+  
+  // Status
+  isActive     Boolean    @default(true)
+  revokedAt    DateTime?
+  revokeReason String?
+  
+  @@index([userId, isActive])
+  @@index([ipAddress])
+  @@index([expiresAt])
+}
+
+// ============= PERMISSIONS =============
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique  // e.g., "tools.visibility.edit"
+  name        String   // Human-readable name
+  description String?
+  category    String   // Group: "tools", "users", "analytics", etc.
+  
+  // Default access per role (can be overridden per user)
+  defaultRoles Role[]  // Roles that have this permission by default
+  
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  userOverrides UserPermission[]
+  
+  @@index([category])
+}
+
+model UserPermission {
+  id           String     @id @default(cuid())
+  userId       String
+  permissionId String
+  granted      Boolean    @default(true)  // true = grant, false = revoke
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  // Relations
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, permissionId])
+  @@index([userId])
+}
+
+// ============= AUDIT LOGGING =============
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // login, logout, user.create, permission.change, etc.
+  category    String   // auth, users, tools, quotations, security
+  
+  // Actor (who performed the action)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Target (what was affected)
+  targetId    String?  // ID of affected resource
+  targetType  String?  // Type: user, tool, quotation, etc.
+  
+  // Details
+  metadata    Json?    // Additional context (old/new values, etc.)
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([category])
+  @@index([createdAt])
+}
+
+
+// ============= ANALYTICS =============
+
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  referrer  String?
+  userAgent String?
+  ip        String?
+  country   String?
+  createdAt DateTime @default(now())
+}
+
+model CtaClick {
+  id        String   @id @default(cuid())
+  action    String   // "download_cv", "schedule_meeting", "whatsapp", "email", "github"
+  label     String?  // Button label or context
+  metadata  Json?    // Additional context
+  referrer  String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+// ============= QUOTATIONS =============
+
+model Quotation {
+  id          String   @id @default(cuid())
+  folio       String   @unique
+  
+  // Client info
+  clientName  String
+  clientEmail String?
+  projectName String
+  
+  // Content
+  items       Json     // Array of { title, description, price, deliverables[] }
+  subtotal    Float
+  discount    Float    @default(0)
+  total       Float
+  
+  // Conditions
+  validDays   Int      @default(15)
+  paymentTerms String?
+  timeline    String?
+  notes       String?
+  
+  // Status
+  status      String   @default("draft") // draft, sent, accepted, rejected
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// ============= CV EDITOR =============
+
+model CvVersion {
+  id        String   @id @default(cuid())
+  name      String   // Version name (e.g., "Tech Lead", "Full Stack")
+  
+  // Personal Info (direct columns)
+  fullName  String
+  title     String
+  email     String
+  phone     String
+  location  String
+  orcid     String?  // ORCID identifier
+  linkedin  String?
+  github    String?
+  website   String?
+  summary   String?  @db.Text
+  
+  // Generated outputs
+  latexCode String?  @db.Text
+  pdfUrl    String?
+  
+  // Status
+  isDefault Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  experiences    CvExperience[]
+  education      CvEducation[]
+  skills         CvSkillCategory[]
+  projects       CvProject[]
+  certifications CvCertification[]
+  languages      CvLanguage[]
+}
+
+model CvExperience {
+  id           String    @id @default(cuid())
+  cvVersionId  String
+  cvVersion    CvVersion @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  
+  company      String
+  position     String
+  startDate    String
+  endDate      String?
+  isCurrent    Boolean   @default(false)
+  description  String?   @db.Text
+  achievements String[]  // PostgreSQL array
+  sortOrder    Int       @default(0)
+  
+  @@index([cvVersionId])
+}
+
+model CvEducation {
+  id           String    @id @default(cuid())
+  cvVersionId  String
+  cvVersion    CvVersion @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  
+  institution  String
+  degree       String
+  field        String?
+  startDate    String
+  endDate      String?
+  isCurrent    Boolean   @default(false)
+  sortOrder    Int       @default(0)
+  
+  @@index([cvVersionId])
+}
+
+model CvSkillCategory {
+  id           String    @id @default(cuid())
+  cvVersionId  String
+  cvVersion    CvVersion @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  
+  category     String
+  items        String[]  // PostgreSQL array for skill items
+  sortOrder    Int       @default(0)
+  
+  @@index([cvVersionId])
+}
+
+model CvProject {
+  id           String    @id @default(cuid())
+  cvVersionId  String
+  cvVersion    CvVersion @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  
+  name         String
+  description  String?   @db.Text
+  technologies String[]
+  url          String?
+  year         String?
+  sortOrder    Int       @default(0)
+  
+  @@index([cvVersionId])
+}
+
+model CvCertification {
+  id           String    @id @default(cuid())
+  cvVersionId  String
+  cvVersion    CvVersion @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  
+  name         String
+  issuer       String?
+  year         String?
+  url          String?
+  sortOrder    Int       @default(0)
+  
+  @@index([cvVersionId])
+}
+
+model CvLanguage {
+  id           String    @id @default(cuid())
+  cvVersionId  String
+  cvVersion    CvVersion @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  
+  language     String
+  level        String    // Nativo, Avanzado, Intermedio, Básico
+  sortOrder    Int       @default(0)
+  
+  @@index([cvVersionId])
+}
+
+// ============= SETTINGS =============
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+// ============= PUBLIC TOOLS =============
+
+model Tool {
+  id          String    @id @default(cuid())
+  slug        String    @unique  // URL-friendly identifier (e.g., "qr-generator")
+  name        String               // Display name
+  description String?              // Tool description
+  icon        String?              // Icon name or SVG
+  category    String?              // "utility", "design", "developer", etc.
+  isPublic    Boolean   @default(false)  // Visible to public
+  isActive    Boolean   @default(true)   // Tool is functional
+  sortOrder   Int       @default(0)      // Display order
+  config      Json?                // Tool-specific configuration
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  usages      ToolUsage[]
+}
+
+model ToolUsage {
+  id          String   @id @default(cuid())
+  toolId      String
+  tool        Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  
+  // Tracking
+  action      String   // "view", "use", "complete", "download", "error"
+  sessionId   String?  // Anonymous session tracking (cookie-based)
+  ip          String?  // Hashed for privacy
+  country     String?  // Geo lookup
+  device      String?  // "desktop", "mobile", "tablet"
+  browser     String?  // Browser name
+  userAgent   String?
+  metadata    Json?    // Action-specific data (e.g., QR size, format)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([toolId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+// ============= RATE LIMITING =============
+
+model RateLimitEntry {
+  id          String   @id @default(cuid())
+  identifier  String   @unique  // Combined hash of cookie+ip+fingerprint
+  ip          String?            // For logging/debugging
+  fingerprint String?            // Browser fingerprint hash
+  cookieId    String?            // Rate limit cookie ID
+  count       Int      @default(1)
+  windowStart DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  @@index([identifier])
+  @@index([windowStart])
+}
+
+// ============= QUOTATION CHAT SESSIONS =============
+
+model QuotationChatSession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quotationId String?  // Optional link to specific quotation
+  isActive    Boolean  @default(true)
+  summary     String?  // Compact summary of conversation when closed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  messages  QuotationChatMessage[]
+  
+  @@index([userId, isActive])
+  @@index([userId, quotationId])
+}
+
+model QuotationChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   QuotationChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String   // "user" | "assistant"
+  content   String   @db.Text
+  actions   Json?    // For assistant messages with actions
+  createdAt DateTime @default(now())
+  
+  @@index([sessionId, createdAt])
+}
+
+// ============= ADMIN NOTIFICATIONS =============
+
+enum NotificationType {
+  USER_CREATED
+  USER_ROLE_CHANGED
+  USER_SUSPENDED
+  USER_ACTIVATED
+  USER_DELETED
+  PASSWORD_CHANGED
+  LOGIN_RATE_LIMITED
+  QUOTATION_CREATED
+  QUOTATION_STATUS_CHANGED
+  TOOL_STATUS_CHANGED
+  TOOL_USAGE_SPIKE
+  SYSTEM_ERROR
+  SYSTEM_MAINTENANCE
+  // Security - Session monitoring
+  CONCURRENT_SESSION_DETECTED
+  SESSION_FROM_NEW_LOCATION
+  SESSION_REVOKED
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model AdminNotification {
+  id          String               @id @default(cuid())
+  type        NotificationType
+  priority    NotificationPriority @default(MEDIUM)
+  title       String
+  message     String
+  metadata    Json?                // Additional data (affected userId, etc.)
+  
+  // Targeting
+  targetRole  Role?                // If null, only SUPERADMIN sees it
+  targetUserId String?             // Notification specific to a user
+  
+  // Actor (who performed the action)
+  actorId     String?
+  actorName   String?
+  
+  // Status
+  isRead      Boolean              @default(false)
+  readAt      DateTime?
+  readBy      String?              // User who read it
+  
+  createdAt   DateTime             @default(now())
+  expiresAt   DateTime?            // Expiring notifications
+  
+  @@index([targetRole, isRead, createdAt])
+  @@index([targetUserId, isRead])
+  @@index([createdAt])
+}
+
+// ============= FINANCE MODULE =============
+// Personal finance management with multi-currency support
+// Exchange rates via Frankfurter API (EUR base, cached in Redis)
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum AccountType {
+  CASH
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  INVESTMENT
+  OTHER
+}
+
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum AlertStatus {
+  ACTIVE
+  TRIGGERED
+  DISMISSED
+}
+
+// Currency configuration
+model Currency {
+  id          String   @id @default(cuid())
+  code        String   @unique  // ISO 4217: CLP, USD, EUR, etc.
+  name        String             // Chilean Peso, US Dollar, etc.
+  symbol      String             // $, €, etc.
+  decimals    Int      @default(2)
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  accounts    FinanceAccount[]
+  transactions Transaction[]
+  
+  @@index([code])
+}
+
+// Exchange rate cache (Frankfurter API, EUR base)
+// Cached in Redis (4 hours TTL), DB as fallback
+model ExchangeRateCache {
+  id          String   @id @default(cuid())
+  baseCurrency String  @default("EUR")  // Frankfurter uses EUR
+  targetCurrency String
+  rate        Float                      // 1 EUR = X target
+  fetchedAt   DateTime @default(now())
+  
+  @@unique([baseCurrency, targetCurrency])
+  @@index([targetCurrency])
+  @@index([fetchedAt])
+}
+
+// User's financial accounts (bank, cash, cards)
+model FinanceAccount {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String                // "Banco Estado", "Efectivo", etc.
+  type        AccountType @default(CHECKING)
+  currencyId  String
+  currency    Currency    @relation(fields: [currencyId], references: [id])
+  
+  // Balance tracking
+  initialBalance Float    @default(0)
+  currentBalance Float    @default(0)  // Calculated from transactions
+  
+  // Display
+  color       String?               // Hex color for UI
+  icon        String?               // Icon name
+  isDefault   Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  transactionsFrom Transaction[] @relation("FromAccount")
+  transactionsTo   Transaction[] @relation("ToAccount")
+  
+  @@unique([userId, name])
+  @@index([userId, isActive])
+}
+
+// Finance categories (predefined + custom per user)
+model FinanceCategory {
+  id          String   @id @default(cuid())
+  userId      String?              // NULL = system category, not NULL = user custom
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String               // "Alimentación", "Transporte", etc.
+  icon        String               // Emoji or icon name
+  color       String?              // Hex color
+  type        TransactionType      // INCOME or EXPENSE (categories are type-specific)
+  
+  // Hierarchy (optional subcategories)
+  parentId    String?
+  parent      FinanceCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    FinanceCategory[] @relation("CategoryHierarchy")
+  
+  // Auto-categorization keywords
+  keywords    String[]  // Keywords for auto-matching
+  
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  transactions      Transaction[]
+  budgets           Budget[]
+  feedbacks         CategoryFeedback[]
+  recurringPayments RecurringPayment[]
+  
+  @@unique([userId, name, type])
+  @@index([userId, type, isActive])
+  @@index([type])
+}
+
+// Financial transactions
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        TransactionType
+  amount      Float                    // Always positive
+  description String?
+  merchant    String?                  // Store/vendor name
+  notes       String?         @db.Text
+  
+  // Category
+  categoryId  String?
+  category    FinanceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  // Account (from/to for transfers)
+  accountId   String
+  account     FinanceAccount  @relation("FromAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  toAccountId String?                  // Only for TRANSFER type
+  toAccount   FinanceAccount? @relation("ToAccount", fields: [toAccountId], references: [id])
+  
+  // Multi-currency support
+  currencyId  String
+  currency    Currency        @relation(fields: [currencyId], references: [id])
+  originalAmount Float?                // Amount in original currency
+  exchangeRate   Float?                // Rate at time of transaction
+  
+  // Date & time
+  transactionDate DateTime    @default(now())
+  
+  // Receipt/OCR
+  receiptId   String?
+  receipt     Receipt?        @relation(fields: [receiptId], references: [id])
+  
+  // Document identification (from OCR)
+  documentType   String?                // "boleta", "factura", "ticket"
+  documentNumber String?                // Folio
+  merchantRut    String?                // RUT del comercio
+  
+  // Line items (products)
+  items       TransactionItem[]
+  
+  // Recurring payment link
+  recurringPaymentId String?
+  recurringPayment   RecurringPayment? @relation(fields: [recurringPaymentId], references: [id])
+  
+  // Auto-categorization metadata
+  autoCategorizationScore Float?       // Confidence 0-1
+  wasManuallyEdited      Boolean @default(false)
+  
+  // Audit
+  source      String        @default("manual") // manual, ocr, import, recurring
+  isDeleted   Boolean       @default(false)    // Soft delete
+  deletedAt   DateTime?
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  @@index([userId, transactionDate])
+  @@index([userId, categoryId])
+  @@index([userId, accountId])
+  @@index([userId, type, transactionDate])
+  @@index([merchant])
+  @@index([documentNumber])
+}
+
+// Transaction line items (products from receipts)
+model TransactionItem {
+  id            String      @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  
+  // Product info
+  description   String
+  quantity      Float       @default(1)
+  unitPrice     Float
+  totalPrice    Float
+  
+  // Optional: link to a product catalog for tracking
+  productId     String?
+  product       Product?    @relation(fields: [productId], references: [id])
+  
+  // Metadata
+  sku           String?     // Product code if available
+  category      String?     // Item-level category
+  
+  createdAt     DateTime    @default(now())
+  
+  @@index([transactionId])
+  @@index([productId])
+  @@index([description])
+}
+
+// Product catalog for tracking purchases over time
+model Product {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Product info
+  name        String
+  normalizedName String  // Lowercase, trimmed for matching
+  sku         String?
+  barcode     String?
+  
+  // Category
+  category    String?
+  
+  // Price tracking
+  lastPrice   Float?
+  avgPrice    Float?
+  minPrice    Float?
+  maxPrice    Float?
+  priceCount  Int      @default(0)
+  
+  // Purchase tracking
+  purchaseCount Int    @default(0)
+  lastPurchased DateTime?
+  
+  // Common merchants
+  commonMerchants String[] @default([])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  items       TransactionItem[]
+  
+  @@unique([userId, normalizedName])
+  @@index([userId, category])
+  @@index([normalizedName])
+  @@index([barcode])
+}
+
+// Receipt images for OCR
+model Receipt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // File storage
+  filename    String           // Original filename
+  storagePath String           // /uploads/{userId}/{uuid}.jpg
+  mimeType    String
+  fileSize    Int              // Bytes
+  
+  // Document identification
+  documentType   String?       // "boleta", "factura", "ticket"
+  documentNumber String?       // Folio number
+  barcodeData    String?       // Barcode/QR code data
+  siiCode        String?       // SII electronic signature
+  merchantRut    String?       // RUT of the merchant
+  
+  // OCR Results
+  ocrProvider String?          // "gemini-2.0", "tesseract"
+  ocrRawText  String?  @db.Text
+  ocrParsedData Json?          // Structured: { total, date, merchant, items[], rut }
+  ocrConfidence Float?         // Overall confidence 0-1
+  
+  // Processing status
+  status      String   @default("pending") // pending, processing, completed, failed
+  errorMessage String?
+  processedAt DateTime?
+  
+  // Retention policy (2 years, then file deleted but record kept)
+  fileDeletedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  transactions Transaction[]
+  
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([documentNumber])
+}
+
+// Recurring payments (subscriptions, bills)
+model RecurringPayment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String               // "Netflix", "Arriendo", etc.
+  amount      Float
+  currencyId  String
+  
+  categoryId  String?
+  category    FinanceCategory? @relation(fields: [categoryId], references: [id])
+  accountId   String?
+  
+  // Schedule
+  frequency   String               // daily, weekly, monthly, yearly
+  dayOfMonth  Int?                 // For monthly: 1-31
+  dayOfWeek   Int?                 // For weekly: 0-6
+  startDate   DateTime
+  endDate     DateTime?
+  
+  // Next occurrence
+  nextDueDate DateTime
+  
+  // Notification settings
+  reminderDays Int      @default(3) // Days before due date
+  
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  transactions Transaction[]
+  
+  @@index([userId, isActive])
+  @@index([userId, nextDueDate])
+}
+
+// Budgets per category or global
+model Budget {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String?                  // Optional custom name
+  categoryId  String?                  // NULL = global budget
+  category    FinanceCategory? @relation(fields: [categoryId], references: [id])
+  
+  amount      Float                    // Budget limit
+  period      BudgetPeriod @default(MONTHLY)
+  
+  // Alert thresholds (percentages)
+  alertAt75   Boolean      @default(true)
+  alertAt90   Boolean      @default(true)
+  alertAt100  Boolean      @default(true)
+  
+  // Current period tracking (recalculated)
+  currentSpent Float       @default(0)
+  periodStart  DateTime
+  periodEnd    DateTime
+  
+  isActive    Boolean      @default(true)
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Relations
+  alerts      BudgetAlert[]
+  
+  @@unique([userId, categoryId, period])
+  @@index([userId, isActive])
+}
+
+// Budget alerts history
+model BudgetAlert {
+  id          String      @id @default(cuid())
+  budgetId    String
+  budget      Budget      @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  
+  threshold   Int                   // 75, 90, 100
+  percentage  Float                 // Actual percentage when triggered
+  amount      Float                 // Amount spent when triggered
+  
+  status      AlertStatus @default(ACTIVE)
+  dismissedAt DateTime?
+  
+  createdAt   DateTime    @default(now())
+  
+  @@index([budgetId, status])
+}
+
+// Savings goals
+model SavingsGoal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String               // "Vacaciones", "Fondo emergencia"
+  icon        String?
+  color       String?
+  
+  targetAmount Float
+  currentAmount Float    @default(0)
+  
+  // Timeline
+  deadline    DateTime?
+  
+  // Progress milestones (gamification)
+  milestone25 Boolean  @default(false)
+  milestone50 Boolean  @default(false)
+  milestone75 Boolean  @default(false)
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId, isActive])
+}
+
+// Category feedback for ML learning
+model CategoryFeedback {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Original prediction
+  merchant        String?
+  description     String?
+  amount          Float?
+  predictedCategoryId String?
+  
+  // User correction
+  correctCategoryId String
+  correctCategory   FinanceCategory @relation(fields: [correctCategoryId], references: [id])
+  
+  // After N corrections, create a user-specific rule
+  ruleCreated Boolean @default(false)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, merchant])
+  @@index([userId, ruleCreated])
+}
+
+// User-specific categorization rules (learned from feedback)
+model UserCategorizationRule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Matching criteria
+  merchantPattern String?          // Regex or exact match
+  descriptionPattern String?
+  minAmount   Float?
+  maxAmount   Float?
+  
+  // Target category
+  categoryId  String
+  
+  priority    Int      @default(0) // Higher = checked first
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, isActive])
+}
+
+// Finance-specific audit (extends main AuditLog for detailed tracking)
+model FinanceAuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  action      String           // transaction.create, budget.exceeded, import.bulk, etc.
+  entityType  String           // transaction, budget, goal, account
+  entityId    String?
+  
+  // Change tracking
+  oldValue    Json?
+  newValue    Json?
+  
+  // Context
+  source      String?          // manual, ocr, import, system
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, action])
+  @@index([userId, entityType, entityId])
+  @@index([createdAt])
+}

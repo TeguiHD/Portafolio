@@ -1,0 +1,18 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+# Next.js
+.next/
+out/
+
+# Logs / dev artifacts
+*.log
+*.tsbuildinfo
+build_output*.txt
+db_push_log*.txt
+prisma_log*.txt
+seed_log*.txt
+seed_error*.txt
+
+/src/generated/prisma
