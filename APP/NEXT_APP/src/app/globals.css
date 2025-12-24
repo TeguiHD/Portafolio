@@ -169,3 +169,178 @@ a,
 [role="button"] {
   cursor: none !important;
 }
+
+/* ========================================
+   CYBER BRUTALISM ANIMATIONS - Hero
+   ======================================== */
+
+/* Typing cursor blink */
+@keyframes blink {
+
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Glitch effect */
+@keyframes glitch {
+
+  0%,
+  90%,
+  100% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+
+  92% {
+    transform: translate(-2px, 1px);
+    text-shadow: 2px 0 #00ffff, -2px 0 #ff00ff;
+  }
+
+  94% {
+    transform: translate(2px, -1px);
+    text-shadow: -2px 0 #00ffff, 2px 0 #ff00ff;
+  }
+
+  96% {
+    transform: translate(-1px, 2px);
+    text-shadow: 1px 0 #00ffff, -1px 0 #ff00ff;
+  }
+
+  98% {
+    transform: translate(1px, -2px);
+    text-shadow: -1px 0 #00ffff, 1px 0 #ff00ff;
+  }
+}
+
+.animate-glitch {
+  animation: glitch 3s ease-in-out infinite;
+}
+
+.animate-glitch:hover {
+  animation: glitch 0.3s ease-in-out infinite;
+}
+
+/* Text outline (hollow text) */
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1px currentColor;
+  text-stroke: 1px currentColor;
+}
+
+.text-outline-white {
+  color: transparent;
+  -webkit-text-stroke: 2px white;
+  text-stroke: 2px white;
+}
+
+/* Slow pulse for background */
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+/* Matrix rain effect */
+@keyframes matrix-fall {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+/* Glow pulse for CTA */
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2), 0 0 40px rgba(59, 130, 246, 0.1);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.4), 0 0 60px rgba(59, 130, 246, 0.3);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Slide up entrance */
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Float animation */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Scanline effect */
+.scanlines::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.1) 2px,
+      rgba(0, 0, 0, 0.1) 4px);
+  pointer-events: none;
+  z-index: 10;
+}

@@ -14,12 +14,14 @@ const securityFeatures = [
 ];
 
 const securityLogs = [
-    { time: "12:34:01", msg: "SQL Injection blocked - IP 192.168.1.54 - Pattern: UNION SELECT", type: "error" },
-    { time: "12:34:05", msg: "CSRF Token validation failed - Session terminated", type: "warning" },
-    { time: "12:34:12", msg: "Auth success - User: admin_01 - 2FA Verified", type: "success" },
-    { time: "12:34:15", msg: "Rate limit warning - 80/100 reqs - Bucket: API_V1", type: "info" },
-    { time: "12:34:22", msg: "Middleware: Request sanitized [xss-filter]", type: "success" },
-    { time: "12:34:28", msg: "Database connection pool: 45 active connections", type: "info" }
+    { time: "12:34:01", msg: "[Azure WAF] Blocked XSS attempt from 192.168.1.54", type: "error" },
+    { time: "12:34:05", msg: "[System] Running daily backup... Done.", type: "success" },
+    { time: "12:34:12", msg: "[Auth] 2FA verification passed - admin_01", type: "success" },
+    { time: "12:34:15", msg: "[WAF] SQL Injection blocked - Pattern: UNION SELECT", type: "error" },
+    { time: "12:34:22", msg: "[System] SSL Certificate valid - 89 days remaining", type: "info" },
+    { time: "12:34:28", msg: "[Azure WAF] Rate limit applied - 192.168.x.x", type: "warning" },
+    { time: "12:34:35", msg: "[Backup] Database snapshot completed - 2.3GB", type: "success" },
+    { time: "12:34:42", msg: "[Monitor] All services healthy - 99.9% uptime", type: "info" }
 ];
 
 export function SecurityArchitectureSection() {
@@ -57,7 +59,7 @@ export function SecurityArchitectureSection() {
                         </span>
                     </motion.h2>
                     <p className="text-xl text-text-secondary">
-                        Nada espectacular. Todo creíble.
+                        Seguridad Defensiva por Diseño
                     </p>
                 </div>
 
