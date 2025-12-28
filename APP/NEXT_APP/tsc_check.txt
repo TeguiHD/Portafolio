@@ -1,0 +1,42 @@
+﻿node.exe : npm warn 
+Unknown project 
+config "strict-peer-de
+pendencies". This 
+will stop working in 
+the next major 
+version of npm.
+En C:\Program 
+Files\nodejs\npx.ps1: 
+29 Carácter: 3
++   & $NODE_EXE 
+$NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (npm warn U   
+ nknow...version o    
+f npm.:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+npm warn Unknown 
+project config "public
+-hoist-pattern". This 
+will stop working in 
+the next major 
+version of npm.
+npm warn Unknown 
+project config "prefer
+-frozen-lockfile". 
+This will stop 
+working in the next 
+major version of npm.
+src/lib/auth.ts(26,16): error TS2664: Invalid module name in augmentation, module 'next-auth/jwt' cannot be found.
+src/modules/landing/sections/ShowcaseSection.tsx(122,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: LinkProps<"/projects">): Element', gave the following error.
+    Type '"/projects"' is not assignable to type 'UrlObject | RouteImpl<"/projects">'.
+  Overload 2 of 2, '(props: LinkProps<"/projects">): Element', gave the following error.
+    Type '"/projects"' is not assignable to type 'UrlObject | RouteImpl<"/projects">'.

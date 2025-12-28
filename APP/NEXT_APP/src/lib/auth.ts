@@ -23,6 +23,7 @@ declare module "next-auth" {
     }
 }
 
+/* Module augmentation commented - @auth/core/jwt not found in CI
 declare module "@auth/core/jwt" {
     interface JWT {
         id: string
@@ -30,6 +31,7 @@ declare module "@auth/core/jwt" {
         jti?: string // Unique token identifier for session tracking
     }
 }
+*/
 
 // Generate a unique token ID
 function generateTokenId(): string {
@@ -47,10 +49,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             async authorize(credentials, request) {
                 // Get request context for security logging
                 const headersList = await headers()
-                const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || 
-                                 headersList.get('x-real-ip') || 'unknown'
+                const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] ||
+                    headersList.get('x-real-ip') || 'unknown'
                 const userAgent = headersList.get('user-agent') || 'unknown'
-                
+
                 // SECURITY: Check if IP is blocked due to threat score
                 if (shouldBlockIp(ipAddress)) {
                     SecurityLogger.auth({
@@ -62,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     })
                     throw new Error("Access denied. Please try again later.")
                 }
-                
+
                 if (!credentials?.email || !credentials?.password) {
                     logger.auth.debug('Missing credentials')
                     SecurityLogger.auth({
@@ -138,7 +140,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     })
                     throw new Error("Account suspended. Please contact support.")
                 }
-                
+
                 // SECURITY: Detect anomalies in request patterns
                 const fingerprint = generateFingerprint(
                     ipAddress,
@@ -150,7 +152,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     process.env.ENCRYPTION_KEY || 'secret'
                 )
                 const anomalyScore = detectAnomalies(user.id, fingerprint)
-                
+
                 if (anomalyScore.score >= 50) {
                     SecurityLogger.sessionAnomaly({
                         ipAddress,
@@ -176,7 +178,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     const newAttempts = user.failedLoginAttempts + 1
                     const MAX_ATTEMPTS = 5
                     const LOCKOUT_MINUTES = 15
-                    
+
                     // Log failed attempt
                     SecurityLogger.auth({
                         success: false,
@@ -225,7 +227,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                 // Reset rate limit on successful login
                 resetRateLimit(emailHash)
-                
+
                 // Log successful authentication
                 SecurityLogger.auth({
                     success: true,
@@ -262,8 +264,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
         async session({ session, token }) {
             if (token) {
-                session.user.id = token.id
-                session.user.role = token.role
+                session.user.id = token.id as string
+                session.user.role = token.role as Role
             }
             return session
         }

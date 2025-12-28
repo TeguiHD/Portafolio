@@ -165,15 +165,18 @@ export async function POST(request: NextRequest) {
             const cv = await tx.cvVersion.create({
                 data: {
                     name,
-                    ...data.personalInfo,
-                    // Destructure/Spread handled by Zod output, but explicit nulls need care if Zod output excludes them
-                    orcid: data.personalInfo.orcid || null,
-                    linkedin: data.personalInfo.linkedin || null,
-                    github: data.personalInfo.github || null,
-                    website: data.personalInfo.website || null,
-                    summary: data.personalInfo.summary || null,
-                    isDefault: isDefault || false,
-                    latexCode: latexCode || null,
+                    fullName: data.personalInfo.name || '',
+                    title: data.personalInfo.title || '',
+                    email: data.personalInfo.email || '',
+                    phone: data.personalInfo.phone || '',
+                    location: data.personalInfo.location || '',
+                    orcid: data.personalInfo.orcid ?? null,
+                    linkedin: data.personalInfo.linkedin ?? null,
+                    github: data.personalInfo.github ?? null,
+                    website: data.personalInfo.website ?? null,
+                    summary: data.personalInfo.summary ?? null,
+                    isDefault: isDefault ?? false,
+                    latexCode: latexCode ?? null,
                     userId,
                 },
             });

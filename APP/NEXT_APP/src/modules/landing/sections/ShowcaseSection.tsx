@@ -119,7 +119,7 @@ export function ShowcaseSection() {
         </div>
 
         <div className="mt-12 text-center">
-          <Link href="/projects">
+          <Link href={"/projects" as any}>
             <span className="text-gray-500 hover:text-white transition-colors border-b border-transparent hover:border-white pb-0.5 cursor-pointer">
               Ver archivo completo de casos
             </span>

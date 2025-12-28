@@ -12,8 +12,8 @@ import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-           request.headers.get('x-real-ip') ||
-           '127.0.0.1'
+        request.headers.get('x-real-ip') ||
+        '127.0.0.1'
 }
 
 // Rate limiting for MFA attempts
@@ -24,22 +24,22 @@ const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 minutos
 function checkRateLimit(userId: string): { allowed: boolean; remainingAttempts: number } {
     const now = Date.now()
     const attempts = mfaAttempts.get(userId)
-    
+
     if (!attempts) {
         mfaAttempts.set(userId, { count: 1, lastAttempt: now })
         return { allowed: true, remainingAttempts: MAX_ATTEMPTS - 1 }
     }
-    
+
     // Reset after lockout
     if (now - attempts.lastAttempt > LOCKOUT_DURATION) {
         mfaAttempts.set(userId, { count: 1, lastAttempt: now })
         return { allowed: true, remainingAttempts: MAX_ATTEMPTS - 1 }
     }
-    
+
     if (attempts.count >= MAX_ATTEMPTS) {
         return { allowed: false, remainingAttempts: 0 }
     }
-    
+
     attempts.count++
     attempts.lastAttempt = now
     return { allowed: true, remainingAttempts: MAX_ATTEMPTS - attempts.count }
@@ -51,10 +51,10 @@ function resetRateLimit(userId: string): void {
 
 export async function POST(request: NextRequest) {
     const clientIP = getClientIP(request)
-    
+
     try {
         const session = await auth()
-        
+
         if (!session?.user?.id) {
             return NextResponse.json(
                 { error: 'No autorizado' },
@@ -65,12 +65,15 @@ export async function POST(request: NextRequest) {
         // Rate limit check
         const rateLimit = checkRateLimit(session.user.id)
         if (!rateLimit.allowed) {
-            SecurityLogger.bruteForce('mfa', clientIP, MAX_ATTEMPTS, {
-                userId: session.user.id
+            SecurityLogger.bruteForce({
+                ipAddress: clientIP,
+                userAgent: request.headers.get('user-agent') || 'unknown',
+                targetResource: '/api/auth/mfa/verify',
+                attemptCount: MAX_ATTEMPTS
             })
-            
+
             return NextResponse.json(
-                { 
+                {
                     error: 'Demasiados intentos. Espera 15 minutos.',
                     lockedUntil: Date.now() + LOCKOUT_DURATION
                 },
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
         //         mfaEnabled: true,
         //     }
         // })
-        
+
         // if (!user?.mfaEnabled || !user.mfaSecret) {
         //     return NextResponse.json(
         //         { error: 'MFA no está habilitado' },
