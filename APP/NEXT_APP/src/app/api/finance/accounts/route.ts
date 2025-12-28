@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        console.log("[Finance Accounts] POST body:", JSON.stringify(body, null, 2));
+        // SECURITY: Do not log request body in production
 
         const data = createAccountSchema.parse(body);
 
@@ -144,7 +144,10 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error("Error creating account:", error);
         if (error instanceof z.ZodError) {
-            console.error("[Finance Accounts] Zod validation error:", JSON.stringify(error.issues, null, 2));
+            // SECURITY: Only log validation details in development
+            if (process.env.NODE_ENV !== 'production') {
+                console.error("[Finance Accounts] Zod validation error:", JSON.stringify(error.issues, null, 2));
+            }
             return NextResponse.json({ error: "Datos inválidos", details: error.issues }, { status: 400 });
         }
         return NextResponse.json({ error: "Error al crear cuenta" }, { status: 500 });

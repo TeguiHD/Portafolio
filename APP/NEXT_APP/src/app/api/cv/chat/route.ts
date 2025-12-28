@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
                 action: "error",
                 message: "Has enviado muchas solicitudes. Espera un momento antes de continuar.",
                 error: "rate_limited"
-            }, { 
+            }, {
                 status: 429,
                 headers: { "X-RateLimit-Remaining": "0" }
             });
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         // SECURITY: Check for jailbreak/injection attempts BEFORE sending to AI
         const securityCheck = checkInputSecurity(message);
         if (!securityCheck.safe) {
-            console.log(`[CV Chat] Blocked ${securityCheck.reason}:`, message.slice(0, 100));
+            // SECURITY: Don't log message content to prevent information disclosure\n            console.log(`[CV Chat] Blocked: ${securityCheck.reason}`);
             return NextResponse.json({
                 success: false,
                 action: "error",
