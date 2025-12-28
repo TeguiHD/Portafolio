@@ -94,6 +94,12 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: "Archivo requerido" }, { status: 400 });
             }
 
+            // Security: Prevent DoS by limiting file size (Max 10MB)
+            const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+            if (file.size > MAX_FILE_SIZE) {
+                return NextResponse.json({ error: "El archivo excede el límite de 10MB" }, { status: 413 });
+            }
+
             const text = await file.text();
             const filename = file.name.toLowerCase();
 

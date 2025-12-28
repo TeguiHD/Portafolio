@@ -15,7 +15,7 @@ services:
       - db
 
   db:
-    image: postgres:15-alpine
+    image: postgres:18.1
     environment:
       POSTGRES_DB: portfolio
       POSTGRES_USER: postgres

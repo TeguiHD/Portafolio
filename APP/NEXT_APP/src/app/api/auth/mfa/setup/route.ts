@@ -13,15 +13,15 @@ import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-           request.headers.get('x-real-ip') ||
-           '127.0.0.1'
+        request.headers.get('x-real-ip') ||
+        '127.0.0.1'
 }
 
 // GET - Check MFA status
 export async function GET(request: NextRequest) {
     try {
         const session = await auth()
-        
+
         if (!session?.user?.id) {
             return NextResponse.json(
                 { error: 'No autorizado' },
@@ -72,12 +72,19 @@ export async function GET(request: NextRequest) {
 // POST - Start MFA setup
 export async function POST(request: NextRequest) {
     const clientIP = getClientIP(request)
-    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let session: any = null
+
     try {
-        const session = await auth()
-        
+        session = await auth()
+
         if (!session?.user?.id || !session.user.email) {
-            SecurityLogger.auth('mfa_setup_unauthorized', '', clientIP, false)
+            SecurityLogger.auth({
+                success: false,
+                userId: '',
+                ipAddress: clientIP,
+                reason: 'mfa_setup_unauthorized'
+            })
             return NextResponse.json(
                 { error: 'No autorizado' },
                 { status: 401 }
@@ -97,7 +104,12 @@ export async function POST(request: NextRequest) {
         //     }
         // })
 
-        SecurityLogger.auth('mfa_setup_initiated', session.user.id, clientIP, true)
+        SecurityLogger.auth({
+            success: true,
+            userId: session.user.id,
+            ipAddress: clientIP,
+            method: 'mfa_setup_initiated'
+        })
 
         return NextResponse.json({
             success: true,
@@ -105,7 +117,7 @@ export async function POST(request: NextRequest) {
             recoveryCodes: mfaSetup.recoveryCodes,
             message: 'Escanea el código QR con tu app de autenticación',
             warning: '⚠️ Guarda los códigos de recuperación en un lugar seguro. Solo se mostrarán una vez.',
-            
+
             // Info para desarrollo
             _dev: {
                 note: 'Para completar la implementación:',
@@ -119,10 +131,13 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         console.error('Error setting up MFA:', error)
-        SecurityLogger.auth('mfa_setup_error', session?.user?.id || '', clientIP, false, {
-            error: error instanceof Error ? error.message : 'Unknown error'
+        SecurityLogger.auth({
+            success: false,
+            userId: session?.user?.id || '',
+            ipAddress: clientIP,
+            reason: 'mfa_setup_error'
         })
-        
+
         return NextResponse.json(
             { error: 'Error configurando MFA' },
             { status: 500 }

@@ -51,6 +51,18 @@ function sanitizeContext(context: LogContext): LogContext {
  */
 function formatLog(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString()
+
+    if (isProduction) {
+        // Structured JSON logging for production (Datadog/CloudWatch friendly)
+        return JSON.stringify({
+            timestamp,
+            level,
+            message,
+            ...sanitizeContext(context || {})
+        })
+    }
+
+    // Human readable for development
     const sanitizedContext = context ? JSON.stringify(sanitizeContext(context)) : ''
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${sanitizedContext ? ' ' + sanitizedContext : ''}`
 }

@@ -145,9 +145,9 @@ export async function getCached<T>(key: string): Promise<T | null> {
     try {
         const client = await getRedisClient();
         const value = await client.get(key);
-        
+
         if (!value) return null;
-        
+
         return JSON.parse(value) as T;
     } catch (error) {
         console.error(`[Redis] Get cache error for key ${key}:`, error);
@@ -190,15 +190,33 @@ export async function deleteCached(key: string): Promise<boolean> {
 /**
  * Delete multiple cached values by pattern
  */
+/**
+ * Delete multiple cached values by pattern using SCAN (non-blocking)
+ */
 export async function deleteCachedByPattern(pattern: string): Promise<number> {
     try {
         const client = await getRedisClient();
-        const keys = await client.keys(pattern);
-        
-        if (keys.length === 0) return 0;
-        
-        await client.del(keys);
-        return keys.length;
+        let cursor = 0;
+        let deletedCount = 0;
+
+        do {
+            // Scan for keys matching pattern
+            const result = await client.scan(cursor, {
+                MATCH: pattern,
+                COUNT: 100
+            });
+
+            cursor = result.cursor;
+            const keys = result.keys;
+
+            if (keys.length > 0) {
+                const count = await client.del(keys);
+                deletedCount += count;
+            }
+
+        } while (cursor !== 0);
+
+        return deletedCount;
     } catch (error) {
         console.error(`[Redis] Delete by pattern error for ${pattern}:`, error);
         return 0;
@@ -225,18 +243,18 @@ export async function checkRateLimit(
     try {
         const client = await getRedisClient();
         const key = `${CACHE_KEYS.RATE_LIMIT}:${identifier}`;
-        
+
         // Increment counter
         const count = await client.incr(key);
-        
+
         // Set TTL on first request
         if (count === 1) {
             await client.expire(key, windowSeconds);
         }
-        
+
         // Get remaining TTL
         const ttl = await client.ttl(key);
-        
+
         return {
             allowed: count <= limit,
             remaining: Math.max(0, limit - count),

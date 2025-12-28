@@ -1,9 +1,10 @@
-FROM node:18-alpine
+FROM node:23-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install
 
 COPY . .
 
@@ -11,5 +12,5 @@ RUN npm run build
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["pnpm", "run", "start"]
 

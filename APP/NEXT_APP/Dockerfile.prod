@@ -1,0 +1,32 @@
+# Dockerfile Optimizado para Producción
+# USO: La app debe estar PRE-COMPILADA antes de construir la imagen
+# Esto evita hacer npm run build dentro del contenedor (ahorra RAM)
+# SEGURIDAD: Usando Node 23 (última versión) para máxima seguridad
+
+FROM node:23-alpine AS runner
+
+WORKDIR /app
+
+# Instalar solo dependencias de producción
+ENV NODE_ENV=production
+
+# Copiar archivos de dependencias
+COPY package*.json ./
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --prod --frozen-lockfile
+
+# Copiar app pre-compilada y assets
+COPY .next ./.next
+COPY public ./public
+COPY prisma ./prisma
+COPY next.config.ts ./
+
+# Generar cliente Prisma
+RUN npx prisma generate
+
+# Puerto y usuario no-root
+EXPOSE 3000
+USER node
+
+# Comando de inicio
+CMD ["pnpm", "run", "start"]

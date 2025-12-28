@@ -8,9 +8,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { 
-    getRotationStatus, 
-    triggerRotation, 
+import {
+    getRotationStatus,
+    triggerRotation,
     revokeKeyById,
     getAllKeyVersions,
     startAutoRotation,
@@ -20,8 +20,8 @@ import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-           request.headers.get('x-real-ip') ||
-           '127.0.0.1'
+        request.headers.get('x-real-ip') ||
+        '127.0.0.1'
 }
 
 async function isAdmin(): Promise<{ isAdmin: boolean; userId?: string }> {
@@ -38,7 +38,12 @@ export async function GET(request: NextRequest) {
     const clientIP = getClientIP(request)
 
     if (!admin) {
-        SecurityLogger.auth('key_rotation_access_denied', userId || '', clientIP, false)
+        SecurityLogger.auth({
+            success: false,
+            userId: userId || '',
+            ipAddress: clientIP,
+            reason: 'key_rotation_access_denied'
+        })
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
@@ -71,7 +76,12 @@ export async function POST(request: NextRequest) {
     const clientIP = getClientIP(request)
 
     if (!admin) {
-        SecurityLogger.auth('key_rotation_action_denied', userId || '', clientIP, false)
+        SecurityLogger.auth({
+            success: false,
+            userId: userId || '',
+            ipAddress: clientIP,
+            reason: 'key_rotation_action_denied'
+        })
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
@@ -82,27 +92,28 @@ export async function POST(request: NextRequest) {
         switch (action) {
             case 'rotate': {
                 const result = await triggerRotation()
-                
+
                 if (result.success) {
-                    SecurityLogger.auth('key_rotation_manual', userId!, clientIP, true, {
-                        newKeyId: result.newKeyId,
-                        deprecatedKeyId: result.deprecatedKeyId,
+                    SecurityLogger.auth({
+                        success: true,
+                        userId: userId!,
+                        ipAddress: clientIP,
+                        method: 'key_rotation_manual'
                     })
                 }
 
                 return NextResponse.json({
-                    success: result.success,
-                    message: result.success 
+                    ...result,
+                    message: result.success
                         ? `Nueva clave creada: ${result.newKeyId}`
                         : `Error: ${result.error}`,
-                    ...result,
                 })
             }
 
             case 'start-auto': {
                 const hours = body.checkIntervalHours || 1
                 startAutoRotation(hours)
-                
+
                 return NextResponse.json({
                     success: true,
                     message: `Auto-rotación iniciada. Verificación cada ${hours} hora(s)`,
@@ -111,7 +122,7 @@ export async function POST(request: NextRequest) {
 
             case 'stop-auto': {
                 stopAutoRotation()
-                
+
                 return NextResponse.json({
                     success: true,
                     message: 'Auto-rotación detenida',
@@ -157,12 +168,18 @@ export async function DELETE(request: NextRequest) {
         const success = revokeKeyById(keyId)
 
         if (success) {
-            SecurityLogger.auth('key_revoked', userId!, clientIP, true, { keyId })
+            SecurityLogger.auth({
+                success: true,
+                userId: userId!,
+                ipAddress: clientIP,
+                method: 'key_revoked',
+                reason: `keyId: ${keyId}`
+            })
         }
 
         return NextResponse.json({
             success,
-            message: success 
+            message: success
                 ? `Clave revocada: ${keyId}`
                 : 'No se pudo revocar la clave (puede ser la clave activa actual)',
         })
@@ -179,7 +196,7 @@ export async function DELETE(request: NextRequest) {
 // Utility functions
 function formatTimeAgo(date: Date): string {
     const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
-    
+
     if (seconds < 60) return 'hace menos de un minuto'
     if (seconds < 3600) return `hace ${Math.floor(seconds / 60)} minutos`
     if (seconds < 86400) return `hace ${Math.floor(seconds / 3600)} horas`
@@ -188,7 +205,7 @@ function formatTimeAgo(date: Date): string {
 
 function formatTimeUntil(date: Date): string {
     const seconds = Math.floor((new Date(date).getTime() - Date.now()) / 1000)
-    
+
     if (seconds < 0) return 'expirada'
     if (seconds < 3600) return `en ${Math.floor(seconds / 60)} minutos`
     if (seconds < 86400) return `en ${Math.floor(seconds / 3600)} horas`

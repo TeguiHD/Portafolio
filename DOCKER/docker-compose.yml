@@ -10,8 +10,8 @@ services:
       dockerfile: ../../DOCKER/Dockerfile.web
     container_name: portfolio_web
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000" # DISABLED: Use Nginx proxy instead
     environment:
       - NODE_ENV=production
       # Database
@@ -42,7 +42,7 @@ services:
   # PostgreSQL Database
   # ============================================
   db:
-    image: postgres:16-alpine
+    image: postgres:18.1
     container_name: portfolio-db
     restart: unless-stopped
     environment:
@@ -67,7 +67,7 @@ services:
   # Memory limited to 128MB with LRU eviction
   # ============================================
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: portfolio_redis
     restart: unless-stopped
     command: >
