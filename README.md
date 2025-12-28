@@ -12,6 +12,12 @@
   <img src="https://img.shields.io/badge/Gemini_2.0-8E75B2?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI" />
 </p>
 
+<p align="center">
+  <img src="https://github.com/TeguiHD/Portafolio/actions/workflows/ci.yml/badge.svg" alt="CI Status" />
+  <img src="https://img.shields.io/badge/Playwright-Tests-2EAD33?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright" />
+  <img src="https://img.shields.io/badge/Security-Audited-brightgreen?style=for-the-badge&logo=shield" alt="Security Audited" />
+</p>
+
 <h1 align="center">🚀 Portafolio Full-Stack</h1>
 
 <p align="center">
@@ -288,6 +294,14 @@ Portafolio/
 ---
 
 ## 🛡️ Arquitectura de Seguridad
+
+### Auditoría y Estado
+> [!NOTE]
+> **Auditoría de Seguridad (Dic 2025):** Proyecto auditado y endurecido.
+> - ✅ Puerto 3000 cerrado (Solo acceso vía Nginx).
+> - ✅ Middleware centralizado de protección.
+> - ✅ Protección contra DoS y Memory Exhaustion.
+> - ✅ Pruebas E2E automatizadas.
 
 ### Flujo de Seguridad por Capas
 
@@ -622,7 +636,10 @@ npm run start        # Iniciar producción
 npm run lint         # Verificar código
 npm run db:push      # Push schema a BD
 npm run db:seed      # Ejecutar seeds
+npm run db:push      # Push schema a BD
+npm run db:seed      # Ejecutar seeds
 npm run db:studio    # Abrir Prisma Studio
+npx playwright test  # Ejecutar tests E2E
 ```
 
 ---
