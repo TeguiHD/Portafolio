@@ -1,0 +1,87 @@
+﻿
+> portfolio-scream@0.1.0 build C:\xampp\htdocs\Portafolio\APP\NEXT_APP
+> next build
+
+node.exe : ÔÜá `experi
+mental.typedRoutes` 
+has been moved to 
+`typedRoutes`. Please 
+update your 
+next.config.mjs file 
+accordingly.
+En C:\Users\nikoh\AppD
+ata\Roaming\npm\pnpm.p
+s1: 24 Carácter: 5
++     & "node$exe"  "$
+basedir/node_modules/p
+npm/bin/pnpm.cjs" 
+$args
++     ~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (ÔÜá `exper   
+ iment...le accord    
+ingly.:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+Ôû▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env
+- Experiments (use with caution):
+  Ô£ô typedRoutes
+
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 14.3s
+  Running TypeScript ...
+  Collecting page data using 15 workers ...
+­ƒöÉ Initial encryption key created: key_mjp93awm_b566ecf8
+  Generating static pages using 15 workers (0/47) ...
+  Generating static pages using 15 workers (11/47) 
+­ƒöÉ Initial encryption key created: key_mjp93bbh_ba4b6db5
+The width(-1) and 
+height(-1) of chart 
+should be greater 
+than 0,
+       please check 
+the style of 
+container, or the 
+props width(100%) and 
+height(100%),
+       or add a 
+minWidth(0) or 
+minHeight(undefined) 
+or use 
+aspect(undefined) to 
+control the
+       height and 
+width.
+  Generating static pages using 15 workers (23/47) 
+  Generating static pages using 15 workers (35/47) 
+Ô£ô Generating static pages using 15 workers (47/47) in 1565.4ms
+  Finalizing page optimization ...
+
+> Build error occurred
+Error: ENOENT: no 
+such file or 
+directory, open 'C:\xa
+mpp\htdocs\Portafolio\
+APP\NEXT_APP\.next\ser
+ver\middleware.js.nft.
+json'
+    at ignore-listed 
+frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\xampp\\ht
+docs\\Portafolio\\APP\
+\NEXT_APP\\.next\\serv
+er\\middleware.js.nft.
+json'
+}
+ÔÇëELIFECYCLEÔÇë Command failed with exit code 1.
