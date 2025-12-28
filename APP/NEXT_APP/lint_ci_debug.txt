@@ -1,0 +1,32 @@
+﻿
+> portfolio-scream@0.1.0 lint C:\xampp\htdocs\Portafolio\APP\NEXT_APP
+> next lint
+
+node.exe : Invalid 
+project directory 
+provided, no such 
+directory: C:\xampp\ht
+docs\Portafolio\APP\NE
+XT_APP\lint
+En C:\Users\nikoh\AppD
+ata\Roaming\npm\pnpm.p
+s1: 24 Carácter: 5
++     & "node$exe"  "$
+basedir/node_modules/p
+npm/bin/pnpm.cjs" 
+$args
++     ~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (Invalid pr   
+ oject...P\NEXT_AP    
+P\lint:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+ÔÇëELIFECYCLEÔÇë Command failed with exit code 1.
