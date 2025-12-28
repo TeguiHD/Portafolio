@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
+  <img src="https://img.shields.io/badge/Prisma_7-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
   <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/Gemini_2.0-8E75B2?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI" />
@@ -80,7 +80,7 @@ Plataforma **full-stack de nivel empresarial** diseñada como vitrina técnica y
 | Tecnología | Versión | Uso |
 |------------|---------|-----|
 | **Next.js API Routes** | 16.x | Endpoints serverless |
-| **Prisma ORM** | 6.x | Acceso a BD con tipado seguro |
+| **Prisma ORM** | 7.x | Acceso a BD con tipado seguro |
 | **PostgreSQL** | 15.x | Base de datos relacional |
 | **NextAuth** | v5 | Sistema de autenticación |
 | **Argon2id** | - | Hashing de contraseñas |

@@ -81,7 +81,7 @@ export function ToolsBeltSection() {
                 {/* Premium Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     {tools.map((tool, i) => (
-                        <Link key={tool.id} href={tool.href} className="group relative block h-full">
+                        <Link key={tool.id} href={tool.href as any} className="group relative block h-full">
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 whileInView={{ opacity: 1, scale: 1 }}
@@ -117,7 +117,7 @@ export function ToolsBeltSection() {
 
                 {/* Mobile Link */}
                 <div className="mt-12 text-center md:hidden">
-                    <Link href="/tools" className="inline-block text-sm font-medium text-white border border-white/20 px-6 py-3 rounded-full hover:bg-white hover:text-black transition-colors">
+                    <Link href={"/tools" as any} className="inline-block text-sm font-medium text-white border border-white/20 px-6 py-3 rounded-full hover:bg-white hover:text-black transition-colors">
                         Explorar todas las herramientas
                     </Link>
                 </div>

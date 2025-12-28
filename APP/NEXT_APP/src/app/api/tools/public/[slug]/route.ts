@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/redis";
 
 // Helper to get device type from user agent
 function getDeviceType(userAgent: string): string {
@@ -123,6 +124,21 @@ export async function POST(
         const headersList = await headers();
         const userAgent = headersList.get("user-agent") || "unknown";
         const ip = headersList.get("x-forwarded-for") || "unknown";
+
+        // Security: Rate Limit (20 requests per minute per IP for tracking)
+        // This prevents spamming usage stats
+        const { allowed, resetIn } = await checkRateLimit(
+            `tool_stats:${hashIP(ip)}`,
+            20,
+            60
+        );
+
+        if (!allowed) {
+            return NextResponse.json(
+                { error: "Too many requests" },
+                { status: 429, headers: { "Retry-After": resetIn.toString() } }
+            );
+        }
 
         // Create usage record
         await prisma.toolUsage.create({

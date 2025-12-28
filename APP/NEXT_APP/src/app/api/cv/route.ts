@@ -4,83 +4,89 @@ import { prisma } from "@/lib/prisma";
 import {
     CV_FIELD_LIMITS,
     CV_ARRAY_LIMITS,
-    sanitizeCvField,
-    sanitizeCvStringArray,
     devLog,
 } from "@/lib/security";
+import { z } from "zod";
+import { Prisma } from "@prisma/client";
 
-// Types for incoming CV data
-interface CvExperienceInput {
-    company?: string;
-    position?: string;
-    startDate?: string;
-    endDate?: string;
-    current?: boolean;
-    description?: string;
-    achievements?: string[];
-}
+// Zod Schemas for Validation
+const cvExperienceSchema = z.object({
+    company: z.string().max(CV_FIELD_LIMITS.company).optional(),
+    position: z.string().max(CV_FIELD_LIMITS.position).optional(),
+    startDate: z.string().max(20).optional(),
+    endDate: z.string().max(20).optional().nullable(),
+    current: z.boolean().optional(),
+    description: z.string().max(CV_FIELD_LIMITS.description).optional(),
+    achievements: z.array(z.string().max(CV_FIELD_LIMITS.achievement)).max(CV_ARRAY_LIMITS.achievementsPerExperience).optional(),
+});
 
-interface CvEducationInput {
-    institution?: string;
-    degree?: string;
-    field?: string;
-    startDate?: string;
-    endDate?: string;
-    current?: boolean;
-}
+const cvEducationSchema = z.object({
+    institution: z.string().max(CV_FIELD_LIMITS.institution).optional(),
+    degree: z.string().max(CV_FIELD_LIMITS.degree).optional(),
+    field: z.string().max(CV_FIELD_LIMITS.field).optional(),
+    startDate: z.string().max(20).optional(),
+    endDate: z.string().max(20).optional().nullable(),
+    current: z.boolean().optional(),
+});
 
-interface CvSkillInput {
-    category?: string;
-    items?: string[];
-}
+const cvSkillSchema = z.object({
+    category: z.string().max(CV_FIELD_LIMITS.category).optional(),
+    items: z.array(z.string().max(CV_FIELD_LIMITS.skill)).max(CV_ARRAY_LIMITS.skillsPerCategory).optional(),
+});
 
-interface CvProjectInput {
-    name?: string;
-    description?: string;
-    technologies?: string[];
-    url?: string;
-    year?: string;
-}
+const cvProjectSchema = z.object({
+    name: z.string().max(CV_FIELD_LIMITS.projectName).optional(),
+    description: z.string().max(CV_FIELD_LIMITS.projectDescription).optional(),
+    technologies: z.array(z.string().max(CV_FIELD_LIMITS.technology)).max(CV_ARRAY_LIMITS.technologiesPerProject).optional(),
+    url: z.string().max(CV_FIELD_LIMITS.projectUrl).optional(),
+    year: z.string().max(CV_FIELD_LIMITS.projectYear).optional(),
+});
 
-interface CvCertificationInput {
-    name?: string;
-    issuer?: string;
-    year?: string;
-    url?: string;
-}
+const cvCertificationSchema = z.object({
+    name: z.string().max(CV_FIELD_LIMITS.certName).optional(),
+    issuer: z.string().max(CV_FIELD_LIMITS.issuer).optional(),
+    year: z.string().max(CV_FIELD_LIMITS.certYear).optional(),
+    url: z.string().max(CV_FIELD_LIMITS.certUrl).optional(),
+});
 
-interface CvLanguageInput {
-    language?: string;
-    level?: string;
-}
+const cvLanguageSchema = z.object({
+    language: z.string().max(CV_FIELD_LIMITS.language).optional(),
+    level: z.string().max(CV_FIELD_LIMITS.level).optional(),
+});
 
-interface CvPersonalInfoInput {
-    name?: string;
-    title?: string;
-    email?: string;
-    phone?: string;
-    location?: string;
-    orcid?: string;
-    linkedin?: string;
-    github?: string;
-    website?: string;
-    summary?: string;
-}
+const cvPersonalInfoSchema = z.object({
+    name: z.string().max(CV_FIELD_LIMITS.name).optional(),
+    title: z.string().max(CV_FIELD_LIMITS.title).optional(),
+    email: z.string().email().max(CV_FIELD_LIMITS.email).optional(),
+    phone: z.string().max(CV_FIELD_LIMITS.phone).optional(),
+    location: z.string().max(CV_FIELD_LIMITS.location).optional(),
+    orcid: z.string().max(CV_FIELD_LIMITS.orcid).optional().nullable(),
+    linkedin: z.string().max(CV_FIELD_LIMITS.linkedin).optional().nullable(),
+    github: z.string().max(CV_FIELD_LIMITS.github).optional().nullable(),
+    website: z.string().max(CV_FIELD_LIMITS.website).optional().nullable(),
+    summary: z.string().max(CV_FIELD_LIMITS.summary).optional().nullable(),
+});
 
-interface CvDataInput {
-    personalInfo?: CvPersonalInfoInput;
-    experience?: CvExperienceInput[];
-    education?: CvEducationInput[];
-    skills?: CvSkillInput[];
-    projects?: CvProjectInput[];
-    certifications?: CvCertificationInput[];
-    languages?: CvLanguageInput[];
-}
+const cvDataSchema = z.object({
+    personalInfo: cvPersonalInfoSchema,
+    experience: z.array(cvExperienceSchema).max(CV_ARRAY_LIMITS.experiences).optional(),
+    education: z.array(cvEducationSchema).max(CV_ARRAY_LIMITS.education).optional(),
+    skills: z.array(cvSkillSchema).max(CV_ARRAY_LIMITS.skillCategories).optional(),
+    projects: z.array(cvProjectSchema).max(CV_ARRAY_LIMITS.projects).optional(),
+    certifications: z.array(cvCertificationSchema).max(CV_ARRAY_LIMITS.certifications).optional(),
+    languages: z.array(cvLanguageSchema).max(CV_ARRAY_LIMITS.languages).optional(),
+});
+
+const createCvVersionSchema = z.object({
+    name: z.string().min(1).max(CV_FIELD_LIMITS.versionName),
+    data: cvDataSchema,
+    latexCode: z.string().max(50000).optional(),
+    isDefault: z.boolean().optional(),
+});
 
 // GET - List all CV versions for current user
 export async function GET() {
     try {
-        // DAL pattern: Verify session close to data access
         const session = await verifySessionForApi();
         devLog("[CV API] GET - Session user:", session?.user?.id);
 
@@ -100,8 +106,6 @@ export async function GET() {
             },
         });
 
-        devLog("[CV API] Found versions:", versions.length);
-
         return NextResponse.json(versions);
     } catch (error) {
         console.error("[CV API] List error:", error);
@@ -117,17 +121,14 @@ export async function POST(request: NextRequest) {
     try {
         devLog("[CV API] POST - Creating new CV version...");
 
-        // DAL pattern: Verify session close to data access
         const session = await verifySessionForApi();
         if (!session) {
-            devLog("[CV API] Unauthorized - no session");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const userId = session.user.id;
-        devLog("[CV API] User:", userId);
 
-        // Check version limit per user (prevent DoS)
+        // Check version limit per user
         const existingCount = await prisma.cvVersion.count({
             where: { userId },
         });
@@ -140,49 +141,20 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, data, latexCode, isDefault } = body as {
-            name?: string;
-            data?: CvDataInput;
-            latexCode?: string;
-            isDefault?: boolean;
-        };
 
-        devLog("[CV API] Received:", { name, hasData: !!data, isDefault });
-
-        // Validate & sanitize name
-        const sanitizedName = sanitizeCvField(name, CV_FIELD_LIMITS.versionName);
-        if (!sanitizedName) {
+        // Zod Validation
+        const validation = createCvVersionSchema.safeParse(body);
+        if (!validation.success) {
             return NextResponse.json(
-                { error: "Version name is required" },
+                { error: "Datos inválidos", details: validation.error.flatten() },
                 { status: 400 }
             );
         }
 
-        if (!data?.personalInfo) {
-            return NextResponse.json(
-                { error: "Personal info is required" },
-                { status: 400 }
-            );
-        }
+        const { name, data, latexCode, isDefault } = validation.data;
 
-        // Sanitize personal info
-        const pi = data.personalInfo;
-        const sanitizedPersonalInfo = {
-            fullName: sanitizeCvField(pi.name, CV_FIELD_LIMITS.name),
-            title: sanitizeCvField(pi.title, CV_FIELD_LIMITS.title),
-            email: sanitizeCvField(pi.email, CV_FIELD_LIMITS.email),
-            phone: sanitizeCvField(pi.phone, CV_FIELD_LIMITS.phone),
-            location: sanitizeCvField(pi.location, CV_FIELD_LIMITS.location),
-            orcid: sanitizeCvField(pi.orcid, CV_FIELD_LIMITS.orcid) || null,
-            linkedin: sanitizeCvField(pi.linkedin, CV_FIELD_LIMITS.linkedin) || null,
-            github: sanitizeCvField(pi.github, CV_FIELD_LIMITS.github) || null,
-            website: sanitizeCvField(pi.website, CV_FIELD_LIMITS.website) || null,
-            summary: sanitizeCvField(pi.summary, CV_FIELD_LIMITS.summary) || null,
-        };
-
-        // Create CV version with all related data in a transaction
-        const version = await prisma.$transaction(async (tx) => {
-            // If setting as default, unset others first
+        // Create CV version transaction
+        const version = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             if (isDefault) {
                 await tx.cvVersion.updateMany({
                     where: { userId, isDefault: true },
@@ -190,116 +162,97 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            // Create the main CV version
             const cv = await tx.cvVersion.create({
                 data: {
-                    name: sanitizedName,
-                    ...sanitizedPersonalInfo,
+                    name,
+                    ...data.personalInfo,
+                    // Destructure/Spread handled by Zod output, but explicit nulls need care if Zod output excludes them
+                    orcid: data.personalInfo.orcid || null,
+                    linkedin: data.personalInfo.linkedin || null,
+                    github: data.personalInfo.github || null,
+                    website: data.personalInfo.website || null,
+                    summary: data.personalInfo.summary || null,
                     isDefault: isDefault || false,
-                    latexCode: latexCode ? sanitizeCvField(latexCode, 50000) : null,
+                    latexCode: latexCode || null,
                     userId,
                 },
             });
 
-            // Create experiences (with limits and sanitization)
-            const experiences = (data.experience || []).slice(0, CV_ARRAY_LIMITS.experiences);
-            if (experiences.length > 0) {
+            if (data.experience && data.experience.length > 0) {
                 await tx.cvExperience.createMany({
-                    data: experiences.map((exp, idx) => ({
+                    data: data.experience.map((exp, idx) => ({
                         cvVersionId: cv.id,
-                        company: sanitizeCvField(exp.company, CV_FIELD_LIMITS.company),
-                        position: sanitizeCvField(exp.position, CV_FIELD_LIMITS.position),
-                        startDate: sanitizeCvField(exp.startDate, 20),
-                        endDate: sanitizeCvField(exp.endDate, 20) || null,
-                        isCurrent: Boolean(exp.current),
-                        description: sanitizeCvField(exp.description, CV_FIELD_LIMITS.description) || null,
-                        achievements: sanitizeCvStringArray(
-                            exp.achievements,
-                            CV_ARRAY_LIMITS.achievementsPerExperience,
-                            CV_FIELD_LIMITS.achievement
-                        ),
+                        company: exp.company,
+                        position: exp.position,
+                        current: exp.current,
+                        startDate: exp.startDate || "",
+                        endDate: exp.endDate || null,
+                        description: exp.description || null,
+                        achievements: exp.achievements || [],
                         sortOrder: idx,
                     })),
                 });
             }
 
-            // Create education (with limits and sanitization)
-            const education = (data.education || []).slice(0, CV_ARRAY_LIMITS.education);
-            if (education.length > 0) {
+            if (data.education && data.education.length > 0) {
                 await tx.cvEducation.createMany({
-                    data: education.map((edu, idx) => ({
+                    data: data.education.map((edu, idx) => ({
                         cvVersionId: cv.id,
-                        institution: sanitizeCvField(edu.institution, CV_FIELD_LIMITS.institution),
-                        degree: sanitizeCvField(edu.degree, CV_FIELD_LIMITS.degree),
-                        field: sanitizeCvField(edu.field, CV_FIELD_LIMITS.field) || null,
-                        startDate: sanitizeCvField(edu.startDate, 20),
-                        endDate: sanitizeCvField(edu.endDate, 20) || null,
-                        isCurrent: Boolean(edu.current),
+                        institution: edu.institution,
+                        degree: edu.degree,
+                        current: edu.current,
+                        field: edu.field || null,
+                        startDate: edu.startDate || "",
+                        endDate: edu.endDate || null,
                         sortOrder: idx,
                     })),
                 });
             }
 
-            // Create skills (with limits and sanitization)
-            const skills = (data.skills || []).slice(0, CV_ARRAY_LIMITS.skillCategories);
-            if (skills.length > 0) {
+            if (data.skills && data.skills.length > 0) {
                 await tx.cvSkillCategory.createMany({
-                    data: skills.map((skill, idx) => ({
+                    data: data.skills.map((skill, idx) => ({
                         cvVersionId: cv.id,
-                        category: sanitizeCvField(skill.category, CV_FIELD_LIMITS.category),
-                        items: sanitizeCvStringArray(
-                            skill.items,
-                            CV_ARRAY_LIMITS.skillsPerCategory,
-                            CV_FIELD_LIMITS.skill
-                        ),
+                        category: skill.category || "General",
+                        items: skill.items || [],
                         sortOrder: idx,
                     })),
                 });
             }
 
-            // Create projects (with limits and sanitization)
-            const projects = (data.projects || []).slice(0, CV_ARRAY_LIMITS.projects);
-            if (projects.length > 0) {
+            if (data.projects && data.projects.length > 0) {
                 await tx.cvProject.createMany({
-                    data: projects.map((proj, idx) => ({
+                    data: data.projects.map((proj, idx) => ({
                         cvVersionId: cv.id,
-                        name: sanitizeCvField(proj.name, CV_FIELD_LIMITS.projectName),
-                        description: sanitizeCvField(proj.description, CV_FIELD_LIMITS.projectDescription) || null,
-                        technologies: sanitizeCvStringArray(
-                            proj.technologies,
-                            CV_ARRAY_LIMITS.technologiesPerProject,
-                            CV_FIELD_LIMITS.technology
-                        ),
-                        url: sanitizeCvField(proj.url, CV_FIELD_LIMITS.projectUrl) || null,
-                        year: sanitizeCvField(proj.year, CV_FIELD_LIMITS.projectYear) || null,
+                        name: proj.name,
+                        technologies: proj.technologies || [],
+                        description: proj.description || null,
+                        url: proj.url || null,
+                        year: proj.year || null,
                         sortOrder: idx,
                     })),
                 });
             }
 
-            // Create certifications (with limits and sanitization)
-            const certifications = (data.certifications || []).slice(0, CV_ARRAY_LIMITS.certifications);
-            if (certifications.length > 0) {
+            if (data.certifications && data.certifications.length > 0) {
                 await tx.cvCertification.createMany({
-                    data: certifications.map((cert, idx) => ({
+                    data: data.certifications.map((cert, idx) => ({
                         cvVersionId: cv.id,
-                        name: sanitizeCvField(cert.name, CV_FIELD_LIMITS.certName),
-                        issuer: sanitizeCvField(cert.issuer, CV_FIELD_LIMITS.issuer) || null,
-                        year: sanitizeCvField(cert.year, CV_FIELD_LIMITS.certYear) || null,
-                        url: sanitizeCvField(cert.url, CV_FIELD_LIMITS.certUrl) || null,
+                        name: cert.name,
+                        issuer: cert.issuer || null,
+                        year: cert.year || null,
+                        url: cert.url || null,
                         sortOrder: idx,
                     })),
                 });
             }
 
-            // Create languages (with limits and sanitization)
-            const languages = (data.languages || []).slice(0, CV_ARRAY_LIMITS.languages);
-            if (languages.length > 0) {
+            if (data.languages && data.languages.length > 0) {
                 await tx.cvLanguage.createMany({
-                    data: languages.map((lang, idx) => ({
+                    data: data.languages.map((lang, idx) => ({
                         cvVersionId: cv.id,
-                        language: sanitizeCvField(lang.language, CV_FIELD_LIMITS.language),
-                        level: sanitizeCvField(lang.level, CV_FIELD_LIMITS.level),
+                        language: lang.language || "",
+                        level: lang.level || "",
                         sortOrder: idx,
                     })),
                 });
@@ -309,7 +262,6 @@ export async function POST(request: NextRequest) {
         });
 
         devLog("[CV API] Version created:", version.id);
-
         return NextResponse.json(version, { status: 201 });
     } catch (error) {
         console.error("[CV API] Create error:", error);

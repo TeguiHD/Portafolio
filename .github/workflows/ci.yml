@@ -33,6 +33,13 @@ jobs:
       working-directory: ./APP/NEXT_APP
       run: pnpm install --frozen-lockfile
 
+    - name: Security Audit
+      working-directory: ./APP/NEXT_APP
+      # Scan for vulnerabilities, fail only on critical/high? 
+      # pnpm audit returns non-zero if issues found.
+      # Using --audit-level=high to avoid breaking build on minor/moderate
+      run: pnpm audit --prod --audit-level=high
+
     - name: Lint
       working-directory: ./APP/NEXT_APP
       run: pnpm run lint
