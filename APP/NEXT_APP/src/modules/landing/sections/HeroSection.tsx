@@ -196,7 +196,7 @@ export function HeroSection() {
           >
             <Link href="#tools-belt">
               <Button
-                size="xl"
+                size="lg"
                 className="inline-flex flex-row items-center justify-center gap-2 rounded-full px-8 py-4 text-lg font-bold bg-white text-black hover:bg-gray-100 transition-all hover:scale-105 active:scale-95 animate-glow-pulse whitespace-nowrap"
               >
                 <Zap className="w-5 h-5 flex-shrink-0" />
@@ -206,7 +206,7 @@ export function HeroSection() {
             <Link href="#contact">
               <Button
                 variant="ghost"
-                size="xl"
+                size="lg"
                 className="rounded-full px-8 py-6 text-lg font-medium text-white hover:bg-white/5 border border-white/20 hover:border-white/40"
               >
                 Agendar Reunión

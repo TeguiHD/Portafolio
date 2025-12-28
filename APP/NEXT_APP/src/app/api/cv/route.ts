@@ -11,9 +11,9 @@ import { Prisma } from "@prisma/client";
 
 // Zod Schemas for Validation
 const cvExperienceSchema = z.object({
-    company: z.string().max(CV_FIELD_LIMITS.company).optional(),
-    position: z.string().max(CV_FIELD_LIMITS.position).optional(),
-    startDate: z.string().max(20).optional(),
+    company: z.string().max(CV_FIELD_LIMITS.company),
+    position: z.string().max(CV_FIELD_LIMITS.position),
+    startDate: z.string().max(20),
     endDate: z.string().max(20).optional().nullable(),
     current: z.boolean().optional(),
     description: z.string().max(CV_FIELD_LIMITS.description).optional(),
@@ -21,10 +21,10 @@ const cvExperienceSchema = z.object({
 });
 
 const cvEducationSchema = z.object({
-    institution: z.string().max(CV_FIELD_LIMITS.institution).optional(),
-    degree: z.string().max(CV_FIELD_LIMITS.degree).optional(),
+    institution: z.string().max(CV_FIELD_LIMITS.institution),
+    degree: z.string().max(CV_FIELD_LIMITS.degree),
     field: z.string().max(CV_FIELD_LIMITS.field).optional(),
-    startDate: z.string().max(20).optional(),
+    startDate: z.string().max(20),
     endDate: z.string().max(20).optional().nullable(),
     current: z.boolean().optional(),
 });
@@ -35,23 +35,23 @@ const cvSkillSchema = z.object({
 });
 
 const cvProjectSchema = z.object({
-    name: z.string().max(CV_FIELD_LIMITS.projectName).optional(),
+    name: z.string().max(CV_FIELD_LIMITS.projectName),
     description: z.string().max(CV_FIELD_LIMITS.projectDescription).optional(),
-    technologies: z.array(z.string().max(CV_FIELD_LIMITS.technology)).max(CV_ARRAY_LIMITS.technologiesPerProject).optional(),
+    technologies: z.array(z.string().max(CV_FIELD_LIMITS.technology)).max(CV_ARRAY_LIMITS.technologiesPerProject),
     url: z.string().max(CV_FIELD_LIMITS.projectUrl).optional(),
     year: z.string().max(CV_FIELD_LIMITS.projectYear).optional(),
 });
 
 const cvCertificationSchema = z.object({
-    name: z.string().max(CV_FIELD_LIMITS.certName).optional(),
+    name: z.string().max(CV_FIELD_LIMITS.certName),
     issuer: z.string().max(CV_FIELD_LIMITS.issuer).optional(),
     year: z.string().max(CV_FIELD_LIMITS.certYear).optional(),
     url: z.string().max(CV_FIELD_LIMITS.certUrl).optional(),
 });
 
 const cvLanguageSchema = z.object({
-    language: z.string().max(CV_FIELD_LIMITS.language).optional(),
-    level: z.string().max(CV_FIELD_LIMITS.level).optional(),
+    language: z.string().max(CV_FIELD_LIMITS.language),
+    level: z.string().max(CV_FIELD_LIMITS.level),
 });
 
 const cvPersonalInfoSchema = z.object({
@@ -184,11 +184,11 @@ export async function POST(request: NextRequest) {
                         cvVersionId: cv.id,
                         company: exp.company,
                         position: exp.position,
-                        current: exp.current,
-                        startDate: exp.startDate || "",
-                        endDate: exp.endDate || null,
-                        description: exp.description || null,
-                        achievements: exp.achievements || [],
+                        isCurrent: exp.current ?? false,
+                        startDate: exp.startDate,
+                        endDate: exp.endDate ?? null,
+                        description: exp.description ?? null,
+                        achievements: exp.achievements ?? [],
                         sortOrder: idx,
                     })),
                 });
@@ -200,10 +200,10 @@ export async function POST(request: NextRequest) {
                         cvVersionId: cv.id,
                         institution: edu.institution,
                         degree: edu.degree,
-                        current: edu.current,
-                        field: edu.field || null,
-                        startDate: edu.startDate || "",
-                        endDate: edu.endDate || null,
+                        isCurrent: edu.current ?? false,
+                        field: edu.field ?? null,
+                        startDate: edu.startDate,
+                        endDate: edu.endDate ?? null,
                         sortOrder: idx,
                     })),
                 });
@@ -225,10 +225,10 @@ export async function POST(request: NextRequest) {
                     data: data.projects.map((proj, idx) => ({
                         cvVersionId: cv.id,
                         name: proj.name,
-                        technologies: proj.technologies || [],
-                        description: proj.description || null,
-                        url: proj.url || null,
-                        year: proj.year || null,
+                        technologies: proj.technologies,
+                        description: proj.description ?? null,
+                        url: proj.url ?? null,
+                        year: proj.year ?? null,
                         sortOrder: idx,
                     })),
                 });
@@ -239,9 +239,9 @@ export async function POST(request: NextRequest) {
                     data: data.certifications.map((cert, idx) => ({
                         cvVersionId: cv.id,
                         name: cert.name,
-                        issuer: cert.issuer || null,
-                        year: cert.year || null,
-                        url: cert.url || null,
+                        issuer: cert.issuer ?? null,
+                        year: cert.year ?? null,
+                        url: cert.url ?? null,
                         sortOrder: idx,
                     })),
                 });
@@ -251,8 +251,8 @@ export async function POST(request: NextRequest) {
                 await tx.cvLanguage.createMany({
                     data: data.languages.map((lang, idx) => ({
                         cvVersionId: cv.id,
-                        language: lang.language || "",
-                        level: lang.level || "",
+                        language: lang.language,
+                        level: lang.level,
                         sortOrder: idx,
                     })),
                 });

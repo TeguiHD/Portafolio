@@ -43,7 +43,7 @@ export function ContactSection() {
                 className="w-full bg-[#0a0a0a] border border-white/5 rounded-2xl px-6 py-5 text-white focus:outline-none focus:border-white/20 transition-colors placeholder:text-gray-700 resize-none text-lg min-h-[160px]"
               />
             </div>
-            <Button size="xl" className="w-full bg-white text-black hover:bg-gray-100 font-bold py-6 rounded-2xl text-lg group relative overflow-hidden flex items-center justify-center">
+            <Button size="lg" className="w-full bg-white text-black hover:bg-gray-100 font-bold py-6 rounded-2xl text-lg group relative overflow-hidden flex items-center justify-center">
               <span className="relative z-10 mr-2">Iniciar Conversación</span>
               <ArrowUpRight className="w-5 h-5 relative z-10 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
               <div className="absolute inset-0 bg-white z-0" />
