@@ -92,9 +92,9 @@ export default function RandomPickerPage() {
 
         ctx.clearRect(0, 0, size, size);
 
-        // Draw slices
+        // Draw slices - NO rotation here, rotation is handled by CSS transform only
         names.forEach((name, i) => {
-            const startAngle = i * sliceAngle - Math.PI / 2 + (rotation * Math.PI) / 180;
+            const startAngle = i * sliceAngle - Math.PI / 2; // Start from top
             const endAngle = startAngle + sliceAngle;
 
             ctx.beginPath();
@@ -126,7 +126,7 @@ export default function RandomPickerPage() {
         ctx.strokeStyle = "#FF8A00";
         ctx.lineWidth = 3;
         ctx.stroke();
-    }, [names, colors, rotation]);
+    }, [names, colors]); // Remove rotation from dependency - slices are static
 
     // Spin the wheel
     const spinWheel = useCallback(() => {
@@ -141,20 +141,55 @@ export default function RandomPickerPage() {
         const sliceAngle = 360 / names.length;
 
         // Calculate target rotation (multiple full rotations + landing on winner)
-        const fullRotations = 5 + secureRandom(3); // 5-7 full rotations
-        const targetAngle = fullRotations * 360 + (360 - winningIndex * sliceAngle - sliceAngle / 2);
+        const fullRotations = 8 + secureRandom(5); // 8-12 full rotations for more suspense
 
-        let currentRotation = rotation;
+        // The pointer is at TOP (0° position)
+        // Slice 0 center starts at 0° (top), slice 1 at sliceAngle°, etc.
+        // To land slice N under the pointer at TOP:
+        // - We need to rotate the wheel so slice N's center reaches the top
+        // - Slice N center is at (N * sliceAngle) from initial position
+        // - Rotation is clockwise, so we rotate by -(N * sliceAngle) equivalent
+        // - In CSS positive = clockwise, so to move slice N to top we need:
+        //   rotation = 360 - (N * sliceAngle + offset) to land there
+
+        // SUSPENSE: Random offset within the slice (not always center)
+        // Range from 15% to 85% of slice to stay safely within bounds but add drama
+        const randomOffset = 0.15 + (secureRandom(70) / 100); // 0.15 to 0.85
+        const offsetInSlice = sliceAngle * randomOffset;
+        const targetSliceAngle = winningIndex * sliceAngle + offsetInSlice;
+
+        // Normalize current rotation to 0-360 range to avoid accumulated huge values
+        const normalizedStart = rotation % 360;
+
+        // Calculate final position (where the wheel should stop)
+        const finalPosition = 360 - targetSliceAngle;
+
+        // Total spin = full rotations + distance to final position
+        // This guarantees the wheel always spins a lot regardless of starting position
+        const totalSpin = fullRotations * 360 + finalPosition + (360 - normalizedStart);
+
         const startTime = Date.now();
-        const duration = 4000 + secureRandom(2000); // 4-6 seconds
+        const duration = 5000 + secureRandom(2000); // 5-7 seconds
 
         const animate = () => {
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
 
-            // Easing function (ease out cubic)
-            const easeOut = 1 - Math.pow(1 - progress, 3);
-            const newRotation = currentRotation + (targetAngle - currentRotation % 360) * easeOut;
+            // IMPROVED EASING: Guaranteed fast start
+            // Phase 1 (0-20%): Linear fast spin
+            // Phase 2 (20-100%): Exponential decay slowdown
+            let easeValue: number;
+            if (progress < 0.2) {
+                // Fast linear phase - constant high speed
+                easeValue = progress * 2.5; // Reaches 0.5 at 20% time
+            } else {
+                // Exponential decay phase for dramatic slowdown
+                const decayProgress = (progress - 0.2) / 0.8; // Normalize to 0-1
+                const decayValue = 1 - Math.exp(-4 * decayProgress);
+                easeValue = 0.5 + 0.5 * decayValue; // Continues from 0.5 to 1.0
+            }
+
+            const newRotation = normalizedStart + totalSpin * easeValue;
 
             setRotation(newRotation);
 
