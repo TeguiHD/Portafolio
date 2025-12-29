@@ -58,7 +58,7 @@ Plataforma **full-stack de nivel empresarial** diseñada como vitrina técnica y
 | **Landing** | Portafolio animado con GSAP, Framer Motion y efectos 3D interactivos |
 | **Panel Admin** | Dashboard con analíticas, gestión de usuarios, roles y auditoría completa |
 | **Finanzas** | Control financiero personal con OCR inteligente y categorización automática |
-| **Herramientas** | Suite de 6 utilidades públicas con métricas de uso integradas |
+| **Herramientas** | Suite de 10 utilidades públicas con métricas de uso integradas |
 | **Cotizaciones** | Sistema de presupuestos con asistente conversacional potenciado por IA |
 | **CV Builder** | Editor de currículum con sistema de versionado |
 
@@ -566,16 +566,41 @@ src/services/
 
 ## 🛠️ Suite de Herramientas
 
-Utilidades públicas accesibles sin autenticación con métricas de uso integradas:
+Utilidades públicas accesibles sin autenticación con métricas de uso integradas y seguridad cliente-side.
 
-| Herramienta | Ruta | Características |
-|-------------|------|-----------------|
-| **🔲 Generador QR** | `/tools/qr-generator` | 15+ tipos de datos, logos, estilos |
-| **🧠 Probador Regex** | `/tools/regex-tester` | Generación IA, resaltado, explicaciones |
-| **🔑 Generador Contraseñas** | `/tools/password-generator` | Entropía visual, múltiples criterios |
-| **📏 Conversor Unidades** | `/tools/unit-converter` | Longitud, peso, temperatura, datos |
-| **🖼️ Codificador Base64** | `/tools/image-base64` | Archivos e imágenes con preview |
-| **⚡ Arte ASCII** | `/tools/ascii-art` | Conversión de imágenes a texto |
+### Categorías
+
+| Categoría | Descripción |
+|-----------|-------------|
+| **🎨 Generación** | Herramientas que crean contenido nuevo |
+| **🔄 Conversión** | Herramientas que transforman datos |
+| **⚡ Productividad** | Herramientas de apoyo a flujos de trabajo |
+
+### Herramientas Disponibles (10)
+
+| Herramienta | Ruta | Categoría | Características |
+|-------------|------|-----------|----------------|
+| **🔲 Generador QR** | `/tools/qr-generator` | Generación | 15+ tipos de datos, logos, estilos |
+| **🔑 Generador Contraseñas** | `/tools/password-generator` | Generación | Entropía visual, múltiples criterios, crypto seguro |
+| **🔗 Generador de Links** | `/tools/link-generator` | Generación | WhatsApp, mailto, eventos calendario (.ics) |
+| **📏 Conversor Unidades** | `/tools/unit-converter` | Conversión | Longitud, peso, temperatura, datos |
+| **🖼️ Codificador Base64** | `/tools/image-base64` | Conversión | Archivos e imágenes con preview |
+| **💰 Calculadora IVA** | `/tools/tax-calculator` | Conversión | Agregar/quitar IVA, tasas multi-país |
+| **🔢 Traductor Binario** | `/tools/binary-translator` | Conversión | Texto ↔ binario (8-bit) |
+| **🧠 Probador Regex** | `/tools/regex-tester` | Productividad | Generación IA, resaltado, explicaciones |
+| **🎲 Sorteos y Ruleta** | `/tools/random-picker` | Productividad | Ruleta animada, grupos aleatorios, crypto random |
+| **⚡ Arte ASCII** | `/tools/ascii-art` | Productividad | Conversión de imágenes a texto |
+
+### Seguridad de Herramientas
+
+Todas las herramientas implementan:
+
+- ✅ **Sanitización XSS** — `sanitizeInput()` en todas las entradas
+- ✅ **Límites de longitud** — Prevención de DoS por input excesivo
+- ✅ **Validación de formato** — Teléfonos, emails, binario, etc.
+- ✅ **Throttle de tracking** — Máximo 1 request cada 2 segundos
+- ✅ **Cooldowns anti-spam** — 300-500ms entre acciones
+- ✅ **Procesamiento local** — Sin envío de datos al servidor
 
 ---
 

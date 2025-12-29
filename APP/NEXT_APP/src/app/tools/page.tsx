@@ -33,6 +33,7 @@ export default async function ToolsPage() {
     const { tools: dbTools, fromDb } = await getPublicTools();
 
     // Hardcoded tools with categories
+    // Categories: "generación" (create new content), "conversión" (transform data), "productividad" (workflow helpers)
     const hardcodedTools = [
         {
             id: "qr-generator",
@@ -40,7 +41,7 @@ export default async function ToolsPage() {
             name: "Generador de QR",
             description: "Crea códigos QR personalizados para cualquier URL o texto. Sin marcas de agua, descarga gratuita.",
             icon: "qr",
-            category: "utility",
+            category: "generación",
         },
         {
             id: "password-generator",
@@ -48,7 +49,7 @@ export default async function ToolsPage() {
             name: "Generador de Contraseñas",
             description: "Crea contraseñas seguras y aleatorias con longitud y caracteres personalizables.",
             icon: "lock",
-            category: "security",
+            category: "generación",
         },
         {
             id: "unit-converter",
@@ -56,7 +57,7 @@ export default async function ToolsPage() {
             name: "Conversor de Unidades",
             description: "Convierte entre diferentes unidades de medida: longitud, peso, temperatura, datos y más.",
             icon: "scale",
-            category: "utility",
+            category: "conversión",
         },
         {
             id: "regex-tester",
@@ -64,7 +65,7 @@ export default async function ToolsPage() {
             name: "Regex Tester",
             description: "Prueba y depura tus expresiones regulares en tiempo real con resaltado de coincidencias.",
             icon: "code",
-            category: "dev",
+            category: "productividad",
         },
         {
             id: "image-base64",
@@ -72,7 +73,39 @@ export default async function ToolsPage() {
             name: "Conversor Base64",
             description: "Convierte imágenes a Base64 y codifica/decodifica texto para uso en desarrollo web.",
             icon: "image",
-            category: "dev",
+            category: "conversión",
+        },
+        {
+            id: "link-generator",
+            slug: "link-generator",
+            name: "Generador de Links",
+            description: "Crea links para WhatsApp, correo y eventos de calendario fácilmente.",
+            icon: "link",
+            category: "generación",
+        },
+        {
+            id: "random-picker",
+            slug: "random-picker",
+            name: "Sorteos y Ruleta",
+            description: "Elige ganadores al azar con una ruleta animada o genera grupos aleatorios.",
+            icon: "dice",
+            category: "productividad",
+        },
+        {
+            id: "tax-calculator",
+            slug: "tax-calculator",
+            name: "Calculadora de IVA",
+            description: "Calcula el IVA: agrega o quita impuestos del monto, con tasas personalizables.",
+            icon: "calculator",
+            category: "conversión",
+        },
+        {
+            id: "binary-translator",
+            slug: "binary-translator",
+            name: "Traductor Binario",
+            description: "Convierte texto a código binario y viceversa. Perfecto para curiosos y aprendizaje.",
+            icon: "binary",
+            category: "conversión",
         },
     ];
 
@@ -86,7 +119,7 @@ export default async function ToolsPage() {
                     ...dbTool,
                     description: dbTool.description ?? "",
                     icon: dbTool.icon ?? "default",
-                    category: dbTool.category ?? "utility",
+                    category: dbTool.category ?? "generación",
                 });
             }
         });

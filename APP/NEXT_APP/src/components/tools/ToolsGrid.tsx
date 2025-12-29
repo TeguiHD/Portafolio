@@ -18,8 +18,8 @@ interface ToolsGridProps {
     tools: Tool[];
 }
 
-// Category order
-const CATEGORY_ORDER = ["utility", "security", "dev"];
+// Category order - NEW CATEGORIES
+const CATEGORY_ORDER = ["generación", "conversión", "productividad"];
 
 // Search Icon Component
 const SearchIcon = () => (
