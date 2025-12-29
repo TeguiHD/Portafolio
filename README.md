@@ -35,17 +35,17 @@
 
 ## 📋 Tabla de Contenidos
 
-1. [Descripción General](#-descripción-general)
-2. [Stack Tecnológico](#-stack-tecnológico)
-3. [Estructura del Proyecto](#-estructura-del-proyecto)
-4. [Arquitectura de Seguridad](#-arquitectura-de-seguridad)
-5. [Módulo de Finanzas](#-módulo-de-finanzas)
-6. [Integraciones de IA](#-integraciones-de-ia)
-7. [Suite de Herramientas](#-suite-de-herramientas)
-8. [Panel de Administración](#-panel-de-administración)
-9. [Inicio Rápido](#-inicio-rápido)
-10. [Configuración](#-configuración)
-11. [Despliegue](#-despliegue)
+- [Descripción General](#-descripción-general)
+- [Stack Tecnológico](#-stack-tecnológico)
+- [Estructura del Proyecto](#-estructura-del-proyecto)
+- [Arquitectura de Seguridad](#️-arquitectura-de-seguridad)
+- [Módulo de Finanzas](#-módulo-de-finanzas)
+- [Integraciones de IA](#-integraciones-de-ia)
+- [Suite de Herramientas](#️-suite-de-herramientas)
+- [Panel de Administración](#️-panel-de-administración)
+- [Inicio Rápido](#-inicio-rápido)
+- [Configuración](#-configuración)
+- [Despliegue](#-despliegue)
 
 ---
 
