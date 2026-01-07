@@ -28,8 +28,8 @@ export function ToolsFooter() {
 
                     {/* Links */}
                     <div className="flex items-center gap-6 text-xs text-neutral-500">
-                        {pathname !== '/tools' && (
-                            <Link href="/tools" className="hover:text-accent-1 transition-colors">
+                        {pathname !== '/herramientas' && (
+                            <Link href="/herramientas" className="hover:text-accent-1 transition-colors">
                                 Más herramientas
                             </Link>
                         )}

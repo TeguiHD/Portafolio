@@ -30,10 +30,10 @@ const dateRangeOptions: DateRangeOption[] = [
 const pathDisplayNames: Record<string, string> = {
     "/": "Inicio",
     "/tools": "Herramientas",
-    "/tools/qr-generator": "Generador QR",
+    "/tools/qr": "Generador QR",
     "/tools/base64-converter": "Convertidor Base64",
-    "/tools/unit-converter": "Convertidor Unidades",
-    "/tools/regex-tester": "Regex Tester",
+    "/tools/unidades": "Convertidor Unidades",
+    "/tools/regex": "Regex Tester",
     "/admin": "Dashboard Admin",
     "/admin/analytics": "Analytics",
     "/login": "Login",

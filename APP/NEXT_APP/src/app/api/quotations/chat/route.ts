@@ -1,18 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionForApi } from "@/lib/auth/dal";
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-// Google Gemini 2.0 Flash - Free, fast, and better reasoning
-const MODEL_NAME = "google/gemini-2.0-flash-exp:free";
-const IS_DEV = process.env.NODE_ENV !== 'production';
+// ============= AI PROVIDER CONFIGURATION =============
+// Primary: Groq (fast, free tier)
+// Fallback: OpenRouter (more models, paid)
 
-function getApiKey(): string {
-    const key = process.env.DEEPSEEK_OPENROUTER_API_KEY;
-    if (!key) {
-        throw new Error("DEEPSEEK_OPENROUTER_API_KEY not configured");
-    }
-    return key;
+interface AIProvider {
+    name: string;
+    url: string;
+    model: string;
+    getApiKey: () => string | null;
+    headers: (apiKey: string) => Record<string, string>;
 }
+
+const PROVIDERS: AIProvider[] = [
+    {
+        name: "Groq",
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        model: "llama-3.1-8b-instant",
+        getApiKey: () => process.env.GROQ_API_KEY || null,
+        headers: (apiKey) => ({
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+        }),
+    },
+    {
+        name: "OpenRouter",
+        url: "https://openrouter.ai/api/v1/chat/completions",
+        model: "google/gemini-2.0-flash-exp:free",
+        getApiKey: () => process.env.DEEPSEEK_OPENROUTER_API_KEY || null,
+        headers: (apiKey) => ({
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+            "HTTP-Referer": "https://nicoholas.dev",
+            "X-Title": "Quotation Chat",
+        }),
+    },
+];
+
+const IS_DEV = process.env.NODE_ENV !== 'production';
 
 // ===========================================
 // SECURITY: Input sanitization
@@ -323,8 +349,6 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        const apiKey = getApiKey();
-
         // Build detailed context from form data showing what's filled vs pending
         let contextInfo = "\n[ESTADO ACTUAL DEL FORMULARIO:";
         if (currentData) {
@@ -374,54 +398,72 @@ export async function POST(request: NextRequest) {
         // SECURITY: Only log in development
         if (IS_DEV) console.log('[QuotationChat] Sending request, messages:', apiMessages.length);
 
-        const response = await fetch(OPENROUTER_API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
-                "HTTP-Referer": "https://nicoholas.dev",
-                "X-Title": "Quotation Chat",
-            },
-            body: JSON.stringify({
-                model: MODEL_NAME,
-                messages: apiMessages,
-                max_tokens: 800,
-                temperature: 0.7,
-            }),
-        });
+        // Try each provider with fallback
+        let response: Response | null = null;
+        let responseData: Record<string, unknown> | null = null;
+        let usedProvider: AIProvider | null = null;
 
-        let responseData;
-        try {
-            responseData = await response.json();
-        } catch {
-            console.error('[QuotationChat] Failed to parse response');
+        for (const provider of PROVIDERS) {
+            const apiKey = provider.getApiKey();
+            if (!apiKey) {
+                if (IS_DEV) console.log(`[QuotationChat] Skipping ${provider.name}: no API key`);
+                continue;
+            }
+
+            try {
+                if (IS_DEV) console.log(`[QuotationChat] Trying ${provider.name}...`);
+
+                response = await fetch(provider.url, {
+                    method: "POST",
+                    headers: provider.headers(apiKey),
+                    body: JSON.stringify({
+                        model: provider.model,
+                        messages: apiMessages,
+                        max_tokens: 800,
+                        temperature: 0.7,
+                    }),
+                });
+
+                responseData = await response.json() as Record<string, unknown>;
+
+                // Check if response is valid
+                const choices = responseData.choices as Array<{ message?: { content?: string } }> | undefined;
+                if (response.ok && choices?.[0]?.message?.content) {
+                    usedProvider = provider;
+                    if (IS_DEV) console.log(`[QuotationChat] Success with ${provider.name}`);
+                    break;
+                }
+
+                // Provider returned error, try next
+                const error = responseData.error as { message?: string } | undefined;
+                if (IS_DEV) console.log(`[QuotationChat] ${provider.name} failed:`, error?.message || 'Unknown error');
+
+            } catch (err) {
+                if (IS_DEV) console.log(`[QuotationChat] ${provider.name} error:`, err);
+            }
+        }
+
+        if (!responseData || !usedProvider) {
             return NextResponse.json({
-                message: "Error: No se pudo parsear la respuesta del servidor de IA.",
+                message: "Error: No se pudo conectar con ningún proveedor de IA. Intenta de nuevo.",
                 actions: [],
             });
         }
 
         // SECURITY: Never log full API responses in production
-        if (IS_DEV) console.log('[QuotationChat] Status:', response.status);
+        if (IS_DEV) console.log('[QuotationChat] Final provider:', usedProvider.name);
 
-        // Check for errors in various places OpenRouter might return them
-        const apiError = responseData.error?.message
-            || responseData.error?.code
-            || responseData.message
-            || (responseData.choices?.[0]?.message?.content === "" ? "Respuesta vacía del modelo" : null);
+        // Extract content from response
+        const choices = responseData.choices as Array<{ message?: { content?: string } }> | undefined;
+        const content = choices?.[0]?.message?.content;
 
-        if (!response.ok || apiError) {
-            console.error('[QuotationChat] API Error');
-            return NextResponse.json({
-                message: `⚠️ ${apiError || "Error desconocido de la API"}. Intenta de nuevo.`,
-                actions: [],
-            });
+        // DEBUG: Log raw response
+        if (IS_DEV) {
+            console.log('[QuotationChat] Raw content:', JSON.stringify(content).slice(0, 500));
         }
 
-        const content = responseData.choices?.[0]?.message?.content;
-
         if (!content) {
-            console.error('[QuotationChat] No content in response');
+            console.error('[QuotationChat] No content in response:', JSON.stringify(responseData));
             return NextResponse.json({
                 message: "El modelo no generó una respuesta. ¿Puedes reformular tu pregunta?",
                 actions: []

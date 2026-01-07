@@ -35,7 +35,7 @@ export const verifySession = cache(async (): Promise<Session> => {
     const session = await auth()
 
     if (!session?.user) {
-        redirect('/login')
+        redirect('/acceso')
     }
 
     // Retornar solo datos seguros (DTO)
@@ -94,7 +94,7 @@ export const verifySuperAdmin = cache(async (): Promise<Session> => {
     const session = await verifySession()
 
     if (session.user.role !== 'SUPERADMIN') {
-        redirect('/login')
+        redirect('/acceso')
     }
 
     return session

@@ -17,6 +17,22 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const lastScrollY = useRef(0);
   const [bodyRef, setBodyRef] = useState<HTMLElement | null>(null);
+  const suppressHideRef = useRef(false);
+  const suppressHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const suppressHideFor = (ms = 1200) => {
+    suppressHideRef.current = true;
+    setHidden(false);
+
+    if (suppressHideTimeoutRef.current) {
+      clearTimeout(suppressHideTimeoutRef.current);
+    }
+
+    suppressHideTimeoutRef.current = setTimeout(() => {
+      suppressHideRef.current = false;
+      suppressHideTimeoutRef.current = null;
+    }, ms);
+  };
 
   // Get body reference on mount (Lenis scrolls the body)
   useEffect(() => {
@@ -29,6 +45,13 @@ export function Navbar() {
   });
 
   useMotionValueEvent(scrollY, "change", (latest) => {
+    if (suppressHideRef.current) {
+      // Keep navbar visible during programmatic navigation (e.g., clicking navbar anchors)
+      if (hidden) setHidden(false);
+      lastScrollY.current = latest;
+      return;
+    }
+
     // Hide if scrolling down AND past threshold (100px)
     // Show if scrolling up
     if (latest > lastScrollY.current && latest > 100) {
@@ -38,6 +61,14 @@ export function Navbar() {
     }
     lastScrollY.current = latest;
   });
+
+  useEffect(() => {
+    return () => {
+      if (suppressHideTimeoutRef.current) {
+        clearTimeout(suppressHideTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Mobile menu variants
   const menuVariants = {
@@ -88,6 +119,7 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href as any}
+                onClick={() => suppressHideFor()}
                 className="relative px-3.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-white/5"
               >
                 {item.label}
@@ -98,6 +130,7 @@ export function Navbar() {
           {/* CTA */}
           <Link
             href="/#contact"
+            onClick={() => suppressHideFor()}
             className="hidden md:flex items-center justify-center px-4 py-1.5 ml-1 text-xs font-bold text-black bg-white rounded-full hover:bg-gray-200 transition-colors"
           >
             Contactar
@@ -109,9 +142,29 @@ export function Navbar() {
             className="md:hidden w-8 h-8 flex flex-col justify-center items-center gap-1.5 ml-auto bg-white/5 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Menu"
           >
-            <motion.div animate={{ rotate: open ? 45 : 0, y: open ? 6 : 0 }} className="w-4 h-0.5 bg-white rounded-full origin-center" />
-            <motion.div animate={{ opacity: open ? 0 : 1 }} className="w-4 h-0.5 bg-white rounded-full" />
-            <motion.div animate={{ rotate: open ? -45 : 0, y: open ? -6 : 0 }} className="w-4 h-0.5 bg-white rounded-full origin-center" />
+            <div className="relative w-4 h-4">
+              <motion.span
+                aria-hidden="true"
+                className="absolute left-0 top-1/2 w-4 h-0.5 bg-white rounded-full"
+                style={{ transformOrigin: "center" }}
+                animate={{ rotate: open ? 45 : 0, y: open ? 0 : -5 }}
+                transition={{ duration: 0.18 }}
+              />
+              <motion.span
+                aria-hidden="true"
+                className="absolute left-0 top-1/2 w-4 h-0.5 bg-white rounded-full"
+                style={{ transformOrigin: "center" }}
+                animate={{ opacity: open ? 0 : 1, y: 0 }}
+                transition={{ duration: 0.12 }}
+              />
+              <motion.span
+                aria-hidden="true"
+                className="absolute left-0 top-1/2 w-4 h-0.5 bg-white rounded-full"
+                style={{ transformOrigin: "center" }}
+                animate={{ rotate: open ? -45 : 0, y: open ? 0 : 5 }}
+                transition={{ duration: 0.18 }}
+              />
+            </div>
           </button>
         </div>
       </header>
@@ -131,7 +184,10 @@ export function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href as any}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    suppressHideFor();
+                    setOpen(false);
+                  }}
                   className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-white/5 transition-colors group"
                 >
                   <span className="text-sm font-medium text-zinc-400 group-hover:text-white transition-colors">{item.label}</span>
@@ -141,7 +197,10 @@ export function Navbar() {
               <div className="h-px bg-white/5 my-1 mx-2" />
               <Link
                 href="/#contact"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  suppressHideFor();
+                  setOpen(false);
+                }}
                 className="flex items-center justify-center px-4 py-3 rounded-2xl bg-white text-black font-bold text-sm hover:bg-gray-200 transition-colors"
               >
                 Agendar Reunión

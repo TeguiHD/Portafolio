@@ -232,7 +232,7 @@ export default function ToolsGrid({ tools }: ToolsGridProps) {
                                         return (
                                             <Link
                                                 key={tool.id}
-                                                href={`/tools/${tool.slug}` as never}
+                                                href={`/herramientas/${tool.slug}` as never}
                                                 className={`group relative flex flex-col items-center text-center p-4 sm:p-5 sm:items-start sm:text-left rounded-2xl border ${config.borderColor} bg-white/[0.02] sm:bg-gradient-to-br ${config.bgColor} backdrop-blur-sm active:scale-[0.98] sm:active:scale-100 sm:hover:bg-white/10 transition-all duration-200 sm:hover:scale-[1.02] sm:hover:shadow-lg animate-slideUp`}
                                                 style={{
                                                     animationDelay: `${index * 50}ms`,

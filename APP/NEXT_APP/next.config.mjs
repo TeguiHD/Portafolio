@@ -89,6 +89,32 @@ const nextConfig = {
       },
     ];
   },
+
+  // 301 Redirects for old URLs (SEO + backward compatibility)
+  async redirects() {
+    return [
+      // Main tools section
+      { source: '/tools', destination: '/herramientas', permanent: true },
+      { source: '/tools/:slug*', destination: '/herramientas/:slug*', permanent: true },
+      // Old tool slugs to new Spanish slugs
+      { source: '/herramientas/qr-generator', destination: '/herramientas/qr', permanent: true },
+      { source: '/herramientas/password-generator', destination: '/herramientas/claves', permanent: true },
+      { source: '/herramientas/unit-converter', destination: '/herramientas/unidades', permanent: true },
+      { source: '/herramientas/regex-tester', destination: '/herramientas/regex', permanent: true },
+      { source: '/herramientas/ascii-art', destination: '/herramientas/ascii', permanent: true },
+      { source: '/herramientas/image-base64', destination: '/herramientas/base64', permanent: true },
+      { source: '/herramientas/binary-translator', destination: '/herramientas/binario', permanent: true },
+      { source: '/herramientas/link-generator', destination: '/herramientas/enlaces', permanent: true },
+      { source: '/herramientas/random-picker', destination: '/herramientas/aleatorio', permanent: true },
+      { source: '/herramientas/tax-calculator', destination: '/herramientas/impuestos', permanent: true },
+      // Auth pages
+      { source: '/login', destination: '/acceso', permanent: true },
+      // Legal pages
+      { source: '/privacy', destination: '/privacidad', permanent: true },
+      { source: '/terms', destination: '/terminos', permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
+

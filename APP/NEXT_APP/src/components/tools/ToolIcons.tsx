@@ -142,16 +142,16 @@ export const ProductividadIcon: FC<IconProps> = (props) => (
 
 // Tool icon mapping by slug
 export const TOOL_ICONS: Record<string, FC<IconProps>> = {
-    "qr-generator": QRIcon,
-    "password-generator": PasswordIcon,
-    "unit-converter": ScaleIcon,
-    "regex-tester": RegexIcon,
-    "image-base64": ImageCodeIcon,
-    "ascii-art": AsciiArtIcon,
-    "link-generator": LinkIcon,
-    "random-picker": DiceIcon,
-    "tax-calculator": CalculatorIcon,
-    "binary-translator": BinaryIcon,
+    "qr": QRIcon,
+    "claves": PasswordIcon,
+    "unidades": ScaleIcon,
+    "regex": RegexIcon,
+    "base64": ImageCodeIcon,
+    "ascii": AsciiArtIcon,
+    "enlaces": LinkIcon,
+    "aleatorio": DiceIcon,
+    "impuestos": CalculatorIcon,
+    "binario": BinaryIcon,
 };
 
 // Category icon mapping - NEW CATEGORIES

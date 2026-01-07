@@ -99,11 +99,11 @@ function getInternalPath(url: string): string {
 // Path to friendly name mapping for internal navigation
 const internalPathNames: Record<string, string> = {
     "/": "Inicio",
-    "/tools": "Herramientas",
-    "/tools/qr-generator": "Generador QR",
-    "/tools/base64-converter": "Base64",
-    "/tools/unit-converter": "Unidades",
-    "/tools/regex-tester": "Regex",
+    "/herramientas": "Herramientas",
+    "/herramientas/qr": "Generador QR",
+    "/herramientas/base64-converter": "Base64",
+    "/herramientas/unidades": "Unidades",
+    "/herramientas/regex": "Regex",
     "/admin": "Dashboard",
     "/login": "Login",
 };
@@ -113,8 +113,8 @@ function getInternalDisplayName(url: string): string {
     // Check exact match
     if (internalPathNames[path]) return `Desde: ${internalPathNames[path]}`;
     // Check prefix matches
-    if (path.startsWith("/tools/")) {
-        const toolName = path.replace("/tools/", "").replace(/-/g, " ");
+    if (path.startsWith("/herramientas/")) {
+        const toolName = path.replace("/herramientas/", "").replace(/-/g, " ");
         return `Desde: ${toolName.charAt(0).toUpperCase() + toolName.slice(1)}`;
     }
     if (path.startsWith("/admin/")) {

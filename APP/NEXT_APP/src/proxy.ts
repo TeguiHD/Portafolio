@@ -415,8 +415,14 @@ export async function proxy(request: NextRequest) {
         let window = 60000
 
         if (pathname.startsWith('/api/auth')) {
-            limit = 5       // 5 requests per minute for auth
-            window = 60000
+            // Allow more requests for logout/session operations
+            if (pathname.includes('/signout') || pathname.includes('/csrf') || pathname.includes('/session')) {
+                limit = 30      // 30 requests per minute for logout/session
+                window = 60000
+            } else {
+                limit = 10      // 10 requests per minute for login attempts
+                window = 60000
+            }
         } else if (pathname.startsWith('/api/finance/ocr')) {
             limit = 10      // 10 OCR requests per minute
             window = 60000

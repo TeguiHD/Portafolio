@@ -15,7 +15,7 @@ const tools = [
         desc: "Valida expresiones con IA.",
         icon: Terminal,
         gradient: "from-blue-500 to-indigo-600",
-        href: "/tools/regex-tester",
+        href: "/herramientas/regex",
     },
     {
         id: "qr",
@@ -23,7 +23,7 @@ const tools = [
         desc: "Personalizable y rápido.",
         icon: QrCode,
         gradient: "from-emerald-500 to-green-600",
-        href: "/tools/qr-generator",
+        href: "/herramientas/qr",
     },
     {
         id: "units",
@@ -31,7 +31,7 @@ const tools = [
         desc: "Unidades técnicas.",
         icon: ArrowLeftRight,
         gradient: "from-orange-500 to-red-600",
-        href: "/tools/unit-converter",
+        href: "/herramientas/unidades",
     },
     {
         id: "pass",
@@ -39,7 +39,7 @@ const tools = [
         desc: "Generador seguro.",
         icon: Lock,
         gradient: "from-purple-500 to-fuchsia-600",
-        href: "/tools/password-generator",
+        href: "/herramientas/claves",
     },
     {
         id: "ascii",
@@ -47,7 +47,7 @@ const tools = [
         desc: "Imagen a texto.",
         icon: ImageIcon,
         gradient: "from-pink-500 to-rose-600",
-        href: "/tools/ascii-art",
+        href: "/herramientas/ascii",
     },
     {
         id: "base64",
@@ -55,7 +55,7 @@ const tools = [
         desc: "Codificador dev.",
         icon: FileCode,
         gradient: "from-cyan-500 to-blue-600",
-        href: "/tools/image-base64",
+        href: "/herramientas/base64",
     }
 ];
 
@@ -73,7 +73,7 @@ export function ToolsBeltSection() {
                             Utilidades de producción. Sin registros, sin ruido.
                         </p>
                     </div>
-                    <Link href="/tools" className="hidden md:flex items-center gap-2 text-white border-b border-white/20 pb-1 hover:border-white transition-all">
+                    <Link href="/herramientas" className="hidden md:flex items-center gap-2 text-white border-b border-white/20 pb-1 hover:border-white transition-all">
                         Ver Arsenal Completo <ArrowUpRight className="w-4 h-4" />
                     </Link>
                 </div>
@@ -117,7 +117,7 @@ export function ToolsBeltSection() {
 
                 {/* Mobile Link */}
                 <div className="mt-12 text-center md:hidden">
-                    <Link href={"/tools" as any} className="inline-block text-sm font-medium text-white border border-white/20 px-6 py-3 rounded-full hover:bg-white hover:text-black transition-colors">
+                    <Link href={"/herramientas" as any} className="inline-block text-sm font-medium text-white border border-white/20 px-6 py-3 rounded-full hover:bg-white hover:text-black transition-colors">
                         Explorar todas las herramientas
                     </Link>
                 </div>

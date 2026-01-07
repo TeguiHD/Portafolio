@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // List of all tools that should exist in the database
 const ALL_TOOLS = [
     {
-        slug: "qr-generator",
+        slug: "qr",
         name: "Generador de QR",
         description: "Crea códigos QR personalizados para cualquier URL o texto. Sin marcas de agua, descarga gratuita.",
         icon: "qr",
@@ -15,7 +15,7 @@ const ALL_TOOLS = [
         sortOrder: 1
     },
     {
-        slug: "password-generator",
+        slug: "claves",
         name: "Generador de Contraseñas",
         description: "Crea contraseñas seguras y aleatorias con longitud y caracteres personalizables.",
         icon: "lock",
@@ -25,7 +25,7 @@ const ALL_TOOLS = [
         sortOrder: 2
     },
     {
-        slug: "unit-converter",
+        slug: "unidades",
         name: "Conversor de Unidades",
         description: "Convierte entre diferentes unidades de medida: longitud, peso, temperatura, datos y más.",
         icon: "scale",
@@ -35,7 +35,7 @@ const ALL_TOOLS = [
         sortOrder: 3
     },
     {
-        slug: "regex-tester",
+        slug: "regex",
         name: "Regex Tester",
         description: "Prueba y depura tus expresiones regulares en tiempo real con resaltado de coincidencias.",
         icon: "code",
@@ -45,7 +45,7 @@ const ALL_TOOLS = [
         sortOrder: 4
     },
     {
-        slug: "image-base64",
+        slug: "base64",
         name: "Conversor Base64",
         description: "Convierte imágenes a Base64 y codifica/decodifica texto para uso en desarrollo web.",
         icon: "image",

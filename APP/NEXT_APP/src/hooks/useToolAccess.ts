@@ -12,17 +12,17 @@ export function useToolAccess(slug: string) {
         const checkAccess = async () => {
             try {
                 const res = await fetch(`/api/tools/public/${slug}`);
-                
+
                 if (res.status === 401) {
                     // Unauthorized (Private tool, not logged in)
-                    const currentPath = `/tools/${slug}`;
-                    router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+                    const currentPath = `/herramientas/${slug}`;
+                    router.push(`/acceso?redirect=${encodeURIComponent(currentPath)}`);
                     return;
                 }
 
                 if (res.status === 410) {
                     // Gone (Disabled tool)
-                    router.push("/tools");
+                    router.push("/herramientas");
                     return;
                 }
 
@@ -34,7 +34,7 @@ export function useToolAccess(slug: string) {
                 // On error, we might want to allow access or block it. 
                 // For now, let's allow it to avoid blocking users on network glitches,
                 // but in a strict environment we might block.
-                setIsAuthorized(true); 
+                setIsAuthorized(true);
             } finally {
                 setIsLoading(false);
             }

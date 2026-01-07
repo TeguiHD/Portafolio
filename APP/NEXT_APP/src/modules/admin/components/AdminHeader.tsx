@@ -25,7 +25,7 @@ const routeNames: Record<string, string> = {
     "/admin/quotations/new": "Nueva Cotización",
     "/admin/cv-editor": "Editor CV",
     "/admin/users": "Usuarios",
-    "/admin/tools": "Herramientas",
+    "/admin/herramientas": "Herramientas",
 };
 
 function getBreadcrumbs(pathname: string): { name: string; href: string }[] {

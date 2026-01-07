@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
 
             // Log examples generation
             try {
-                const tool = await prisma.tool.findUnique({ where: { slug: "regex-tester" } });
+                const tool = await prisma.tool.findUnique({ where: { slug: "regex" } });
                 if (tool) {
                     await prisma.toolUsage.create({
                         data: {
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
 
             // Log code generation
             try {
-                const tool = await prisma.tool.findUnique({ where: { slug: "regex-tester" } });
+                const tool = await prisma.tool.findUnique({ where: { slug: "regex" } });
                 if (tool) {
                     await prisma.toolUsage.create({
                         data: {
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
 
         // Log to ToolUsage for metrics
         try {
-            const tool = await prisma.tool.findUnique({ where: { slug: "regex-tester" } });
+            const tool = await prisma.tool.findUnique({ where: { slug: "regex" } });
             if (tool) {
                 await prisma.toolUsage.create({
                     data: {

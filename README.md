@@ -142,7 +142,7 @@ Portafolio/
 │       │   │   │       └── 📁 new/       # Nueva transacción
 │       │   │   ├── 📁 notifications/     # Centro de notificaciones
 │       │   │   ├── 📁 quotations/        # Sistema de cotizaciones
-│       │   │   ├── 📁 tools/             # Gestión de herramientas
+│       │   │   ├── 📁 herramientas/      # Gestión de herramientas
 │       │   │   └── 📁 users/             # Gestión de usuarios
 │       │   │
 │       │   ├── 📁 api/              # Endpoints de API
@@ -176,17 +176,21 @@ Portafolio/
 │       │   │   └── 📁 tools/        # APIs de herramientas
 │       │   │
 │       │   ├── 📁 blog/             # Sistema de blog
-│       │   ├── 📁 login/            # Página de autenticación
-│       │   ├── 📁 tools/            # Herramientas públicas
-│       │   │   ├── ascii-art/       # Conversor ASCII
-│       │   │   ├── image-base64/    # Codificador Base64
-│       │   │   ├── password-generator/  # Generador contraseñas
-│       │   │   ├── qr-generator/    # Generador QR
-│       │   │   ├── regex-tester/    # Probador Regex
-│       │   │   └── unit-converter/  # Conversor unidades
+│       │   ├── 📁 acceso/           # Página de autenticación
+│       │   ├── 📁 herramientas/     # Herramientas públicas (URLs en español)
+│       │   │   ├── aleatorio/       # Sorteos y ruleta
+│       │   │   ├── ascii/           # Conversor ASCII
+│       │   │   ├── base64/          # Codificador Base64
+│       │   │   ├── binario/         # Traductor binario
+│       │   │   ├── claves/          # Generador contraseñas
+│       │   │   ├── enlaces/         # Generador de links
+│       │   │   ├── impuestos/       # Calculadora IVA
+│       │   │   ├── qr/              # Generador QR
+│       │   │   ├── regex/           # Probador Regex
+│       │   │   └── unidades/        # Conversor unidades
 │       │   │
-│       │   ├── 📁 privacy/          # Política de privacidad
-│       │   ├── 📁 terms/            # Términos de servicio
+│       │   ├── 📁 privacidad/       # Política de privacidad
+│       │   ├── 📁 terminos/         # Términos de servicio
 │       │   ├── 📁 forbidden/        # Página 403
 │       │   ├── layout.tsx           # Layout principal
 │       │   ├── page.tsx             # Landing page
@@ -297,7 +301,9 @@ Portafolio/
 
 ### Auditoría y Estado
 > [!NOTE]
-> **Auditoría de Seguridad (Dic 2025):** Proyecto auditado y endurecido.
+> **Auditoría de Seguridad (Ene 2026):** Proyecto auditado y endurecido.
+> - ✅ Migración completa de URLs a español (SEO mejorado).
+> - ✅ Redirects 301 configurados para compatibilidad.
 > - ✅ Puerto 3000 cerrado (Solo acceso vía Nginx).
 > - ✅ Middleware centralizado de protección.
 > - ✅ Protección contra DoS y Memory Exhaustion.
@@ -580,16 +586,16 @@ Utilidades públicas accesibles sin autenticación con métricas de uso integrad
 
 | Herramienta | Ruta | Categoría | Características |
 |-------------|------|-----------|----------------|
-| **🔲 Generador QR** | `/tools/qr-generator` | Generación | 15+ tipos de datos, logos, estilos |
-| **🔑 Generador Contraseñas** | `/tools/password-generator` | Generación | Entropía visual, múltiples criterios, crypto seguro |
-| **🔗 Generador de Links** | `/tools/link-generator` | Generación | WhatsApp, mailto, eventos calendario (.ics) |
-| **📏 Conversor Unidades** | `/tools/unit-converter` | Conversión | Longitud, peso, temperatura, datos |
-| **🖼️ Codificador Base64** | `/tools/image-base64` | Conversión | Archivos e imágenes con preview |
-| **💰 Calculadora IVA** | `/tools/tax-calculator` | Conversión | Agregar/quitar IVA, tasas multi-país |
-| **🔢 Traductor Binario** | `/tools/binary-translator` | Conversión | Texto ↔ binario (8-bit) |
-| **🧠 Probador Regex** | `/tools/regex-tester` | Productividad | Generación IA, resaltado, explicaciones |
-| **🎲 Sorteos y Ruleta** | `/tools/random-picker` | Productividad | Ruleta animada, grupos aleatorios, crypto random |
-| **⚡ Arte ASCII** | `/tools/ascii-art` | Productividad | Conversión de imágenes a texto |
+| **🔲 Generador QR** | `/herramientas/qr` | Generación | 15+ tipos de datos, logos, estilos |
+| **🔑 Generador Contraseñas** | `/herramientas/claves` | Generación | Entropía visual, múltiples criterios, crypto seguro |
+| **🔗 Generador de Links** | `/herramientas/enlaces` | Generación | WhatsApp, mailto, eventos calendario (.ics) |
+| **📏 Conversor Unidades** | `/herramientas/unidades` | Conversión | Longitud, peso, temperatura, datos |
+| **🖼️ Codificador Base64** | `/herramientas/base64` | Conversión | Archivos e imágenes con preview |
+| **💰 Calculadora IVA** | `/herramientas/impuestos` | Conversión | Agregar/quitar IVA, tasas multi-país |
+| **🔢 Traductor Binario** | `/herramientas/binario` | Conversión | Texto ↔ binario (8-bit) |
+| **🧠 Probador Regex** | `/herramientas/regex` | Productividad | Generación IA, resaltado, explicaciones |
+| **🎲 Sorteos y Ruleta** | `/herramientas/aleatorio` | Productividad | Ruleta animada, grupos aleatorios, crypto random |
+| **⚡ Arte ASCII** | `/herramientas/ascii` | Productividad | Conversión de imágenes a texto |
 
 ### Seguridad de Herramientas
 

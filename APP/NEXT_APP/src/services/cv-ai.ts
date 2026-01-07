@@ -1,19 +1,42 @@
 /**
  * AI Service for CV Enhancement
- * Uses OpenRouter API to generate CV content suggestions
+ * Uses Groq API (primary) with OpenRouter fallback
  * SECURITY: Implements prompt injection prevention & jailbreak detection
  */
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL_NAME = "mistralai/mistral-small-24b-instruct-2501";
-
-function getApiKey(): string {
-    const key = process.env.DEEPSEEK_OPENROUTER_API_KEY;
-    if (!key) {
-        throw new Error("DEEPSEEK_OPENROUTER_API_KEY not configured");
-    }
-    return key;
+// ============= AI PROVIDER CONFIGURATION =============
+interface AIProvider {
+    name: string;
+    url: string;
+    model: string;
+    getApiKey: () => string | null;
+    headers: (apiKey: string) => Record<string, string>;
 }
+
+const PROVIDERS: AIProvider[] = [
+    {
+        name: "Groq",
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        model: "llama-3.1-8b-instant",
+        getApiKey: () => process.env.GROQ_API_KEY || null,
+        headers: (apiKey) => ({
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+        }),
+    },
+    {
+        name: "OpenRouter",
+        url: "https://openrouter.ai/api/v1/chat/completions",
+        model: "google/gemini-2.0-flash-exp:free",
+        getApiKey: () => process.env.DEEPSEEK_OPENROUTER_API_KEY || null,
+        headers: (apiKey) => ({
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+            "HTTP-Referer": "https://nicoholas.dev",
+            "X-Title": "CV Editor Assistant",
+        }),
+    },
+];
 
 // ===========================================
 // SECURITY: Jailbreak & prompt injection patterns
@@ -275,7 +298,6 @@ export async function generateCvSuggestion(
     const startTime = Date.now();
 
     try {
-        const apiKey = getApiKey();
         const userMessage = sanitizeInput(input.userMessage);
 
         // Build context
@@ -305,42 +327,49 @@ export async function generateCvSuggestion(
         // Add current message with context
         messages.push({ role: "user", content: userMessage + contextInfo });
 
-        const response = await fetch(OPENROUTER_API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`,
-                "HTTP-Referer": "https://nicoholas.dev",
-                "X-Title": "CV Editor Assistant",
-            },
-            body: JSON.stringify({
-                model: MODEL_NAME,
-                messages,
-                max_tokens: 1000,
-                temperature: 0.7,
-            }),
-        });
+        // Try each provider with fallback
+        let content: string | null = null;
+        let usedProvider: string | null = null;
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error("OpenRouter API error:", errorText);
-            return {
-                success: false,
-                error: "Error al conectar con el servicio de IA",
-                latencyMs: Date.now() - startTime,
-            };
+        for (const provider of PROVIDERS) {
+            const apiKey = provider.getApiKey();
+            if (!apiKey) continue;
+
+            try {
+                const response = await fetch(provider.url, {
+                    method: "POST",
+                    headers: provider.headers(apiKey),
+                    body: JSON.stringify({
+                        model: provider.model,
+                        messages,
+                        max_tokens: 1000,
+                        temperature: 0.7,
+                    }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const responseContent = data.choices?.[0]?.message?.content;
+                    if (responseContent) {
+                        content = responseContent;
+                        usedProvider = provider.name;
+                        break;
+                    }
+                }
+            } catch (err) {
+                console.error(`[CV-AI] ${provider.name} error:`, err);
+            }
         }
-
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
 
         if (!content) {
             return {
                 success: false,
-                error: "La IA no generó una respuesta",
+                error: "No se pudo conectar con ningún proveedor de IA",
                 latencyMs: Date.now() - startTime,
             };
         }
+
+        console.log(`[CV-AI] Used provider: ${usedProvider}`);
 
         // Parse JSON response
         let parsed;
