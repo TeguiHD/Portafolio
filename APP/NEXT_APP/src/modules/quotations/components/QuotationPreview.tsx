@@ -26,19 +26,53 @@ export function QuotationPreview({ data, subtotal }: QuotationPreviewProps) {
         if (typeof window === "undefined" || !previewRef.current) return;
 
         try {
-            const { default: html2pdf } = await import("html2pdf.js");
+            // Import jsPDF and html2canvas directly (no vulnerable html2pdf.js wrapper)
+            const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+                import("jspdf"),
+                import("html2canvas"),
+            ]);
 
-            const opt = {
-                margin: [0, 10, 10, 10] as [number, number, number, number],
-                filename: `Cotizacion_${data.folio}_${data.clientName.replace(/\s+/g, "_")}.pdf`,
-                image: { type: "jpeg" as const, quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
-            };
+            // Capture the HTML element as a canvas
+            const canvas = await html2canvas(previewRef.current, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+            });
 
-            await html2pdf().set(opt).from(previewRef.current).save();
+            // Calculate dimensions for A4
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            // Create PDF
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
+            });
+
+            // Add image to PDF (handle multi-page if content is longer than A4)
+            let heightLeft = imgHeight;
+            let position = 0;
+            const imgData = canvas.toDataURL("image/jpeg", 0.98);
+
+            pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            // Save PDF
+            const filename = `Cotizacion_${data.folio}_${data.clientName.replace(/\s+/g, "_")}.pdf`;
+            pdf.save(filename);
         } catch (err) {
             console.error("Error generating PDF:", err);
+            // Fallback to browser print
             window.print();
         }
     };

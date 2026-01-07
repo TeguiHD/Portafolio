@@ -81,7 +81,7 @@ Plataforma **full-stack de nivel empresarial** diseñada como vitrina técnica y
 |------------|---------|-----|
 | **Next.js API Routes** | 16.x | Endpoints serverless |
 | **Prisma ORM** | 7.x | Acceso a BD con tipado seguro |
-| **PostgreSQL** | 15.x | Base de datos relacional |
+| **PostgreSQL** | 18.x | Base de datos relacional |
 | **NextAuth** | v5 | Sistema de autenticación |
 | **Argon2id** | - | Hashing de contraseñas |
 | **AES-256-GCM** | - | Cifrado de datos sensibles |
