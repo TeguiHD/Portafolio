@@ -56,6 +56,12 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
     const [showFabMenu, setShowFabMenu] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Track client-side mount to prevent SSR animation mismatch
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Fetch dashboard data
     const fetchData = useCallback(async () => {
@@ -162,7 +168,7 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
 
             {/* Balance Card */}
             <motion.div 
-                initial={{ opacity: 0, y: 20 }}
+                initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-2xl p-6 mb-6 border border-neutral-700/50"
             >

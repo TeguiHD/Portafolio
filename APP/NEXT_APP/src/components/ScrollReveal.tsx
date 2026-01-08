@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, ReactNode } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import { motion, useInView, Variants, HTMLMotionProps } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -59,10 +59,16 @@ export function ScrollReveal({
     ...props
 }: ScrollRevealProps) {
     const ref = useRef<HTMLDivElement>(null);
+    const [isMounted, setIsMounted] = useState(false);
     const isInView = useInView(ref, {
         once: triggerOnce,
         margin: `-${Math.round(threshold * 100)}px` as `${number}px`
     });
+
+    // Track client-side mount to prevent SSR animation mismatch
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // GSAP Parallax effect
     useEffect(() => {
@@ -94,7 +100,7 @@ export function ScrollReveal({
         <motion.div
             ref={ref}
             variants={variants[variant]}
-            initial="hidden"
+            initial={isMounted ? "hidden" : "visible"}
             animate={isInView ? "visible" : "hidden"}
             transition={{
                 duration,
@@ -123,15 +129,22 @@ export function ScrollRevealGroup({
     className
 }: ScrollRevealGroupProps) {
     const ref = useRef<HTMLDivElement>(null);
+    const [isMounted, setIsMounted] = useState(false);
     const isInView = useInView(ref, { once: true, margin: "-50px" });
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     return (
         <motion.div
             ref={ref}
-            initial="hidden"
+            initial={isMounted ? "hidden" : "visible"}
             animate={isInView ? "visible" : "hidden"}
             variants={{
+                hidden: { opacity: 1 },
                 visible: {
+                    opacity: 1,
                     transition: {
                         staggerChildren: staggerDelay,
                     },

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/components/ui/Button";
@@ -53,6 +54,12 @@ const projects = [
 ];
 
 export function ShowcaseSection() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   return (
     <section id="casos" className="relative py-32 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">

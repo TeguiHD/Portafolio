@@ -1,5 +1,5 @@
 import { requirePagePermission } from '@/lib/page-security'
-import CvEditorPageClient from './client'
+import CvEditorPageClientEnhanced from './client-enhanced'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,5 +7,6 @@ export default async function CvEditorPage() {
     // Server-side permission validation
     await requirePagePermission('cv.own.view')
 
-    return <CvEditorPageClient />
+    // Use enhanced client with RenderCV-inspired features
+    return <CvEditorPageClientEnhanced />
 }

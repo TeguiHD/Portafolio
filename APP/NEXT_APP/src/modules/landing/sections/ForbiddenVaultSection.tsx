@@ -51,17 +51,22 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
     const [currentView, setCurrentView] = useState(0); // 0: dashboard, 1: AI advice, 2: OCR scan
     const [scanProgress, setScanProgress] = useState(0);
     const [aiTyping, setAiTyping] = useState("");
-    
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const riskProfiles = ["Conservador", "Moderado", "Agresivo"];
     const [riskProfile] = useState(1); // Moderado
-    
+
     const aiAdvices = [
         "📊 Tu ratio ahorro/gasto mejoró 12% este mes",
         "💡 Considera diversificar: 40% fijo, 60% variable",
         "⚠️ Alerta: Gastos en suscripciones +23%",
         "✨ Meta de ahorro al 78% - ¡Vas muy bien!",
     ];
-    
+
     useEffect(() => {
         if (!isActive) {
             setCurrentView(0);
@@ -69,23 +74,23 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
             setAiTyping("");
             return;
         }
-        
+
         // Rotate views - slower for better readability
         const viewInterval = setInterval(() => {
             setCurrentView(prev => (prev + 1) % 3);
         }, 6000);
-        
+
         // Animate chart - gentler pace
         const chartInterval = setInterval(() => {
             setValues(prev => prev.map(() => Math.floor(Math.random() * 50) + 40));
         }, 2000);
-        
+
         return () => {
             clearInterval(viewInterval);
             clearInterval(chartInterval);
         };
     }, [isActive]);
-    
+
     // AI typing effect
     useEffect(() => {
         if (!isActive || currentView !== 1) return;
@@ -100,7 +105,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
         }, 50);
         return () => clearInterval(typeInterval);
     }, [isActive, currentView]);
-    
+
     // OCR scan animation
     useEffect(() => {
         if (!isActive || currentView !== 2) {
@@ -125,9 +130,8 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                     {["📈", "🤖", "📷"].map((icon, i) => (
                         <motion.div
                             key={i}
-                            className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md flex items-center justify-center text-[10px] sm:text-xs cursor-pointer transition-all ${
-                                currentView === i ? 'bg-emerald-500/20 border border-emerald-500/40' : 'bg-white/5'
-                            }`}
+                            className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md flex items-center justify-center text-[10px] sm:text-xs cursor-pointer transition-all ${currentView === i ? 'bg-emerald-500/20 border border-emerald-500/40' : 'bg-white/5'
+                                }`}
                             animate={{ scale: currentView === i ? 1.1 : 1 }}
                         >
                             {icon}
@@ -135,7 +139,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                     ))}
                 </div>
             </div>
-            
+
             <AnimatePresence mode="wait">
                 {currentView === 0 && (
                     <motion.div
@@ -164,7 +168,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                 <div className="text-[7px] sm:text-[9px] text-gray-500">Gastos</div>
                             </div>
                         </div>
-                        
+
                         {/* Chart bars */}
                         <div className="flex-1 flex items-end gap-1 bg-white/[0.02] rounded-lg p-2 border border-white/5">
                             {values.map((v, i) => (
@@ -179,7 +183,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                         </div>
                     </motion.div>
                 )}
-                
+
                 {currentView === 1 && (
                     <motion.div
                         key="ai-advice"
@@ -198,18 +202,17 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                 {riskProfiles.map((profile, i) => (
                                     <div
                                         key={profile}
-                                        className={`flex-1 py-1 px-1.5 rounded text-center text-[8px] sm:text-[9px] font-medium transition-all ${
-                                            i === riskProfile 
-                                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' 
-                                                : 'bg-white/5 text-gray-500'
-                                        }`}
+                                        className={`flex-1 py-1 px-1.5 rounded text-center text-[8px] sm:text-[9px] font-medium transition-all ${i === riskProfile
+                                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                            : 'bg-white/5 text-gray-500'
+                                            }`}
                                     >
                                         {profile}
                                     </div>
                                 ))}
                             </div>
                         </div>
-                        
+
                         {/* AI Advice Box */}
                         <div className="flex-1 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-lg p-2 sm:p-3 border border-emerald-500/20">
                             <div className="flex items-center gap-1.5 mb-2">
@@ -232,7 +235,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                         </div>
                     </motion.div>
                 )}
-                
+
                 {currentView === 2 && (
                     <motion.div
                         key="ocr-scan"
@@ -250,7 +253,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                     className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent"
                                     style={{ top: `${scanProgress}%` }}
                                 />
-                                
+
                                 {/* Receipt icon */}
                                 <div className="relative">
                                     <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-gray-600" />
@@ -262,9 +265,9 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                         <Sparkles className="w-2.5 h-2.5 text-white" />
                                     </motion.div>
                                 </div>
-                                
+
                                 <span className="text-[9px] sm:text-[10px] text-gray-400 mt-2">Escaneando factura...</span>
-                                
+
                                 {/* Progress */}
                                 <div className="w-full max-w-[100px] mt-2 px-4">
                                     <div className="h-1 bg-white/10 rounded-full overflow-hidden">
@@ -276,7 +279,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* OCR Results preview */}
                         <div className="mt-2 grid grid-cols-2 gap-1.5">
                             <div className="bg-emerald-500/10 rounded px-2 py-1 border border-emerald-500/20">
@@ -301,7 +304,12 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
     const [analysisProgress, setAnalysisProgress] = useState(0);
     const [highlightedLine, setHighlightedLine] = useState(-1);
     const [overallScore, setOverallScore] = useState(42);
-    
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const documentLines = [
         { type: 'header', text: 'Nicoholas', suggestion: null },
         { type: 'contact', text: 'contact@nicoholas.dev • +56 9 1234 5678', suggestion: null },
@@ -311,14 +319,14 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
         { type: 'section', text: 'HABILIDADES', suggestion: null },
         { type: 'skills', text: 'JavaScript, React, Node', suggestion: '+ TypeScript, AWS, Docker' },
     ];
-    
+
     const suggestions = [
         { icon: '🎯', text: 'Añadir métricas cuantificables', status: 'done' as const },
         { icon: '📝', text: 'Optimizar keywords para ATS', status: 'done' as const },
         { icon: '✨', text: 'Mejorar verbos de acción', status: 'current' as const },
         { icon: '📊', text: 'Ajustar formato estándar', status: 'pending' as const },
     ];
-    
+
     useEffect(() => {
         if (!isActive) {
             setPhase('analyzing');
@@ -327,7 +335,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
             setOverallScore(42);
             return;
         }
-        
+
         // Slower cycle through phases
         const phaseInterval = setInterval(() => {
             setPhase(prev => {
@@ -336,10 +344,10 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
                 return 'analyzing';
             });
         }, 5000);
-        
+
         return () => clearInterval(phaseInterval);
     }, [isActive]);
-    
+
     // Analysis progress animation
     useEffect(() => {
         if (!isActive || phase !== 'analyzing') {
@@ -351,7 +359,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
         }, 150);
         return () => clearInterval(interval);
     }, [isActive, phase]);
-    
+
     // Highlight lines during suggestions phase
     useEffect(() => {
         if (!isActive || phase !== 'suggestions') {
@@ -365,7 +373,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
         }, 1800);
         return () => clearInterval(interval);
     }, [isActive, phase]);
-    
+
     // Score animation
     useEffect(() => {
         if (phase === 'optimized') {
@@ -393,14 +401,14 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
                         {phase === 'analyzing' ? 'Analizando CV...' : phase === 'suggestions' ? 'Sugerencias IA' : 'CV Optimizado'}
                     </span>
                 </div>
-                <motion.div 
+                <motion.div
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full border"
                     style={{
                         backgroundColor: phase === 'optimized' ? 'rgba(34,197,94,0.15)' : 'rgba(168,85,247,0.15)',
                         borderColor: phase === 'optimized' ? 'rgba(34,197,94,0.3)' : 'rgba(168,85,247,0.3)',
                     }}
                 >
-                    <motion.span 
+                    <motion.span
                         className={`text-xs sm:text-sm font-bold ${phase === 'optimized' ? 'text-green-400' : 'text-purple-400'}`}
                         key={overallScore}
                         initial={{ scale: 1.2 }}
@@ -410,7 +418,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
                     </motion.span>
                 </motion.div>
             </div>
-            
+
             <div className={`flex-1 flex ${isWide ? 'flex-row gap-3' : 'flex-col gap-2'}`}>
                 {/* Mini Document Preview */}
                 <div className={`${isWide ? 'flex-1' : 'flex-1'} bg-white/[0.03] rounded-lg p-2 sm:p-3 border border-white/10 overflow-hidden`}>
@@ -418,15 +426,13 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
                         {documentLines.map((line, i) => (
                             <motion.div
                                 key={i}
-                                className={`relative rounded px-1.5 py-0.5 transition-all duration-300 ${
-                                    highlightedLine === i ? 'bg-purple-500/20 border-l-2 border-purple-500' : ''
-                                }`}
+                                className={`relative rounded px-1.5 py-0.5 transition-all duration-300 ${highlightedLine === i ? 'bg-purple-500/20 border-l-2 border-purple-500' : ''
+                                    }`}
                             >
-                                <div className={`text-[7px] sm:text-[9px] font-mono ${
-                                    line.type === 'header' ? 'text-white font-bold text-[9px] sm:text-[11px]' :
+                                <div className={`text-[7px] sm:text-[9px] font-mono ${line.type === 'header' ? 'text-white font-bold text-[9px] sm:text-[11px]' :
                                     line.type === 'section' ? 'text-purple-400 font-semibold mt-1' :
-                                    'text-gray-400'
-                                }`}>
+                                        'text-gray-400'
+                                    }`}>
                                     {line.text}
                                 </div>
                                 {highlightedLine === i && line.suggestion && (
@@ -443,7 +449,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
                         ))}
                     </div>
                 </div>
-                
+
                 {/* Right panel - Progress or Suggestions */}
                 <div className={`${isWide ? 'w-32' : ''} flex flex-col gap-1.5`}>
                     {phase === 'analyzing' ? (
@@ -451,7 +457,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
                             <div className="relative w-12 h-12 sm:w-14 sm:h-14 mb-2">
                                 <svg className="w-full h-full -rotate-90">
                                     <circle cx="50%" cy="50%" r="45%" fill="none" stroke="rgba(168,85,247,0.2)" strokeWidth="3" />
-                                    <motion.circle 
+                                    <motion.circle
                                         cx="50%" cy="50%" r="45%" fill="none" stroke="rgb(168,85,247)" strokeWidth="3"
                                         strokeLinecap="round"
                                         strokeDasharray={`${analysisProgress * 2.83} 283`}
@@ -470,11 +476,10 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
                                 initial={{ opacity: 0, x: 10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: i * 0.15 }}
-                                className={`flex items-center gap-1.5 px-2 py-1 rounded text-[7px] sm:text-[9px] ${
-                                    sug.status === 'done' ? 'bg-green-500/10 text-green-400' :
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded text-[7px] sm:text-[9px] ${sug.status === 'done' ? 'bg-green-500/10 text-green-400' :
                                     sug.status === 'current' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
-                                    'bg-white/5 text-gray-500'
-                                }`}
+                                        'bg-white/5 text-gray-500'
+                                    }`}
                             >
                                 <span>{sug.icon}</span>
                                 <span className="flex-1 truncate">{sug.text}</span>
@@ -491,7 +496,12 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
 // Security Demo Component  
 function SecurityDemo({ isActive }: { isActive: boolean }) {
     const [logs, setLogs] = useState<string[]>([]);
-    
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const logTemplates = [
         "[AUTH] Inicio sesión: admin@corp.com",
         "[RBAC] Permiso concedido: LECTURA",
@@ -529,7 +539,7 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
                 </div>
                 <span className="text-[9px] sm:text-[11px] font-mono text-gray-400 ml-2">~/auditoria-seguridad.log</span>
             </div>
-            
+
             {/* Terminal content */}
             <div className="flex-1 bg-black/60 rounded-b-xl p-3 overflow-hidden font-mono border border-t-0 border-white/5">
                 <AnimatePresence mode="popLayout">
@@ -547,14 +557,14 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
                 </AnimatePresence>
                 <div className="flex items-center mt-1">
                     <span className="text-green-500 text-[8px] sm:text-[10px]">$</span>
-                    <motion.span 
+                    <motion.span
                         className="inline-block w-1.5 sm:w-2 h-3 sm:h-4 bg-blue-400 ml-1"
                         animate={{ opacity: [1, 0] }}
                         transition={{ duration: 0.5, repeat: Infinity }}
                     />
                 </div>
             </div>
-            
+
             {/* Status bar */}
             <div className="flex items-center justify-between mt-3 px-1">
                 <div className="flex items-center gap-2">
@@ -573,7 +583,7 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
 // Subtle Restricted Overlay - Always visible but doesn't block view
 function RestrictedOverlay({ color, colorRgb }: { color: string; colorRgb: string }) {
     const [scanLine, setScanLine] = useState(0);
-    
+
     useEffect(() => {
         const interval = setInterval(() => {
             setScanLine(prev => (prev + 1) % 120);
@@ -591,9 +601,9 @@ function RestrictedOverlay({ color, colorRgb }: { color: string; colorRgb: strin
                     background: `linear-gradient(90deg, transparent, rgba(${colorRgb}, 0.6), transparent)`,
                 }}
             />
-            
+
             {/* Subtle CRT/monitor effect lines */}
-            <div 
+            <div
                 className="absolute inset-0 pointer-events-none z-10 opacity-[0.03]"
                 style={{
                     backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px)',
@@ -618,13 +628,13 @@ function RestrictedBadge({ color, colorRgb, isHovered }: { color: string; colorR
                     borderColor: `rgba(${colorRgb}, 0.3)`,
                 }}
                 animate={{
-                    borderColor: isHovered 
-                        ? `rgba(${colorRgb}, 0.6)` 
+                    borderColor: isHovered
+                        ? `rgba(${colorRgb}, 0.6)`
                         : `rgba(${colorRgb}, 0.3)`,
                 }}
             >
                 <motion.div
-                    animate={{ 
+                    animate={{
                         scale: [1, 1.2, 1],
                     }}
                     transition={{ duration: 2, repeat: Infinity }}
@@ -654,13 +664,13 @@ function InfoPanel({ mod, isVisible, isMobile }: { mod: typeof modules[0]; isVis
         <motion.div
             className="absolute bottom-0 left-0 right-0 z-25 pointer-events-none"
             initial={{ y: 20, opacity: 0 }}
-            animate={{ 
-                y: isVisible ? 0 : 20, 
-                opacity: isVisible ? 1 : 0 
+            animate={{
+                y: isVisible ? 0 : 20,
+                opacity: isVisible ? 1 : 0
             }}
             transition={{ duration: 0.3 }}
         >
-            <div 
+            <div
                 className="p-3 sm:p-4 backdrop-blur-md border-t"
                 style={{
                     background: 'linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.8))',
@@ -672,8 +682,8 @@ function InfoPanel({ mod, isVisible, isMobile }: { mod: typeof modules[0]; isVis
                         <h4 className="text-xs sm:text-sm font-bold text-white mb-1">{mod.title}</h4>
                         <p className="text-[10px] sm:text-xs text-gray-400 line-clamp-2">{mod.description}</p>
                     </div>
-                    <Link 
-                        href="#contact" 
+                    <Link
+                        href="#contact"
                         className="pointer-events-auto shrink-0"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -701,8 +711,10 @@ function InfoPanel({ mod, isVisible, isMobile }: { mod: typeof modules[0]; isVis
 function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: number; layout: 'pillar' | 'wide' | 'normal' }) {
     const [isHovered, setIsHovered] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        setIsMounted(true);
         const checkMobile = () => setIsMobile(window.innerWidth < 640);
         checkMobile();
         window.addEventListener('resize', checkMobile);
@@ -725,8 +737,8 @@ function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: num
             transition={{ duration: 0.5, delay: index * 0.1 }}
             viewport={{ once: true }}
             className={`group relative bg-[#0a0a0a] border border-white/5 rounded-2xl sm:rounded-3xl transition-all duration-500 cursor-pointer overflow-hidden ${mod.border} ${mod.glow} hover:shadow-xl`}
-            style={{ 
-                minHeight: isMobile 
+            style={{
+                minHeight: isMobile
                     ? (isPillar ? '200px' : isWide ? '180px' : '320px')
                     : '320px'
             }}
@@ -745,13 +757,13 @@ function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: num
                     <SecurityDemo isActive={true} />
                 )}
             </div>
-            
+
             {/* Subtle security overlay effect */}
             <RestrictedOverlay color={mod.color} colorRgb={mod.colorRgb} />
-            
+
             {/* Floating badge */}
             <RestrictedBadge color={mod.color} colorRgb={mod.colorRgb} isHovered={isHovered} />
-            
+
             {/* Blur overlay on hover/tap for readability */}
             <motion.div
                 className="absolute inset-0 z-15 pointer-events-none"
@@ -766,7 +778,7 @@ function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: num
             />
 
             {/* Title overlay at top - full width gradient */}
-            <div 
+            <div
                 className="absolute top-0 left-0 right-0 z-20 p-3 sm:p-4"
                 style={{
                     background: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)',
@@ -786,14 +798,14 @@ function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: num
                     </div>
                 </div>
             </div>
-            
+
             {/* Info panel on hover */}
             <InfoPanel mod={mod} isVisible={isHovered} isMobile={isMobile} />
-            
+
             {/* Mobile tap hint - subtle */}
             {isMobile && !isHovered && (
                 <div className="absolute bottom-2 left-0 right-0 z-20 flex justify-center">
-                    <motion.div 
+                    <motion.div
                         className="inline-flex items-center justify-center px-2 py-1 bg-black/60 rounded-full"
                         animate={{ opacity: [0.5, 0.8, 0.5] }}
                         transition={{ duration: 2, repeat: Infinity }}

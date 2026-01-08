@@ -21,7 +21,12 @@ export function TextReveal({
     colored = false,
     delay = 0
 }: TextRevealProps) {
+    const [isMounted, setIsMounted] = useState(false);
     const words = text.split(" ");
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     return (
         <span className={className}>
@@ -31,7 +36,7 @@ export function TextReveal({
                         <motion.span
                             key={charIdx}
                             className="inline-block"
-                            initial={{ opacity: 0, y: 20, rotateX: 90 }}
+                            initial={isMounted ? { opacity: 0, y: 20, rotateX: 90 } : false}
                             animate={{ opacity: 1, y: 0, rotateX: 0 }}
                             transition={{
                                 duration: 0.5,
@@ -107,8 +112,13 @@ export function SplitLineReveal({
     className = "",
     lineClassName = ""
 }: SplitLineRevealProps) {
+    const [isMounted, setIsMounted] = useState(false);
     // Split text into lines (by sentence or manually with \n)
     const lines = text.split(/(?<=[.!?])\s+|\n/).filter(Boolean);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     return (
         <div className={className}>
@@ -116,7 +126,7 @@ export function SplitLineReveal({
                 <div key={idx} className="overflow-hidden">
                     <motion.p
                         className={lineClassName}
-                        initial={{ y: "100%", opacity: 0 }}
+                        initial={isMounted ? { y: "100%", opacity: 0 } : false}
                         whileInView={{ y: 0, opacity: 1 }}
                         viewport={{ once: true, margin: "-50px" }}
                         transition={{

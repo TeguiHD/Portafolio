@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -18,6 +18,11 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const toast = useToast();
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,7 +77,7 @@ function LoginForm() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            initial={isMounted ? { opacity: 0, y: 20, scale: 0.95 } : false}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5 }}
             className="relative z-10 w-full max-w-md"
@@ -81,7 +86,7 @@ function LoginForm() {
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <motion.div
-                        initial={{ scale: 0 }}
+                        initial={isMounted ? { scale: 0 } : false}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", delay: 0.2 }}
                         className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-1/20 to-accent-2/20 border border-accent-1/30 mb-4"

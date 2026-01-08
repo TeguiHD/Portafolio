@@ -424,3 +424,107 @@ export async function generateCvSuggestion(
         };
     }
 }
+
+// ===========================================
+// OUTPUT SANITIZATION
+// ===========================================
+
+/**
+ * Patterns that should never appear in AI output
+ */
+const DANGEROUS_OUTPUT_PATTERNS = [
+    /<script\b[^>]*>/gi,           // Script tags
+    /javascript:/gi,                // JS protocol
+    /on\w+\s*=/gi,                  // Event handlers (onclick, onerror, etc)
+    /data:text\/html/gi,            // Data URLs with HTML
+    /<iframe\b[^>]*>/gi,            // Iframes
+    /<object\b[^>]*>/gi,            // Object tags
+    /<embed\b[^>]*>/gi,             // Embed tags
+    /eval\s*\(/gi,                  // Eval calls
+    /document\.(cookie|write)/gi,   // Document manipulation
+    /window\.(location|open)/gi,    // Window manipulation
+];
+
+/**
+ * Sanitize a string value from AI output
+ */
+function sanitizeOutputString(value: string): string {
+    let sanitized = value;
+
+    // Check for and remove dangerous patterns
+    for (const pattern of DANGEROUS_OUTPUT_PATTERNS) {
+        sanitized = sanitized.replace(pattern, "[BLOCKED]");
+    }
+
+    // Remove any HTML-like tags that slipped through
+    sanitized = sanitized.replace(/<[^>]*>/g, "");
+
+    return sanitized;
+}
+
+/**
+ * Recursively sanitize an object's string values
+ */
+function sanitizeOutputObject(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === "string") {
+            result[key] = sanitizeOutputString(value);
+        } else if (Array.isArray(value)) {
+            result[key] = value.map(item =>
+                typeof item === "string"
+                    ? sanitizeOutputString(item)
+                    : typeof item === "object" && item !== null
+                        ? sanitizeOutputObject(item as Record<string, unknown>)
+                        : item
+            );
+        } else if (typeof value === "object" && value !== null) {
+            result[key] = sanitizeOutputObject(value as Record<string, unknown>);
+        } else {
+            result[key] = value;
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Sanitize the entire AI response before sending to client
+ * Prevents potential XSS or injection through AI-generated content
+ */
+export function sanitizeAIOutput(result: CvAIResult): CvAIResult {
+    const sanitized: CvAIResult = {
+        success: result.success,
+        latencyMs: result.latencyMs,
+    };
+
+    // Sanitize message
+    if (result.message) {
+        sanitized.message = sanitizeOutputString(result.message);
+    }
+
+    // Sanitize error
+    if (result.error) {
+        sanitized.error = sanitizeOutputString(result.error);
+    }
+
+    // Sanitize action (should be from allowed list anyway)
+    if (result.action) {
+        const allowedActions = [
+            "add_experience", "add_skill", "add_project",
+            "improve_text", "ask_details", "conversation", "error"
+        ];
+        sanitized.action = allowedActions.includes(result.action)
+            ? result.action
+            : "error";
+    }
+
+    // Sanitize data object
+    if (result.data) {
+        sanitized.data = sanitizeOutputObject(result.data);
+    }
+
+    return sanitized;
+}
+

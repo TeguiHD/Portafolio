@@ -3,8 +3,14 @@
 import { labDemos } from "@/modules/landing/data/lab-demos";
 import { MagneticCard } from "@/modules/landing/components/MagneticCard";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 
 export function LabSection() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   return (
     <section
       id="lab"

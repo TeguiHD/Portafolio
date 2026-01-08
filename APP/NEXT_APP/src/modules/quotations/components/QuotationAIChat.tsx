@@ -57,6 +57,11 @@ export function QuotationAIChat({
     // Use external state if provided, otherwise internal
     const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
     const [internalUsedActions, setInternalUsedActions] = useState<Set<string>>(new Set());
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const messages = externalMessages ?? internalMessages;
     const setMessages = externalSetMessages ?? setInternalMessages;
@@ -475,7 +480,7 @@ export function QuotationAIChat({
                     </div>
                     <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                         <motion.div
-                            initial={{ width: 0 }}
+                            initial={isMounted ? { width: 0 } : false}
                             animate={{ width: `${progressPercent}%` }}
                             transition={{ duration: 0.5, ease: "easeOut" }}
                             className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
@@ -519,7 +524,7 @@ export function QuotationAIChat({
                     <AnimatePresence>
                         {editingField !== null && (
                             <motion.div
-                                initial={{ opacity: 0, height: 0 }}
+                                initial={isMounted ? { opacity: 0, height: 0 } : false}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
                                 className="overflow-hidden"
@@ -611,7 +616,7 @@ export function QuotationAIChat({
                 {messages.map((msg) => (
                     <motion.div
                         key={msg.id}
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={isMounted ? { opacity: 0, y: 10 } : false}
                         animate={{ opacity: 1, y: 0 }}
                         className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
@@ -663,7 +668,7 @@ export function QuotationAIChat({
                 {
                     isLoading && (
                         <motion.div
-                            initial={{ opacity: 0 }}
+                            initial={isMounted ? { opacity: 0 } : false}
                             animate={{ opacity: 1 }}
                             className="flex justify-start"
                         >
@@ -712,7 +717,7 @@ export function QuotationAIChat({
                 <AnimatePresence>
                     {selectedLabels.size > 0 && (
                         <motion.div
-                            initial={{ opacity: 0, y: 10, height: 0 }}
+                            initial={isMounted ? { opacity: 0, y: 10, height: 0 } : false}
                             animate={{ opacity: 1, y: 0, height: "auto" }}
                             exit={{ opacity: 0, y: 10, height: 0 }}
                             className="mb-3 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20"
@@ -768,7 +773,7 @@ export function QuotationAIChat({
                 {/* Review button - appears when there's progress */}
                 {filledCount > 0 && (
                     <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={isMounted ? { opacity: 0, scale: 0.9 } : false}
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={() => setShowReviewModal(true)}
                         className="mt-3 w-full py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium hover:from-green-500 hover:to-emerald-500 transition-all flex items-center justify-center gap-2"
@@ -785,14 +790,14 @@ export function QuotationAIChat({
             <AnimatePresence>
                 {showReviewModal && (
                     <motion.div
-                        initial={{ opacity: 0 }}
+                        initial={isMounted ? { opacity: 0 } : false}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
                         onClick={() => setShowReviewModal(false)}
                     >
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            initial={isMounted ? { opacity: 0, scale: 0.9, y: 20 } : false}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
                             onClick={(e) => e.stopPropagation()}

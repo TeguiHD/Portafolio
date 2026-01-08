@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -87,10 +88,12 @@ export function FinanceBreadcrumbs({
     if (breadcrumbs.length <= 1) {
         return null; // Don't show breadcrumbs on main finance page
     }
-    
+
+    // Note: Since this component is conditionally rendered and depends on pathname,
+    // we use a simple approach - the animation only triggers after initial render
     return (
         <motion.nav
-            initial={{ opacity: 0, y: -10 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center gap-2 mb-6"
         >

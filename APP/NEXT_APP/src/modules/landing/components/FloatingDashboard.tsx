@@ -31,6 +31,12 @@ const microservices = [
 export function FloatingDashboard() {
     const [healthData, setHealthData] = useState(generateHealthData);
     const [currentCpu, setCurrentCpu] = useState(45);
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Track client-side mount to prevent SSR animation mismatch
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Animate CPU chart
     useEffect(() => {
@@ -46,7 +52,7 @@ export function FloatingDashboard() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 50, rotateY: -10 }}
+            initial={isMounted ? { opacity: 0, x: 50, rotateY: -10 } : false}
             animate={{ opacity: 1, x: 0, rotateY: -5 }}
             transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
             className="relative hidden lg:block"
@@ -87,7 +93,7 @@ export function FloatingDashboard() {
                             </div>
                             <span className="text-sm font-mono text-blue-400">{currentCpu}% CPU</span>
                         </div>
-                        <div className="h-16 w-full">
+                        <div className="h-16 w-full" style={{ minWidth: 200, minHeight: 64 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={healthData}>
                                     <Line
@@ -113,7 +119,7 @@ export function FloatingDashboard() {
                             {threatEvents.slice(0, 2).map((threat, i) => (
                                 <motion.div
                                     key={i}
-                                    initial={{ opacity: 0, x: -10 }}
+                                    initial={isMounted ? { opacity: 0, x: -10 } : false}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.8 + i * 0.15 }}
                                     className="flex items-center justify-between text-xs bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2"
@@ -141,15 +147,15 @@ export function FloatingDashboard() {
                             {microservices.map((service, i) => (
                                 <motion.div
                                     key={service.name}
-                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    initial={isMounted ? { opacity: 0, scale: 0.9 } : false}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ delay: 1 + i * 0.1 }}
                                     className="flex items-center gap-2 text-xs bg-white/[0.02] border border-white/5 rounded-lg px-3 py-2"
                                 >
                                     <div
                                         className={`w-1.5 h-1.5 rounded-full ${service.status === "online"
-                                                ? "bg-emerald-500 animate-pulse"
-                                                : "bg-yellow-500"
+                                            ? "bg-emerald-500 animate-pulse"
+                                            : "bg-yellow-500"
                                             }`}
                                     />
                                     <span className="text-gray-400 truncate">{service.name}</span>

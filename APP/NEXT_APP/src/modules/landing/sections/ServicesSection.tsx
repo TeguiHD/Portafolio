@@ -4,15 +4,21 @@ import { services } from "@/modules/landing/data/services";
 import { MagneticCard } from "@/modules/landing/components/MagneticCard";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 export function ServicesSection() {
   const featuredService = services.find((s) => s.featured);
   const regularServices = services.filter((s) => !s.featured);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <section id="servicios" className="relative overflow-x-hidden overflow-y-visible px-5 py-32 sm:px-10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_10%,rgba(184,160,130,0.08),transparent_30%),radial-gradient(circle_at_10%_40%,rgba(0,212,170,0.1),transparent_30%)]" />
-      
+
       <div className="relative mx-auto flex max-w-7xl flex-col gap-16">
         {/* Header */}
         <motion.div

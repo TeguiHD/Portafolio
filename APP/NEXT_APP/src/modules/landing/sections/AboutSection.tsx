@@ -28,9 +28,11 @@ const timeline = [
 ];
 
 export function AboutSection() {
+  const [isMounted, setIsMounted] = useState(false);
   const [technologies, setTechnologies] = useState(defaultTechnologies);
 
   useEffect(() => {
+    setIsMounted(true);
     const saved = localStorage.getItem("technologies");
     if (saved) {
       try {
@@ -50,11 +52,11 @@ export function AboutSection() {
   return (
     <section id="about" className="relative overflow-x-hidden overflow-y-visible px-5 py-32 sm:px-10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(184,160,130,0.08),transparent_35%),radial-gradient(circle_at_80%_50%,rgba(0,212,170,0.1),transparent_35%)]" />
-      
+
       <div className="relative mx-auto grid max-w-7xl gap-16 lg:grid-cols-2 lg:items-center">
         {/* Izquierda: Historia + Valores (Construcción de Autoridad) */}
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
+          initial={isMounted ? { opacity: 0, x: -20 } : false}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
@@ -107,7 +109,7 @@ export function AboutSection() {
 
         {/* Derecha: Credenciales Visuales */}
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
+          initial={isMounted ? { opacity: 0, x: 20 } : false}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.2 }}
@@ -120,7 +122,7 @@ export function AboutSection() {
               {timeline.map((item, idx) => (
                 <motion.div
                   key={item.year}
-                  initial={{ opacity: 0, x: -10 }}
+                  initial={isMounted ? { opacity: 0, x: -10 } : false}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}
@@ -148,7 +150,7 @@ export function AboutSection() {
               {technologies.map((tech, idx) => (
                 <motion.div
                   key={tech.name}
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={isMounted ? { opacity: 0, scale: 0.9 } : false}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.03 }}
@@ -174,7 +176,7 @@ export function AboutSection() {
               ].map((value, idx) => (
                 <motion.div
                   key={value}
-                  initial={{ opacity: 0, x: -10 }}
+                  initial={isMounted ? { opacity: 0, x: -10 } : false}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}

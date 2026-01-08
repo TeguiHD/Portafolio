@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { formatCurrency, type SupportedCurrency } from "@/lib/currency";
 
@@ -24,6 +25,12 @@ export function MonthlyProgress({
     currency,
     isLoading = false,
 }: MonthlyProgressProps) {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const totalDays = daysElapsed + daysRemaining;
     const progressPercent = (daysElapsed / totalDays) * 100;
     const netFlow = totalIncome - totalExpenses;
@@ -44,7 +51,7 @@ export function MonthlyProgress({
     if (isLoading) {
         return (
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
                 className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -67,7 +74,7 @@ export function MonthlyProgress({
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={isMounted ? { opacity: 0, y: 20 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"

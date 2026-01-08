@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import {
     Code2,
     FileType,
@@ -33,6 +34,12 @@ const technologies = [
 ];
 
 export function TechnologiesSection() {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     return (
         <section id="tecnologias" className="relative py-32 px-4 sm:px-6">
             <div className="max-w-7xl mx-auto text-center">
@@ -48,6 +55,7 @@ export function TechnologiesSection() {
                             key={tech.name}
                             initial={{ opacity: 0, scale: 0.8 }}
                             whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
                             transition={{ delay: i * 0.05 }}
                             whileHover={{ scale: 1.1 }}
                             className="flex flex-col items-center gap-4 group cursor-default"

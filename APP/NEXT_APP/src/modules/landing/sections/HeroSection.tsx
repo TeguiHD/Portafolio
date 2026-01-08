@@ -5,7 +5,18 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 import { ArrowDown, Terminal, Zap, Shield, Code2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { FloatingDashboard } from "../components/FloatingDashboard";
+import dynamic from "next/dynamic";
+
+// Dynamic import with SSR disabled to prevent recharts hydration mismatch
+const FloatingDashboard = dynamic(
+  () => import("../components/FloatingDashboard").then((mod) => mod.FloatingDashboard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="hidden lg:block w-[420px] h-[400px] rounded-2xl bg-white/[0.02] border border-white/10 animate-pulse" />
+    )
+  }
+);
 
 // Typing effect hook
 function useTypingEffect(texts: string[], typingSpeed = 50, pauseDuration = 2000) {
@@ -82,8 +93,12 @@ export function HeroSection() {
   const projectsCounter = useCounter(500, 2500);
   const uptimeCounter = useCounter(99, 2000);
 
-  // Start counters when component mounts
+  // Track client-side mount to prevent SSR animation mismatch
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Start counters and enable animations when component mounts
   useEffect(() => {
+    setIsMounted(true);
     const timer = setTimeout(() => {
       projectsCounter.start();
       uptimeCounter.start();
@@ -122,7 +137,7 @@ export function HeroSection() {
           {/* Terminal Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             className="mb-8 md:mb-12"
           >
@@ -145,7 +160,7 @@ export function HeroSection() {
           <div className="space-y-2 md:space-y-4 mb-8 md:mb-12">
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.1 }}
               className="text-left"
             >
@@ -159,7 +174,7 @@ export function HeroSection() {
 
             <motion.h2
               initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               className="text-left"
             >
@@ -175,7 +190,7 @@ export function HeroSection() {
           {/* Value Proposition - Clear and Direct */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
             className="max-w-2xl mb-10 md:mb-14"
           >
@@ -190,7 +205,7 @@ export function HeroSection() {
           {/* CTAs */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
             className="flex flex-col sm:flex-row gap-4 mb-16 md:mb-20"
           >
@@ -217,7 +232,7 @@ export function HeroSection() {
           {/* Stats with animated counters */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={isMounted ? { opacity: 1 } : { opacity: 1 }}
             transition={{ delay: 0.8, duration: 1 }}
             className="grid grid-cols-3 gap-6 sm:gap-12 max-w-xl"
           >
@@ -253,7 +268,7 @@ export function HeroSection() {
       {/* Scroll Indicator */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        animate={isMounted ? { opacity: 1 } : { opacity: 1 }}
         transition={{ delay: 1.5, duration: 1 }}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
       >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { formatCurrency, type SupportedCurrency } from "@/lib/currency";
 import type { BudgetStatus } from "../types";
@@ -21,13 +22,19 @@ export function BudgetOverview({
     currency,
     isLoading = false,
 }: BudgetOverviewProps) {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     // Sort by percentage descending (most critical first)
     const sortedBudgets = [...budgets].sort((a, b) => b.percentage - a.percentage);
 
     if (isLoading) {
         return (
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
                 className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -51,7 +58,7 @@ export function BudgetOverview({
     if (budgets.length === 0) {
         return (
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
                 className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -74,7 +81,7 @@ export function BudgetOverview({
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={isMounted ? { opacity: 0, y: 20 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
             className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -94,7 +101,7 @@ export function BudgetOverview({
                     return (
                         <motion.div
                             key={budget.id}
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={isMounted ? { opacity: 0, x: -20 } : false}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.3 + index * 0.05 }}
                         >

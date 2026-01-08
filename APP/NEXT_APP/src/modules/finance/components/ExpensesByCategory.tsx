@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { formatCurrency, type SupportedCurrency } from "@/lib/currency";
 import type { CategorySummary } from "../types";
@@ -17,6 +18,12 @@ export function ExpensesByCategory({
     totalExpenses,
     isLoading = false,
 }: ExpensesByCategoryProps) {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     // Sort by amount descending
     const sortedCategories = [...categories].sort((a, b) => b.amount - a.amount);
     const topCategories = sortedCategories.slice(0, 6);
@@ -24,7 +31,7 @@ export function ExpensesByCategory({
     if (isLoading) {
         return (
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -49,7 +56,7 @@ export function ExpensesByCategory({
     if (categories.length === 0) {
         return (
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -69,7 +76,7 @@ export function ExpensesByCategory({
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={isMounted ? { opacity: 0, y: 20 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -94,7 +101,7 @@ export function ExpensesByCategory({
                     return (
                         <motion.div
                             key={category.categoryId}
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={isMounted ? { opacity: 0, x: -20 } : false}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.3 + index * 0.05 }}
                             className="group"

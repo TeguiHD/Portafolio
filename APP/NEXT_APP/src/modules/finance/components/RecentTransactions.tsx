@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { formatCurrency, type SupportedCurrency } from "@/lib/currency";
 import type { RecentTransaction } from "../types";
@@ -17,10 +18,16 @@ export function RecentTransactions({
     isLoading = false,
     onViewAll,
 }: RecentTransactionsProps) {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     if (isLoading) {
         return (
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -67,7 +74,7 @@ export function RecentTransactions({
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={isMounted ? { opacity: 0, y: 20 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             className="rounded-2xl bg-neutral-900/50 border border-neutral-800 p-6"
@@ -101,7 +108,7 @@ export function RecentTransactions({
                     {transactions.map((transaction, index) => (
                         <motion.div
                             key={transaction.id}
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={isMounted ? { opacity: 0, x: -20 } : false}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.4 + index * 0.05 }}
                             className="flex items-center gap-3 p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group"

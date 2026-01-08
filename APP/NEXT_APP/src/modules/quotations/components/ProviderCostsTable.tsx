@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ProviderCostItem } from "@/app/admin/quotations/new/client";
 import { v4 as uuidv4 } from "uuid";
@@ -14,6 +14,11 @@ const BADGE_OPTIONS = ["OFERTA", "DOMINIO GRATIS", "RECOMENDADO", ""];
 
 export function ProviderCostsTable({ items, onChange }: ProviderCostsTableProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const addItem = () => {
         const newItem: ProviderCostItem = {
@@ -91,7 +96,7 @@ export function ProviderCostsTable({ items, onChange }: ProviderCostsTableProps)
                     {items.map((item) => (
                         <motion.div
                             key={item.id}
-                            initial={{ opacity: 0, height: 0 }}
+                            initial={isMounted ? { opacity: 0, height: 0 } : false}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
                             className={`grid grid-cols-12 gap-2 px-4 py-3 border-t border-white/5 items-center ${item.isHighlighted ? "bg-yellow-500/10" : ""

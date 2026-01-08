@@ -25,7 +25,12 @@ const securityLogs = [
 ];
 
 export function SecurityArchitectureSection() {
+    const [isMounted, setIsMounted] = useState(false);
     const [logs, setLogs] = useState(securityLogs);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -72,7 +77,7 @@ export function SecurityArchitectureSection() {
 
                         <div className="space-y-8 relative">
                             {/* Node 1: User */}
-                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="flex items-center gap-6">
+                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="flex items-center gap-6">
                                 <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 z-10 backdrop-blur-sm">
                                     <Globe className="w-8 h-8 text-blue-400" />
                                 </div>
@@ -83,7 +88,7 @@ export function SecurityArchitectureSection() {
                             </motion.div>
 
                             {/* Node 2: Middleware */}
-                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="flex items-center gap-6">
+                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex items-center gap-6">
                                 <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center shrink-0 z-10 backdrop-blur-sm">
                                     <Shield className="w-8 h-8 text-purple-400" />
                                 </div>
@@ -94,7 +99,7 @@ export function SecurityArchitectureSection() {
                             </motion.div>
 
                             {/* Node 3: RBAC */}
-                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="flex items-center gap-6">
+                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="flex items-center gap-6">
                                 <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center shrink-0 z-10 backdrop-blur-sm">
                                     <FileKey className="w-8 h-8 text-orange-400" />
                                 </div>
@@ -105,7 +110,7 @@ export function SecurityArchitectureSection() {
                             </motion.div>
 
                             {/* Node 4: Database */}
-                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="flex items-center gap-6">
+                            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="flex items-center gap-6">
                                 <div className="w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0 z-10 backdrop-blur-sm">
                                     <Database className="w-8 h-8 text-green-400" />
                                 </div>
@@ -132,6 +137,7 @@ export function SecurityArchitectureSection() {
                                         key={i}
                                         initial={{ opacity: 0, y: 10 }}
                                         whileInView={{ opacity: 1, y: 0 }}
+                                        viewport={{ once: true }}
                                         transition={{ delay: i * 0.1 }}
                                         className="flex items-center gap-3 text-sm text-gray-300"
                                     >

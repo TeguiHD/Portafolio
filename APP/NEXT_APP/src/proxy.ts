@@ -99,19 +99,28 @@ function generateRequestId(): string {
  * - report-uri for CSP violation monitoring
  * 
  * Note: 'unsafe-inline' for styles is necessary for Next.js styled-jsx.
- * With nonce present, browsers that support it will ignore unsafe-inline.
- * Older browsers will use unsafe-inline as fallback.
+ * 
+ * SECURITY NOTE for Next.js Standalone Mode:
+ * - In standalone mode, pages are pre-rendered with inline scripts
+ * - These inline scripts cannot receive dynamically generated nonces
+ * - Therefore, we must use 'unsafe-inline' for script-src
+ * - This is the standard approach for Next.js production deployments
+ * - Other CSP directives still provide strong protection against:
+ *   - Clickjacking (frame-ancestors 'none')
+ *   - XSS via external scripts (only 'self' origin allowed)
+ *   - Data exfiltration (strict connect-src)
+ *   - Form hijacking (form-action 'self')
  */
-function buildCSP(nonce: string): string {
+function buildCSP(): string {
     const directives = [
         // Default: Block everything not explicitly allowed
         "default-src 'none'",
 
-        // Scripts: Allow unsafe-eval for dev/HMR, otherwise interactions fail
-        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`,
+        // Scripts: 'self' for static chunks, 'unsafe-inline' for Next.js inline scripts
+        // 'unsafe-eval' needed for React/Next.js features like fast refresh
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
 
         // Styles: Allow unsafe-inline for React/Framer Motion dynamic styles
-        // Note: nonce doesn't work with dynamically injected styles from libraries
         `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
         `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com`,
         `style-src-attr 'unsafe-inline'`,
@@ -149,11 +158,8 @@ function buildCSP(nonce: string): string {
         // Manifest: PWA manifest from self
         "manifest-src 'self'",
 
-        // Force HTTPS
+        // Force HTTPS upgrades (replaces deprecated block-all-mixed-content)
         "upgrade-insecure-requests",
-
-        // Block mixed content
-        "block-all-mixed-content",
     ]
     return directives.join('; ')
 }
@@ -395,7 +401,7 @@ export async function proxy(request: NextRequest) {
     })
 
     // Dynamic CSP with nonce
-    response.headers.set('Content-Security-Policy', buildCSP(nonce))
+    response.headers.set('Content-Security-Policy', buildCSP())
 
     // Pass nonce and request ID to client
     response.headers.set('x-nonce', nonce)
@@ -445,7 +451,7 @@ export async function proxy(request: NextRequest) {
                         'X-RateLimit-Limit': String(limit),
                         'X-RateLimit-Remaining': '0',
                         ...staticSecurityHeaders,
-                        'Content-Security-Policy': buildCSP(nonce),
+                        'Content-Security-Policy': buildCSP(),
                     },
                 }
             )

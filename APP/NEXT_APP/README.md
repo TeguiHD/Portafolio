@@ -21,7 +21,7 @@ Aplicación full-stack Next.js 16 con panel de administración, herramientas pú
 ```bash
 # Instalar dependencias
 npm install
-
+                                        
 # Configurar entorno
 cp .env.example .env
 
@@ -65,7 +65,7 @@ src/
 | 🔔 **Notificaciones** | Centro de notificaciones del sistema |
 | 📋 **Auditoría** | Logs de eventos y acciones |
 | 🛠️ **Herramientas** | Administrar herramientas públicas |
-| 📄 **CV Editor** | Editor dinámico de curriculum vitae |
+| 📄 **CV Editor** | Editor dinámico de CV con preview en tiempo real y asistente IA |
 
 ---
 
@@ -92,6 +92,7 @@ Accesibles desde `/tools`:
 | 💬 **Chat de Cotizaciones** | Asistente para crear propuestas comerciales |
 | 💡 **Tips Financieros** | Consejos personalizados según tus gastos |
 | 🔤 **Generador Regex** | Crea expresiones regulares desde lenguaje natural |
+| 📝 **CV Assistant (CVBot)** | Asistente IA para generar experiencias, proyectos y habilidades |
 
 ---
 
@@ -212,6 +213,7 @@ Este proyecto implementa seguridad de nivel empresarial siguiendo **OWASP ASVS L
 | Headers | OWASP ASVS Level 3 | ✅ |
 | Logging | SIEM-ready security events | ✅ |
 | Honeypots | Decoy endpoints + threat scoring | ✅ |
+| AI Security | Jailbreak detection, output sanitization, prompt hardening | ✅ |
 | Penetration Tests | Script automatizado incluido | ✅ |
 
 ### 🚨 Sistema de Alertas
@@ -512,7 +514,45 @@ const HONEYPOT_PATTERNS = [
 
 ---
 
-### 📊 8. SECURITY LOGGING
+### 🤖 8. SEGURIDAD DE IA (CVBot)
+
+El asistente de CV implementa múltiples capas de seguridad específicas para IA:
+
+#### Detección de Jailbreak/Prompt Injection
+```typescript
+// services/cv-ai.ts
+const BLOCKED_PATTERNS = [
+    /ignore\s*(all|previous|system)/gi,  // Prompt injection
+    /forget\s*(all|previous|instructions)/gi,
+    /pretend\s*(to\s*be|you\s*are)/gi,   // Roleplay attempts
+    /DAN\s*mode/gi,                       // Jailbreak patterns
+    /bypass\s*(filter|safety)/gi,
+    // + variantes en español
+]
+```
+
+#### Sanitización de Output IA
+```typescript
+// Previene XSS a través de respuestas generadas por IA
+sanitizeAIOutput(result)
+// Bloquea:
+// - <script> tags
+// - javascript: protocols
+// - Event handlers (onclick=, onerror=)
+// - Dangerous APIs (eval, document.cookie)
+```
+
+#### Restricciones del Sistema
+- ✅ Solo genera contenido para CV (experiencias, proyectos, skills)
+- ✅ No puede modificar datos personales (nombre, email, teléfono)
+- ✅ Rate limiting: 20 requests/min por usuario
+- ✅ Límite de input: 2000 caracteres por mensaje
+- ✅ Logging de intentos de jailbreak via `SecurityLogger`
+- ✅ Fallback multi-proveedor (Groq → OpenRouter)
+
+---
+
+### 📊 9. SECURITY LOGGING
 
 ```typescript
 // lib/security-logger.ts
@@ -535,7 +575,7 @@ SecurityLogger.dataAccess({ resource, action, recordCount })
 
 ---
 
-### 🔑 9. SESIONES SEGURAS
+### 🔑 10. SESIONES SEGURAS
 
 ```typescript
 // lib/auth.ts
@@ -562,7 +602,7 @@ cookies: {
 
 ---
 
-### 🔧 10. API SECURITY MIDDLEWARE
+### 🔧 11. API SECURITY MIDDLEWARE
 
 ```typescript
 // lib/api-security.ts

@@ -42,6 +42,11 @@ export function FinanceMetrics() {
     const [metrics, setMetrics] = useState<MetricsData | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedTab, setSelectedTab] = useState<"overview" | "trends" | "health">("overview");
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     useEffect(() => {
         async function fetchMetrics() {
@@ -103,7 +108,7 @@ export function FinanceMetrics() {
                 {selectedTab === "overview" && (
                     <motion.div
                         key="overview"
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={isMounted ? { opacity: 0, y: 10 } : false}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         className="grid grid-cols-2 md:grid-cols-4 gap-3"
@@ -169,7 +174,7 @@ export function FinanceMetrics() {
                 {selectedTab === "trends" && (
                     <motion.div
                         key="trends"
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={isMounted ? { opacity: 0, y: 10 } : false}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         className="space-y-4"
@@ -244,7 +249,7 @@ export function FinanceMetrics() {
                 {selectedTab === "health" && (
                     <motion.div
                         key="health"
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={isMounted ? { opacity: 0, y: 10 } : false}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         className="space-y-4"
@@ -328,7 +333,7 @@ function MetricCard({
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1 }}
             className={`p-4 rounded-xl border ${colors[color]} ${wide ? "col-span-2" : ""}`}
         >

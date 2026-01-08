@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ProfessionalFeeItem } from "@/app/admin/quotations/new/client";
 import { v4 as uuidv4 } from "uuid";
@@ -13,6 +13,11 @@ interface ProfessionalFeesSectionProps {
 
 export function ProfessionalFeesSection({ items, onChange }: ProfessionalFeesSectionProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const addItem = () => {
         const newItem: ProfessionalFeeItem = {
@@ -71,7 +76,7 @@ export function ProfessionalFeesSection({ items, onChange }: ProfessionalFeesSec
                     {items.map((item) => (
                         <motion.div
                             key={item.id}
-                            initial={{ opacity: 0, height: 0 }}
+                            initial={isMounted ? { opacity: 0, height: 0 } : false}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
                             className="border-t border-white/5"
@@ -121,7 +126,7 @@ export function ProfessionalFeesSection({ items, onChange }: ProfessionalFeesSec
                             <AnimatePresence>
                                 {expandedId === item.id && (
                                     <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
+                                        initial={isMounted ? { opacity: 0, height: 0 } : false}
                                         animate={{ opacity: 1, height: "auto" }}
                                         exit={{ opacity: 0, height: 0 }}
                                         className="px-4 pb-4"

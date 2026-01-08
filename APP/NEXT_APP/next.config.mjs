@@ -2,12 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone', // Required for Docker deployment
-
-  // Disable Turbopack for production builds to avoid stability issues
-  // Turbopack is still experimental for production in Next.js 16
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true, // Moved from experimental in Next.js 16
 
   images: {
     // SECURITY: Restrict image sources to trusted domains only

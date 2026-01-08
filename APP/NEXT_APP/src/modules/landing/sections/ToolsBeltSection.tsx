@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
     Terminal, QrCode, ArrowLeftRight, Lock,
@@ -60,6 +61,11 @@ const tools = [
 ];
 
 export function ToolsBeltSection() {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
     return (
         <section id="tools-belt" className="relative py-32 px-4 sm:px-6">
 
@@ -85,6 +91,7 @@ export function ToolsBeltSection() {
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 whileInView={{ opacity: 1, scale: 1 }}
+                                viewport={{ once: true }}
                                 transition={{ duration: 0.4, delay: i * 0.05 }}
                                 className="relative h-full bg-[#111] overflow-hidden rounded-3xl p-6 flex flex-col items-center justify-between text-center gap-4 border border-white/5 hover:border-white/20 transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl"
                             >

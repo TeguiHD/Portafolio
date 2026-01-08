@@ -1,9 +1,44 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type TargetAndTransition, type VariantLabels, type Target, type Transition } from "framer-motion";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 // Base skeleton pulse animation
 const skeletonPulse = "animate-pulse bg-neutral-800";
+
+// Type for motion initial prop
+type MotionInitial = boolean | Target | VariantLabels;
+type MotionAnimate = boolean | TargetAndTransition | VariantLabels;
+
+// SSR-safe motion wrapper - prevents hydration mismatch
+function MotionDiv({ 
+    children, 
+    initial, 
+    animate, 
+    transition, 
+    className,
+    ...props 
+}: {
+    children?: React.ReactNode;
+    initial?: MotionInitial;
+    animate?: MotionAnimate;
+    transition?: Transition;
+    className?: string;
+    [key: string]: unknown;
+}) {
+    const isMounted = useIsMounted();
+    return (
+        <motion.div
+            initial={isMounted ? initial : false}
+            animate={animate}
+            transition={transition}
+            className={className}
+            {...props}
+        >
+            {children}
+        </motion.div>
+    );
+}
 
 // ===================
 // Generic Skeleton Primitives
@@ -60,7 +95,7 @@ export function DashboardPageSkeleton() {
             {/* Stats Grid - 5 columns on lg, 2 on mobile */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
                 {Array.from({ length: 5 }).map((_, idx) => (
-                    <motion.div
+                    <MotionDiv
                         key={idx}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -73,7 +108,7 @@ export function DashboardPageSkeleton() {
                         </div>
                         <Skeleton className="h-8 w-16" />
                         <Skeleton className="h-4 w-24 mt-1" />
-                    </motion.div>
+                    </MotionDiv>
                 ))}
             </div>
 
@@ -82,7 +117,7 @@ export function DashboardPageSkeleton() {
                 <Skeleton className="h-5 w-32 mb-3 sm:mb-4" />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     {Array.from({ length: 3 }).map((_, idx) => (
-                        <motion.div
+                        <MotionDiv
                             key={idx}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -92,7 +127,7 @@ export function DashboardPageSkeleton() {
                             <Skeleton className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl mb-3 sm:mb-4" />
                             <Skeleton className="h-5 w-28" />
                             <Skeleton className="h-4 w-40 mt-1" />
-                        </motion.div>
+                        </MotionDiv>
                     ))}
                 </div>
             </div>
@@ -102,7 +137,7 @@ export function DashboardPageSkeleton() {
                 <Skeleton className="h-5 w-36 mb-4" />
                 <div className="glass-panel rounded-2xl border border-accent-1/20 divide-y divide-accent-1/10">
                     {Array.from({ length: 5 }).map((_, idx) => (
-                        <motion.div
+                        <MotionDiv
                             key={idx}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -114,7 +149,7 @@ export function DashboardPageSkeleton() {
                                 <Skeleton className="h-4 w-48" />
                                 <Skeleton className="h-3 w-20 mt-1" />
                             </div>
-                        </motion.div>
+                        </MotionDiv>
                     ))}
                 </div>
             </div>
@@ -153,7 +188,7 @@ export function AnalyticsPageSkeleton() {
                     { label: "Eventos CTA", width: "w-10" },
                     { label: "Páginas únicas", width: "w-8" },
                 ].map((stat, idx) => (
-                    <motion.div
+                    <MotionDiv
                         key={idx}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -163,14 +198,14 @@ export function AnalyticsPageSkeleton() {
                         <Skeleton className="h-4 w-28" />
                         <Skeleton className={`h-7 ${stat.width} mt-2`} />
                         <Skeleton className="h-3 w-16 mt-1" />
-                    </motion.div>
+                    </MotionDiv>
                 ))}
             </div>
 
             {/* 2-Column Grid: Chart + Top Pages */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Page Views Chart */}
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
@@ -188,7 +223,7 @@ export function AnalyticsPageSkeleton() {
                     {/* Realistic Bar Chart Skeleton */}
                     <div className="h-36 sm:h-48 flex items-end justify-between gap-1 px-2">
                         {[40, 65, 45, 80, 55, 70, 90].map((height, idx) => (
-                            <motion.div
+                            <MotionDiv
                                 key={idx}
                                 initial={{ height: 0 }}
                                 animate={{ height: `${height}%` }}
@@ -204,10 +239,10 @@ export function AnalyticsPageSkeleton() {
                             <Skeleton key={idx} className="h-3 w-6" />
                         ))}
                     </div>
-                </motion.div>
+                </MotionDiv>
 
                 {/* Top Pages */}
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 }}
@@ -216,7 +251,7 @@ export function AnalyticsPageSkeleton() {
                     <Skeleton className="h-5 w-40 mb-4 sm:mb-6" />
                     <div className="space-y-4">
                         {[85, 62, 45, 30, 18].map((width, idx) => (
-                            <motion.div
+                            <MotionDiv
                                 key={idx}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -227,23 +262,23 @@ export function AnalyticsPageSkeleton() {
                                     <Skeleton className="h-4 w-16" />
                                 </div>
                                 <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <motion.div
+                                    <MotionDiv
                                         initial={{ width: 0 }}
                                         animate={{ width: `${width}%` }}
                                         transition={{ delay: 0.4 + idx * 0.05, duration: 0.5 }}
                                         className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full"
                                     />
                                 </div>
-                            </motion.div>
+                            </MotionDiv>
                         ))}
                     </div>
-                </motion.div>
+                </MotionDiv>
             </div>
 
             {/* 2-Column Grid: CTA + Referrers */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* CTA Performance */}
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
@@ -257,7 +292,7 @@ export function AnalyticsPageSkeleton() {
                             { name: "contact", width: 35 },
                             { name: "github", width: 20 },
                         ].map((cta, idx) => (
-                            <motion.div
+                            <MotionDiv
                                 key={idx}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -268,20 +303,20 @@ export function AnalyticsPageSkeleton() {
                                     <Skeleton className="h-4 w-8" />
                                 </div>
                                 <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <motion.div
+                                    <MotionDiv
                                         initial={{ width: 0 }}
                                         animate={{ width: `${cta.width}%` }}
                                         transition={{ delay: 0.45 + idx * 0.05, duration: 0.5 }}
                                         className="h-full bg-gradient-to-r from-accent-1 to-accent-2 rounded-full"
                                     />
                                 </div>
-                            </motion.div>
+                            </MotionDiv>
                         ))}
                     </div>
-                </motion.div>
+                </MotionDiv>
 
                 {/* Top Referrers */}
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.35 }}
@@ -297,7 +332,7 @@ export function AnalyticsPageSkeleton() {
                             { icon: "💼", visits: "19" },
                             { icon: "📧", visits: "8" },
                         ].map((ref, idx) => (
-                            <motion.div
+                            <MotionDiv
                                 key={idx}
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
@@ -309,10 +344,10 @@ export function AnalyticsPageSkeleton() {
                                     <Skeleton className="h-5 w-10" />
                                     <Skeleton className="h-3 w-14 mt-1" />
                                 </div>
-                            </motion.div>
+                            </MotionDiv>
                         ))}
                     </div>
-                </motion.div>
+                </MotionDiv>
             </div>
         </div>
     );
@@ -354,7 +389,7 @@ export function UsersPageSkeleton() {
             {/* Users List */}
             <div className="grid gap-4">
                 {Array.from({ length: 5 }).map((_, idx) => (
-                    <motion.div
+                    <MotionDiv
                         key={idx}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -377,7 +412,7 @@ export function UsersPageSkeleton() {
                                 </div>
                             </div>
                         </SkeletonCard>
-                    </motion.div>
+                    </MotionDiv>
                 ))}
             </div>
         </div>
@@ -425,7 +460,7 @@ export function ToolsPageSkeleton() {
             {/* Tools List */}
             <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, idx) => (
-                    <motion.div
+                    <MotionDiv
                         key={idx}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -455,7 +490,7 @@ export function ToolsPageSkeleton() {
                                 <Skeleton className="h-8 w-8 rounded-lg" />
                             </div>
                         </div>
-                    </motion.div>
+                    </MotionDiv>
                 ))}
             </div>
         </div>
@@ -583,7 +618,7 @@ export function NotificationsPageSkeleton() {
             {/* Notification Cards */}
             <div className="space-y-2 sm:space-y-3">
                 {Array.from({ length: 6 }).map((_, idx) => (
-                    <motion.div
+                    <MotionDiv
                         key={idx}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -605,7 +640,7 @@ export function NotificationsPageSkeleton() {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </MotionDiv>
                 ))}
             </div>
         </div>
