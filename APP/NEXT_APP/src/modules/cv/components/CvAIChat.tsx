@@ -5,23 +5,41 @@ import { motion, AnimatePresence } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
 import { useToast } from "@/components/ui/Toast";
 import type { Experience } from "./ExperienceSection";
-import type { Education } from "./EducationSection";
 import type { Project } from "./ProjectsSection";
-import type { SkillCategory } from "./SkillsSection";
-import type { Certification, Language, CvData } from "../utils/latex-templates-enhanced";
+import type { CvData } from "../utils/latex-templates-enhanced";
 
-// Expanded section types
-type SupportedSection = "experience" | "projects" | "education" | "skills" | "certifications" | "languages";
+// Only experience and projects supported for AI chat
+type SupportedSection = "experience" | "projects";
 
 interface ChatMessage {
     id: string;
     role: "user" | "assistant";
     content: string;
     action?: {
-        type: "add_experience" | "add_project" | "add_education" | "add_skills" | "add_certification" | "add_language" | "improve_text" | "error";
+        type: "add_experience" | "add_project" | "update_draft" | "improve_text" | "ask_details" | "conversation" | "error";
         data?: Record<string, unknown>;
         applied?: boolean;
     };
+}
+
+// Draft experience/project state
+interface DraftExperience {
+    company?: string;
+    position?: string;
+    description?: string;
+    startDate?: string;
+    endDate?: string;
+    current?: boolean;
+    technologies?: string[];
+    achievements?: string[];
+}
+
+interface DraftProject {
+    name?: string;
+    description?: string;
+    technologies?: string[];
+    url?: string;
+    highlights?: string[];
 }
 
 interface CvAIChatProps {
@@ -29,21 +47,14 @@ interface CvAIChatProps {
     activeSection: SupportedSection;
     onAddExperience: (exp: Experience) => void;
     onAddProject: (project: Project) => void;
-    onAddEducation?: (edu: Education) => void;
-    onAddSkillCategory?: (category: SkillCategory) => void;
-    onAddCertification?: (cert: Certification) => void;
-    onAddLanguage?: (lang: Language) => void;
+    hideHeader?: boolean;
 }
 
-// Welcome messages for each section
+// Welcome messages for supported sections
 const getWelcomeMessage = (section: SupportedSection): ChatMessage => {
     const messages: Record<SupportedSection, string> = {
-        experience: "¡Hola! 👋 Soy tu asistente para **experiencias laborales**.\n\nPuedo ayudarte a:\n• Redactar logros cuantificables\n• Describir responsabilidades de forma atractiva\n• Usar verbos de acción efectivos\n\n¿Qué experiencia quieres agregar?",
-        projects: "¡Hola! 👋 Soy tu asistente para **proyectos**.\n\nPuedo ayudarte a:\n• Describir proyectos de forma impactante\n• Destacar tecnologías utilizadas\n• Comunicar el valor del proyecto\n\n¿Qué proyecto quieres agregar?",
-        education: "¡Hola! 👋 Soy tu asistente para **educación**.\n\nPuedo ayudarte a:\n• Agregar títulos académicos\n• Destacar logros académicos\n• Formatear correctamente tu formación\n\n¿Qué formación académica quieres agregar?",
-        skills: "¡Hola! 👋 Soy tu asistente para **habilidades**.\n\nPuedo ayudarte a:\n• Organizar habilidades por categorías\n• Sugerir skills relevantes para tu industria\n• Mejorar la presentación de tus competencias\n\n¿Qué habilidades necesitas agregar?",
-        certifications: "¡Hola! 👋 Soy tu asistente para **certificaciones**.\n\nPuedo ayudarte a:\n• Agregar certificaciones profesionales\n• Incluir cursos relevantes\n• Destacar credenciales importantes\n\n¿Qué certificación quieres agregar?",
-        languages: "¡Hola! 👋 Soy tu asistente para **idiomas**.\n\nPuedo ayudarte a:\n• Agregar idiomas con niveles apropiados\n• Recomendar cómo presentar tu competencia\n• Incluir certificaciones de idioma\n\n¿Qué idioma quieres agregar?",
+        experience: "¡Hola! 👋 Soy tu asistente para **experiencias laborales**.\n\nCuéntame sobre tu trabajo y yo te ayudaré a:\n• Redactar logros cuantificables\n• Pulir las descripciones\n• Usar verbos de acción efectivos\n\n**Tú pones la info, yo la mejoro.** ¿Qué experiencia quieres agregar?",
+        projects: "¡Hola! 👋 Soy tu asistente para **proyectos**.\n\nDescríbeme tu proyecto y yo te ayudaré a:\n• Mejorar la descripción\n• Sugerir tecnologías relacionadas\n• Destacar el impacto\n\n**Tú pones la info, yo la pulo.** ¿Qué proyecto quieres agregar?",
     };
 
     return {
@@ -53,38 +64,18 @@ const getWelcomeMessage = (section: SupportedSection): ChatMessage => {
     };
 };
 
-// Quick actions for each section
+// Quick actions for supported sections
 const getQuickActions = (section: SupportedSection) => {
     const actions: Record<SupportedSection, Array<{ label: string; prompt: string }>> = {
         experience: [
-            { label: "💼 Full Stack Developer", prompt: "Agrega una experiencia como desarrollador full stack en una startup de tecnología, con logros cuantificables" },
-            { label: "👔 Tech Lead", prompt: "Crea una experiencia como tech lead liderando un equipo de desarrollo" },
-            { label: "🚀 Freelance", prompt: "Agrega experiencia como desarrollador freelance con varios clientes" },
+            { label: "💼 Full Stack Developer", prompt: "Trabajé como desarrollador full stack en una startup de tecnología" },
+            { label: "👔 Tech Lead", prompt: "Fui tech lead liderando un equipo de desarrollo de 5 personas" },
+            { label: "🚀 Freelance", prompt: "Trabajo como desarrollador freelance con varios clientes" },
         ],
         projects: [
-            { label: "🛒 E-commerce", prompt: "Crea un proyecto de e-commerce con Next.js y pasarela de pagos" },
-            { label: "📊 Dashboard", prompt: "Agrega un proyecto de dashboard de analytics con gráficos interactivos" },
-            { label: "🤖 App con IA", prompt: "Crea un proyecto que integre inteligencia artificial" },
-        ],
-        education: [
-            { label: "🎓 Ingeniería", prompt: "Agrega título de Ingeniería en Informática de una universidad" },
-            { label: "📚 Maestría", prompt: "Crea entrada para maestría en ciencias de la computación" },
-            { label: "💻 Bootcamp", prompt: "Agrega un bootcamp de desarrollo web" },
-        ],
-        skills: [
-            { label: "🔧 Frontend", prompt: "Agrega categoría de habilidades frontend con React, TypeScript y CSS" },
-            { label: "⚙️ Backend", prompt: "Crea categoría de habilidades backend con Node.js, Python y bases de datos" },
-            { label: "☁️ DevOps", prompt: "Agrega habilidades de DevOps: Docker, Kubernetes, CI/CD" },
-        ],
-        certifications: [
-            { label: "☁️ AWS", prompt: "Agrega certificación AWS Solutions Architect" },
-            { label: "🔷 Azure", prompt: "Crea certificación Microsoft Azure Developer" },
-            { label: "📱 Meta", prompt: "Agrega certificación de Meta para desarrollo móvil" },
-        ],
-        languages: [
-            { label: "🇪🇸 Español Nativo", prompt: "Agrega español como idioma nativo" },
-            { label: "🇺🇸 Inglés Avanzado", prompt: "Agrega inglés nivel avanzado o fluido" },
-            { label: "🇧🇷 Portugués", prompt: "Agrega portugués nivel intermedio" },
+            { label: "🛒 E-commerce", prompt: "Construí un e-commerce con Next.js y pasarela de pagos" },
+            { label: "📊 Dashboard", prompt: "Desarrollé un dashboard de analytics con gráficos interactivos" },
+            { label: "🤖 App con IA", prompt: "Creé una aplicación que integra inteligencia artificial" },
         ],
     };
 
@@ -96,10 +87,6 @@ const getSectionIcon = (section: SupportedSection): string => {
     const icons: Record<SupportedSection, string> = {
         experience: "💼",
         projects: "📁",
-        education: "🎓",
-        skills: "💡",
-        certifications: "📜",
-        languages: "🌐",
     };
     return icons[section];
 };
@@ -109,10 +96,6 @@ const getSectionLabel = (section: SupportedSection): string => {
     const labels: Record<SupportedSection, string> = {
         experience: "Asistente de experiencias",
         projects: "Asistente de proyectos",
-        education: "Asistente de educación",
-        skills: "Asistente de habilidades",
-        certifications: "Asistente de certificaciones",
-        languages: "Asistente de idiomas",
     };
     return labels[section];
 };
@@ -122,21 +105,22 @@ export function CvAIChat({
     activeSection,
     onAddExperience,
     onAddProject,
-    onAddEducation,
-    onAddSkillCategory,
-    onAddCertification,
-    onAddLanguage,
+    hideHeader = false,
 }: CvAIChatProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([getWelcomeMessage(activeSection)]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [draftExperience, setDraftExperience] = useState<DraftExperience>({});
+    const [draftProject, setDraftProject] = useState<DraftProject>({});
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
 
-    // Reset messages when section changes
+    // Reset messages and draft when section changes
     useEffect(() => {
         setMessages([getWelcomeMessage(activeSection)]);
+        setDraftExperience({});
+        setDraftProject({});
     }, [activeSection]);
 
     useEffect(() => {
@@ -199,7 +183,41 @@ export function CvAIChat({
             }
 
             if (result.success) {
-                if (result.action === "ask_details" || result.action === "conversation") {
+                if (result.action === "update_draft") {
+                    // Update draft state with new fields
+                    if (activeSection === "experience") {
+                        setDraftExperience(prev => ({
+                            ...prev,
+                            ...(result.data?.company && { company: result.data.company as string }),
+                            ...(result.data?.position && { position: result.data.position as string }),
+                            ...(result.data?.description && { description: result.data.description as string }),
+                            ...(result.data?.startDate && { startDate: result.data.startDate as string }),
+                            ...(result.data?.endDate && { endDate: result.data.endDate as string }),
+                            ...(result.data?.current !== undefined && { current: result.data.current as boolean }),
+                            ...(result.data?.technologies && { technologies: result.data.technologies as string[] }),
+                            ...(result.data?.achievements && { achievements: result.data.achievements as string[] }),
+                        }));
+                    } else {
+                        setDraftProject(prev => ({
+                            ...prev,
+                            ...(result.data?.name && { name: result.data.name as string }),
+                            ...(result.data?.description && { description: result.data.description as string }),
+                            ...(result.data?.technologies && { technologies: result.data.technologies as string[] }),
+                            ...(result.data?.url && { url: result.data.url as string }),
+                            ...(result.data?.highlights && { highlights: result.data.highlights as string[] }),
+                        }));
+                    }
+                    const assistantMessage: ChatMessage = {
+                        id: uuidv4(),
+                        role: "assistant",
+                        content: result.message || "Guardado. ¿Qué más puedes contarme?",
+                        action: {
+                            type: "update_draft",
+                            data: result.data,
+                        },
+                    };
+                    setMessages((prev) => [...prev, assistantMessage]);
+                } else if (result.action === "ask_details" || result.action === "conversation") {
                     const assistantMessage: ChatMessage = {
                         id: uuidv4(),
                         role: "assistant",
@@ -208,12 +226,14 @@ export function CvAIChat({
                     setMessages((prev) => [...prev, assistantMessage]);
                 } else if (
                     result.action === "add_experience" ||
-                    result.action === "add_project" ||
-                    result.action === "add_education" ||
-                    result.action === "add_skills" ||
-                    result.action === "add_certification" ||
-                    result.action === "add_language"
+                    result.action === "add_project"
                 ) {
+                    // Clear draft when adding final result
+                    if (result.action === "add_experience") {
+                        setDraftExperience({});
+                    } else {
+                        setDraftProject({});
+                    }
                     const assistantMessage: ChatMessage = {
                         id: uuidv4(),
                         role: "assistant",
@@ -298,44 +318,6 @@ export function CvAIChat({
                 };
                 onAddProject(proj);
                 toast.success("Proyecto agregado al CV");
-            } else if (type === "add_education" && onAddEducation) {
-                const edu: Education = {
-                    id: uuidv4(),
-                    institution: (actionData.institution as string) || "",
-                    degree: (actionData.degree as string) || "",
-                    field: (actionData.field as string) || "",
-                    startDate: (actionData.startDate as string) || "",
-                    endDate: (actionData.endDate as string) || "",
-                };
-                onAddEducation(edu);
-                toast.success("Educación agregada al CV");
-            } else if (type === "add_skills" && onAddSkillCategory) {
-                const category: SkillCategory = {
-                    category: (actionData.category as string) || "",
-                    items: (actionData.items as string[]) || [],
-                };
-                onAddSkillCategory(category);
-                toast.success("Habilidades agregadas al CV");
-            } else if (type === "add_certification" && onAddCertification) {
-                const cert: Certification = {
-                    id: uuidv4(),
-                    name: (actionData.name as string) || "",
-                    issuer: (actionData.issuer as string) || "",
-                    date: (actionData.date as string) || "",
-                    url: (actionData.url as string) || "",
-                    credentialId: (actionData.credentialId as string) || "",
-                };
-                onAddCertification(cert);
-                toast.success("Certificación agregada al CV");
-            } else if (type === "add_language" && onAddLanguage) {
-                const lang: Language = {
-                    id: uuidv4(),
-                    name: (actionData.name as string) || "",
-                    level: (actionData.level as Language["level"]) || "intermediate",
-                    certification: (actionData.certification as string) || "",
-                };
-                onAddLanguage(lang);
-                toast.success("Idioma agregado al CV");
             }
 
             setMessages((prev) =>
@@ -349,7 +331,7 @@ export function CvAIChat({
             console.error("Apply action error:", err);
             toast.error("Error al aplicar la sugerencia");
         }
-    }, [messages, onAddExperience, onAddProject, onAddEducation, onAddSkillCategory, onAddCertification, onAddLanguage, toast]);
+    }, [messages, onAddExperience, onAddProject, toast]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -390,56 +372,6 @@ export function CvAIChat({
                     </div>
                 )}
 
-                {type === "add_education" && (
-                    <div className="text-sm space-y-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">🎓</span>
-                            <div>
-                                <p className="font-semibold text-white">{actionData.degree as string}</p>
-                                <p className="text-neutral-400 text-xs">{actionData.institution as string}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {type === "add_skills" && (
-                    <div className="text-sm space-y-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">💡</span>
-                            <p className="font-semibold text-white">{actionData.category as string}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                            {(actionData.items as string[])?.map((skill, i) => (
-                                <span key={i} className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-[10px]">
-                                    {skill}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {type === "add_certification" && (
-                    <div className="text-sm space-y-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">📜</span>
-                            <div>
-                                <p className="font-semibold text-white">{actionData.name as string}</p>
-                                <p className="text-neutral-400 text-xs">{actionData.issuer as string}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {type === "add_language" && (
-                    <div className="text-sm space-y-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">🌐</span>
-                            <p className="font-semibold text-white">{actionData.name as string}</p>
-                            <span className="text-neutral-400 text-xs">({actionData.level as string})</span>
-                        </div>
-                    </div>
-                )}
-
                 {!applied ? (
                     <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -468,32 +400,133 @@ export function CvAIChat({
 
     return (
         <div className="flex flex-col h-full">
-            {/* Header with section indicator */}
-            <div className="relative flex flex-col bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border-b border-white/10">
-                <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                                <span className="text-lg">{getSectionIcon(activeSection)}</span>
+            {/* Header with section indicator - conditionally hidden */}
+            {!hideHeader && (
+                <div className="relative flex flex-col bg-gradient-to-r from-slate-800/60 to-slate-900/60 border-b border-white/10">
+                    <div className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
+                                    <span className="text-lg">{getSectionIcon(activeSection)}</span>
+                                </div>
+                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-neutral-900" />
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-neutral-900" />
+                            <div>
+                                <p className="font-bold text-white text-sm">Asistente CV</p>
+                                <p className="text-[10px] text-teal-300">
+                                    {getSectionLabel(activeSection)}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="font-bold text-white text-sm">CVBot</p>
-                            <p className="text-[10px] text-purple-300">
-                                {getSectionLabel(activeSection)}
-                            </p>
+
+                        {/* Section badge */}
+                        <div className="px-2 py-1 rounded-full bg-teal-500/20 text-teal-300 text-[10px] font-medium uppercase">
+                            {activeSection}
                         </div>
                     </div>
 
-                    {/* Section badge */}
-                    <div className="px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-medium uppercase">
-                        {activeSection}
-                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-teal-500/50 to-transparent" />
                 </div>
+            )}
 
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
-            </div>
+            {/* Draft Preview - shows fields being filled in real-time */}
+            {activeSection === "experience" && Object.keys(draftExperience).length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="bg-gradient-to-r from-teal-500/10 to-emerald-500/10 border-b border-teal-500/20 p-3"
+                >
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-teal-400 font-medium">📝 Borrador en progreso</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                            {draftExperience.company ? (
+                                <span className="text-green-400">✓</span>
+                            ) : (
+                                <span className="text-neutral-500">○</span>
+                            )}
+                            <span className={draftExperience.company ? "text-white" : "text-neutral-500"}>
+                                Empresa: {draftExperience.company || "Pendiente..."}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            {draftExperience.position ? (
+                                <span className="text-green-400">✓</span>
+                            ) : (
+                                <span className="text-neutral-500">○</span>
+                            )}
+                            <span className={draftExperience.position ? "text-white" : "text-neutral-500"}>
+                                Cargo: {draftExperience.position || "Pendiente..."}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            {draftExperience.startDate ? (
+                                <span className="text-green-400">✓</span>
+                            ) : (
+                                <span className="text-neutral-500">○</span>
+                            )}
+                            <span className={draftExperience.startDate ? "text-white" : "text-neutral-500"}>
+                                Fechas: {draftExperience.startDate || "Pendiente..."}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            {draftExperience.technologies && draftExperience.technologies.length > 0 ? (
+                                <span className="text-green-400">✓</span>
+                            ) : (
+                                <span className="text-neutral-500">○</span>
+                            )}
+                            <span className={draftExperience.technologies?.length ? "text-white" : "text-neutral-500"}>
+                                Tech: {draftExperience.technologies?.join(", ") || "Pendiente..."}
+                            </span>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {activeSection === "projects" && Object.keys(draftProject).length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="bg-gradient-to-r from-teal-500/10 to-emerald-500/10 border-b border-teal-500/20 p-3"
+                >
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-teal-400 font-medium">📝 Borrador en progreso</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                            {draftProject.name ? (
+                                <span className="text-green-400">✓</span>
+                            ) : (
+                                <span className="text-neutral-500">○</span>
+                            )}
+                            <span className={draftProject.name ? "text-white" : "text-neutral-500"}>
+                                Nombre: {draftProject.name || "Pendiente..."}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            {draftProject.description ? (
+                                <span className="text-green-400">✓</span>
+                            ) : (
+                                <span className="text-neutral-500">○</span>
+                            )}
+                            <span className={draftProject.description ? "text-white" : "text-neutral-500"}>
+                                Descripción: {draftProject.description ? "✓" : "Pendiente..."}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 col-span-2">
+                            {draftProject.technologies && draftProject.technologies.length > 0 ? (
+                                <span className="text-green-400">✓</span>
+                            ) : (
+                                <span className="text-neutral-500">○</span>
+                            )}
+                            <span className={draftProject.technologies?.length ? "text-white" : "text-neutral-500"}>
+                                Tech: {draftProject.technologies?.join(", ") || "Pendiente..."}
+                            </span>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -506,7 +539,7 @@ export function CvAIChat({
                     >
                         <div
                             className={`max-w-[85%] p-3 rounded-2xl ${message.role === "user"
-                                ? "bg-purple-600 text-white"
+                                ? "bg-teal-600 text-white"
                                 : "bg-white/10 text-white"
                                 }`}
                         >
@@ -524,9 +557,9 @@ export function CvAIChat({
                     >
                         <div className="bg-white/10 p-3 rounded-2xl">
                             <div className="flex gap-1">
-                                <span className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                                <span className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                                <span className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                                <span className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                                <span className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                                <span className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: "300ms" }} />
                             </div>
                         </div>
                     </motion.div>
@@ -535,7 +568,7 @@ export function CvAIChat({
             </div>
 
             {/* Quick actions - only show at start */}
-            {messages.length === 1 && (
+            {messages.length === 1 && quickActions && quickActions.length > 0 && (
                 <div className="px-4 pb-2">
                     <p className="text-[10px] text-neutral-500 mb-2 uppercase tracking-wide">Sugerencias rápidas</p>
                     <div className="flex flex-wrap gap-2">
@@ -543,7 +576,7 @@ export function CvAIChat({
                             <button
                                 key={i}
                                 onClick={() => handleSend(action.prompt)}
-                                className="px-3 py-1.5 rounded-full bg-purple-500/10 text-purple-300 text-xs hover:bg-purple-500/20 transition-colors"
+                                className="px-3 py-1.5 rounded-full bg-teal-500/10 text-teal-300 text-xs hover:bg-teal-500/20 transition-colors"
                             >
                                 {action.label}
                             </button>
@@ -553,7 +586,7 @@ export function CvAIChat({
             )}
 
             {/* Input */}
-            <div className="p-4 border-t border-purple-500/20">
+            <div className="p-4 border-t border-teal-500/20">
                 <div className="flex gap-2">
                     <textarea
                         ref={inputRef}
@@ -563,14 +596,14 @@ export function CvAIChat({
                         placeholder={`Describe lo que quieres agregar...`}
                         rows={1}
                         disabled={isLoading}
-                        className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-purple-500/20 text-white placeholder-neutral-500 focus:outline-none focus:border-purple-500/50 resize-none text-sm disabled:opacity-50"
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-teal-500/20 text-white placeholder-neutral-500 focus:outline-none focus:border-teal-500/50 resize-none text-sm disabled:opacity-50"
                     />
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleSend()}
                         disabled={isLoading || !input.trim()}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -592,10 +625,6 @@ interface InlineCvChatProps {
     activeSection: SupportedSection;
     onAddExperience: (exp: Experience) => void;
     onAddProject: (project: Project) => void;
-    onAddEducation?: (edu: Education) => void;
-    onAddSkillCategory?: (category: SkillCategory) => void;
-    onAddCertification?: (cert: Certification) => void;
-    onAddLanguage?: (lang: Language) => void;
 }
 
 export function InlineCvChat({
@@ -603,10 +632,6 @@ export function InlineCvChat({
     activeSection,
     onAddExperience,
     onAddProject,
-    onAddEducation,
-    onAddSkillCategory,
-    onAddCertification,
-    onAddLanguage,
 }: InlineCvChatProps) {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -618,21 +643,21 @@ export function InlineCvChat({
                 whileTap={{ scale: 0.99 }}
                 onClick={() => setIsOpen(!isOpen)}
                 className={`w-full px-4 py-3 rounded-xl border flex items-center justify-between transition-all ${isOpen
-                    ? "bg-purple-500/10 border-purple-500/30"
-                    : "bg-white/5 border-white/10 hover:border-purple-500/20"
+                    ? "bg-teal-500/10 border-teal-500/30"
+                    : "bg-white/5 border-white/10 hover:border-teal-500/20"
                     }`}
             >
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
                         <span className="text-sm">{getSectionIcon(activeSection)}</span>
                     </div>
                     <div className="text-left">
-                        <p className="text-sm font-medium text-white">CVBot</p>
+                        <p className="text-sm font-medium text-white">Asistente CV</p>
                         <p className="text-[10px] text-neutral-400">{getSectionLabel(activeSection)}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-purple-400">
+                    <span className="text-xs text-teal-400">
                         {isOpen ? "Cerrar" : "Abrir asistente"}
                     </span>
                     <svg
@@ -656,16 +681,12 @@ export function InlineCvChat({
                         transition={{ type: "spring", damping: 30, stiffness: 400 }}
                         className="overflow-hidden"
                     >
-                        <div className="mt-2 rounded-xl border border-purple-500/20 bg-gradient-to-b from-neutral-900/50 to-neutral-950/50 overflow-hidden h-[400px]">
+                        <div className="mt-2 rounded-xl border border-teal-500/20 bg-gradient-to-b from-neutral-900/50 to-neutral-950/50 overflow-hidden h-[400px]">
                             <CvAIChat
                                 data={data}
                                 activeSection={activeSection}
                                 onAddExperience={onAddExperience}
                                 onAddProject={onAddProject}
-                                onAddEducation={onAddEducation}
-                                onAddSkillCategory={onAddSkillCategory}
-                                onAddCertification={onAddCertification}
-                                onAddLanguage={onAddLanguage}
                             />
                         </div>
                     </motion.div>
@@ -675,80 +696,213 @@ export function InlineCvChat({
     );
 }
 
-// Keep FloatingCvChat for backward compatibility but deprecated
+// Floating chat button with panel - Native feel, improved design
 interface FloatingCvChatProps {
     data: CvData;
-    activeSection: "experience" | "projects";
+    activeSection: SupportedSection;
     onAddExperience: (exp: Experience) => void;
     onAddProject: (project: Project) => void;
 }
 
-/** @deprecated Use InlineCvChat instead */
-export function FloatingCvChat({ data, activeSection, onAddExperience, onAddProject }: FloatingCvChatProps) {
+// Section colors for the floating button
+const getSectionColor = (section: SupportedSection) => {
+    const colors: Record<SupportedSection, string> = {
+        experience: "from-slate-600 via-slate-500 to-slate-600",
+        projects: "from-teal-500 via-emerald-500 to-teal-600",
+    };
+    return colors[section];
+};
+
+const getSectionShadowColor = (section: SupportedSection) => {
+    const shadows: Record<SupportedSection, string> = {
+        experience: "shadow-slate-500/30",
+        projects: "shadow-teal-500/30",
+    };
+    return shadows[section];
+};
+
+export function FloatingCvChat({
+    data,
+    activeSection,
+    onAddExperience,
+    onAddProject,
+}: FloatingCvChatProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [isMinimized, setIsMinimized] = useState(false);
+
+    // Close on escape key
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && isOpen) {
+                if (isMinimized) {
+                    setIsMinimized(false);
+                } else {
+                    setIsOpen(false);
+                }
+            }
+        };
+        window.addEventListener("keydown", handleEscape);
+        return () => window.removeEventListener("keydown", handleEscape);
+    }, [isOpen, isMinimized]);
+
+    const sectionColor = getSectionColor(activeSection);
+    const sectionShadow = getSectionShadowColor(activeSection);
 
     return (
         <>
-            {/* FAB Button */}
-            <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setIsOpen(true)}
-                className={`fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 via-indigo-500 to-purple-600 text-white shadow-xl shadow-purple-500/40 flex items-center justify-center ${isOpen ? "hidden" : ""}`}
-                style={{
-                    boxShadow: "0 8px 32px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)"
-                }}
-            >
-                <span className="text-2xl">{activeSection === "experience" ? "💼" : "📁"}</span>
-            </motion.button>
+            {/* FAB Button - Always visible when chat is closed */}
+            <AnimatePresence>
+                {!isOpen && (
+                    <motion.button
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        whileHover={{ scale: 1.08, rotate: 3 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setIsOpen(true)}
+                        className="fixed bottom-6 right-6 z-40 group"
+                        aria-label="Abrir CVBot"
+                    >
+                        {/* Pulse animation ring */}
+                        <span className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${sectionColor} opacity-40 animate-ping`} />
+
+                        {/* Main button */}
+                        <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${sectionColor} text-white shadow-xl ${sectionShadow} flex items-center justify-center transform transition-all duration-200`}>
+                            {/* Sparkles icon */}
+                            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                            </svg>
+
+                            {/* Online indicator */}
+                            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-[2.5px] border-neutral-900 flex items-center justify-center">
+                                <span className="w-1.5 h-1.5 bg-white rounded-full" />
+                            </span>
+                        </div>
+
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full right-0 mb-3 px-3 py-2 rounded-xl bg-neutral-800/95 backdrop-blur-sm text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl border border-white/10">
+                            <div className="flex items-center gap-2">
+                                <span className="text-base">{getSectionIcon(activeSection)}</span>
+                                <span>Asistente CV • {getSectionLabel(activeSection)}</span>
+                            </div>
+                            <div className="absolute top-full right-5 border-8 border-transparent border-t-neutral-800/95" />
+                        </div>
+                    </motion.button>
+                )}
+            </AnimatePresence>
 
             {/* Chat Panel */}
             <AnimatePresence>
                 {isOpen && (
                     <>
-                        {/* Backdrop */}
+                        {/* Backdrop for mobile */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsOpen(false)}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40"
+                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                         />
 
-                        {/* Panel */}
+                        {/* Chat Window */}
                         <motion.div
-                            initial={{ opacity: 0, y: "100%" }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: "100%" }}
-                            transition={{ type: "spring", damping: 30, stiffness: 400 }}
-                            className="fixed inset-x-0 bottom-0 lg:inset-auto lg:bottom-6 lg:right-6 z-50 
-                                       h-[90vh] lg:h-[600px] lg:w-[420px] 
-                                       rounded-t-[28px] lg:rounded-2xl overflow-hidden 
-                                       bg-gradient-to-b from-neutral-900 via-neutral-900 to-neutral-950 
-                                       border-t border-purple-500/30 lg:border lg:border-purple-500/20 
-                                       shadow-2xl"
+                            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+                            animate={{
+                                opacity: 1,
+                                scale: 1,
+                                y: 0,
+                                height: isMinimized ? "auto" : undefined
+                            }}
+                            exit={{ opacity: 0, scale: 0.92, y: 20 }}
+                            transition={{ type: "spring", damping: 28, stiffness: 380 }}
+                            className={`fixed z-50 
+                                       inset-x-3 bottom-3 lg:inset-auto lg:bottom-6 lg:right-6
+                                       lg:w-[420px] 
+                                       rounded-2xl overflow-hidden 
+                                       bg-neutral-900/98 backdrop-blur-2xl
+                                       border border-white/10
+                                       shadow-2xl shadow-black/50
+                                       ${isMinimized ? "" : "h-[75vh] lg:h-[580px]"}`}
                         >
-                            {/* Mobile drag handle */}
-                            <div className="lg:hidden flex justify-center pt-3 pb-1">
-                                <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                            {/* Header */}
+                            <div className={`relative flex items-center justify-between px-4 py-3 bg-gradient-to-r ${sectionColor} bg-opacity-20`}>
+                                {/* Gradient overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-neutral-900/90 via-neutral-900/80 to-neutral-900/90" />
+
+                                <div className="relative flex items-center gap-3">
+                                    <div className="relative">
+                                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${sectionColor} flex items-center justify-center shadow-lg ${sectionShadow}`}>
+                                            <span className="text-lg">{getSectionIcon(activeSection)}</span>
+                                        </div>
+                                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-neutral-900">
+                                            <span className="absolute inset-0.5 bg-white/50 rounded-full animate-pulse" />
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-white text-sm tracking-tight">Asistente CV</p>
+                                        <p className="text-[11px] text-neutral-400 font-medium">
+                                            {getSectionLabel(activeSection)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="relative flex items-center gap-1">
+                                    {/* Section badge */}
+                                    <span className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] text-neutral-300 font-medium mr-2`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${sectionColor}`} />
+                                        {activeSection.toUpperCase()}
+                                    </span>
+
+                                    {/* Minimize button */}
+                                    <button
+                                        onClick={() => setIsMinimized(!isMinimized)}
+                                        className="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                                        aria-label={isMinimized ? "Maximizar" : "Minimizar"}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            {isMinimized ? (
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                            ) : (
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                                            )}
+                                        </svg>
+                                    </button>
+
+                                    {/* Close button */}
+                                    <button
+                                        onClick={() => setIsOpen(false)}
+                                        className="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all flex items-center justify-center"
+                                        aria-label="Cerrar"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {/* Gradient line */}
+                                <div className={`absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-current to-transparent opacity-30`} style={{ color: activeSection === "experience" ? "#3b82f6" : activeSection === "projects" ? "#8b5cf6" : activeSection === "education" ? "#14b8a6" : activeSection === "skills" ? "#f59e0b" : activeSection === "certifications" ? "#f97316" : "#ec4899" }} />
                             </div>
 
-                            {/* Close button for desktop */}
-                            <button
-                                onClick={() => setIsOpen(false)}
-                                className="absolute top-3 right-3 z-10 hidden lg:flex w-8 h-8 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all items-center justify-center"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-
-                            <CvAIChat
-                                data={data}
-                                activeSection={activeSection}
-                                onAddExperience={onAddExperience}
-                                onAddProject={onAddProject}
-                            />
+                            {/* Chat content - Hidden when minimized */}
+                            <AnimatePresence>
+                                {!isMinimized && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="h-[calc(100%-60px)]"
+                                    >
+                                        <CvAIChat
+                                            data={data}
+                                            activeSection={activeSection}
+                                            onAddExperience={onAddExperience}
+                                            onAddProject={onAddProject}
+                                            hideHeader={true}
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </motion.div>
                     </>
                 )}

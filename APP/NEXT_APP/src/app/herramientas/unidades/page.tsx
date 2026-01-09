@@ -141,9 +141,9 @@ export default function UnitConverterPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
                 {/* Header - Simplified */}
-                <div className="text-center mb-8">
+                <div className="text-center mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
                         Conversor de Unidades
                     </h1>

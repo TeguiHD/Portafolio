@@ -46,12 +46,16 @@ const cvCertificationSchema = z.object({
     name: z.string().max(CV_FIELD_LIMITS.certName),
     issuer: z.string().max(CV_FIELD_LIMITS.issuer).optional(),
     year: z.string().max(CV_FIELD_LIMITS.certYear).optional(),
+    date: z.string().max(CV_FIELD_LIMITS.certYear).optional(),  // Accept both date and year
     url: z.string().max(CV_FIELD_LIMITS.certUrl).optional(),
+    credentialId: z.string().max(100).optional(),
 });
 
 const cvLanguageSchema = z.object({
-    language: z.string().max(CV_FIELD_LIMITS.language),
+    name: z.string().max(CV_FIELD_LIMITS.language).optional(),  // Accept 'name' from frontend
+    language: z.string().max(CV_FIELD_LIMITS.language).optional(),  // Accept 'language' from legacy
     level: z.string().max(CV_FIELD_LIMITS.level),
+    certification: z.string().max(200).optional(),
 });
 
 const cvPersonalInfoSchema = z.object({
@@ -243,7 +247,7 @@ export async function POST(request: NextRequest) {
                         cvVersionId: cv.id,
                         name: cert.name,
                         issuer: cert.issuer ?? null,
-                        year: cert.year ?? null,
+                        year: cert.date ?? cert.year ?? null,  // Accept both date and year
                         url: cert.url ?? null,
                         sortOrder: idx,
                     })),
@@ -254,7 +258,7 @@ export async function POST(request: NextRequest) {
                 await tx.cvLanguage.createMany({
                     data: data.languages.map((lang, idx) => ({
                         cvVersionId: cv.id,
-                        language: lang.language,
+                        language: lang.name ?? lang.language ?? "",  // Accept both name and language
                         level: lang.level,
                         sortOrder: idx,
                     })),

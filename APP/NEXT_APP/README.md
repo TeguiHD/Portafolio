@@ -64,8 +64,23 @@ src/
 | 📝 **Cotizaciones** | Crear y gestionar propuestas comerciales |
 | 🔔 **Notificaciones** | Centro de notificaciones del sistema |
 | 📋 **Auditoría** | Logs de eventos y acciones |
+| 🛡️ **Seguridad** | Dashboard de monitoreo con gráfico interactivo y resolución de incidentes |
 | 🛠️ **Herramientas** | Administrar herramientas públicas |
 | 📄 **CV Editor** | Editor dinámico de CV con preview en tiempo real y asistente IA |
+
+### 🛡️ Centro de Seguridad
+
+Dashboard empresarial de monitoreo de seguridad en tiempo real:
+
+| Característica | Descripción |
+|---------------|-------------|
+| **Gráfico de Tendencia** | Curvas suaves Catmull-Rom, click-to-filter, sincronizado con panel de amenazas |
+| **KPIs en Vivo** | Amenazas 24h, tasa de bloqueo efectivo, incidentes sin resolver |
+| **Tipos de Amenazas** | Distribución por tipo con barras animadas |
+| **Historial** | Filtros por severidad, tipo, estado, fechas + búsqueda |
+| **Resolución** | Modal con notas + audit trail completo (quién, cuándo, comentarios) |
+| **Auto-refresh** | Actualización automática cada 10s con debounce en acciones |
+| **Rangos** | 24h, 7d, 30d, 1y con agregación por hora/día/mes |
 
 ---
 

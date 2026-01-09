@@ -10,6 +10,7 @@ import {
     DEFAULT_DESIGN_CONFIG,
     applyThemePreset,
 } from "../utils/cv-design";
+import { CustomSelect } from "./CustomSelect";
 
 interface DesignConfigPanelProps {
     config: CvDesignConfig;
@@ -154,11 +155,10 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                     <button
                         key={tab.id}
                         onClick={() => setActiveSection(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                            activeSection === tab.id
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeSection === tab.id
                                 ? "bg-accent-1/20 text-accent-1"
                                 : "text-neutral-400 hover:text-white hover:bg-white/5"
-                        }`}
+                            }`}
                     >
                         <span>{tab.icon}</span>
                         {tab.label}
@@ -193,11 +193,10 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                             whileHover={{ scale: 1.02 }}
                                             whileTap={{ scale: 0.98 }}
                                             onClick={() => handleThemeChange(themeId)}
-                                            className={`p-4 rounded-xl border text-left transition-all ${
-                                                isSelected
+                                            className={`p-4 rounded-xl border text-left transition-all ${isSelected
                                                     ? "border-accent-1 bg-accent-1/10"
                                                     : "border-white/10 bg-white/5 hover:border-white/20"
-                                            }`}
+                                                }`}
                                         >
                                             {/* Theme preview colors */}
                                             <div className="flex gap-1 mb-3">
@@ -247,21 +246,19 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => updateConfig({ language: "es" })}
-                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                            config.language === "es"
+                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.language === "es"
                                                 ? "bg-accent-1/20 text-accent-1"
                                                 : "bg-white/5 text-neutral-400 hover:text-white"
-                                        }`}
+                                            }`}
                                     >
                                         🇪🇸 Español
                                     </button>
                                     <button
                                         onClick={() => updateConfig({ language: "en" })}
-                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                            config.language === "en"
+                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.language === "en"
                                                 ? "bg-accent-1/20 text-accent-1"
                                                 : "bg-white/5 text-neutral-400 hover:text-white"
-                                        }`}
+                                            }`}
                                     >
                                         🇺🇸 English
                                     </button>
@@ -315,16 +312,17 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                 <label className="block text-sm text-neutral-400 mb-2">
                                     Espaciado de línea
                                 </label>
-                                <select
+                                <CustomSelect
                                     value={config.typography.lineSpacing}
-                                    onChange={(e) => updateTypography("lineSpacing", e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white"
-                                >
-                                    <option value="1.0">Compacto (1.0)</option>
-                                    <option value="1.15">Normal (1.15)</option>
-                                    <option value="1.25">Amplio (1.25)</option>
-                                    <option value="1.5">Doble (1.5)</option>
-                                </select>
+                                    onChange={(value) => updateTypography("lineSpacing", value)}
+                                    label="Espaciado de línea"
+                                    options={[
+                                        { value: "1.0", label: "Compacto (1.0)" },
+                                        { value: "1.15", label: "Normal (1.15)" },
+                                        { value: "1.25", label: "Amplio (1.25)" },
+                                        { value: "1.5", label: "Doble (1.5)" },
+                                    ]}
+                                />
                             </div>
 
                             {/* Alignment */}
@@ -337,11 +335,10 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                         <button
                                             key={align}
                                             onClick={() => updateTypography("alignment", align)}
-                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                                config.typography.alignment === align
+                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.typography.alignment === align
                                                     ? "bg-accent-1/20 text-accent-1"
                                                     : "bg-white/5 text-neutral-400 hover:text-white"
-                                            }`}
+                                                }`}
                                         >
                                             {align === "left" && "Izquierda"}
                                             {align === "justified" && "Justificado"}
@@ -352,33 +349,43 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                             </div>
 
                             {/* Font Families */}
-                            <div className="grid grid-cols-2 gap-4">
-                                {Object.entries({
-                                    "fontFamily.body": "Fuente del cuerpo",
-                                    "fontFamily.name": "Fuente del nombre",
-                                }).map(([key, label]) => (
-                                    <div key={key}>
-                                        <label className="block text-sm text-neutral-400 mb-2">{label}</label>
-                                        <select
-                                            value={
-                                                key.includes("body")
-                                                    ? config.typography.fontFamily.body
-                                                    : config.typography.fontFamily.name
-                                            }
-                                            onChange={(e) => updateTypography(key, e.target.value)}
-                                            className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white"
-                                        >
-                                            <option value="Source Sans Pro">Source Sans Pro</option>
-                                            <option value="Inter">Inter</option>
-                                            <option value="Helvetica Neue">Helvetica Neue</option>
-                                            <option value="Charter">Charter</option>
-                                            <option value="Poppins">Poppins</option>
-                                            <option value="Montserrat">Montserrat</option>
-                                            <option value="Roboto">Roboto</option>
-                                            <option value="Open Sans">Open Sans</option>
-                                        </select>
-                                    </div>
-                                ))}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-neutral-400 mb-2">Fuente del cuerpo</label>
+                                    <CustomSelect
+                                        value={config.typography.fontFamily.body}
+                                        onChange={(value) => updateTypography("fontFamily.body", value)}
+                                        label="Fuente del cuerpo"
+                                        options={[
+                                            { value: "Source Sans Pro", label: "Source Sans Pro", preview: "Source Sans Pro" },
+                                            { value: "Inter", label: "Inter", preview: "Inter" },
+                                            { value: "Helvetica Neue", label: "Helvetica Neue", preview: "Helvetica Neue" },
+                                            { value: "Charter", label: "Charter", preview: "Charter" },
+                                            { value: "Poppins", label: "Poppins", preview: "Poppins" },
+                                            { value: "Montserrat", label: "Montserrat", preview: "Montserrat" },
+                                            { value: "Roboto", label: "Roboto", preview: "Roboto" },
+                                            { value: "Open Sans", label: "Open Sans", preview: "Open Sans" },
+                                        ]}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-neutral-400 mb-2">Fuente del nombre</label>
+                                    <CustomSelect
+                                        value={config.typography.fontFamily.name}
+                                        onChange={(value) => updateTypography("fontFamily.name", value)}
+                                        label="Fuente del nombre"
+                                        options={[
+                                            { value: "Source Sans Pro", label: "Source Sans Pro", preview: "Source Sans Pro" },
+                                            { value: "Inter", label: "Inter", preview: "Inter" },
+                                            { value: "Helvetica Neue", label: "Helvetica Neue", preview: "Helvetica Neue" },
+                                            { value: "Charter", label: "Charter", preview: "Charter" },
+                                            { value: "Poppins", label: "Poppins", preview: "Poppins" },
+                                            { value: "Montserrat", label: "Montserrat", preview: "Montserrat" },
+                                            { value: "Roboto", label: "Roboto", preview: "Roboto" },
+                                            { value: "Open Sans", label: "Open Sans", preview: "Open Sans" },
+                                        ]}
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}
@@ -396,11 +403,10 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                         <button
                                             key={size}
                                             onClick={() => updatePageLayout("size", size)}
-                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                                config.page.size === size
+                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.page.size === size
                                                     ? "bg-accent-1/20 text-accent-1"
                                                     : "bg-white/5 text-neutral-400 hover:text-white"
-                                            }`}
+                                                }`}
                                         >
                                             {size.toUpperCase()}
                                         </button>
@@ -454,18 +460,16 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                                     !config.page[key as keyof typeof config.page]
                                                 )
                                             }
-                                            className={`w-12 h-6 rounded-full transition-colors ${
-                                                config.page[key as keyof typeof config.page]
+                                            className={`w-12 h-6 rounded-full transition-colors ${config.page[key as keyof typeof config.page]
                                                     ? "bg-accent-1"
                                                     : "bg-white/10"
-                                            }`}
+                                                }`}
                                         >
                                             <div
-                                                className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                                                    config.page[key as keyof typeof config.page]
+                                                className={`w-5 h-5 rounded-full bg-white transition-transform ${config.page[key as keyof typeof config.page]
                                                         ? "translate-x-6"
                                                         : "translate-x-0.5"
-                                                }`}
+                                                    }`}
                                             />
                                         </button>
                                     </label>
@@ -486,11 +490,10 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                         <button
                                             key={id}
                                             onClick={() => updateConfig({ dateFormat: id as "short" | "long" | "numeric" })}
-                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                                                config.dateFormat === id
+                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.dateFormat === id
                                                     ? "bg-accent-1/20 text-accent-1"
                                                     : "bg-white/5 text-neutral-400 hover:text-white"
-                                            }`}
+                                                }`}
                                         >
                                             {label}
                                         </button>
@@ -511,20 +514,18 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                 .map((section) => (
                                     <div
                                         key={section.id}
-                                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                                            section.visible
+                                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${section.visible
                                                 ? "bg-white/5 border-white/10"
                                                 : "bg-white/2 border-white/5 opacity-60"
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <button
                                                 onClick={() => toggleSectionVisibility(section.id)}
-                                                className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
-                                                    section.visible
+                                                className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${section.visible
                                                         ? "bg-accent-1 text-black"
                                                         : "bg-white/10 text-transparent"
-                                                }`}
+                                                    }`}
                                             >
                                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                                     <path

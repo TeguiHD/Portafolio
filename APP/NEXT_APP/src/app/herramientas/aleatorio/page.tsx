@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
+import { ToolAccessFeedback } from "@/components/ToolAccessFeedback";
 import { sanitizeInput } from "@/lib/security";
 
 type ModeType = "roulette" | "groups";
@@ -53,7 +54,7 @@ const generateColors = (count: number): string[] => {
 };
 
 export default function RandomPickerPage() {
-    const { isLoading } = useToolAccess("aleatorio");
+    const { isLoading, isAuthorized, accessType } = useToolAccess("aleatorio");
     const { trackImmediate } = useToolTracking("aleatorio", { trackViewOnMount: true, debounceMs: 2000 });
 
     const [mode, setMode] = useState<ModeType>("roulette");
@@ -65,17 +66,17 @@ export default function RandomPickerPage() {
     const [history, setHistory] = useState<string[]>([]);
     const [rotation, setRotation] = useState(0);
     const [isMounted, setIsMounted] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false); // Cooldown for button spam protection
-    const lastTrackRef = useRef<number>(0); // Throttle tracking requests
+    const [isGenerating, setIsGenerating] = useState(false);
+    const lastTrackRef = useRef<number>(0);
+    const wheelRef = useRef<HTMLCanvasElement>(null);
+
+    const names = parseNames(inputText);
+    const colors = generateColors(names.length);
 
     // Fix hydration: only apply rotation after mount
     useEffect(() => {
         setIsMounted(true);
     }, []);
-
-    const wheelRef = useRef<HTMLCanvasElement>(null);
-    const names = parseNames(inputText);
-    const colors = generateColors(names.length);
 
     // Draw wheel on canvas
     useEffect(() => {
@@ -136,9 +137,17 @@ export default function RandomPickerPage() {
         setWinner(null);
         trackImmediate("use", { action: "spin", participants: names.length });
 
-        // Calculate winning index using secure random
-        const winningIndex = secureRandom(names.length);
         const sliceAngle = 360 / names.length;
+
+        const getWinnerIndexFromRotation = (rotationDeg: number, itemCount: number): number => {
+            const normalizedRotation = ((rotationDeg % 360) + 360) % 360;
+            const pointerAngle = (360 - normalizedRotation) % 360;
+            const index = Math.floor(pointerAngle / (360 / itemCount));
+            return Math.max(0, Math.min(itemCount - 1, index));
+        };
+
+        // Choose a target slice using secure random
+        const targetIndex = secureRandom(names.length);
 
         // Calculate target rotation (multiple full rotations + landing on winner)
         const fullRotations = 8 + secureRandom(5); // 8-12 full rotations for more suspense
@@ -156,40 +165,31 @@ export default function RandomPickerPage() {
         // Range from 15% to 85% of slice to stay safely within bounds but add drama
         const randomOffset = 0.15 + (secureRandom(70) / 100); // 0.15 to 0.85
         const offsetInSlice = sliceAngle * randomOffset;
-        const targetSliceAngle = winningIndex * sliceAngle + offsetInSlice;
+        const targetSliceAngle = targetIndex * sliceAngle + offsetInSlice;
 
-        // Normalize current rotation to 0-360 range to avoid accumulated huge values
-        const normalizedStart = rotation % 360;
+        const startRotation = rotation;
+        const normalizedStart = ((startRotation % 360) + 360) % 360;
 
         // Calculate final position (where the wheel should stop)
         const finalPosition = 360 - targetSliceAngle;
 
-        // Total spin = full rotations + distance to final position
-        // This guarantees the wheel always spins a lot regardless of starting position
-        const totalSpin = fullRotations * 360 + finalPosition + (360 - normalizedStart);
+        // Total spin = full rotations + delta to final position (within 0..360)
+        const deltaToFinal = (finalPosition - normalizedStart + 360) % 360;
+        const totalSpin = fullRotations * 360 + deltaToFinal;
+        const finalRotation = startRotation + totalSpin;
 
         const startTime = Date.now();
-        const duration = 5000 + secureRandom(2000); // 5-7 seconds
+        const duration = 6000 + secureRandom(2500); // 6-8.5 seconds (more suspense)
+
+        const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
 
         const animate = () => {
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
 
-            // IMPROVED EASING: Guaranteed fast start
-            // Phase 1 (0-20%): Linear fast spin
-            // Phase 2 (20-100%): Exponential decay slowdown
-            let easeValue: number;
-            if (progress < 0.2) {
-                // Fast linear phase - constant high speed
-                easeValue = progress * 2.5; // Reaches 0.5 at 20% time
-            } else {
-                // Exponential decay phase for dramatic slowdown
-                const decayProgress = (progress - 0.2) / 0.8; // Normalize to 0-1
-                const decayValue = 1 - Math.exp(-4 * decayProgress);
-                easeValue = 0.5 + 0.5 * decayValue; // Continues from 0.5 to 1.0
-            }
-
-            const newRotation = normalizedStart + totalSpin * easeValue;
+            // Decelerate heavily at the end for suspense (and always reaches 1.0)
+            const eased = easeOutQuint(progress);
+            const newRotation = startRotation + totalSpin * eased;
 
             setRotation(newRotation);
 
@@ -197,8 +197,11 @@ export default function RandomPickerPage() {
                 requestAnimationFrame(animate);
             } else {
                 setIsSpinning(false);
-                setWinner(names[winningIndex]);
-                setHistory((prev) => [names[winningIndex], ...prev.slice(0, 9)]);
+                // Snap to the exact final angle and compute winner from the pointer position
+                setRotation(finalRotation);
+                const winnerIndex = getWinnerIndexFromRotation(finalRotation, names.length);
+                setWinner(names[winnerIndex]);
+                setHistory((prev) => [names[winnerIndex], ...prev.slice(0, 9)]);
             }
         };
 
@@ -249,12 +252,10 @@ export default function RandomPickerPage() {
         }
     }, [names, isSpinning, isGenerating, trackImmediate]);
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
+    // Show access feedback for loading, admin-only, or private tools
+    // IMPORTANT: This must be AFTER all hooks to respect Rules of Hooks
+    if (isLoading || !isAuthorized) {
+        return <ToolAccessFeedback accessType={accessType} toolSlug="aleatorio" />;
     }
 
     return (

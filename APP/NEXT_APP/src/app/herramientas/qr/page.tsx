@@ -171,7 +171,23 @@ export default function QRGeneratorPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-7xl mx-auto px-4 py-6 pt-4">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                {/* Header */}
+                <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF8A00]/20 to-[#00B8A9]/10 border border-[#FF8A00]/30 flex items-center justify-center">
+                            <svg className="w-6 h-6 text-[#FF8A00]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold text-white">Generador de Códigos QR</h1>
+                            <p className="text-sm text-neutral-400">Crea códigos QR profesionales gratis • Sin marcas de agua • Alta calidad</p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Category Tabs */}
                 <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
                     {QR_CATEGORIES.map((cat) => {

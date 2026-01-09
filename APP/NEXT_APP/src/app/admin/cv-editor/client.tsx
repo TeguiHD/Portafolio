@@ -434,17 +434,15 @@ export default function CvEditorPageClient() {
                 </motion.div>
             </AnimatePresence>
 
-            {/* AI Chat Panel - Only for experience/projects (includes FAB button) */}
-            <AnimatePresence>
-                {(activeTab === "experience" || activeTab === "projects") && (
-                    <FloatingCvChat
-                        data={data}
-                        activeSection={activeTab as "experience" | "projects"}
-                        onAddExperience={handleAddExperience}
-                        onAddProject={handleAddProject}
-                    />
-                )}
-            </AnimatePresence>
+            {/* AI Chat Panel - Floating button for supported sections */}
+            {(activeTab === "experience" || activeTab === "projects") && (
+                <FloatingCvChat
+                    data={data}
+                    activeSection={activeTab}
+                    onAddExperience={handleAddExperience}
+                    onAddProject={handleAddProject}
+                />
+            )}
         </div>
     );
 }

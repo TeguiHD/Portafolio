@@ -430,6 +430,56 @@ const nonce = generateNonce()
 | 5 | Bloqueo temporal (30 minutos) |
 | 10+ | Bloqueo hasta revisión manual |
 
+### 🎛️ Centro de Seguridad (Dashboard)
+
+Dashboard empresarial de monitoreo en tiempo real con visualización interactiva:
+
+| Componente | Descripción |
+|------------|-------------|
+| **KPIs en Tiempo Real** | Amenazas 24h, tasa de bloqueo, incidentes sin resolver |
+| **Gráfico de Tendencia** | Curvas suaves con Catmull-Rom, hover interactivo, click-to-filter |
+| **Panel de Amenazas** | Distribución por tipo sincronizada con selección del gráfico |
+| **Historial de Incidentes** | Filtros avanzados, búsqueda, paginación server-side |
+| **Resolución de Incidentes** | Modal con notas, audit trail (quién, cuándo, comentarios) |
+
+#### Interactividad del Gráfico
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Tendencia de Incidentes                    [24h] [7d] [30d] [1y] │
+│                                                                   │
+│     34 ●────────────────────────────────────                     │
+│        │                      ●  ← Click en punto               │
+│     17 │                     /│\                                 │
+│        │                    / │ \                                │
+│      0 ●───────────────────●──┴──●────────────────────          │
+│        └─────────────────────────────────────────────────        │
+│        02a  06a  10a  02pm  06pm  10pm  02am                    │
+│                                                                   │
+│  ┌──────────────────────────┐  Al hacer click en un punto:       │
+│  │ 📍 02 a.m.h              │  • Se resalta el punto             │
+│  │        34                │  • Panel derecho muestra datos     │
+│  │ Click para filtrar       │    de ese período específico       │
+│  └──────────────────────────┘  • Click fuera = vista global      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Flujo de Resolución de Incidentes
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  📋 Incidente   │────▶│  🔍 Revisión     │────▶│  ✅ Resolución  │
+│  Sin Resolver   │     │  + Análisis      │     │  + Notas        │
+└─────────────────┘     └──────────────────┘     └────────┬────────┘
+                                                          │
+                        ┌────────────────────────────────▼────────┐
+                        │  📝 Audit Trail                          │
+                        │  • resolvedBy: userId del admin          │
+                        │  • resolvedAt: timestamp exacto          │
+                        │  • resolution: notas de resolución       │
+                        └─────────────────────────────────────────┘
+```
+
 ---
 
 ## 💰 Módulo de Finanzas
@@ -623,6 +673,7 @@ Dashboard completo para gestión del sistema:
 | **Herramientas** | Gestión de herramientas públicas |
 | **Cotizaciones** | Sistema de presupuestos |
 | **Finanzas** | Módulo financiero completo |
+| **Seguridad** | Centro de monitoreo con gráfico interactivo y resolución de incidentes |
 | **Notificaciones** | Centro de notificaciones |
 | **CV Editor** | Generador de currículum |
 

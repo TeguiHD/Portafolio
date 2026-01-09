@@ -334,9 +334,23 @@ export function formatDateWithLocale(
 ): string {
     if (!dateStr) return "";
 
-    const [year, month] = dateStr.split("-");
+    const parts = dateStr.split("-");
+    const year = parts[0];
+    const month = parts[1];
+
+    // Validate year exists
+    if (!year || year.length < 4) return "";
+
+    // If no month, return year only
+    if (!month) return year;
+
     const monthIndex = parseInt(month, 10) - 1;
     const monthAbbrs = LOCALE_STRINGS[locale].monthAbbreviations;
+
+    // Validate month is in range
+    if (monthIndex < 0 || monthIndex > 11 || !monthAbbrs[monthIndex]) {
+        return year;
+    }
 
     switch (format) {
         case "short":

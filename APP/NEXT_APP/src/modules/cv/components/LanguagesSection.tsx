@@ -161,7 +161,7 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
                                         <div className="flex-1">
                                             <input
                                                 type="text"
-                                                value={lang.name}
+                                                value={lang.name || ""}
                                                 onChange={(e) => updateLanguage(lang.id, { name: e.target.value })}
                                                 placeholder="Nombre del idioma"
                                                 className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50"

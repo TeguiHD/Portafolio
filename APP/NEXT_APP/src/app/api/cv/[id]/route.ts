@@ -19,11 +19,12 @@ function transformCvVersion(version: any) {
         updatedAt: version.updatedAt,
         data: {
             personalInfo: {
-                name: version.fullName,
-                title: version.title,
-                email: version.email,
-                phone: version.phone,
-                location: version.location,
+                name: version.fullName || "",
+                headline: version.headline || "",
+                title: version.title || "",
+                email: version.email || "",
+                phone: version.phone || "",
+                location: version.location || "",
                 orcid: version.orcid || "",
                 linkedin: version.linkedin || "",
                 github: version.github || "",
@@ -32,30 +33,30 @@ function transformCvVersion(version: any) {
             },
             experience: version.experiences?.map((exp: any) => ({
                 id: exp.id,
-                company: exp.company,
-                position: exp.position,
-                startDate: exp.startDate,
+                company: exp.company || "",
+                position: exp.position || "",
+                startDate: exp.startDate || "",
                 endDate: exp.endDate || "",
-                current: exp.isCurrent,
+                current: exp.isCurrent || false,
                 description: exp.description || "",
                 achievements: exp.achievements || [],
             })) || [],
             education: version.education?.map((edu: any) => ({
                 id: edu.id,
-                institution: edu.institution,
-                degree: edu.degree,
+                institution: edu.institution || "",
+                degree: edu.degree || "",
                 field: edu.field || "",
-                startDate: edu.startDate,
+                startDate: edu.startDate || "",
                 endDate: edu.endDate || "",
-                current: edu.isCurrent,
+                current: edu.isCurrent || false,
             })) || [],
             skills: version.skills?.map((skill: any) => ({
-                category: skill.category,
+                category: skill.category || "",
                 items: skill.items || [],
             })) || [],
             projects: version.projects?.map((proj: any) => ({
                 id: proj.id,
-                name: proj.name,
+                name: proj.name || "",
                 description: proj.description || "",
                 technologies: proj.technologies || [],
                 url: proj.url || "",
@@ -63,18 +64,20 @@ function transformCvVersion(version: any) {
             })) || [],
             certifications: version.certifications?.map((cert: any) => ({
                 id: cert.id,
-                name: cert.name,
+                name: cert.name || "",
                 issuer: cert.issuer || "",
-                year: cert.year || "",
+                date: cert.year || "",  // Map 'year' from DB to 'date' for frontend
                 url: cert.url || "",
+                credentialId: cert.credentialId || "",
             })) || [],
             languages: version.languages?.map((lang: any) => ({
                 id: lang.id,
-                language: lang.language,
-                level: lang.level,
+                name: lang.language || "",  // Map 'language' from DB to 'name' for frontend
+                level: lang.level || "intermediate",
+                certification: lang.certification || "",
             })) || [],
         },
-        latexCode: version.latexCode,
+        latexCode: version.latexCode || "",
     };
 }
 
@@ -262,9 +265,9 @@ export async function PUT(
                     await tx.cvCertification.createMany({
                         data: data.certifications.map((cert: any, idx: number) => ({
                             cvVersionId: id,
-                            name: cert.name,
+                            name: cert.name || "",
                             issuer: cert.issuer || null,
-                            year: cert.year || null,
+                            year: cert.date || cert.year || null,  // Accept both 'date' and 'year'
                             url: cert.url || null,
                             sortOrder: idx,
                         })),
@@ -277,8 +280,8 @@ export async function PUT(
                     await tx.cvLanguage.createMany({
                         data: data.languages.map((lang: any, idx: number) => ({
                             cvVersionId: id,
-                            language: lang.language,
-                            level: lang.level,
+                            language: lang.name || lang.language || "",  // Accept both 'name' and 'language'
+                            level: lang.level || "intermediate",
                             sortOrder: idx,
                         })),
                     });

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SkillsSuggestions } from "./SkillsSuggestions";
 
 export interface SkillCategory {
     category: string;
@@ -46,6 +47,19 @@ export function SkillsSection({ skills, onChange }: SkillsSectionProps) {
         onChange(newSkills);
         setNewSkill((prev) => ({ ...prev, [categoryIndex]: "" }));
     };
+
+    // Add skill from suggestion
+    const addSkillFromSuggestion = useCallback((categoryIndex: number, skill: string) => {
+        const newSkills = [...skills];
+        // Avoid duplicates
+        if (!newSkills[categoryIndex].items.includes(skill)) {
+            newSkills[categoryIndex] = {
+                ...newSkills[categoryIndex],
+                items: [...newSkills[categoryIndex].items, skill],
+            };
+            onChange(newSkills);
+        }
+    }, [skills, onChange]);
 
     const removeSkill = (categoryIndex: number, skillIndex: number) => {
         const newSkills = [...skills];
@@ -136,7 +150,7 @@ export function SkillsSection({ skills, onChange }: SkillsSectionProps) {
                                 <div className="flex items-center justify-between mb-4">
                                     <input
                                         type="text"
-                                        value={skill.category}
+                                        value={skill.category || ""}
                                         onChange={(e) => updateCategoryName(categoryIndex, e.target.value)}
                                         className="px-3 py-1.5 rounded-lg bg-transparent border border-transparent hover:border-accent-1/20 focus:border-accent-1/50 text-white font-medium focus:outline-none transition-colors"
                                     />
@@ -193,6 +207,13 @@ export function SkillsSection({ skills, onChange }: SkillsSectionProps) {
                                         </svg>
                                     </button>
                                 </div>
+
+                                {/* AI Suggestions */}
+                                <SkillsSuggestions
+                                    categoryName={skill.category}
+                                    existingSkills={skill.items}
+                                    onAddSkill={(s) => addSkillFromSuggestion(categoryIndex, s)}
+                                />
                             </motion.div>
                         ))}
                     </AnimatePresence>
@@ -201,3 +222,4 @@ export function SkillsSection({ skills, onChange }: SkillsSectionProps) {
         </div>
     );
 }
+

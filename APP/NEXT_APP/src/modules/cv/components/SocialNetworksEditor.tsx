@@ -183,7 +183,7 @@ export function SocialNetworksEditor({ networks, onChange }: SocialNetworksEdito
                                     <div className="text-xs text-neutral-500 mb-1">{network.network}</div>
                                     <input
                                         type="text"
-                                        value={network.username}
+                                        value={network.username || ""}
                                         onChange={(e) => updateNetwork(index, e.target.value)}
                                         placeholder={config.placeholder}
                                         className="w-full px-3 py-2 rounded-lg bg-white/5 border border-accent-1/20 text-white text-sm focus:outline-none focus:border-accent-1/50"

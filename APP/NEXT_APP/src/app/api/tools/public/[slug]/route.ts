@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/redis";
+import { logSecurityIncident, validateRequest } from "@/lib/security-infra";
 
 // Helper to get device type from user agent
 function getDeviceType(userAgent: string): string {
@@ -27,13 +28,34 @@ function hashIP(ip: string): string {
     return createHash("sha256").update(ip + "salt-for-privacy").digest("hex").substring(0, 16);
 }
 
-// GET: Get tool info by slug (auth required if tool is not public)
+// GET: Get tool info by slug (SECURITY HARDENED - fail-closed approach)
 export async function GET(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ slug: string }> }
 ) {
     try {
         const { slug } = await params;
+
+        // SECURITY: Validate slug format (prevent injection)
+        if (!slug || !/^[a-z0-9-]+$/.test(slug) || slug.length > 50) {
+            return NextResponse.json({ error: "Invalid tool identifier" }, { status: 400 });
+        }
+
+        // SECURITY: Rate limiting check
+        const headersList = await headers();
+        const ip = headersList.get("x-forwarded-for") || "unknown";
+        const { allowed, resetIn } = await checkRateLimit(
+            `tool_access:${hashIP(ip)}`,
+            30, // 30 requests per minute
+            60
+        );
+
+        if (!allowed) {
+            return NextResponse.json(
+                { error: "Too many requests" },
+                { status: 429, headers: { "Retry-After": resetIn.toString() } }
+            );
+        }
 
         const tool = await prisma.tool.findUnique({
             where: { slug },
@@ -50,27 +72,60 @@ export async function GET(
             },
         });
 
+        // SECURITY CRITICAL: If tool is NOT in DB, block access by default
+        // Only explicitly registered tools are allowed
         if (!tool) {
-            // If tool is not in DB yet, allow access so default tools keep working
-            return NextResponse.json({ tool: null, allowed: true, isPublic: true, isActive: true });
+            // Log potential probe attempt
+            console.warn(`[SECURITY] Tool probe attempt: ${slug} from IP: ${hashIP(ip)}`);
+            return NextResponse.json(
+                { error: "Tool not found", allowed: false },
+                { status: 404 }
+            );
         }
 
+        // SECURITY: Disabled tools are completely blocked
         if (!tool.isActive) {
-            return NextResponse.json({ error: "Tool disabled" }, { status: 410 });
+            return NextResponse.json(
+                { error: "Tool is currently unavailable", allowed: false },
+                { status: 410 }
+            );
         }
 
+        // SECURITY: Non-public tools require admin authentication
         if (!tool.isPublic) {
             const session = await auth();
+
+            // No session = unauthorized
             if (!session?.user) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+                return NextResponse.json(
+                    { error: "Authentication required", allowed: false },
+                    { status: 401 }
+                );
+            }
+
+            // SECURITY: Verify admin role (not just any logged-in user)
+            const userRole = (session.user as { role?: string })?.role;
+            if (userRole !== "admin" && userRole !== "ADMIN") {
+                // Log potential privilege escalation attempt
+                console.warn(`[SECURITY] Unauthorized tool access attempt: ${slug} by user: ${session.user.email}`);
+                return NextResponse.json(
+                    { error: "Insufficient permissions", allowed: false },
+                    { status: 403 }
+                );
             }
         }
 
-        return NextResponse.json({ tool });
+        // Tool is accessible - return with explicit allowed flag
+        return NextResponse.json({
+            tool,
+            allowed: true,
+            accessLevel: tool.isPublic ? "public" : "admin"
+        });
     } catch (error) {
         console.error("Error fetching tool:", error);
+        // SECURITY: On any error, block access (fail-closed)
         return NextResponse.json(
-            { error: "Error fetching tool" },
+            { error: "Access verification failed", allowed: false },
             { status: 500 }
         );
     }

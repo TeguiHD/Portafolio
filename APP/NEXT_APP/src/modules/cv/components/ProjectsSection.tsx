@@ -162,7 +162,7 @@ export function ProjectsSection({ projects, onChange }: ProjectsSectionProps) {
                                                         <label className="block text-sm text-neutral-400 mb-2">Nombre del proyecto</label>
                                                         <input
                                                             type="text"
-                                                            value={proj.name}
+                                                            value={proj.name || ""}
                                                             onChange={(e) => updateProject(proj.id, { name: e.target.value })}
                                                             placeholder="Nombre del proyecto"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
@@ -172,7 +172,7 @@ export function ProjectsSection({ projects, onChange }: ProjectsSectionProps) {
                                                         <label className="block text-sm text-neutral-400 mb-2">URL del proyecto</label>
                                                         <input
                                                             type="url"
-                                                            value={proj.url}
+                                                            value={proj.url || ""}
                                                             onChange={(e) => updateProject(proj.id, { url: e.target.value })}
                                                             placeholder="https://..."
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
@@ -183,7 +183,7 @@ export function ProjectsSection({ projects, onChange }: ProjectsSectionProps) {
                                                 <div>
                                                     <label className="block text-sm text-neutral-400 mb-2">Descripción</label>
                                                     <textarea
-                                                        value={proj.description}
+                                                        value={proj.description || ""}
                                                         onChange={(e) => updateProject(proj.id, { description: e.target.value })}
                                                         placeholder="Describe el proyecto, su propósito y tu rol..."
                                                         rows={3}

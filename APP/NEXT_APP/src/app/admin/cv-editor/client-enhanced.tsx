@@ -12,7 +12,7 @@ import { CertificationsSection } from "@/modules/cv/components/CertificationsSec
 import { LanguagesSection } from "@/modules/cv/components/LanguagesSection";
 import { DesignConfigPanel } from "@/modules/cv/components/DesignConfigPanel";
 import { LatexPreviewEnhanced } from "@/modules/cv/components/LatexPreviewEnhanced";
-import { InlineCvChat } from "@/modules/cv/components/CvAIChat";
+import { FloatingCvChat } from "@/modules/cv/components/CvAIChat";
 import { SocialNetworksEditor } from "@/modules/cv/components/SocialNetworksEditor";
 import { CvLivePreview } from "@/modules/cv/components/CvLivePreview";
 import {
@@ -602,19 +602,6 @@ export default function CvEditorPageClientEnhanced() {
                         </motion.div>
                     </AnimatePresence>
 
-                    {/* AI Chat Panel - Inline, not floating */}
-                    {["experience", "projects", "education", "skills", "certifications", "languages"].includes(activeTab) && (
-                        <InlineCvChat
-                            data={data}
-                            activeSection={activeTab as "experience" | "projects" | "education" | "skills" | "certifications" | "languages"}
-                            onAddExperience={handleAddExperience}
-                            onAddProject={handleAddProject}
-                            onAddEducation={handleAddEducation}
-                            onAddSkillCategory={handleAddSkillCategory}
-                            onAddCertification={handleAddCertification}
-                            onAddLanguage={handleAddLanguage}
-                        />
-                    )}
                 </div>
 
                 {/* Live Preview Panel */}
@@ -641,6 +628,16 @@ export default function CvEditorPageClientEnhanced() {
                     </motion.div>
                 )}
             </div>
+
+            {/* Floating AI Chat Button - only for supported sections */}
+            {(activeTab === "experience" || activeTab === "projects") && (
+                <FloatingCvChat
+                    data={data}
+                    activeSection={activeTab}
+                    onAddExperience={handleAddExperience}
+                    onAddProject={handleAddProject}
+                />
+            )}
         </div>
     );
 }

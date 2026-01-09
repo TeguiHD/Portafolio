@@ -135,7 +135,7 @@ export function CertificationsSection({ certifications, onChange }: Certificatio
                                                         </label>
                                                         <input
                                                             type="text"
-                                                            value={cert.name}
+                                                            value={cert.name || ""}
                                                             onChange={(e) => updateCertification(cert.id, { name: e.target.value })}
                                                             placeholder="AWS Solutions Architect"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
@@ -147,7 +147,7 @@ export function CertificationsSection({ certifications, onChange }: Certificatio
                                                         </label>
                                                         <input
                                                             type="text"
-                                                            value={cert.issuer}
+                                                            value={cert.issuer || ""}
                                                             onChange={(e) => updateCertification(cert.id, { issuer: e.target.value })}
                                                             placeholder="Amazon Web Services"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
@@ -159,7 +159,7 @@ export function CertificationsSection({ certifications, onChange }: Certificatio
                                                         </label>
                                                         <input
                                                             type="month"
-                                                            value={cert.date}
+                                                            value={cert.date || ""}
                                                             onChange={(e) => updateCertification(cert.id, { date: e.target.value })}
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
                                                         />

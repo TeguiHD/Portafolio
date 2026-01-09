@@ -367,6 +367,34 @@ export const DEFAULT_PERMISSIONS: PermissionDefinition[] = [
 
     // ============= SECURITY =============
     {
+        code: "security.view",
+        name: "Ver Centro de Seguridad",
+        description: "Acceder al dashboard de seguridad y monitoreo de incidentes",
+        category: "security",
+        defaultRoles: ["SUPERADMIN", "ADMIN"],
+    },
+    {
+        code: "security.incidents.view",
+        name: "Ver Incidentes de Seguridad",
+        description: "Ver lista de incidentes de seguridad detectados",
+        category: "security",
+        defaultRoles: ["SUPERADMIN", "ADMIN"],
+    },
+    {
+        code: "security.incidents.resolve",
+        name: "Resolver Incidentes",
+        description: "Marcar incidentes de seguridad como resueltos",
+        category: "security",
+        defaultRoles: ["SUPERADMIN", "ADMIN"],
+    },
+    {
+        code: "security.incidents.delete",
+        name: "Eliminar Incidentes",
+        description: "Eliminar registros de incidentes de seguridad",
+        category: "security",
+        defaultRoles: ["SUPERADMIN"],
+    },
+    {
         code: "security.sessions.view",
         name: "Ver Sesiones Activas",
         description: "Ver sesiones activas propias",

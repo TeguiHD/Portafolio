@@ -46,8 +46,10 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        if (!session?.user?.id) {
+            console.log("[Analytics] No session or user ID found");
+            return NextResponse.json({ error: "Unauthorized", details: "No valid session" }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);

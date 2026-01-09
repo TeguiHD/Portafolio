@@ -161,7 +161,7 @@ export function ExperienceSection({ experiences, onChange }: ExperienceSectionPr
                                                         <label className="block text-sm text-neutral-400 mb-2">Empresa</label>
                                                         <input
                                                             type="text"
-                                                            value={exp.company}
+                                                            value={exp.company || ""}
                                                             onChange={(e) => updateExperience(exp.id, { company: e.target.value })}
                                                             placeholder="Nombre de la empresa"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
@@ -171,7 +171,7 @@ export function ExperienceSection({ experiences, onChange }: ExperienceSectionPr
                                                         <label className="block text-sm text-neutral-400 mb-2">Cargo</label>
                                                         <input
                                                             type="text"
-                                                            value={exp.position}
+                                                            value={exp.position || ""}
                                                             onChange={(e) => updateExperience(exp.id, { position: e.target.value })}
                                                             placeholder="Tu cargo"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
@@ -181,7 +181,7 @@ export function ExperienceSection({ experiences, onChange }: ExperienceSectionPr
                                                         <label className="block text-sm text-neutral-400 mb-2">Fecha inicio</label>
                                                         <input
                                                             type="month"
-                                                            value={exp.startDate}
+                                                            value={exp.startDate || ""}
                                                             onChange={(e) => updateExperience(exp.id, { startDate: e.target.value })}
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
                                                         />
@@ -191,7 +191,7 @@ export function ExperienceSection({ experiences, onChange }: ExperienceSectionPr
                                                         <div className="flex items-center gap-3">
                                                             <input
                                                                 type="month"
-                                                                value={exp.endDate}
+                                                                value={exp.endDate || ""}
                                                                 onChange={(e) => updateExperience(exp.id, { endDate: e.target.value })}
                                                                 disabled={exp.current}
                                                                 className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50 disabled:opacity-50"
@@ -212,7 +212,7 @@ export function ExperienceSection({ experiences, onChange }: ExperienceSectionPr
                                                 <div>
                                                     <label className="block text-sm text-neutral-400 mb-2">Descripción</label>
                                                     <textarea
-                                                        value={exp.description}
+                                                        value={exp.description || ""}
                                                         onChange={(e) => updateExperience(exp.id, { description: e.target.value })}
                                                         placeholder="Describe tus responsabilidades principales..."
                                                         rows={3}

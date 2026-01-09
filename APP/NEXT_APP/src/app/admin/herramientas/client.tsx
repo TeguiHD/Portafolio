@@ -155,7 +155,7 @@ export default function ToolsPageClient() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {tools.length < 5 && (
+                        {tools.length < 10 && (
                             <button
                                 onClick={syncTools}
                                 disabled={syncing}

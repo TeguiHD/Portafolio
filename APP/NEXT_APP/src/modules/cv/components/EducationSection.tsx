@@ -139,7 +139,7 @@ export function EducationSection({ education, onChange }: EducationSectionProps)
                                                         <label className="block text-sm text-neutral-400 mb-2">Institución</label>
                                                         <input
                                                             type="text"
-                                                            value={edu.institution}
+                                                            value={edu.institution || ""}
                                                             onChange={(e) => updateEducation(edu.id, { institution: e.target.value })}
                                                             placeholder="Universidad o instituto"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
@@ -149,7 +149,7 @@ export function EducationSection({ education, onChange }: EducationSectionProps)
                                                         <label className="block text-sm text-neutral-400 mb-2">Título</label>
                                                         <input
                                                             type="text"
-                                                            value={edu.degree}
+                                                            value={edu.degree || ""}
                                                             onChange={(e) => updateEducation(edu.id, { degree: e.target.value })}
                                                             placeholder="Ej: Ingeniería Civil Informática"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
@@ -159,7 +159,7 @@ export function EducationSection({ education, onChange }: EducationSectionProps)
                                                         <label className="block text-sm text-neutral-400 mb-2">Campo de estudio</label>
                                                         <input
                                                             type="text"
-                                                            value={edu.field}
+                                                            value={edu.field || ""}
                                                             onChange={(e) => updateEducation(edu.id, { field: e.target.value })}
                                                             placeholder="Ej: Ciencias de la Computación"
                                                             className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
@@ -170,7 +170,7 @@ export function EducationSection({ education, onChange }: EducationSectionProps)
                                                             <label className="block text-sm text-neutral-400 mb-2">Fecha inicio</label>
                                                             <input
                                                                 type="month"
-                                                                value={edu.startDate}
+                                                                value={edu.startDate || ""}
                                                                 onChange={(e) => updateEducation(edu.id, { startDate: e.target.value })}
                                                                 className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
                                                             />
@@ -179,7 +179,7 @@ export function EducationSection({ education, onChange }: EducationSectionProps)
                                                             <label className="block text-sm text-neutral-400 mb-2">Fecha fin</label>
                                                             <input
                                                                 type="month"
-                                                                value={edu.endDate}
+                                                                value={edu.endDate || ""}
                                                                 onChange={(e) => updateEducation(edu.id, { endDate: e.target.value })}
                                                                 className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
                                                             />

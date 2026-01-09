@@ -16,7 +16,176 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // ============= SECURITY CONSTANTS =============
-const SECURITY_VERSION = '2.0.0'
+const SECURITY_VERSION = '2.1.0'
+
+// ============= INCIDENT LOGGING (Async, non-blocking) =============
+// Logs security incidents to the database via internal API
+// Edge-compatible: uses fetch instead of Prisma
+
+type IncidentType = 'honeypot' | 'blocked_url' | 'suspicious_ua' | 'rate_limit' | 'blocked_request'
+type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+type ActionTaken = 'blocked' | 'rate_limited' | 'logged' | 'honeypot_served'
+
+interface IncidentTelemetry {
+    // Request Context
+    method: string
+    path: string
+    queryString?: string
+    protocol: string
+
+    // Client Info
+    userAgent?: string
+    referer?: string
+    origin?: string
+    acceptLanguage?: string
+
+    // Geo Info (from CDN/proxy headers)
+    country?: string
+    region?: string
+    city?: string
+    timezone?: string
+    isp?: string
+
+    // Network Info
+    ipHash: string
+    asn?: string
+    connectionType?: string
+
+    // Timing
+    timestamp: string
+    requestDuration?: number
+
+    // Threat Intel
+    threatType: IncidentType
+    threatSeverity: IncidentSeverity
+    actionTaken: ActionTaken
+
+    // Additional context
+    matchedPattern?: string
+    riskScore?: number
+}
+
+function hashIpForLogging(ip: string): string {
+    // Simple hash for edge runtime (no crypto.createHash available)
+    let hash = 0
+    for (let i = 0; i < ip.length; i++) {
+        const char = ip.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0')
+}
+
+function extractGeoFromHeaders(request: NextRequest): Partial<IncidentTelemetry> {
+    const headers = request.headers
+
+    return {
+        // Cloudflare headers
+        country: headers.get('cf-ipcountry') || headers.get('x-vercel-ip-country') || undefined,
+        region: headers.get('cf-region') || headers.get('x-vercel-ip-country-region') || undefined,
+        city: headers.get('cf-ipcity') || headers.get('x-vercel-ip-city') || undefined,
+        timezone: headers.get('cf-timezone') || headers.get('x-vercel-ip-timezone') || undefined,
+
+        // Network info
+        asn: headers.get('cf-asn') || undefined,
+        connectionType: headers.get('cf-connection-type') || undefined,
+
+        // Request info
+        referer: headers.get('referer') || undefined,
+        origin: headers.get('origin') || undefined,
+        acceptLanguage: headers.get('accept-language')?.split(',')[0] || undefined,
+    }
+}
+
+function logSecurityIncidentAsync(
+    request: NextRequest,
+    type: IncidentType,
+    severity: IncidentSeverity,
+    clientIp: string,
+    pathname: string,
+    actionTaken: ActionTaken,
+    extraDetails?: Record<string, unknown>
+): void {
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const encryptionKey = process.env.ENCRYPTION_KEY
+
+    // Extract geo and request context
+    const geoInfo = extractGeoFromHeaders(request)
+    const userAgent = request.headers.get('user-agent') || undefined
+
+    // Build comprehensive telemetry
+    const telemetry: IncidentTelemetry = {
+        // Request Context
+        method: request.method,
+        path: pathname,
+        queryString: request.nextUrl.search || undefined,
+        protocol: request.nextUrl.protocol,
+
+        // Client Info
+        userAgent,
+        referer: geoInfo.referer,
+        origin: geoInfo.origin,
+        acceptLanguage: geoInfo.acceptLanguage,
+
+        // Geo Info
+        country: geoInfo.country,
+        region: geoInfo.region,
+        city: geoInfo.city,
+        timezone: geoInfo.timezone,
+
+        // Network
+        ipHash: hashIpForLogging(clientIp),
+        asn: geoInfo.asn,
+        connectionType: geoInfo.connectionType,
+
+        // Timing
+        timestamp: new Date().toISOString(),
+
+        // Threat Intel
+        threatType: type,
+        threatSeverity: severity,
+        actionTaken,
+
+        // Risk score based on severity
+        riskScore: severity === 'CRITICAL' ? 100 :
+            severity === 'HIGH' ? 75 :
+                severity === 'MEDIUM' ? 50 : 25,
+    }
+
+    // Log to console with summary
+    console.log(`[Security] ${severity} incident: ${type} | ${geoInfo.country || 'Unknown'} | ${actionTaken}`)
+
+    if (!encryptionKey) {
+        console.warn('[Security] ENCRYPTION_KEY not set, incident logging may fail')
+    }
+
+    fetch(`${baseUrl}/api/admin/security/incidents`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-internal-secret': encryptionKey || '',
+        },
+        body: JSON.stringify({
+            type,
+            severity,
+            ipHash: telemetry.ipHash,
+            path: pathname,
+            userAgent,
+            details: {
+                ...telemetry,
+                ...extraDetails,
+            },
+        }),
+    })
+        .then(res => {
+            if (!res.ok) {
+                console.error(`[Security] Failed to log incident: ${res.status}`)
+            }
+        })
+        .catch((err) => {
+            console.error('[Security] Error logging incident:', err.message || err)
+        })
+}
 
 // Blocked suspicious patterns in URLs (path traversal, injection attempts)
 const BLOCKED_URL_PATTERNS = [
@@ -340,15 +509,17 @@ export async function proxy(request: NextRequest) {
     // HONEYPOT: Catch attackers probing for vulnerabilities
     if (isHoneypotPath(pathname)) {
         console.error(`🍯 [HONEYPOT] Attack detected: ${pathname} from ${clientIp}`)
-        // Return fake "success" to waste attacker's time and gather intel
+        logSecurityIncidentAsync(request, 'honeypot', 'CRITICAL', clientIp, pathname, 'honeypot_served')
+
+        // Return convincing 404 - don't reveal it's a honeypot
         return new NextResponse(
             JSON.stringify({
-                status: 'processing',
-                message: 'Request queued',
-                requestId: `fake-${Date.now()}`
+                error: 'Not Found',
+                message: 'The requested resource was not found on this server.',
+                statusCode: 404
             }),
             {
-                status: 202,
+                status: 404,
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Request-ID': requestId
@@ -360,6 +531,7 @@ export async function proxy(request: NextRequest) {
     // Check for blocked URL patterns (path traversal, injections)
     if (isBlockedUrl(pathname) || isBlockedUrl(decodeURIComponent(pathname))) {
         console.warn(`[SECURITY] Blocked malicious URL attempt: ${pathname} from ${clientIp}`)
+        logSecurityIncidentAsync(request, 'blocked_url', 'HIGH', clientIp, pathname, 'blocked')
         return new NextResponse(
             JSON.stringify({ error: 'Bad Request' }),
             { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -369,6 +541,7 @@ export async function proxy(request: NextRequest) {
     // Check for suspicious user agents (security scanners)
     if (isSuspiciousUA(userAgent) && pathname.startsWith('/api/')) {
         console.warn(`[SECURITY] Blocked suspicious UA: ${userAgent?.slice(0, 50)} from ${clientIp}`)
+        logSecurityIncidentAsync(request, 'suspicious_ua', 'MEDIUM', clientIp, pathname, 'blocked')
         // Return 200 with fake response to confuse scanners
         return new NextResponse(
             JSON.stringify({ status: 'ok' }),
@@ -441,6 +614,7 @@ export async function proxy(request: NextRequest) {
 
         if (!rateCheck.allowed) {
             console.warn(`[SECURITY] Rate limited: ${clientIp} on ${pathname}`)
+            logSecurityIncidentAsync(request, 'rate_limit', 'MEDIUM', clientIp, pathname, 'rate_limited', { limit, window })
             return new NextResponse(
                 JSON.stringify({ error: 'Too many requests' }),
                 {

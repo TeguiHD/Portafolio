@@ -169,6 +169,47 @@ model AuditLog {
   @@index([createdAt])
 }
 
+// ============= SECURITY INCIDENTS =============
+// Real-time security event tracking for threat detection
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model SecurityIncident {
+  id          String           @id @default(cuid())
+  type        String           // rate_limit, unauthorized_access, injection_attempt, brute_force, etc.
+  severity    SecuritySeverity @default(MEDIUM)
+  
+  // Source info
+  ipHash      String           // SHA-256 hashed IP for privacy
+  path        String?          // Affected resource/endpoint
+  userAgent   String?
+  
+  // Optional user association
+  userId      String?
+  
+  // Details
+  details     Json?            // Additional context (payload, pattern, etc.)
+  
+  // Resolution tracking
+  resolved    Boolean          @default(false)
+  resolvedAt  DateTime?
+  resolvedBy  String?          // Admin userId who resolved
+  resolution  String?          // How it was resolved
+  
+  createdAt   DateTime         @default(now())
+  
+  @@index([type])
+  @@index([severity])
+  @@index([resolved])
+  @@index([ipHash])
+  @@index([createdAt])
+  @@index([severity, resolved, createdAt])
+}
 
 // ============= ANALYTICS =============
 

@@ -231,15 +231,25 @@ interface RateLimitResult {
     resetIn: number; // seconds until reset
 }
 
+// In-memory fallback for development (not for production!)
+const devRateLimitCache = new Map<string, { count: number; resetAt: number }>();
+let redisUnavailableWarned = false;
+
 /**
  * Check and increment rate limit counter
  * Uses sliding window algorithm
+ * 
+ * SECURITY:
+ * - Production: Fail-closed (blocks if Redis unavailable)
+ * - Development: Allows with in-memory fallback + warning
  */
 export async function checkRateLimit(
     identifier: string,
     limit: number,
     windowSeconds: number = CACHE_TTL.RATE_LIMIT_WINDOW
 ): Promise<RateLimitResult> {
+    const isProduction = process.env.NODE_ENV === "production";
+
     try {
         const client = await getRedisClient();
         const key = `${CACHE_KEYS.RATE_LIMIT}:${identifier}`;
@@ -261,9 +271,40 @@ export async function checkRateLimit(
             resetIn: ttl > 0 ? ttl : windowSeconds,
         };
     } catch (error) {
-        console.error('[Redis] Rate limit check error:', error);
-        // Fail open - allow request if Redis is down
-        return { allowed: true, remaining: limit, resetIn: windowSeconds };
+        // SECURITY: Different behavior for prod vs dev
+        if (isProduction) {
+            // Production: FAIL-CLOSED - block if Redis is unavailable
+            console.error('[SECURITY] Rate limiting unavailable in production - blocking request');
+            return { allowed: false, remaining: 0, resetIn: windowSeconds };
+        }
+
+        // Development: Use in-memory fallback with reduced logging
+        if (!redisUnavailableWarned) {
+            console.warn('[Dev] Redis unavailable - using in-memory rate limiting fallback');
+            redisUnavailableWarned = true;
+        }
+
+        // In-memory fallback for development
+        const now = Date.now();
+        const windowMs = windowSeconds * 1000;
+        const cached = devRateLimitCache.get(identifier);
+
+        if (!cached || now > cached.resetAt) {
+            // Start new window
+            devRateLimitCache.set(identifier, { count: 1, resetAt: now + windowMs });
+            return { allowed: true, remaining: limit - 1, resetIn: windowSeconds };
+        }
+
+        // Increment existing window
+        cached.count++;
+        const remaining = Math.max(0, limit - cached.count);
+        const resetIn = Math.ceil((cached.resetAt - now) / 1000);
+
+        return {
+            allowed: cached.count <= limit,
+            remaining,
+            resetIn,
+        };
     }
 }
 
