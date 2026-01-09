@@ -140,8 +140,10 @@ const InvertIcon = () => (
     </svg>
 );
 
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+
 export default function AsciiArtPage() {
-    const { isLoading } = useToolAccess("ascii");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("ascii");
     const { trackImmediate } = useToolTracking("ascii", { trackViewOnMount: true });
 
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -772,6 +774,10 @@ export default function AsciiArtPage() {
                 <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "ASCII Art"} />;
     }
 
     return (

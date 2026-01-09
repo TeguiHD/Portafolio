@@ -211,6 +211,62 @@ model SecurityIncident {
   @@index([severity, resolved, createdAt])
 }
 
+// ============= CONTACT MESSAGES =============
+// Public contact form messages with admin management
+
+enum ContactStatus {
+  UNREAD
+  READ
+  RESPONDED
+  ARCHIVED
+  SPAM
+}
+
+enum ContactPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model ContactMessage {
+  id          String          @id @default(cuid())
+  
+  // Sender info
+  email       String
+  name        String?
+  message     String          @db.Text
+  
+  // Metadata
+  ipHash      String          // SHA-256 hashed IP (GDPR compliant)
+  userAgent   String?
+  source      String          @default("landing") // landing, tool, etc.
+  
+  // Status management
+  status      ContactStatus   @default(UNREAD)
+  priority    ContactPriority @default(NORMAL)
+  
+  // Admin response
+  response    String?         @db.Text
+  respondedBy String?         // Admin userId
+  respondedAt DateTime?
+  
+  // Spam detection
+  isSpam      Boolean         @default(false)
+  spamScore   Int             @default(0)
+  spamReason  String?
+  
+  // Timestamps
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([email])
+  @@index([isSpam])
+}
+
 // ============= ANALYTICS =============
 
 model PageView {

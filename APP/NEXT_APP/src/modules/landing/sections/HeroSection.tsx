@@ -207,7 +207,7 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="flex flex-col sm:flex-row gap-4 mb-16 md:mb-20"
+            className="flex flex-row flex-wrap items-center gap-4 mb-16 md:mb-20"
           >
             <Link href="#tools-belt">
               <Button
@@ -222,7 +222,7 @@ export function HeroSection() {
               <Button
                 variant="ghost"
                 size="lg"
-                className="rounded-full px-8 py-6 text-lg font-medium text-white hover:bg-white/5 border border-white/20 hover:border-white/40"
+                className="rounded-full px-8 py-4 text-lg font-medium text-white hover:bg-white/5 border border-white/20 hover:border-white/40"
               >
                 Agendar Reunión
               </Button>

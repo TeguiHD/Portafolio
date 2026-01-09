@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { Role } from "@prisma/client";
 import { useAdminLayout } from "@/modules/admin/context/AdminLayoutContext";
 
@@ -78,6 +78,11 @@ const icons = {
     system: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+        </svg>
+    ),
+    messages: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
     ),
 };
@@ -186,6 +191,12 @@ const menuStructure: {
                     icon: icons.security,
                     requiredPermission: "security.view",
                 },
+                {
+                    name: "Mensajes",
+                    href: "/admin/contact",
+                    icon: icons.messages,
+                    requiredPermission: "contact.manage",
+                },
             ],
         },
     ],
@@ -199,6 +210,8 @@ function MenuGroupComponent({
     closeSidebar,
     isExpanded,
     onToggle,
+    onNavClick,
+    isThrottled,
 }: {
     group: MenuGroup;
     permissions: string[];
@@ -206,6 +219,8 @@ function MenuGroupComponent({
     closeSidebar: () => void;
     isExpanded: boolean;
     onToggle: () => void;
+    onNavClick: (e: React.MouseEvent, callback?: () => void) => void;
+    isThrottled: boolean;
 }) {
     const filteredItems = group.items.filter((item) =>
         permissions.includes(item.requiredPermission)
@@ -224,11 +239,10 @@ function MenuGroupComponent({
             {/* Group header */}
             <button
                 onClick={onToggle}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all ${
-                    hasActiveChild
-                        ? "text-accent-1 bg-accent-1/5"
-                        : "text-neutral-400 hover:text-white hover:bg-white/5"
-                }`}
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all ${hasActiveChild
+                    ? "text-accent-1 bg-accent-1/5"
+                    : "text-neutral-400 hover:text-white hover:bg-white/5"
+                    }`}
             >
                 <div className="flex items-center gap-3">
                     <span className={hasActiveChild ? "text-accent-1" : ""}>{group.icon}</span>
@@ -262,12 +276,12 @@ function MenuGroupComponent({
                                     <Link
                                         key={item.href}
                                         href={item.href as any}
-                                        onClick={closeSidebar}
-                                        className={`relative flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${
-                                            isActive
-                                                ? "text-accent-1 bg-accent-1/10"
-                                                : "text-neutral-400 hover:text-white hover:bg-white/5"
-                                        }`}
+                                        onClick={(e) => onNavClick(e, closeSidebar)}
+                                        style={isThrottled ? { pointerEvents: 'none', opacity: 0.7 } : undefined}
+                                        className={`relative flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${isActive
+                                            ? "text-accent-1 bg-accent-1/10"
+                                            : "text-neutral-400 hover:text-white hover:bg-white/5"
+                                            }`}
                                     >
                                         {isActive && (
                                             <motion.div
@@ -310,6 +324,23 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
         });
     };
 
+    // Navigation throttle to prevent rapid clicking
+    const NAV_THROTTLE_MS = 500;
+    const lastNavClickRef = useRef<number>(0);
+    const [isNavThrottled, setIsNavThrottled] = useState(false);
+
+    const handleNavClick = useCallback((e: React.MouseEvent, callback?: () => void) => {
+        const now = Date.now();
+        if (now - lastNavClickRef.current < NAV_THROTTLE_MS) {
+            e.preventDefault();
+            return;
+        }
+        lastNavClickRef.current = now;
+        setIsNavThrottled(true);
+        setTimeout(() => setIsNavThrottled(false), NAV_THROTTLE_MS);
+        callback?.();
+    }, []);
+
     // Filter standalone items
     const filteredStandalone = menuStructure.standalone.filter((item) =>
         permissions.includes(item.requiredPermission)
@@ -319,7 +350,12 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
         <>
             {/* Logo */}
             <div className="p-6 border-b border-accent-1/10">
-                <Link href="/" className="flex items-center gap-3 group" onClick={closeSidebar}>
+                <Link
+                    href="/"
+                    className="flex items-center gap-3 group"
+                    onClick={(e) => handleNavClick(e, closeSidebar)}
+                    style={isNavThrottled ? { pointerEvents: 'none', opacity: 0.7 } : undefined}
+                >
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-1/20 to-accent-2/20 border border-accent-1/30 flex items-center justify-center group-hover:scale-105 transition-transform">
                         <span className="text-lg font-bold text-accent-1">NL</span>
                     </div>
@@ -341,12 +377,12 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
                         <Link
                             key={item.href}
                             href={item.href as any}
-                            onClick={closeSidebar}
-                            className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                                isActive
-                                    ? "text-accent-1 bg-accent-1/10"
-                                    : "text-neutral-400 hover:text-white hover:bg-white/5"
-                            }`}
+                            onClick={(e) => handleNavClick(e, closeSidebar)}
+                            style={isNavThrottled ? { pointerEvents: 'none', opacity: 0.7 } : undefined}
+                            className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
+                                ? "text-accent-1 bg-accent-1/10"
+                                : "text-neutral-400 hover:text-white hover:bg-white/5"
+                                }`}
                         >
                             {isActive && (
                                 <motion.div
@@ -376,6 +412,8 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
                         closeSidebar={closeSidebar}
                         isExpanded={expandedGroups.has(group.id)}
                         onToggle={() => toggleGroup(group.id)}
+                        onNavClick={handleNavClick}
+                        isThrottled={isNavThrottled}
                     />
                 ))}
             </nav>

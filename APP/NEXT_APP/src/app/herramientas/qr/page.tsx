@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ColorPicker } from "@/components/ui/ColorPicker";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { renderQRToCanvas, QRStyle, EyeStyle } from "@/utils/qr-renderer";
 import {
     QR_TYPES, QR_CATEGORIES, QRType, QRCategory, getTypesByCategory,
@@ -18,7 +19,7 @@ import { QR_TYPE_ICONS, QR_CATEGORY_ICONS, MAP_FORMAT_ICONS } from "@/components
 type AccordionSection = "design" | null;
 
 export default function QRGeneratorPage() {
-    const { isLoading } = useToolAccess("qr");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("qr");
     const [qrType, setQrType] = useState<QRType>("url");
     const [activeCategory, setActiveCategory] = useState<QRCategory>("basic");
 
@@ -113,6 +114,10 @@ export default function QRGeneratorPage() {
                 <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador QR"} />;
     }
 
     const onSettingChange = () => setIsGenerated(false);

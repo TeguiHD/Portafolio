@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
 import { cn } from "@/components/ui/Button";
+import { ThrottledLink } from "@/components/ui/ThrottledLink";
 
 const navItems = [
   { label: "Herramientas", href: "/#tools-belt" },
@@ -104,11 +104,11 @@ export function Navbar() {
           )}
         >
           {/* Logo */}
-          <Link href="/#hero" className="group font-mono font-bold tracking-tight text-white flex items-center gap-0.5 text-sm mr-2">
+          <ThrottledLink href="/#hero" className="group font-mono font-bold tracking-tight text-white flex items-center gap-0.5 text-sm mr-2">
             <span className="text-white/40 group-hover:text-blue-400 transition-colors">&lt;</span>
             <span className="group-hover:text-white transition-colors">NicoholasDev</span>
             <span className="text-white/40 group-hover:text-blue-400 transition-colors">/&gt;</span>
-          </Link>
+          </ThrottledLink>
 
           {/* Divider */}
           <div className="hidden md:block w-px h-4 bg-white/10 mx-1" />
@@ -116,25 +116,25 @@ export function Navbar() {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-0.5">
             {navItems.map((item) => (
-              <Link
+              <ThrottledLink
                 key={item.href}
                 href={item.href as any}
                 onClick={() => suppressHideFor()}
                 className="relative px-3.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-white/5"
               >
                 {item.label}
-              </Link>
+              </ThrottledLink>
             ))}
           </nav>
 
           {/* CTA */}
-          <Link
+          <ThrottledLink
             href="/#contact"
             onClick={() => suppressHideFor()}
             className="hidden md:flex items-center justify-center px-4 py-1.5 ml-1 text-xs font-bold text-black bg-white rounded-full hover:bg-gray-200 transition-colors"
           >
             Contactar
-          </Link>
+          </ThrottledLink>
 
           {/* Mobile Toggle */}
           <button
@@ -181,7 +181,7 @@ export function Navbar() {
           >
             <div className="flex flex-col gap-1">
               {navItems.map((item) => (
-                <Link
+                <ThrottledLink
                   key={item.href}
                   href={item.href as any}
                   onClick={() => {
@@ -192,10 +192,10 @@ export function Navbar() {
                 >
                   <span className="text-sm font-medium text-zinc-400 group-hover:text-white transition-colors">{item.label}</span>
                   <span className="text-zinc-600 group-hover:text-white transition-colors">→</span>
-                </Link>
+                </ThrottledLink>
               ))}
               <div className="h-px bg-white/5 my-1 mx-2" />
-              <Link
+              <ThrottledLink
                 href="/#contact"
                 onClick={() => {
                   suppressHideFor();
@@ -204,7 +204,7 @@ export function Navbar() {
                 className="flex items-center justify-center px-4 py-3 rounded-2xl bg-white text-black font-bold text-sm hover:bg-gray-200 transition-colors"
               >
                 Agendar Reunión
-              </Link>
+              </ThrottledLink>
             </div>
           </motion.div>
         )}

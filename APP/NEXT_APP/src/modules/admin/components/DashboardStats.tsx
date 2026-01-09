@@ -19,7 +19,7 @@ export function DashboardStats() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/analytics?days=30", { cache: "no-store" });
+        const res = await fetch("/api/analytics?days=30", { cache: "no-store", credentials: "include" });
         if (!res.ok) throw new Error("Failed to fetch analytics");
         const json = await res.json();
         setData(json);

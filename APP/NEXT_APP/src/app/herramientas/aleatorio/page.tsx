@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
-import { ToolAccessFeedback } from "@/components/ToolAccessFeedback";
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { sanitizeInput } from "@/lib/security";
 
 type ModeType = "roulette" | "groups";
@@ -54,7 +54,7 @@ const generateColors = (count: number): string[] => {
 };
 
 export default function RandomPickerPage() {
-    const { isLoading, isAuthorized, accessType } = useToolAccess("aleatorio");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("aleatorio");
     const { trackImmediate } = useToolTracking("aleatorio", { trackViewOnMount: true, debounceMs: 2000 });
 
     const [mode, setMode] = useState<ModeType>("roulette");
@@ -254,8 +254,18 @@ export default function RandomPickerPage() {
 
     // Show access feedback for loading, admin-only, or private tools
     // IMPORTANT: This must be AFTER all hooks to respect Rules of Hooks
-    if (isLoading || !isAuthorized) {
-        return <ToolAccessFeedback accessType={accessType} toolSlug="aleatorio" />;
+    // Show access feedback for loading, admin-only, or private tools
+    // IMPORTANT: This must be AFTER all hooks to respect Rules of Hooks
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Aleatorio"} />;
     }
 
     return (

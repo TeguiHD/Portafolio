@@ -3,9 +3,10 @@
 import { useState, useRef } from "react";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 
 export default function ImageBase64Page() {
-    const { isLoading } = useToolAccess("base64");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("base64");
     const [activeTab, setActiveTab] = useState<"image" | "text">("image");
     const [input, setInput] = useState("");
     const [output, setOutput] = useState("");
@@ -21,6 +22,10 @@ export default function ImageBase64Page() {
                 <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor Base64"} />;
     }
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,7 +78,7 @@ export default function ImageBase64Page() {
                             <p className="text-sm text-neutral-400">Codifica y decodifica texto e imágenes al instante</p>
                         </div>
                     </div>
-                    
+
                     {/* Info Banner */}
                     <div className="mt-4 p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
                         <div className="flex gap-3">
@@ -85,9 +90,9 @@ export default function ImageBase64Page() {
                             <div className="text-sm text-neutral-300">
                                 <p className="font-medium text-cyan-400 mb-1">¿Qué es Base64?</p>
                                 <p className="text-neutral-400">
-                                    Base64 es un sistema de codificación que convierte datos binarios en texto ASCII. 
-                                    Es ideal para <span className="text-white">incrustar imágenes en HTML/CSS</span>, 
-                                    <span className="text-white"> enviar archivos en JSON</span>, o 
+                                    Base64 es un sistema de codificación que convierte datos binarios en texto ASCII.
+                                    Es ideal para <span className="text-white">incrustar imágenes en HTML/CSS</span>,
+                                    <span className="text-white"> enviar archivos en JSON</span>, o
                                     <span className="text-white"> almacenar datos en URLs</span> sin caracteres especiales.
                                 </p>
                             </div>
@@ -100,11 +105,10 @@ export default function ImageBase64Page() {
                     <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-8 w-fit">
                         <button
                             onClick={() => { setActiveTab("image"); setInput(""); setOutput(""); }}
-                            className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                                activeTab === "image" 
-                                    ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" 
-                                    : "text-neutral-400 hover:text-white hover:bg-white/5"
-                            }`}
+                            className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "image"
+                                ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25"
+                                : "text-neutral-400 hover:text-white hover:bg-white/5"
+                                }`}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -113,11 +117,10 @@ export default function ImageBase64Page() {
                         </button>
                         <button
                             onClick={() => { setActiveTab("text"); setInput(""); setOutput(""); }}
-                            className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                                activeTab === "text" 
-                                    ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" 
-                                    : "text-neutral-400 hover:text-white hover:bg-white/5"
-                            }`}
+                            className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "text"
+                                ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25"
+                                : "text-neutral-400 hover:text-white hover:bg-white/5"
+                                }`}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -192,11 +195,10 @@ export default function ImageBase64Page() {
                                 </div>
                                 <button
                                     onClick={handleCopy}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                                        copied 
-                                            ? "bg-green-500/20 text-green-400 border border-green-500/30" 
-                                            : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20"
-                                    }`}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${copied
+                                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                        : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20"
+                                        }`}
                                 >
                                     {copied ? (
                                         <>

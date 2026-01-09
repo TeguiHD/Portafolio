@@ -64,8 +64,10 @@ const UNITS: Record<UnitCategory, { id: string; name: string; symbol: string; fa
     ],
 };
 
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+
 export default function UnitConverterPage() {
-    const { isLoading } = useToolAccess("unidades");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("unidades");
     const [category, setCategory] = useState<UnitCategory>("length");
     const [fromUnit, setFromUnit] = useState(UNITS.length[0].id);
     const [toUnit, setToUnit] = useState(UNITS.length[1].id);
@@ -137,6 +139,10 @@ export default function UnitConverterPage() {
                 <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor de Unidades"} />;
     }
 
     return (

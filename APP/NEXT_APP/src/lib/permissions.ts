@@ -415,6 +415,15 @@ export const DEFAULT_PERMISSIONS: PermissionDefinition[] = [
         category: "security",
         defaultRoles: ["SUPERADMIN"],
     },
+
+    // ============= CONTACT =============
+    {
+        code: "contact.manage",
+        name: "Gestionar Mensajes de Contacto",
+        description: "Ver, responder y administrar mensajes del formulario de contacto",
+        category: "contact",
+        defaultRoles: ["SUPERADMIN"],
+    },
 ];
 
 /**
@@ -445,4 +454,5 @@ export const CATEGORY_INFO: Record<string, { name: string; icon: string }> = {
     audit: { name: "Auditoría", icon: "🔍" },
     finance: { name: "Finanzas", icon: "💰" },
     security: { name: "Seguridad", icon: "🔒" },
+    contact: { name: "Contacto", icon: "📨" },
 };

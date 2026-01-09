@@ -16,6 +16,8 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_LOCATION_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+
 type TabType = "whatsapp" | "email" | "calendar";
 
 // Security: Validate phone number
@@ -66,7 +68,7 @@ END:VCALENDAR`;
 };
 
 export default function LinkGeneratorPage() {
-    const { isLoading } = useToolAccess("enlaces");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("enlaces");
     const { trackImmediate } = useToolTracking("enlaces", { trackViewOnMount: true, debounceMs: 2000 });
 
     const [activeTab, setActiveTab] = useState<TabType>("whatsapp");
@@ -190,6 +192,10 @@ export default function LinkGeneratorPage() {
                 <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de Enlaces"} />;
     }
 
     const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-sm focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500";

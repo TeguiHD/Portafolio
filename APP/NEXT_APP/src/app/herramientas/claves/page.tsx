@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 
 // Character sets
 const CHARSETS = {
@@ -87,7 +88,7 @@ const ATTACK_SCENARIOS = {
 type AttackKey = keyof typeof ATTACK_SCENARIOS;
 
 export default function PasswordGeneratorPage() {
-    const { isLoading } = useToolAccess("claves");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("claves");
     const [password, setPassword] = useState("");
     const [length, setLength] = useState(20);
     const [copied, setCopied] = useState(false);
@@ -209,6 +210,10 @@ export default function PasswordGeneratorPage() {
                 <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de Claves"} />;
     }
 
     const currentScenario = ATTACK_SCENARIOS[attackScenario];

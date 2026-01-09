@@ -43,8 +43,10 @@ const formatCurrency = (amount: number, decimals = 2): string => {
     });
 };
 
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+
 export default function TaxCalculatorPage() {
-    const { isLoading } = useToolAccess("impuestos");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("impuestos");
     const { trackImmediate } = useToolTracking("impuestos", { trackViewOnMount: true, debounceMs: 2000 });
 
     const [amount, setAmount] = useState("");
@@ -139,6 +141,10 @@ export default function TaxCalculatorPage() {
                 <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Calculadora de Impuestos"} />;
     }
 
     const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-lg focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500";

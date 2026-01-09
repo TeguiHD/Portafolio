@@ -32,7 +32,7 @@ export function RecentActivity() {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch("/api/analytics?days=14", { cache: "no-store" });
+                const res = await fetch("/api/analytics?days=14", { cache: "no-store", credentials: "include" });
                 if (!res.ok) throw new Error("Failed to fetch activity");
                 const json = await res.json();
                 setActivities(json.recentEvents || []);

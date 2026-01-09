@@ -39,8 +39,10 @@ const CHEATSHEET = [
 const MAX_TEXT_LENGTH = 50000;
 const EXECUTION_TIMEOUT_MS = 100;
 
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+
 export default function RegexTesterPage() {
-    const { isLoading } = useToolAccess("regex");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("regex");
     const toast = useToast();
     const [regex, setRegex] = useState("");
     const [activeFlags, setActiveFlags] = useState({ g: true, i: false, m: true, s: false, u: false });
@@ -266,6 +268,10 @@ export default function RegexTesterPage() {
                 <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Tester Regex"} />;
     }
 
     return (

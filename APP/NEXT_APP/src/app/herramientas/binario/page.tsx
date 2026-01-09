@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { sanitizeInput } from "@/lib/security";
+import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 
 type ModeType = "text-to-binary" | "binary-to-text";
 
@@ -61,7 +62,7 @@ const binaryToText = (binary: string): string => {
 };
 
 export default function BinaryTranslatorPage() {
-    const { isLoading } = useToolAccess("binario");
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("binario");
     const { trackImmediate } = useToolTracking("binario", { trackViewOnMount: true, debounceMs: 2000 });
 
     const [mode, setMode] = useState<ModeType>("text-to-binary");
@@ -141,6 +142,10 @@ export default function BinaryTranslatorPage() {
         );
     }
 
+    if (!isAuthorized) {
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Traductor Binario"} />;
+    }
+
     const inputLimit = mode === "text-to-binary" ? MAX_TEXT_LENGTH : MAX_BINARY_LENGTH;
 
     return (
@@ -166,8 +171,8 @@ export default function BinaryTranslatorPage() {
                     <button
                         onClick={() => { setMode("text-to-binary"); setInputText(""); }}
                         className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "text-to-binary"
-                                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                                : "text-neutral-400 hover:text-white"
+                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                            : "text-neutral-400 hover:text-white"
                             }`}
                     >
                         <span>📝</span>
@@ -176,8 +181,8 @@ export default function BinaryTranslatorPage() {
                     <button
                         onClick={() => { setMode("binary-to-text"); setInputText(""); }}
                         className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "binary-to-text"
-                                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                                : "text-neutral-400 hover:text-white"
+                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                            : "text-neutral-400 hover:text-white"
                             }`}
                     >
                         <span>🔢</span>
@@ -267,8 +272,8 @@ export default function BinaryTranslatorPage() {
                                     onClick={copyToClipboard}
                                     disabled={isConverting}
                                     className={`absolute top-3 right-3 p-2 rounded-lg transition-all ${copied
-                                            ? "bg-green-500/20 text-green-400"
-                                            : "bg-white/10 text-neutral-400 hover:text-white hover:bg-white/20"
+                                        ? "bg-green-500/20 text-green-400"
+                                        : "bg-white/10 text-neutral-400 hover:text-white hover:bg-white/20"
                                         }`}
                                 >
                                     {copied ? (
