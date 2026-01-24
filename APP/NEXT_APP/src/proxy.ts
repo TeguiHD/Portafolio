@@ -281,27 +281,32 @@ function generateRequestId(): string {
  *   - Form hijacking (form-action 'self')
  */
 function buildCSP(): string {
+    // Detect if running in development/localhost
+    const isDev = process.env.NODE_ENV !== 'production' ||
+        process.env.NEXTAUTH_URL?.includes('localhost') ||
+        process.env.NEXTAUTH_URL?.includes('127.0.0.1')
+
     const directives = [
         // Default: Block everything not explicitly allowed
         "default-src 'none'",
 
         // Scripts: 'self' for static chunks, 'unsafe-inline' for Next.js inline scripts
         // 'unsafe-eval' needed for React/Next.js features like fast refresh
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval'${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
 
         // Styles: Allow unsafe-inline for React/Framer Motion dynamic styles
         `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
         `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com`,
         `style-src-attr 'unsafe-inline'`,
 
-        // Images: self + data URIs for inline images + HTTPS only
-        "img-src 'self' data: blob: https:",
+        // Images: self + data URIs for inline images + HTTPS (+ HTTP for dev)
+        `img-src 'self' data: blob: https:${isDev ? ' http:' : ''}`,
 
-        // Fonts: only from self and Google Fonts
-        "font-src 'self' https://fonts.gstatic.com",
+        // Fonts: only from self and Google Fonts (+ localhost for dev)
+        `font-src 'self' https://fonts.gstatic.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
 
-        // Connections: explicit whitelist
-        "connect-src 'self' https://api.openrouter.ai https://api.frankfurter.app",
+        // Connections: explicit whitelist (+ localhost for dev)
+        `connect-src 'self' https://api.openrouter.ai https://api.frankfurter.app${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
 
         // Forms: only submit to self
         "form-action 'self'",
@@ -309,14 +314,14 @@ function buildCSP(): string {
         // Base URI: prevent base tag hijacking
         "base-uri 'self'",
 
-        // Frame ancestors: prevent clickjacking
-        "frame-ancestors 'none'",
+        // Frame ancestors: prevent clickjacking (allow self in dev for iframe testing)
+        isDev ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
 
         // Object/Embed: block all plugins (Flash, Java, etc)
         "object-src 'none'",
 
-        // Media: audio/video from self and data URIs
-        "media-src 'self' data:",
+        // Media: audio/video from self and data URIs (+ localhost for dev)
+        `media-src 'self' data: blob:${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
 
         // Workers: only from self
         "worker-src 'self' blob:",
@@ -326,10 +331,13 @@ function buildCSP(): string {
 
         // Manifest: PWA manifest from self
         "manifest-src 'self'",
-
-        // Force HTTPS upgrades (replaces deprecated block-all-mixed-content)
-        "upgrade-insecure-requests",
     ]
+
+    // Only add upgrade-insecure-requests in production
+    if (!isDev) {
+        directives.push("upgrade-insecure-requests")
+    }
+
     return directives.join('; ')
 }
 

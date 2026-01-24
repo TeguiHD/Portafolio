@@ -314,4 +314,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
         },
     },
+    // SECURITY: Trust host for localhost development
+    // In production, NEXTAUTH_URL should be set to your domain
+    trustHost: true,
 })
