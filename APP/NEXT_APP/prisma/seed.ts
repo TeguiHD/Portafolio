@@ -175,7 +175,7 @@ async function main() {
 
     const tools = [
         {
-            slug: "qr-generator",
+            slug: "qr",
             name: "Generador de QR",
             description: "Crea códigos QR personalizados para cualquier URL o texto. Sin marcas de agua, descarga gratuita.",
             icon: "qr",
@@ -185,7 +185,7 @@ async function main() {
             sortOrder: 1
         },
         {
-            slug: "password-generator",
+            slug: "claves",
             name: "Generador de Contraseñas",
             description: "Crea contraseñas seguras y aleatorias con longitud y caracteres personalizables.",
             icon: "lock",
@@ -195,7 +195,7 @@ async function main() {
             sortOrder: 2
         },
         {
-            slug: "unit-converter",
+            slug: "unidades",
             name: "Conversor de Unidades",
             description: "Convierte entre diferentes unidades de medida: longitud, peso, temperatura, datos y más.",
             icon: "scale",
@@ -205,7 +205,7 @@ async function main() {
             sortOrder: 3
         },
         {
-            slug: "regex-tester",
+            slug: "regex",
             name: "Regex Tester",
             description: "Prueba y depura tus expresiones regulares en tiempo real con resaltado de coincidencias.",
             icon: "code",
@@ -215,7 +215,7 @@ async function main() {
             sortOrder: 4
         },
         {
-            slug: "image-base64",
+            slug: "base64",
             name: "Conversor Base64",
             description: "Convierte imágenes a Base64 y codifica/decodifica texto para uso en desarrollo web.",
             icon: "image",
@@ -225,7 +225,7 @@ async function main() {
             sortOrder: 5
         },
         {
-            slug: "ascii-art",
+            slug: "ascii",
             name: "Generador ASCII Art",
             description: "Convierte cualquier imagen en arte ASCII personalizable. Múltiples estilos, colores y opciones de descarga.",
             icon: "ascii",
@@ -233,6 +233,46 @@ async function main() {
             isPublic: true,
             isActive: true,
             sortOrder: 6
+        },
+        {
+            slug: "binario",
+            name: "Traductor Binario",
+            description: "Convierte texto a binario y viceversa. Útil para aprender y trabajar con codificación binaria.",
+            icon: "binary",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 7
+        },
+        {
+            slug: "enlaces",
+            name: "Generador de Enlaces",
+            description: "Crea enlaces cortos personalizados y genera códigos QR para compartir fácilmente.",
+            icon: "link",
+            category: "utility",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 8
+        },
+        {
+            slug: "aleatorio",
+            name: "Selector Aleatorio",
+            description: "Elige elementos al azar de una lista. Perfecto para sorteos, decisiones y juegos.",
+            icon: "dice",
+            category: "utility",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 9
+        },
+        {
+            slug: "impuestos",
+            name: "Calculadora de Impuestos",
+            description: "Calcula IVA, retenciones y otros impuestos chilenos de forma rápida y precisa.",
+            icon: "calculator",
+            category: "finance",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 10
         }
     ];
 
@@ -283,83 +323,114 @@ async function main() {
         const cvVersion = await prisma.cvVersion.create({
             data: {
                 name: "CV Principal",
-                fullName: process.env.ADMIN_NAME || "Usuario Ejemplo",
-                title: "Desarrollador Web",
-                email: adminEmail, // Use the same admin email from env
-                phone: "+56 9 XXXX XXXX",
-                location: "Chile",
+                fullName: process.env.ADMIN_NAME || "Nicoholas Jesús Lopetegui Salazar",
+                title: "Ingeniero en Informática | Desarrollador Web Full Stack",
+                email: adminEmail,
+                phone: "+56 9 5896 2507",
+                location: "Santiago, Chile",
                 orcid: "",
-                linkedin: "linkedin.com/in/usuario",
-                github: "github.com/usuario",
-                website: "example.dev",
-                summary: "Desarrollador con experiencia en tecnologías web modernas.",
+                linkedin: "linkedin.com/in/nicoholas-lopetegui",
+                github: "github.com/TeguiHD",
+                website: "nicoholas.dev",
+                summary: "Desarrollador Full Stack. Ingeniero en Informática con experiencia en desarrollo web, análisis de datos, machine learning, redes y ciberseguridad. Cuento con habilidades en desarrollo de soluciones tecnológicas eficientes, implementación de plataformas digitales y automatización de procesos. Apasionado por crear soluciones innovadoras que generen impacto real.",
                 isDefault: true,
                 userId: adminUser.id,
             }
         })
 
+
         // Education
         await prisma.cvEducation.create({
             data: {
                 cvVersionId: cvVersion.id,
-                institution: "Universidad Ejemplo",
+                institution: "Universidad Bernardo O'Higgins",
                 degree: "Ingeniería en Informática",
-                field: "Informática",
+                field: "Facultad de Ingeniería, Ciencia y Tecnología",
                 startDate: "2021",
-                endDate: "Actualidad",
-                isCurrent: true,
+                endDate: "2025",
+                isCurrent: false,
                 sortOrder: 0
             }
         })
+
 
         // Experiences
         await prisma.cvExperience.createMany({
             data: [
                 {
                     cvVersionId: cvVersion.id,
-                    company: "Empresa Ejemplo",
-                    position: "Desarrollador Web",
-                    startDate: "2024",
-                    isCurrent: true,
-                    description: "Desarrollo web y automatización de procesos. Creación de plataformas digitales y optimización de flujos de trabajo.",
-                    achievements: ["Desarrollo de plataformas digitales", "Automatización de procesos", "Soporte técnico"],
+                    company: "Servicio Local de Educación Pública Santa Rosa",
+                    position: "Práctica Profesional",
+                    startDate: "Enero 2025",
+                    endDate: "Junio 2025",
+                    isCurrent: false,
+                    description: "Desarrollo web y automatización de procesos internos para el SLEP.",
+                    achievements: [
+                        "Desarrollo web y automatización: Creación de plataformas digitales para facilitar la gestión de directivos y docentes",
+                        "Automatización de la recolección de datos en formularios y encuestas",
+                        "Infraestructura y redes: Supervisión y mejora de la conectividad en establecimientos educacionales",
+                        "Soporte técnico: Resolución de incidencias informáticas y asistencia a distintos departamentos",
+                        "Participación en proyectos de TI: Colaboración en el diseño y desarrollo de iniciativas tecnológicas"
+                    ],
                     sortOrder: 0
                 },
                 {
                     cvVersionId: cvVersion.id,
-                    company: "Proyecto Freelance",
-                    position: "Desarrollador Web",
-                    startDate: "2023",
+                    company: "Dracamila.cl",
+                    position: "Desarrollador Web Freelance",
+                    startDate: "2024",
                     endDate: "2024",
                     isCurrent: false,
-                    description: "Diseño y desarrollo de plataformas web con tecnologías modernas.",
-                    achievements: ["Diseño y desarrollo de plataforma web", "Implementación de funcionalidades dinámicas"],
+                    description: "Lideré el diseño y desarrollo de una plataforma web para un emprendimiento de una veterinaria.",
+                    achievements: [
+                        "Lideré el diseño y desarrollo de una plataforma web con HTML, CSS, JavaScript y MySQL, implementando funcionalidades dinámicas con PHP",
+                        "Implementación de sistema de gestión de contenido personalizado",
+                        "Optimización SEO y rendimiento web"
+                    ],
                     sortOrder: 1
                 }
             ]
         })
+
 
         // Projects
         await prisma.cvProject.createMany({
             data: [
                 {
                     cvVersionId: cvVersion.id,
-                    name: "Portfolio Web",
-                    description: "Desarrollo de portafolio personal con Next.js, TypeScript y Tailwind CSS.",
-                    technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
+                    name: "Proceso de Patentación - Aplicaciones Web",
+                    description: "Contribución en Desarrollo de Soluciones Tecnológicas Innovadoras en Proceso de Patentamiento: Aplicación de Variables Macroeconómicas (análisis y visualización de datos económicos) y Analizador de Encuestas (automatización de procesamiento y análisis de datos de encuestas).",
+                    technologies: ["Python", "Data Analysis", "Web Development", "Visualization"],
                     year: "2024",
                     sortOrder: 0
                 },
                 {
                     cvVersionId: cvVersion.id,
-                    name: "Proyecto de Análisis de Datos",
-                    description: "Desarrollo de modelo predictivo utilizando Machine Learning con Python.",
-                    technologies: ["Python", "Scikit-learn", "Pandas", "Machine Learning"],
+                    name: "Proyecto de Machine Learning en Salud",
+                    description: "Desarrollo de modelo predictivo de ataques cardíacos utilizando Machine Learning. Implementación de algoritmos de clasificación con Python. Precisión del modelo: 92%. Metodología: Análisis multivariable de datos clínicos y factores de riesgo.",
+                    technologies: ["Python", "Scikit-learn", "Pandas", "Machine Learning", "NumPy"],
                     year: "2024",
                     sortOrder: 1
+                },
+                {
+                    cvVersionId: cvVersion.id,
+                    name: "Portfolio Web Personal",
+                    description: "Desarrollo de portafolio personal con Next.js, TypeScript y Tailwind CSS. Incluye sistema de administración, generador de cotizaciones, editor de CV con IA, módulo de finanzas personales y herramientas públicas.",
+                    technologies: ["Next.js", "TypeScript", "Tailwind CSS", "PostgreSQL", "Prisma", "Docker"],
+                    year: "2024",
+                    sortOrder: 2
+                },
+                {
+                    cvVersionId: cvVersion.id,
+                    name: "Plataforma Dracamila.cl",
+                    description: "Diseño y desarrollo completo de plataforma web para emprendimiento. Implementación de funcionalidades dinámicas y sistema de gestión de contenido.",
+                    technologies: ["HTML", "CSS", "JavaScript", "PHP", "MySQL"],
+                    year: "2024",
+                    sortOrder: 3
                 }
             ]
         })
+
 
         // Skills
         await prisma.cvSkillCategory.createMany({
@@ -367,35 +438,42 @@ async function main() {
                 {
                     cvVersionId: cvVersion.id,
                     category: "Desarrollo Web",
-                    items: ["HTML", "CSS", "PHP", "JavaScript", "React", "TypeScript", "MySQL", "Next.js"],
+                    items: ["HTML", "CSS", "PHP", "JavaScript", "React", "TypeScript", "MySQL", "Next.js", "Tailwind CSS", "Node.js"],
                     sortOrder: 0
                 },
                 {
                     cvVersionId: cvVersion.id,
                     category: "Control de Versiones y Contenedores",
-                    items: ["Git", "GitHub", "Docker"],
+                    items: ["Git", "GitHub", "Docker", "Docker Compose"],
                     sortOrder: 1
                 },
                 {
                     cvVersionId: cvVersion.id,
                     category: "Programación",
-                    items: ["Python", "Java", "C"],
+                    items: ["Python", "Java", "C", "TypeScript", "SQL"],
                     sortOrder: 2
                 },
                 {
                     cvVersionId: cvVersion.id,
                     category: "Ciberseguridad",
-                    items: ["Análisis de amenazas", "Configuración de redes seguras"],
+                    items: ["Análisis de amenazas", "Configuración de redes seguras", "Seguridad web", "OWASP"],
                     sortOrder: 3
                 },
                 {
                     cvVersionId: cvVersion.id,
                     category: "Bases de Datos",
-                    items: ["Diseño", "Administración", "Optimización"],
+                    items: ["PostgreSQL", "MySQL", "Diseño", "Administración", "Optimización", "Prisma ORM", "SQL"],
                     sortOrder: 4
+                },
+                {
+                    cvVersionId: cvVersion.id,
+                    category: "Data Science & ML",
+                    items: ["Python", "Scikit-learn", "Pandas", "NumPy", "Análisis de datos", "Machine Learning", "R", "Google Cloud Computing (GCP)", "Airflow Apache", "Dataform"],
+                    sortOrder: 5
                 }
             ]
         })
+
 
         // Certifications
         await prisma.cvCertification.createMany({

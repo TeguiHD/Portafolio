@@ -292,7 +292,8 @@ function buildCSP(): string {
 
         // Scripts: 'self' for static chunks, 'unsafe-inline' for Next.js inline scripts
         // 'unsafe-eval' needed for React/Next.js features like fast refresh
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval'${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
+        // https://static.cloudflareinsights.com is Cloudflare's official RUM/Analytics CDN
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
 
         // Styles: Allow unsafe-inline for React/Framer Motion dynamic styles
         `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
@@ -306,7 +307,8 @@ function buildCSP(): string {
         `font-src 'self' https://fonts.gstatic.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
 
         // Connections: explicit whitelist (+ localhost for dev)
-        `connect-src 'self' https://api.openrouter.ai https://api.frankfurter.app${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
+        // https://cloudflareinsights.com is for Cloudflare RUM beacon data
+        `connect-src 'self' https://api.openrouter.ai https://api.frankfurter.app https://cloudflareinsights.com${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
 
         // Forms: only submit to self
         "form-action 'self'",
@@ -389,10 +391,20 @@ const staticSecurityHeaders = {
     // HSTS - Force HTTPS for 2 years with preload
     'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
 
-    // Cross-Origin headers for isolation
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Resource-Policy': 'same-origin',
-    'Cross-Origin-Embedder-Policy': 'credentialless',
+    // Cross-Origin Opener Policy - Prevents window.opener attacks
+    // Keeps popup isolation for security while allowing cross-origin resources
+    'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+
+    // NOTE: CORP and COEP headers are intentionally NOT set.
+    // Rationale:
+    // - COEP (credentialless/require-corp) blocks third-party scripts without CORS
+    // - CORP (same-origin) prevents cross-origin resource loading
+    // - These headers are primarily useful for apps using SharedArrayBuffer
+    //   to mitigate Spectre/Meltdown timing attacks
+    // - This portfolio does NOT use SharedArrayBuffer or high-resolution timers
+    // - Cloudflare Insights (injected by CF proxy) requires cross-origin access
+    // - Security is maintained through: CSP, HSTS, rate limiting, authentication
+    // See: https://web.dev/why-coop-coep/
 
     // Prevent MIME type confusion attacks
     'X-Permitted-Cross-Domain-Policies': 'none',

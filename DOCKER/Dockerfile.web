@@ -42,6 +42,9 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
+# Copy Prisma schema for migrations
+COPY --from=builder /app/prisma ./prisma
+
 # Create uploads directory for finance module receipts
 # Directory is owned by nextjs user and files cannot be executed
 RUN mkdir -p /app/uploads && \

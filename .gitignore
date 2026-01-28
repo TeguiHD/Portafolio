@@ -55,3 +55,9 @@ build/
 coverage/
 cache/
 thumbs.db
+
+# Deployment artifacts
+portfolio_web.tar
+auto_deploy.sh
+APP/NEXT_APP/.pnpm-store/
+APP/NEXT_APP/package-lock.json
