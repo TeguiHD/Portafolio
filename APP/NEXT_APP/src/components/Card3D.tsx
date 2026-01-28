@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, ReactNode } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform, MotionValue } from "framer-motion";
 
 interface Card3DProps {
     children: ReactNode;
@@ -115,7 +115,40 @@ export function Card3D({
     );
 }
 
+// ============================================
+// Individual floating layer component
+// Each layer manages its own hooks (React-compliant)
+// ============================================
+interface FloatingLayerProps {
+    children: ReactNode;
+    mouseX: MotionValue<number>;
+    mouseY: MotionValue<number>;
+    depth: number; // Layer depth multiplier (1, 2, 3, etc.)
+}
+
+function FloatingLayer({ children, mouseX, mouseY, depth }: FloatingLayerProps) {
+    // Each layer has its own useTransform hooks - React compliant
+    const x = useTransform(mouseX, [-0.5, 0.5], [depth * -15, depth * 15]);
+    const y = useTransform(mouseY, [-0.5, 0.5], [depth * -15, depth * 15]);
+
+    return (
+        <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+                x,
+                y,
+                translateZ: depth * 25,
+                transformStyle: "preserve-3d",
+            }}
+        >
+            {children}
+        </motion.div>
+    );
+}
+
+// ============================================
 // Layered 3D card with stacked elements
+// ============================================
 interface Card3DLayeredProps {
     children: ReactNode;
     layers?: ReactNode[];
@@ -156,13 +189,6 @@ export function Card3DLayered({
         mouseY.set(0);
     };
 
-    // Create layer depth transforms
-    const layerDepths = layers.map((_, i) => ({
-        z: useTransform(mouseX, [-0.5, 0.5], [(i + 1) * 8, (i + 1) * -8]),
-        x: useTransform(mouseX, [-0.5, 0.5], [(i + 1) * -15, (i + 1) * 15]),
-        y: useTransform(mouseY, [-0.5, 0.5], [(i + 1) * -15, (i + 1) * 15]),
-    }));
-
     return (
         <motion.div
             ref={cardRef}
@@ -187,20 +213,16 @@ export function Card3DLayered({
                     {children}
                 </div>
 
-                {/* Floating layers */}
+                {/* Floating layers - each layer is a separate component with its own hooks */}
                 {layers.map((layer, i) => (
-                    <motion.div
+                    <FloatingLayer
                         key={i}
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                            x: layerDepths[i].x,
-                            y: layerDepths[i].y,
-                            translateZ: (i + 1) * 25,
-                            transformStyle: "preserve-3d",
-                        }}
+                        mouseX={mouseX}
+                        mouseY={mouseY}
+                        depth={i + 1}
                     >
                         {layer}
-                    </motion.div>
+                    </FloatingLayer>
                 ))}
             </motion.div>
         </motion.div>

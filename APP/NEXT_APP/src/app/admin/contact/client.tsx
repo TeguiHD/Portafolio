@@ -124,7 +124,9 @@ export default function ContactPageClient() {
                     prev.map((m) => (m.id === msg.id ? { ...m, status: "READ" } : m))
                 );
                 setUnreadCount((prev) => Math.max(0, prev - 1));
-            } catch { }
+            } catch {
+                // Silently fail - UI already shows message as read
+            }
         }
     };
 

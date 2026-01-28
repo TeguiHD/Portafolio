@@ -26,12 +26,10 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'pnpm'
-        cache-dependency-path: 'APP/NEXT_APP/pnpm-lock.yaml'
 
     - name: Install dependencies
       working-directory: ./APP/NEXT_APP
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
 
     # ============================================
     # Security Audit
