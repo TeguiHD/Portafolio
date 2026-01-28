@@ -10,9 +10,38 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Extend Next.js recommended configs
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    ignores: ["node_modules/**", ".next/**", "out/**"],
+    // Global ignores - these directories are never linted
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "public/**",
+      "*.config.js",
+      "*.config.mjs",
+      "prisma/migrations/**",
+    ],
+  },
+  {
+    // TypeScript/JavaScript files configuration
+    files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+    rules: {
+      // Security: Disable dangerous patterns
+      "no-eval": "error",
+      "no-implied-eval": "error",
+      "no-new-func": "error",
+
+      // Allow unused vars prefixed with underscore
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }
+      ],
+
+      // Allow any for complex dynamic types (use sparingly)
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
   },
 ];
 
