@@ -33,14 +33,19 @@ jobs:
       working-directory: ./APP/NEXT_APP
       run: pnpm install --frozen-lockfile
 
+    # ============================================
+    # Security Audit
+    # ============================================
+    # Policy: Fail build ONLY on CRITICAL vulnerabilities
+    # Rationale:
+    # - Next.js 16.1.x has known HIGH-severity CVEs (GHSA-9g9p-9gw9-jx7f, etc.)
+    # - These are DoS vulnerabilities requiring specific configs not used here
+    # - When Next.js patches these, we can return to audit-level=high
+    # - CRITICAL = remote code execution, data breach (must fail)
+    # - HIGH = DoS, privilege escalation (logged, reviewed manually)
     - name: Security Audit
       working-directory: ./APP/NEXT_APP
-      # Note: Next.js 16.1.x has known high-severity CVEs (DoS via Image Optimizer, PPR, RSC)
-      # These require specific configurations not used in this project
-      # Using audit-level=critical to avoid false positives until Next.js releases patches
-      # See: https://github.com/advisories/GHSA-9g9p-9gw9-jx7f
       run: pnpm audit --prod --audit-level=critical
-      continue-on-error: true
 
     - name: Generate Prisma Client
       working-directory: ./APP/NEXT_APP
@@ -48,21 +53,26 @@ jobs:
         DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
       run: npx prisma generate
 
+    # ============================================
+    # Code Quality Checks
+    # ============================================
     - name: Lint
       working-directory: ./APP/NEXT_APP
       run: pnpm run lint
-      continue-on-error: true
 
     - name: Type Check
       working-directory: ./APP/NEXT_APP
       run: npx tsc --noEmit
 
+    # ============================================
+    # Build Verification
+    # ============================================
     - name: Build
       working-directory: ./APP/NEXT_APP
       run: pnpm run build
       env:
         DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
-        NEXTAUTH_SECRET: "test-secret-key-for-ci-build"
+        NEXTAUTH_SECRET: "ci-build-secret-key-minimum-32-chars"
         NEXTAUTH_URL: "http://localhost:3000"
-        ENCRYPTION_KEY: "test-encryption-key-32-characters"
+        ENCRYPTION_KEY: "ci-encryption-key-exactly-32-ch"
         REDIS_URL: "redis://localhost:6379"
