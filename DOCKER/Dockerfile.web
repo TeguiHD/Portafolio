@@ -1,16 +1,15 @@
 # Build stage
-FROM node:23-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package*.json pnpm-lock.yaml ./
+COPY package*.json ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
 # Install dependencies
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install --frozen-lockfile
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -20,10 +19,10 @@ ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
 RUN npx prisma generate
 
 # Build the application
-RUN pnpm run build
+RUN npm run build
 
 # Production stage
-FROM node:23-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 

@@ -110,7 +110,7 @@ export async function isRedisAvailable(): Promise<boolean> {
  */
 export async function closeRedisConnection(): Promise<void> {
     if (redisClient?.isOpen) {
-        await redisClient.quit();
+        await redisClient.close();
         redisClient = null;
         console.log('[Redis] Connection closed');
     }
@@ -196,7 +196,7 @@ export async function deleteCached(key: string): Promise<boolean> {
 export async function deleteCachedByPattern(pattern: string): Promise<number> {
     try {
         const client = await getRedisClient();
-        let cursor = 0;
+        let cursor = '0';
         let deletedCount = 0;
 
         do {
@@ -206,7 +206,7 @@ export async function deleteCachedByPattern(pattern: string): Promise<number> {
                 COUNT: 100
             });
 
-            cursor = result.cursor;
+            cursor = result.cursor.toString();
             const keys = result.keys;
 
             if (keys.length > 0) {
@@ -214,7 +214,7 @@ export async function deleteCachedByPattern(pattern: string): Promise<number> {
                 deletedCount += count;
             }
 
-        } while (cursor !== 0);
+        } while (cursor !== '0');
 
         return deletedCount;
     } catch (error) {

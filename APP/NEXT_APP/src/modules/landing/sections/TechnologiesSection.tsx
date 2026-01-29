@@ -97,7 +97,7 @@ const itemVariants = {
             damping: 12
         }
     }
-};
+} as const;
 
 // SVG Icon component for brand icons
 function BrandIcon({ path, color, className }: { path: string; color: string; className?: string }) {

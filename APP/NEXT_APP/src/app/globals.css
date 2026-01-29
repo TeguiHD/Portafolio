@@ -1,10 +1,71 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+@theme {
+  /* Colors */
+  --color-primary: #0F1724;
+
+  /* Accent Colors */
+  --color-accent-1: #FF8A00;
+  --color-accent-2: #00B8A9;
+  --color-accent-3: #F8FAFC;
+
+  /* Neutral Colors */
+  --color-neutral-light: #F8FAFC;
+  --color-neutral-dark: #111827;
+  --color-neutral-mid: #1E293B;
+
+  /* Typography */
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+
+  /* Background Images */
+  --image-grid-soft: linear-gradient(transparent 96%, rgba(255, 255, 255, 0.05) 100%), linear-gradient(90deg, transparent 96%, rgba(255, 255, 255, 0.05) 100%);
+  --image-gradient-radial: radial-gradient(var(--tw-gradient-stops));
+
+  /* Animations */
+  --animate-gradient-shift: gradient-shift 4s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+
+  /* Keyframes */
+  @keyframes gradient-shift {
+
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+/* Custom Utilities and Global Styles */
 :root {
-  /* New Palette - Design System */
-
   /* Primary Gradients */
   --grad-blue-purple: linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%);
   --grad-green-cyan: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
@@ -23,15 +84,12 @@
   --accent-error: #EF4444;
   --accent-info: #3B82F6;
 
-  /* Legacy Compatibility (mapping to new system where possible) */
+  /* Legacy Compatibility */
   --bg: var(--bg-dark);
   --bg-2: var(--bg-surface);
   --accent-1: #10B981;
-  /* Green Neon as primary accent */
   --accent-2: #06B6D4;
-  /* Cyan */
   --accent-3: #8B5CF6;
-  /* Purple */
 }
 
 * {
@@ -57,7 +115,6 @@ body {
   width: 100%;
   position: relative;
   cursor: none;
-  /* Custom cursor takes over */
 }
 
 /* Typography Overrides */
@@ -77,17 +134,17 @@ pre,
 }
 
 /* Utilities */
-.text-balance {
+@utility text-balance {
   text-wrap: balance;
 }
 
-.scrollbar-hide {
+@utility scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Animations from Proposal */
@@ -105,21 +162,20 @@ pre,
   }
 }
 
-.animate-gradient-cycle {
+@utility animate-gradient-cycle {
   background-size: 200% 200%;
   animation: gradient-cycle 5s ease infinite;
 }
 
 /* Glassmorphism Utilities */
-.glass-panel {
+@utility glass-panel {
   background: rgba(26, 26, 36, 0.6);
-  /* surface with opacity */
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);
 }
 
-.glass-panel-heavy {
+@utility glass-panel-heavy {
   background: rgba(10, 10, 15, 0.8);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -145,19 +201,19 @@ pre,
 }
 
 /* Helper for text gradients */
-.text-gradient-blue-purple {
+@utility text-gradient-blue-purple {
   background: var(--grad-blue-purple);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.text-gradient-green-cyan {
+@utility text-gradient-green-cyan {
   background: var(--grad-green-cyan);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.text-gradient-orange-pink {
+@utility text-gradient-orange-pink {
   background: var(--grad-orange-pink);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -170,9 +226,7 @@ a,
   cursor: none !important;
 }
 
-/* ========================================
-   CYBER BRUTALISM ANIMATIONS - Hero
-   ======================================== */
+/* CYBER BRUTALISM ANIMATIONS - Hero */
 
 /* Typing cursor blink */
 @keyframes blink {
@@ -188,7 +242,7 @@ a,
   }
 }
 
-.animate-blink {
+@utility animate-blink {
   animation: blink 1s step-end infinite;
 }
 
@@ -223,22 +277,22 @@ a,
   }
 }
 
-.animate-glitch {
+@utility animate-glitch {
   animation: glitch 3s ease-in-out infinite;
-}
 
-.animate-glitch:hover {
-  animation: glitch 0.3s ease-in-out infinite;
+  &:hover {
+    animation: glitch 0.3s ease-in-out infinite;
+  }
 }
 
 /* Text outline (hollow text) */
-.text-outline {
+@utility text-outline {
   color: transparent;
   -webkit-text-stroke: 1px currentColor;
   text-stroke: 1px currentColor;
 }
 
-.text-outline-white {
+@utility text-outline-white {
   color: transparent;
   -webkit-text-stroke: 2px white;
   text-stroke: 2px white;
@@ -259,7 +313,7 @@ a,
   }
 }
 
-.animate-pulse-slow {
+@utility animate-pulse-slow {
   animation: pulse-slow 4s ease-in-out infinite;
 }
 
@@ -297,7 +351,7 @@ a,
   }
 }
 
-.animate-glow-pulse {
+@utility animate-glow-pulse {
   animation: glow-pulse 2s ease-in-out infinite;
 }
 
@@ -327,20 +381,24 @@ a,
   }
 }
 
-.animate-float {
+@utility animate-float {
   animation: float 3s ease-in-out infinite;
 }
 
 /* Scanline effect */
-.scanlines::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(0deg,
-      transparent,
-      transparent 2px,
-      rgba(0, 0, 0, 0.1) 2px,
-      rgba(0, 0, 0, 0.1) 4px);
-  pointer-events: none;
-  z-index: 10;
+@utility scanlines {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.1) 2px,
+        rgba(0, 0, 0, 0.1) 4px);
+    pointer-events: none;
+    z-index: 10;
+  }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, ReactNode } from "react";
 
 type AnalyticsResponse = {
   pageViews: number;
@@ -42,7 +42,7 @@ export function DashboardStats() {
     value: string;
     change: string;
     changeType: "positive" | "negative" | "neutral";
-    icon: JSX.Element;
+    icon: ReactNode;
   }> = [
       {
         label: "Visitas totales",
