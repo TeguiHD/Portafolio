@@ -1,5 +1,5 @@
 import { QuotationAccessService } from "@/services/quotation-access";
-import { sanitizeQuotationHTML } from "@/lib/quotation-sanitizer";
+import { sanitizeQuotationHtml } from "@/lib/quotation-sanitizer";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import QuotationLoginForm from "./login-form";
@@ -22,7 +22,7 @@ export default async function QuotationPage({
     // Check if public access
     if (quotation.accessMode === "public") {
         // Direct access
-        const { sanitized } = sanitizeQuotationHTML(quotation.htmlContent || "");
+        const sanitized = sanitizeQuotationHtml(quotation.htmlContent || "");
         return <QuotationViewer quotation={quotation} htmlContent={sanitized} />;
     }
 
@@ -52,7 +52,7 @@ export default async function QuotationPage({
 
     if (session?.value === "authorized") {
         // Already authenticated
-        const { sanitized } = sanitizeQuotationHTML(quotation.htmlContent || "");
+        const sanitized = sanitizeQuotationHtml(quotation.htmlContent || "");
         return <QuotationViewer quotation={quotation} htmlContent={sanitized} />;
     }
 

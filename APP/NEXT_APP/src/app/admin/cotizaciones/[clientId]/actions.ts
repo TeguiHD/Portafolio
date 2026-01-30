@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { hash } from "argon2";
 import { randomBytes } from "crypto";
+import { sanitizeQuotationHtml } from "@/lib/quotation-sanitizer";
 
 // Generate readable secure code
 function generateSecureCode(): string {
@@ -64,6 +65,10 @@ export async function createQuotationAction(formData: FormData) {
             return { success: false, error: "Cliente no encontrado" };
         }
 
+        // Sanitize HTML Content (OWASP Security Measure)
+        // Removes malicious scripts/events while preserving Tailwind/Fonts
+        const cleanHtmlContent = sanitizeQuotationHtml(htmlContent);
+
         // Generate unique slug
         let slug = slugify(projectName);
         const existingSlug = await (prisma as any).quotation.findFirst({
@@ -94,7 +99,7 @@ export async function createQuotationAction(formData: FormData) {
                 total,
                 subtotal: total,
                 items: [],
-                htmlContent,
+                htmlContent: cleanHtmlContent,
                 status: "sent",
                 validDays: 15,
                 userId: session.user.id,

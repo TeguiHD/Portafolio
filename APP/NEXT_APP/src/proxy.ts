@@ -293,18 +293,18 @@ function buildCSP(): string {
         // Scripts: 'self' for static chunks, 'unsafe-inline' for Next.js inline scripts
         // 'unsafe-eval' needed for React/Next.js features like fast refresh
         // https://static.cloudflareinsights.com is Cloudflare's official RUM/Analytics CDN
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://cdn.tailwindcss.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
 
         // Styles: Allow unsafe-inline for React/Framer Motion dynamic styles
-        `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-        `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+        `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com`,
+        `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com`,
         `style-src-attr 'unsafe-inline'`,
 
         // Images: self + data URIs for inline images + HTTPS (+ HTTP for dev)
         `img-src 'self' data: blob: https:${isDev ? ' http:' : ''}`,
 
         // Fonts: only from self and Google Fonts (+ localhost for dev)
-        `font-src 'self' https://fonts.gstatic.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
+        `font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
 
         // Connections: explicit whitelist (+ localhost for dev)
         // https://cloudflareinsights.com is for Cloudflare RUM beacon data
