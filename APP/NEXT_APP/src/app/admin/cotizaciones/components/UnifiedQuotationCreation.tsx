@@ -319,16 +319,7 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm text-slate-400 mb-1">Monto Total (CLP)</label>
-                            <input
-                                name="total"
-                                type="number"
-                                required
-                                placeholder="1500000"
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                            />
-                        </div>
+
 
                         {/* Access Mode */}
                         <div>

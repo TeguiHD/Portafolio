@@ -95,7 +95,7 @@ export default function QuotationViewer({ quotation, htmlContent }: QuotationVie
                     className="w-full border-0 bg-white mx-auto shadow-2xl print:shadow-none"
                     style={{
                         minHeight: "100vh",
-                        maxWidth: "210mm",
+                        width: "100%",
                         display: "block"
                     }}
                     title={quotation.projectName}
