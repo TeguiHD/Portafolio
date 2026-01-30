@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { QuotationData, QuotationItem, ProviderCostItem, ProfessionalFeeItem } from "@/app/admin/quotations/new/client";
+import type { QuotationData, QuotationItem, ProviderCostItem, ProfessionalFeeItem } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import {
     projectTypes,

@@ -117,6 +117,13 @@ export const DEFAULT_PERMISSIONS: PermissionDefinition[] = [
         category: "quotations",
         defaultRoles: ["SUPERADMIN", "ADMIN"],
     },
+    {
+        code: "quotations.spy",
+        name: "Modo Espía",
+        description: "Ver clientes y cotizaciones de otros usuarios",
+        category: "quotations",
+        defaultRoles: ["SUPERADMIN"],
+    },
 
     // ============= USERS =============
     {

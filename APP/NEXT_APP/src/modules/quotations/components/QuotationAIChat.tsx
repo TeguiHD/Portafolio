@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { QuotationData, QuotationItem } from "@/app/admin/quotations/new/client";
+import type { QuotationData, QuotationItem } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { projectTypes, type ProjectType } from "../templates/quotation-templates";
 import { useToast } from "@/components/ui/Toast";
@@ -225,8 +225,8 @@ export function QuotationAIChat({
                 scope: data.scope || "",
                 timeline: updatedTimeline || data.timeline || "",
                 paymentTerms: updatedPaymentTerms || data.paymentTerms || "",
-                itemsCount: data.items.length,
-                items: data.items.map(item => item.title),
+                itemsCount: (data.items ?? []).length,
+                items: (data.items ?? []).map(item => item.title),
                 // Explicitly tell the AI what type was detected
                 projectType: projectTypeName || (data.timeline ? "Ya configurado" : ""),
             };
@@ -311,7 +311,7 @@ export function QuotationAIChat({
                     price: s.price,
                 })
             );
-            updates.items = [...data.items, ...newItems];
+            updates.items = [...(data.items ?? []), ...newItems];
         }
 
         if (Object.keys(updates).length > 0) {
@@ -377,7 +377,7 @@ export function QuotationAIChat({
             if (service.title) {
                 updateData({
                     items: [
-                        ...data.items,
+                        ...(data.items ?? []),
                         {
                             id: uuidv4(),
                             ...service,
@@ -433,7 +433,7 @@ export function QuotationAIChat({
     const progressFields = [
         { name: "Cliente", key: "clientName", filled: !!data.clientName, value: data.clientName },
         { name: "Proyecto", key: "projectName", filled: !!data.projectName, value: data.projectName },
-        { name: "Servicios", key: "items", filled: data.items.length > 0, value: data.items.length > 0 ? `${data.items.length} servicios` : "" },
+        { name: "Servicios", key: "items", filled: (data.items ?? []).length > 0, value: (data.items ?? []).length > 0 ? `${(data.items ?? []).length} servicios` : "" },
         { name: "Alcance", key: "scope", filled: !!data.scope, value: data.scope },
         { name: "Plazo", key: "timeline", filled: !!data.timeline, value: data.timeline },
         { name: "Pago", key: "paymentTerms", filled: !!data.paymentTerms, value: data.paymentTerms },
@@ -543,9 +543,9 @@ export function QuotationAIChat({
                                     </div>
                                     {progressFields[editingField].key === "items" ? (
                                         <div className="text-xs text-neutral-300">
-                                            {data.items.length > 0 ? (
+                                            {(data.items ?? []).length > 0 ? (
                                                 <ul className="space-y-1">
-                                                    {data.items.map((item, idx) => (
+                                                    {(data.items ?? []).map((item, idx) => (
                                                         <li key={idx} className="flex justify-between">
                                                             <span className="truncate">{item.title}</span>
                                                             <span className="text-green-400">${item.price?.toLocaleString('es-CL')}</span>
@@ -829,11 +829,11 @@ export function QuotationAIChat({
                                 </div>
 
                                 {/* Services */}
-                                <div className={`p-3 rounded-xl ${data.items.length > 0 ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
-                                    <p className="text-[10px] text-neutral-400 uppercase mb-2">Servicios ({data.items.length})</p>
-                                    {data.items.length > 0 ? (
+                                <div className={`p-3 rounded-xl ${(data.items ?? []).length > 0 ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
+                                    <p className="text-[10px] text-neutral-400 uppercase mb-2">Servicios ({(data.items ?? []).length})</p>
+                                    {(data.items ?? []).length > 0 ? (
                                         <div className="space-y-1">
-                                            {data.items.map((item, i) => (
+                                            {(data.items ?? []).map((item, i) => (
                                                 <div key={i} className="flex justify-between text-sm">
                                                     <span className="text-white truncate">{item.title}</span>
                                                     <span className="text-green-400 font-medium">${item.price?.toLocaleString('es-CL')}</span>
@@ -841,7 +841,7 @@ export function QuotationAIChat({
                                             ))}
                                             <div className="border-t border-white/10 pt-1 mt-2 flex justify-between text-sm font-bold">
                                                 <span className="text-white">Total</span>
-                                                <span className="text-green-400">${data.items.reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('es-CL')}</span>
+                                                <span className="text-green-400">${(data.items ?? []).reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('es-CL')}</span>
                                             </div>
                                         </div>
                                     ) : (

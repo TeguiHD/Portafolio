@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { ProviderCostItem } from "@/app/admin/quotations/new/client";
+import type { ProviderCostItem } from "../types";
 import { v4 as uuidv4 } from "uuid";
 
 interface ProviderCostsTableProps {

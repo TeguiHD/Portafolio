@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
 import DOMPurify from "dompurify";
-import type { QuotationData } from "@/app/admin/quotations/new/client";
+import type { QuotationData } from "../types";
 
 interface QuotationPreviewProps {
     data: QuotationData;
@@ -147,7 +147,7 @@ export function QuotationPreview({ data, subtotal }: QuotationPreviewProps) {
                         <div className="text-right">
                             <p className="text-3xl font-extrabold text-gray-200 tracking-wider">COTIZACIÓN</p>
                             <p className="text-sm text-gray-500 mt-1"><strong>Folio:</strong> #{data.folio}</p>
-                            <p className="text-sm text-gray-500"><strong>Fecha:</strong> {formatDate(data.date)}</p>
+                            <p className="text-sm text-gray-500"><strong>Fecha:</strong> {formatDate(data.date || new Date().toISOString())}</p>
                             <p className="text-sm text-gray-500"><strong>Validez:</strong> {data.validDays} días</p>
                         </div>
                     </div>
@@ -285,9 +285,9 @@ export function QuotationPreview({ data, subtotal }: QuotationPreviewProps) {
                                             <td className="p-3">
                                                 <p className="font-bold text-gray-800">{item.title}</p>
                                                 <p className="text-gray-600 text-xs mt-1">{item.description}</p>
-                                                {item.deliverables.length > 0 && (
+                                                {(item.deliverables ?? []).length > 0 && (
                                                     <ul className="mt-2 space-y-1">
-                                                        {item.deliverables.map((del, i) => (
+                                                        {(item.deliverables ?? []).map((del, i) => (
                                                             <li key={i} className="text-xs text-gray-500 flex items-center gap-2">
                                                                 <span className="text-blue-800 font-bold">•</span> {del}
                                                             </li>
@@ -296,7 +296,7 @@ export function QuotationPreview({ data, subtotal }: QuotationPreviewProps) {
                                                 )}
                                             </td>
                                             <td className="p-3 text-right font-semibold text-black whitespace-nowrap">
-                                                ${item.price.toLocaleString("es-CL")}
+                                                ${(item.price ?? 0).toLocaleString("es-CL")}
                                             </td>
                                         </tr>
                                     ))}
@@ -346,6 +346,6 @@ export function QuotationPreview({ data, subtotal }: QuotationPreviewProps) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

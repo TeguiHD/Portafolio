@@ -21,8 +21,7 @@ interface AdminHeaderProps {
 const routeNames: Record<string, string> = {
     "/admin": "Dashboard",
     "/admin/analytics": "Analytics",
-    "/admin/quotations": "Cotizaciones",
-    "/admin/quotations/new": "Nueva Cotización",
+    "/admin/cotizaciones": "Cotizaciones",
     "/admin/cv-editor": "Editor CV",
     "/admin/users": "Usuarios",
     "/admin/herramientas": "Herramientas",

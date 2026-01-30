@@ -130,10 +130,10 @@ export function HeroSection() {
       {/* Main Content - Grid Layout */}
       <motion.div
         style={{ y, opacity }}
-        className="w-full max-w-7xl mx-auto z-10 grid lg:grid-cols-[1fr,auto] gap-8 lg:gap-16 items-center"
+        className="w-full max-w-7xl mx-auto z-10 flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12"
       >
         {/* Left: Text Content */}
-        <div>
+        <div className="w-full lg:w-3/5 xl:w-2/3">
           {/* Terminal Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -234,13 +234,13 @@ export function HeroSection() {
             initial={{ opacity: 0 }}
             animate={isMounted ? { opacity: 1 } : { opacity: 1 }}
             transition={{ delay: 0.8, duration: 1 }}
-            className="grid grid-cols-3 gap-6 sm:gap-12 max-w-xl"
+            className="grid grid-cols-3 gap-6 sm:gap-12 max-w-xl mt-12"
           >
             {[
               { value: projectsCounter.count, suffix: "+", label: "Proyectos", icon: Code2 },
               { value: uptimeCounter.count, suffix: ".9%", label: "Uptime", icon: Shield },
               { value: "<24", suffix: "h", label: "Respuesta", icon: Zap },
-            ].map((stat, i) => (
+            ].map((stat) => (
               <div key={stat.label} className="group text-left">
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums">
@@ -262,11 +262,13 @@ export function HeroSection() {
         </div>
 
         {/* Right: Floating Dashboard */}
-        <FloatingDashboard />
+        <div className="hidden lg:flex w-full lg:w-2/5 xl:w-1/3 justify-end items-center">
+          <FloatingDashboard />
+        </div>
       </motion.div>
 
       {/* Scroll Indicator */}
-      <motion.div
+      < motion.div
         initial={{ opacity: 0 }}
         animate={isMounted ? { opacity: 1 } : { opacity: 1 }}
         transition={{ delay: 1.5, duration: 1 }}
@@ -281,14 +283,14 @@ export function HeroSection() {
         >
           <ArrowDown className="w-5 h-5 text-gray-600" />
         </motion.div>
-      </motion.div>
+      </motion.div >
 
       {/* Decorative elements - subtle geometric patterns */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      < div className="absolute inset-0 pointer-events-none overflow-hidden" >
         {/* Orbiting rings - subtle visual depth */}
-        <div className="absolute top-[15%] right-[5%] w-[400px] h-[400px] border border-white/5 rounded-full animate-[spin_80s_linear_infinite]" />
+        < div className="absolute top-[15%] right-[5%] w-[400px] h-[400px] border border-white/5 rounded-full animate-[spin_80s_linear_infinite]" />
         <div className="absolute top-[15%] right-[5%] w-[600px] h-[600px] border border-white/[0.03] rounded-full animate-[spin_60s_linear_infinite_reverse]" />
-      </div>
-    </section>
+      </div >
+    </section >
   );
 }

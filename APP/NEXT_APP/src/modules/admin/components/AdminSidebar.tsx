@@ -131,7 +131,7 @@ const menuStructure: {
                 },
                 {
                     name: "Cotizaciones",
-                    href: "/admin/quotations",
+                    href: "/admin/cotizaciones",
                     icon: icons.quotations,
                     requiredPermission: "quotations.view",
                 },

@@ -8,7 +8,7 @@ const actions = [
     {
         title: "Nueva Cotización",
         description: "Crear una propuesta para un cliente",
-        href: "/admin/quotations/new",
+        href: "/admin/cotizaciones",
         requiredPermission: "quotations.create",
         icon: (
             <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

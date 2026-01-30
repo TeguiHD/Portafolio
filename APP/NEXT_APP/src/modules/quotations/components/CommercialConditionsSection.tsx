@@ -1,6 +1,6 @@
 "use client";
 
-import type { CommercialConditions, WarrantyDelivery } from "@/app/admin/quotations/new/client";
+import type { CommercialConditions, WarrantyDelivery } from "../types";
 import { RichTextEditor } from "./RichTextEditor";
 
 interface CommercialConditionsSectionProps {
