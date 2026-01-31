@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/redis";
-import { logSecurityIncident, validateRequest } from "@/lib/security-infra";
 
 // Helper to get device type from user agent
 function getDeviceType(userAgent: string): string {

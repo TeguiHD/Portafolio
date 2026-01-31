@@ -11,9 +11,9 @@
  */
 
 import 'server-only'
-import { 
-    createCipheriv, 
-    createDecipheriv, 
+import {
+    createCipheriv,
+    createDecipheriv,
     randomBytes,
     createHash,
     scryptSync
@@ -52,9 +52,9 @@ const keyCache = new Map<string, Buffer>()
  * Derive an encryption key using scrypt
  * Uses caching to avoid re-deriving the same key
  */
-function deriveKey(purpose: string, salt: Buffer): Buffer {
+function _deriveKey(purpose: string, salt: Buffer): Buffer {
     const cacheKey = `${purpose}:${salt.toString('hex')}`
-    
+
     if (keyCache.has(cacheKey)) {
         return keyCache.get(cacheKey)!
     }
@@ -75,10 +75,10 @@ function deriveKey(purpose: string, salt: Buffer): Buffer {
     )
 
     keyCache.set(cacheKey, derivedKey)
-    
+
     // Clear cache entry after 1 hour
     setTimeout(() => keyCache.delete(cacheKey), 60 * 60 * 1000)
-    
+
     return derivedKey
 }
 
@@ -136,10 +136,10 @@ export function encryptField(value: string, fieldName: string): string {
     const key = deriveKeySync(fieldName, salt)
 
     const cipher = createCipheriv(ENCRYPTION_CONFIG.algorithm, key, iv)
-    
+
     let encrypted = cipher.update(value, 'utf8', 'base64')
     encrypted += cipher.final('base64')
-    
+
     const authTag = cipher.getAuthTag()
 
     const encryptedField: EncryptedField = {
@@ -167,7 +167,7 @@ export function decryptField(encryptedValue: string): string {
 
     try {
         const parsed: EncryptedField = JSON.parse(encryptedValue)
-        
+
         if (parsed.v !== 1) {
             throw new Error(`Unknown encryption version: ${parsed.v}`)
         }
@@ -215,13 +215,13 @@ export function encryptFields(
     fieldsToEncrypt: string[]
 ): Record<string, string> {
     const result = { ...data }
-    
+
     for (const field of fieldsToEncrypt) {
         if (result[field]) {
             result[field] = encryptField(result[field], field)
         }
     }
-    
+
     return result
 }
 
@@ -233,13 +233,13 @@ export function decryptFields(
     fieldsToDecrypt: string[]
 ): Record<string, string> {
     const result = { ...data }
-    
+
     for (const field of fieldsToDecrypt) {
         if (result[field] && isEncrypted(result[field])) {
             result[field] = decryptField(result[field])
         }
     }
-    
+
     return result
 }
 
@@ -282,10 +282,10 @@ export const ENCRYPTED_FIELDS: FieldEncryptionConfig[] = [
     { model: 'FinanceIncome', fields: ['description', 'notes'] },
     { model: 'FinanceExpense', fields: ['description', 'vendor', 'notes'] },
     { model: 'FinanceGoal', fields: ['name', 'notes'] },
-    
+
     // User data
     { model: 'User', fields: ['phone', 'address'] },
-    
+
     // Add more as needed
 ]
 
@@ -306,7 +306,7 @@ export function createEncryptionMiddleware() {
         args: Record<string, unknown>
     }, next: (params: unknown) => Promise<unknown>) => {
         const config = ENCRYPTED_FIELDS.find(c => c.model === params.model)
-        
+
         if (!config) {
             return next(params)
         }
@@ -365,10 +365,10 @@ export function reEncryptField(
 ): string {
     // Temporarily swap keys
     const originalMasterKey = MASTER_KEY
-    
+
     // This is a simplified version - in production you'd want
     // a more robust key management system
-    
+
     // For now, just re-encrypt with same key (placeholder)
     const decrypted = decryptField(encryptedValue)
     return encryptField(decrypted, fieldName)

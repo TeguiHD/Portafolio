@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Navbar } from "@/modules/landing/layout/Navbar";
 import { FooterSection } from "@/modules/landing/sections/FooterSection";
 
