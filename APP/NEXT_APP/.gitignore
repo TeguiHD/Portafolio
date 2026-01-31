@@ -19,3 +19,6 @@ seed_error*.txt
 
 # Security notes (private)
 lint_report.txt
+
+# Security notes (private)
+SEGURIDAD.txt
