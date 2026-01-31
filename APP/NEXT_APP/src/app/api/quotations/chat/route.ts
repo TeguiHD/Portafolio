@@ -160,7 +160,7 @@ function parseTOON(text: string): Record<string, unknown> | null {
     return Object.keys(result).length > 0 ? result : null;
 }
 
-function parseAIResponse(content: string): {
+function _parseAIResponse(content: string): {
     message: string;
     actions: Array<{
         type: string;

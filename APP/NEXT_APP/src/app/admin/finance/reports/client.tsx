@@ -125,21 +125,19 @@ export default function ReportsPageClient() {
                 <div className="flex bg-gray-800/50 rounded-xl p-1">
                     <button
                         onClick={() => setActiveTab("monthly")}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            activeTab === "monthly"
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "monthly"
                                 ? "bg-blue-600 text-white"
                                 : "text-gray-400 hover:text-white"
-                        }`}
+                            }`}
                     >
                         Mensual
                     </button>
                     <button
                         onClick={() => setActiveTab("trends")}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            activeTab === "trends"
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "trends"
                                 ? "bg-blue-600 text-white"
                                 : "text-gray-400 hover:text-white"
-                        }`}
+                            }`}
                     >
                         Tendencias
                     </button>
@@ -280,7 +278,7 @@ export default function ReportsPageClient() {
                             </h3>
                             {reportData.largestExpenses.length > 0 ? (
                                 <div className="space-y-3">
-                                    {reportData.largestExpenses.map((t: any, i: number) => (
+                                    {reportData.largestExpenses.map((t: any, _i: number) => (
                                         <div key={t.id} className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-lg">{t.category?.icon || "💰"}</span>

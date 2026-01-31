@@ -306,7 +306,7 @@ export default function ToolAnalyticsPage() {
 
                 {/* Mini Bar Chart */}
                 <div className="flex items-end gap-1 h-40 sm:h-48">
-                    {filteredTimeSeries.map((point, i) => {
+                    {filteredTimeSeries.map((point, _i) => {
                         const total = point.views + point.uses + point.downloads;
                         const height = maxValue > 0 ? (total / maxValue) * 100 : 0;
                         const viewsHeight = maxValue > 0 ? (point.views / maxValue) * 100 : 0;
