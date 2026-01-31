@@ -1,0 +1,897 @@
+================================================================================
+ 🔐 ARQUITECTURA DE SEGURIDAD - PORTAFOLIO NEXT.JS
+================================================================================
+ Versión: 2026.01.31 (v2)
+ Autor: Sistema de Auditoría
+ Propósito: Documentar TODAS las medidas de ciberseguridad implementadas
+================================================================================
+
+Este documento explica en términos simples CADA medida de seguridad implementada
+en el proyecto, para que puedas entender la lógica y aplicarla a futuros 
+proyectos.
+
+================================================================================
+ 📑 ÍNDICE
+================================================================================
+
+1. AUTENTICACIÓN Y SESIONES
+2. AUTORIZACIÓN Y PERMISOS (RBAC)
+3. PROTECCIÓN CONTRA ATAQUES WEB
+4. CRIPTOGRAFÍA Y ENCRIPTACIÓN
+5. RATE LIMITING (LÍMITE DE SOLICITUDES)
+6. AUDITORÍA Y LOGGING
+7. HONEYPOTS (TRAMPAS PARA HACKERS)
+8. COOKIES SEGURAS
+9. VALIDACIÓN DE ENTRADA
+10. HEADERS DE SEGURIDAD
+11. RACE CONDITIONS (CONDICIONES DE CARRERA)  ← NUEVO
+12. COMPARTIR ENLACES DE COTIZACIÓN DE FORMA SEGURA  ← NUEVO
+13. RESUMEN DE ARCHIVOS
+
+================================================================================
+ 1. AUTENTICACIÓN Y SESIONES
+================================================================================
+
+📁 Archivos: lib/auth.ts, lib/session-manager.ts, lib/mfa.ts
+
+
+¿QUÉ ES?
+--------
+La autenticación verifica que eres quien dices ser (login).
+Las sesiones recuerdan que ya te autenticaste.
+
+
+MEDIDAS IMPLEMENTADAS:
+---------------------
+
+a) CONTRASEÑAS CON HASH (Argon2)
+   - Las contraseñas NUNCA se guardan como texto.
+   - Se usa Argon2, el algoritmo GANADOR de la competencia de hashing.
+   - Es resistente a ataques de GPU y ASIC.
+   
+   Código simple:
+   ```
+   import { hash, verify } from "argon2"
+   
+   // Guardar contraseña
+   const hashPassword = await hash(password)
+   
+   // Verificar contraseña
+   const isValid = await verify(hashPassword, inputPassword)
+   ```
+
+b) BLOQUEO POR INTENTOS FALLIDOS
+   - Después de 5 intentos fallidos, la cuenta se bloquea 15 minutos.
+   - Evita ataques de "fuerza bruta" (probar miles de contraseñas).
+   
+   Lógica:
+   ```
+   if (failedAttempts >= 5) {
+       lockedUntil = ahora + 15 minutos
+   }
+   ```
+
+c) AUTENTICACIÓN DE DOS FACTORES (MFA/2FA)
+   - Usa TOTP (Time-based One-Time Password).
+   - Compatible con Google Authenticator, Authy, etc.
+   - Genera códigos de 6 dígitos que cambian cada 30 segundos.
+   - Incluye códigos de recuperación (8 códigos de emergencia).
+
+d) GESTIÓN DE SESIONES
+   - Cada sesión se guarda en base de datos con:
+     * IP del usuario
+     * Navegador y dispositivo
+     * Fecha de última actividad
+   - Detecta sesiones concurrentes (alguien más en tu cuenta).
+   - Permite revocar sesiones individualmente.
+
+e) TOKENS JWT FIRMADOS
+   - Los tokens usan HMAC-SHA256 para firmar.
+   - Incluyen:
+     * ID de usuario
+     * Fecha de expiración
+     * Nonce aleatorio (previene reutilización)
+   - Son verificables sin acceder a base de datos.
+
+
+================================================================================
+ 2. AUTORIZACIÓN Y PERMISOS (RBAC)
+================================================================================
+
+📁 Archivos: lib/permissions.ts, lib/permission-check.ts
+
+
+¿QUÉ ES?
+--------
+La autorización verifica QUÉ puedes hacer después de autenticarte.
+RBAC = Role-Based Access Control (acceso basado en roles).
+
+
+ARQUITECTURA DE PERMISOS:
+------------------------
+
+ROLES:
+  USER       → Usuario básico, solo lee
+  MODERATOR  → Puede moderar contenido
+  ADMIN      → Puede gestionar usuarios y configuración
+  SUPERADMIN → Dios, puede todo
+
+PERMISOS GRANULARES:
+  quotations.view    → Ver cotizaciones
+  quotations.create  → Crear cotizaciones
+  quotations.edit    → Editar cotizaciones
+  quotations.delete  → Eliminar cotizaciones
+  users.manage       → Gestionar usuarios
+  tools.manage       → Gestionar herramientas
+
+CÓMO FUNCIONA:
+```
+// 1. Cada permiso tiene roles por defecto
+{ 
+  code: "quotations.edit",
+  defaultRoles: ["SUPERADMIN", "ADMIN"]
+}
+
+// 2. Se pueden dar/quitar permisos individualmente
+// Usuario X con rol USER pero CON permiso quotations.edit
+
+// 3. La verificación combina rol + excepciones
+const hasAccess = await hasPermission(userId, userRole, "quotations.edit")
+```
+
+
+================================================================================
+ 3. PROTECCIÓN CONTRA ATAQUES WEB
+================================================================================
+
+📁 Archivos: lib/security.ts, lib/quotation-sanitizer.ts, lib/honeypot.ts
+
+
+A) XSS (Cross-Site Scripting)
+-----------------------------
+
+¿Qué es?
+  Un atacante inyecta JavaScript malicioso en tu página.
+  Ejemplo: En un comentario meten: <script>robar_cookies()</script>
+
+Protección:
+  1. SANITIZACIÓN DE ENTRADA
+     Reemplaza caracteres peligrosos:
+     ```
+     < → &lt;
+     > → &gt;
+     " → &quot;
+     & → &amp;
+     ```
+  
+  2. USO DE DOMPurify
+     Librería especializada que limpia HTML:
+     ```
+     import DOMPurify from "dompurify"
+     const cleanHtml = DOMPurify.sanitize(dirtyHtml)
+     ```
+
+  3. CONTENT SECURITY POLICY (CSP)
+     Header que dice al navegador qué scripts puede ejecutar:
+     ```
+     Content-Security-Policy: script-src 'self' https://trusted.com
+     ```
+
+
+B) SQL INJECTION
+----------------
+
+¿Qué es?
+  Un atacante manipula consultas SQL a través de inputs.
+  Ejemplo: username = "admin'; DROP TABLE users; --"
+
+Protección:
+  1. USO DE PRISMA ORM
+     - Prisma usa "prepared statements" automáticamente.
+     - Los parámetros NUNCA se concatenan con el SQL.
+     
+     MAL (vulnerable):
+     ```sql
+     SELECT * FROM users WHERE email = '${email}'
+     ```
+     
+     BIEN (Prisma lo hace así):
+     ```
+     prisma.user.findUnique({ where: { email } })
+     // Internamente: SELECT * FROM users WHERE email = $1
+     ```
+
+
+C) CSRF (Cross-Site Request Forgery)
+------------------------------------
+
+¿Qué es?
+  Un atacante te hace hacer solicitudes sin tu consentimiento.
+  Ejemplo: Imagen en otro sitio que hace DELETE /api/mi-cuenta
+
+Protección:
+  1. COOKIES sameSite: "strict"
+     La cookie SOLO se envía si navegas directamente al sitio.
+     No se envía si vienes de otro sitio.
+  
+  2. VERIFICACIÓN DE ORIGIN
+     El servidor verifica que la solicitud venga del mismo dominio.
+
+
+D) PATH TRAVERSAL
+-----------------
+
+¿Qué es?
+  Intentar acceder a archivos fuera del directorio permitido.
+  Ejemplo: /api/file?path=../../../etc/passwd
+
+Protección:
+  Validar y sanitizar todas las rutas de archivo.
+  Usar rutas absolutas y verificar que estén dentro del directorio permitido.
+
+
+================================================================================
+ 4. CRIPTOGRAFÍA Y ENCRIPTACIÓN
+================================================================================
+
+📁 Archivos: lib/db-encryption.ts, lib/secure-token.ts, lib/mfa.ts
+
+
+A) ENCRIPTACIÓN DE BASE DE DATOS (AES-256-GCM)
+----------------------------------------------
+
+Para campos sensibles (emails, teléfonos, notas financieras):
+
+```
+ALGORITMO: AES-256-GCM
+  - AES = Advanced Encryption Standard (estándar mundial)
+  - 256 = Longitud de llave en bits (muy seguro)
+  - GCM = Galois/Counter Mode (incluye autenticación)
+
+PROCESO:
+  1. Generar IV (Initialization Vector) aleatorio
+  2. Derivar llave con HKDF (para diferentes campos)
+  3. Encriptar con AES-256-GCM
+  4. Guardar: {version, salt, iv, tag, data}
+
+EJEMPLO:
+  Antes: "juan@email.com"
+  Después: "v1.abc123.xyz789.qwe456.encrypteddata..."
+```
+
+B) TOKENS CON FIRMA HMAC
+------------------------
+
+```
+HMAC = Hash-based Message Authentication Code
+
+CÓMO FUNCIONA:
+  1. Crear payload JSON (datos del token)
+  2. Calcular HMAC-SHA256 del payload
+  3. Token = base64(payload) + "." + base64(firma)
+
+VERIFICACIÓN:
+  1. Separar payload y firma
+  2. Recalcular HMAC del payload
+  3. Comparar firmas (timing-safe)
+  4. Si coinciden, el token es válido
+```
+
+C) COMPARACIÓN TIMING-SAFE
+--------------------------
+
+```
+¿Por qué importa?
+  Si comparas strings normalmente:
+  "abc" vs "axe" → Se detiene en el 2do carácter (rápido)
+  "abc" vs "abd" → Se detiene en el 3er carácter (lento)
+  
+  Un atacante puede medir el tiempo y adivinar carácter por carácter.
+
+SOLUCIÓN:
+  import { timingSafeEqual } from "crypto"
+  
+  // Siempre tarda lo mismo, sin importar dónde difieren
+  timingSafeEqual(Buffer.from(a), Buffer.from(b))
+```
+
+
+================================================================================
+ 5. RATE LIMITING (LÍMITE DE SOLICITUDES)
+================================================================================
+
+📁 Archivos: lib/redis.ts, lib/api-security.ts, lib/rate-limit.ts
+
+
+¿QUÉ ES?
+--------
+Limitar cuántas solicitudes puede hacer una IP/usuario en un tiempo.
+Evita ataques de fuerza bruta y DoS.
+
+
+IMPLEMENTACIÓN:
+--------------
+
+```
+REDIS (producción):
+  - Usa algoritmo de "sliding window" (ventana deslizante).
+  - Cada IP tiene un contador que expira.
+  
+  Key: rate:192.168.1.1:/api/login
+  Value: 5 (solicitudes en los últimos 60 segundos)
+  
+  Si value >= límite → BLOQUEADO
+
+FALLBACK EN MEMORIA:
+  - Para desarrollo sin Redis.
+  - Usa Map en memoria.
+  - ⚠️ No funciona en producción con múltiples servidores.
+
+CONFIGURACIÓN TÍPICA:
+  Login:      5 intentos / 15 minutos
+  API:       30 solicitudes / minuto
+  Contacto:   5 mensajes / hora
+```
+
+
+================================================================================
+ 6. AUDITORÍA Y LOGGING
+================================================================================
+
+📁 Archivos: lib/audit.ts, lib/security-logger.ts
+
+
+A) AUDIT LOG (Registro de Auditoría)
+------------------------------------
+
+```
+GUARDA EN BASE DE DATOS:
+  - Quién hizo qué
+  - Cuándo
+  - Desde dónde (IP, navegador)
+  - Resultado (éxito/fallo)
+
+EVENTOS REGISTRADOS:
+  ✓ Login exitoso/fallido
+  ✓ Cambios de contraseña
+  ✓ Cambios de permisos
+  ✓ CRUD de entidades importantes
+  ✓ Acceso a datos sensibles
+
+EJEMPLO DE LOG:
+  {
+    action: "login.failed",
+    userId: null,
+    ipAddress: "192.168.1.100",
+    metadata: { email: "x@y.com", reason: "invalid_password" },
+    createdAt: "2026-01-31T10:00:00Z"
+  }
+```
+
+B) SECURITY LOGGER (Eventos de Seguridad)
+-----------------------------------------
+
+```
+THREAT SCORING (Puntuación de Amenaza):
+  Cada evento suma puntos según severidad:
+  
+  LOW:      +5 puntos
+  MEDIUM:   +15 puntos
+  HIGH:     +30 puntos
+  CRITICAL: +50 puntos
+  
+  Si IP supera 50 puntos → BLOQUEADA
+
+EVENTOS DETECTADOS:
+  - Intentos de inyección SQL
+  - Patrones XSS
+  - Escaneo de vulnerabilidades
+  - Acceso a rutas sospechosas
+  - Firmas de bots maliciosos
+
+INFORMACIÓN ENRIQUECIDA:
+  - Sistema operativo
+  - Navegador
+  - Conteo de solicitudes
+  - Intentos de bypass detectados
+```
+
+
+================================================================================
+ 7. HONEYPOTS (TRAMPAS PARA HACKERS)
+================================================================================
+
+📁 Archivos: lib/honeypot.ts
+
+
+¿QUÉ ES?
+--------
+Rutas falsas que parecen vulnerables para atraer atacantes.
+Cualquier acceso = atacante detectado = IP bloqueada.
+
+
+RUTAS TRAMPA:
+------------
+
+```
+/api/admin/backup    → Parece un backup de base de datos
+/api/config          → Parece configuración expuesta
+/api/.env            → Parece variables de entorno
+/api/debug           → Parece modo debug
+/wp-admin            → Parece WordPress
+/phpmyadmin          → Parece panel de base de datos
+```
+
+RESPUESTAS FALSAS:
+-----------------
+
+```
+// Para /api/.env (trampa)
+DATABASE_URL=postgres://fake:fake@localhost:5432/fake
+APP_TOKEN=HONEYPOT_TRAP_DO_NOT_USE
+TRAP_VALUE=honeypot-trap-detected
+
+// Mientras tanto, se registra:
+🍯 [HONEYPOT] Attack detected!
+  IP: 192.168.1.50
+  Path: /api/.env
+  → IP bloqueada permanentemente
+```
+
+PATRONES DETECTADOS:
+-------------------
+
+```
+- Log4Shell (CVE-2021-44228): ${jndi:ldap://...}
+- Spring4Shell: class.module.classLoader
+- SQL Injection: UNION SELECT, sleep(), --+
+- XSS: <script>, javascript:, onerror=
+- Path Traversal: ../../../
+- LFI/RFI: /etc/passwd, file://
+- Webshells: c99, r57, shell
+```
+
+
+================================================================================
+ 8. COOKIES SEGURAS
+================================================================================
+
+📁 Aplicado en: actions.ts, middleware, auth
+
+
+ATRIBUTOS DE SEGURIDAD:
+----------------------
+
+```javascript
+cookies.set("session", token, {
+    httpOnly: true,    // JavaScript NO puede leerla
+    secure: true,      // Solo HTTPS (producción)
+    sameSite: "strict",// Solo del mismo sitio
+    path: "/admin",    // Solo para ciertas rutas
+    maxAge: 86400      // Expira en 24 horas
+})
+```
+
+EXPLICACIÓN SIMPLE:
+
+  httpOnly: true
+    - El navegador la envía, pero JavaScript no puede accederla.
+    - Protege contra XSS que intente robar cookies.
+    - MAL:  document.cookie → "session=abc123"
+    - BIEN: document.cookie → "" (vacío)
+
+  secure: true
+    - Solo se envía por HTTPS.
+    - Protege contra ataques man-in-the-middle.
+
+  sameSite: "strict"
+    - SOLO se envía si navegas directamente al sitio.
+    - Si vienes de otro sitio, NO se envía.
+    - Protege contra CSRF.
+    
+    Ejemplo:
+      Usuario en evil.com con imagen que llama a tu API:
+      <img src="https://tu-sitio.com/api/delete-account">
+      → Cookie NO se envía → Ataque fallido
+
+  path: "/admin"
+    - Cookie solo existe para rutas que empiecen con /admin.
+    - /api/public → No tiene la cookie.
+    - /admin/users → Sí tiene la cookie.
+
+
+================================================================================
+ 9. VALIDACIÓN DE ENTRADA
+================================================================================
+
+📁 Archivos: lib/security.ts, lib/api-security.ts
+
+
+PRINCIPIO: NUNCA CONFÍES EN EL USUARIO
+
+```
+TODO input debe validarse:
+  1. Tipo correcto (string, number, etc.)
+  2. Longitud máxima (previene DoS)
+  3. Formato correcto (email, teléfono)
+  4. Caracteres permitidos (sanitización)
+```
+
+EJEMPLOS:
+
+```javascript
+// Validar email
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+if (!emailRegex.test(email)) throw new Error("Email inválido")
+
+// Validar contraseña fuerte
+if (password.length < 12) error("Mínimo 12 caracteres")
+if (!/[A-Z]/.test(password)) error("Falta mayúscula")
+if (!/[0-9]/.test(password)) error("Falta número")
+if (!/[!@#$%]/.test(password)) error("Falta símbolo")
+
+// Limitar longitud (previene DoS)
+const CV_LIMITS = {
+    name: 100,
+    email: 254,
+    description: 2000
+}
+const safeName = input.slice(0, CV_LIMITS.name)
+```
+
+SANITIZACIÓN API:
+----------------
+
+```javascript
+// En cada endpoint API
+const security = await secureApiEndpoint(request, {
+    requireAuth: true,
+    requiredPermission: "users.manage",
+    maxBodySize: 1024 * 100,  // Máximo 100KB
+    rateLimit: { limit: 30, windowMs: 60000 },
+    sensitiveFields: ["password", "ssn"],  // No loguear estos
+    checkThreatScore: true,    // Verificar IP sospechosa
+    auditAccess: true          // Registrar acceso
+})
+```
+
+
+================================================================================
+ 10. HEADERS DE SEGURIDAD
+================================================================================
+
+📁 Configurado en: next.config.js, middleware
+
+
+HEADERS IMPORTANTES:
+
+```
+Content-Security-Policy (CSP):
+  - Controla qué recursos puede cargar la página.
+  - Previene XSS y clickjacking.
+  
+  Ejemplo:
+    script-src 'self' https://cdn.trusted.com
+    (Solo ejecuta scripts propios o del CDN confiable)
+
+X-Frame-Options: DENY
+  - Previene que tu sitio sea embebido en iframes.
+  - Protege contra clickjacking.
+
+X-Content-Type-Options: nosniff
+  - El navegador NO intenta "adivinar" el tipo de archivo.
+  - Previene ataques MIME-type confusion.
+
+Strict-Transport-Security (HSTS):
+  - Fuerza HTTPS por 1 año.
+  - Incluye subdominios.
+  
+  Ejemplo:
+    max-age=31536000; includeSubDomains
+
+Referrer-Policy: strict-origin-when-cross-origin
+  - Controla qué información se envía al navegar.
+  - No expone URLs internas a sitios externos.
+```
+
+
+================================================================================
+ 11. RACE CONDITIONS (CONDICIONES DE CARRERA)
+================================================================================
+
+📁 Archivos: lib/rate-limit.ts, api/finance/transactions/route.ts, 
+            api/quotations/route.ts
+
+🔗 Fuentes: OWASP Testing Guide, PortSwigger Research
+            https://portswigger.net/research/smashing-the-state-machine
+
+
+¿QUÉ ES?
+--------
+Una race condition ocurre cuando múltiples operaciones concurrentes acceden
+a recursos compartidos sin sincronización adecuada, causando:
+
+- Límite de solicitudes evadido
+- Transacciones duplicadas
+- Saldos incorrectos
+- Duplicación de folios/IDs únicos
+
+
+PATRÓN VULNERABLE: TOCTOU (Time-of-Check-to-Time-of-Use)
+--------------------------------------------------------
+
+```
+VULNERABLE (check-then-increment):
+
+  Tiempo    Usuario A                    Usuario B
+  ─────────────────────────────────────────────────
+    T1      Lee contador: 4               
+    T2                                   Lee contador: 4
+    T3      ¿4 < 5? Sí, permitido
+    T4                                   ¿4 < 5? Sí, permitido
+    T5      Escribe: contador = 5
+    T6                                   Escribe: contador = 5
+  
+  RESULTADO: Ambos pasan, ¡límite de 5 se evadió!
+```
+
+
+A) PROTECCIÓN: TRANSACCIONES ATÓMICAS (Prisma)
+----------------------------------------------
+
+```typescript
+// MAL - Separado (vulnerable)
+const transaction = await prisma.transaction.create({...});
+await updateAccountBalance(accountId, amount);  // ← Race condition
+
+// BIEN - Atómico (seguro)
+const result = await prisma.$transaction(async (tx) => {
+    const transaction = await tx.transaction.create({...});
+    await tx.financeAccount.update({
+        where: { id: accountId },
+        data: { currentBalance: { increment: amount } }  // ← Atómico
+    });
+    return transaction;
+});
+```
+
+
+B) PROTECCIÓN: RATE LIMITING ATÓMICO
+------------------------------------
+
+```typescript
+// MAL - Check-then-increment (vulnerable)
+const existing = await prisma.rateLimitEntry.findUnique({...});
+if (existing.count >= RATE_LIMIT) return blocked;
+await prisma.rateLimitEntry.update({count: existing.count + 1}); // ← Race
+
+// BIEN - Transacción serializable (seguro)
+const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.rateLimitEntry.findUnique({...});
+    if (existing?.count >= config.limit) {
+        return { allowed: false, remaining: 0 };
+    }
+    // Check e increment en la MISMA transacción
+    await tx.rateLimitEntry.update({
+        where: { identifier },
+        data: { count: { increment: 1 } }
+    });
+    return { allowed: true, remaining: config.limit - existing.count - 1 };
+}, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable  // ← Clave
+});
+```
+
+
+C) PROTECCIÓN: GENERACIÓN DE FOLIO ATÓMICA
+------------------------------------------
+
+```typescript
+// MAL - Count-then-create (vulnerable a folios duplicados)
+const count = await prisma.quotation.count({...});
+const folio = `WEB-2026-${String(count + 1).padStart(3, "0")}`;
+await prisma.quotation.create({ data: { folio, ... } });
+
+// BIEN - FOR UPDATE lock + retry (seguro)
+const quotation = await prisma.$transaction(async (tx) => {
+    // Bloquea las filas mientras se lee
+    const result = await tx.$queryRaw`
+        SELECT COUNT(*) as count FROM "Quotation" 
+        WHERE "folio" LIKE ${prefix + '%'}
+        FOR UPDATE
+    `;
+    const count = Number(result[0]?.count || 0);
+    const folio = `${prefix}-${String(count + 1).padStart(3, "0")}`;
+    
+    return await tx.quotation.create({ data: { folio, ... } });
+});
+
+// Además: retry logic para violaciones de constraint único
+```
+
+
+D) PROTECCIÓN: UPSERT ATÓMICO (Product Catalog)
+-----------------------------------------------
+
+```typescript
+// MAL - Find-then-update (lost updates con concurrencia)
+const product = await prisma.product.findUnique({...});
+const newAvg = (product.avgPrice * product.count + price) / (product.count + 1);
+await prisma.product.update({ data: { avgPrice: newAvg } }); // ← Lost update
+
+// BIEN - INSERT ON CONFLICT (atómico en PostgreSQL)
+await prisma.$executeRaw`
+    INSERT INTO "Product" (...) VALUES (...)
+    ON CONFLICT ("userId", "normalizedName") DO UPDATE SET
+        "avgPrice" = (("Product"."avgPrice" * "Product"."priceCount") + ${price}) 
+                     / ("Product"."priceCount" + 1),
+        "priceCount" = "Product"."priceCount" + 1,
+        "minPrice" = LEAST("Product"."minPrice", ${price}),
+        "maxPrice" = GREATEST("Product"."maxPrice", ${price})
+`;
+```
+
+
+RESUMEN DE PATRONES SEGUROS:
+---------------------------
+
+  PATRÓN VULNERABLE           | SOLUCIÓN SEGURA
+  ----------------------------|------------------------------------------
+  Read → Calculate → Write    | prisma.$transaction con increment
+  Check → Act                 | Transacción con isolationLevel Serializable
+  Count → Create              | FOR UPDATE lock + unique constraint + retry
+  Find → Update               | INSERT ON CONFLICT DO UPDATE
+
+
+================================================================================
+ 12. COMPARTIR ENLACES DE COTIZACIÓN DE FORMA SEGURA
+================================================================================
+
+📁 Archivos: lib/secure-token.ts, services/quotation-access.ts,
+            app/cotizacion/[clientSlug]/[quotationSlug]/
+
+
+¿QUÉ ES?
+--------
+Permitir que clientes vean cotizaciones sin autenticarse, usando un link
+seguro que expira y tiene registro de accesos.
+
+
+MEDIDAS IMPLEMENTADAS:
+---------------------
+
+A) TOKENS FIRMADOS CON HMAC
+   ```
+   Token = base64(payload) + "." + base64(hmac_sha256(payload))
+   
+   Payload:
+   - quotationId: ID de la cotización
+   - expiresAt: Fecha de expiración (7 días por defecto)
+   - nonce: Valor aleatorio (unicidad)
+   
+   Verificación:
+   1. Separar payload y firma
+   2. Recalcular HMAC del payload
+   3. Comparar firmas (timing-safe para evitar timing attacks)
+   4. Validar expiración
+   ```
+
+B) REGISTRO DE ACCESOS
+   ```
+   Cada visita registra:
+   - IP del visitante
+   - User-Agent (navegador)
+   - Timestamp
+   - Token usado
+   
+   Permite detectar:
+   - Accesos sospechosos desde múltiples ubicaciones
+   - Ataques de fuerza bruta al token
+   - Uso después de expiración
+   ```
+
+C) COOKIES DE SESIÓN SEGURAS
+   ```javascript
+   cookies.set("quotation_access", token, {
+       httpOnly: true,
+       secure: true,
+       sameSite: "strict",
+       path: "/cotizacion",
+       maxAge: 7 * 24 * 60 * 60  // 7 días
+   });
+   ```
+
+D) SANITIZACIÓN DE CONTENIDO
+   - Todo HTML en notas/descripciones pasa por DOMPurify
+   - Previene XSS en contenido de cotizaciones
+   - Límites de longitud por campo
+
+E) RATE LIMITING EN ACCESO
+   - Máximo 100 accesos por IP/hora
+   - Previene enumeración de tokens
+
+
+================================================================================
+ 13. RESUMEN DE ARCHIVOS DE SEGURIDAD
+================================================================================
+
+📁 Carpeta: /src/lib/
+
+ARCHIVO                    | PROPÓSITO
+---------------------------|--------------------------------------------------
+security.ts               | Sanitización XSS, validación de passwords
+security.server.ts        | Utilidades del lado servidor
+api-security.ts           | Middleware completo para APIs
+db-encryption.ts          | Encriptación AES-256-GCM para BD
+secure-token.ts           | Tokens HMAC firmados para enlaces compartidos
+session-manager.ts        | Gestión de sesiones de usuario
+mfa.ts                    | Autenticación de dos factores (TOTP)
+honeypot.ts               | Trampas para detectar atacantes
+audit.ts                  | Registro de auditoría en BD
+security-logger.ts        | Logging de eventos de seguridad
+redis.ts                  | Rate limiting con Redis
+rate-limit.ts             | Rate limiting atómico (anti-race condition)
+permission-check.ts       | Verificación de permisos
+permissions.ts            | Definición de permisos RBAC
+quotation-sanitizer.ts    | Sanitización de HTML para cotizaciones
+nonce.ts                  | Generación de nonces para CSP
+
+
+================================================================================
+ 🎓 PRINCIPIOS CLAVE PARA TUS FUTUROS PROYECTOS
+================================================================================
+
+1. DEFENSA EN PROFUNDIDAD
+   No confíes en una sola medida. Múltiples capas de seguridad.
+
+2. PRINCIPIO DE MÍNIMO PRIVILEGIO
+   Solo da los permisos estrictamente necesarios.
+
+3. FAIL SECURE
+   Si algo falla, falla de manera segura (denegar en lugar de permitir).
+
+4. NUNCA CONFÍES EN EL INPUT
+   Todo dato del usuario es potencialmente malicioso.
+
+5. LOGS Y AUDITORÍA
+   Si no lo registras, no puedes investigarlo después.
+
+6. SECRETOS FUERA DEL CÓDIGO
+   Usa variables de entorno. Nunca comitees secretos.
+
+7. ACTUALIZA DEPENDENCIAS
+   Las vulnerabilidades se descubren constantemente.
+   Usa npm audit, npm overrides para forzar versiones parchadas.
+
+8. HTTPS SIEMPRE
+   Sin excepciones. HTTP es inaceptable.
+
+9. OPERACIONES ATÓMICAS                                              ← NUEVO
+   Usa transacciones de base de datos para evitar race conditions.
+   Prefiere increment/decrement sobre read-modify-write.
+
+10. TOKENS FIRMADOS Y CON EXPIRACIÓN                                 ← NUEVO
+    Nunca uses IDs predecibles. Siempre firma con HMAC y valida.
+
+
+================================================================================
+ 📋 CHECKLIST DE SEGURIDAD PARA NUEVAS FEATURES
+================================================================================
+
+Antes de desplegar cualquier nueva funcionalidad, verifica:
+
+[ ] ¿Los inputs están validados y sanitizados?
+[ ] ¿Las operaciones de BD usan transacciones atómicas?
+[ ] ¿Hay rate limiting apropiado?
+[ ] ¿Los tokens/links están firmados y expiran?
+[ ] ¿Se registran los accesos/cambios en audit log?
+[ ] ¿Los permisos están verificados?
+[ ] ¿Las cookies tienen httpOnly, secure, sameSite?
+[ ] ¿npm audit muestra 0 vulnerabilidades?
+[ ] ¿Los headers de seguridad están configurados?
+[ ] ¿Hay honeypots en rutas sensibles?
+
+
+================================================================================
+ FIN DEL DOCUMENTO
+================================================================================
