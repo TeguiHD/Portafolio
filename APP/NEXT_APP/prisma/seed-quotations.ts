@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ClientService } from "@/services/client-service";
 import fs from "fs";
-import path from "path";
 import { createHash } from "crypto";
 
 // Helper to match main app's email hashing (from seed.ts)
@@ -60,7 +59,7 @@ async function main() {
 
     try {
         htmlContent = fs.readFileSync(htmlPath, "utf-8");
-    } catch (e) {
+    } catch (_e) {
         console.error("❌ Could not read HTML file at: " + htmlPath);
         // Fallback or exit
         return;

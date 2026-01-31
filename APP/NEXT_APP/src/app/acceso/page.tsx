@@ -9,7 +9,6 @@ import { ParticleBackground } from "@/components/ParticleBackground";
 import { useToast } from "@/components/ui/Toast";
 
 function LoginForm() {
-    const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") || "/admin";
 
@@ -69,7 +68,7 @@ function LoginForm() {
             setTimeout(() => {
                 window.location.href = callbackUrl;
             }, 500);
-        } catch (err) {
+        } catch (_err) {
             toast.error("Error", "No se pudo iniciar sesión");
             setLoading(false);
         }

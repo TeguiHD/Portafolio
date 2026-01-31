@@ -378,7 +378,7 @@ export async function generateCvSuggestion(
         let parsed;
         try {
             // Clean potential markdown code blocks
-            let cleanContent = content
+            const cleanContent = content
                 .replace(/```json\s*/gi, "")
                 .replace(/```\s*/gi, "")
                 .replace(/<think>[\s\S]*?<\/think>/gi, "")

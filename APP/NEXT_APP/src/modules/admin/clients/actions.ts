@@ -119,7 +119,7 @@ export async function createClientAction(data: CreateClientData) {
 
     try {
         // Generate unique slug
-        let baseSlug = generateSlug(data.name);
+        const baseSlug = generateSlug(data.name);
         let slug = baseSlug;
         let counter = 1;
 

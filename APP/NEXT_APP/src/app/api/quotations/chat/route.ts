@@ -170,7 +170,7 @@ function parseAIResponse(content: string): {
     autoApply?: Record<string, unknown>;
 } {
     // Clean the content first
-    let cleanContent = content
+    const cleanContent = content
         .replace(/<think>[\s\S]*?<\/think>/gi, "")
         .replace(/```json\s*/gi, "")
         .replace(/```\s*/gi, "")

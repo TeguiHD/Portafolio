@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-    Shield, Search, Calendar, Filter, ChevronLeft, ChevronRight,
+    Shield, Search, Calendar, ChevronLeft, ChevronRight,
     User, LogIn, LogOut, UserPlus, UserMinus, Key, Lock, Unlock,
-    Settings, AlertTriangle, RefreshCw, DollarSign, Wallet, Target,
+    Settings, AlertTriangle, RefreshCw, Wallet, Target,
     Receipt, Plus, Edit, Trash2
 } from "lucide-react";
 import { AuditPageSkeleton } from "@/components/ui/Skeleton";

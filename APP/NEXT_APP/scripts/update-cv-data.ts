@@ -9,7 +9,7 @@ const prisma = new PrismaClient({ adapter })
 
 async function updateCv() {
     const cvVersionId = 'cmk3aefsj000v74r1r2aopjcs'
-    const userId = 'cmk3aeete000074r15dwaqni5'
+    const _userId = 'cmk3aeete000074r15dwaqni5'
 
     console.log('🔄 Actualizando CV para usuario superadmin1@nicoholas.dev...\n')
 
@@ -33,7 +33,7 @@ async function updateCv() {
 
     // Eliminar experiencias existentes y crear nuevas
     await prisma.cvExperience.deleteMany({ where: { cvVersionId } })
-    
+
     // Crear experiencias basadas en el PDF
     await prisma.cvExperience.createMany({
         data: [
@@ -75,7 +75,7 @@ async function updateCv() {
 
     // Eliminar educación existente y crear nueva
     await prisma.cvEducation.deleteMany({ where: { cvVersionId } })
-    
+
     await prisma.cvEducation.createMany({
         data: [
             {
@@ -94,7 +94,7 @@ async function updateCv() {
 
     // Eliminar habilidades existentes y crear nuevas
     await prisma.cvSkillCategory.deleteMany({ where: { cvVersionId } })
-    
+
     await prisma.cvSkillCategory.createMany({
         data: [
             {
@@ -139,7 +139,7 @@ async function updateCv() {
 
     // Eliminar proyectos existentes y crear nuevos
     await prisma.cvProject.deleteMany({ where: { cvVersionId } })
-    
+
     await prisma.cvProject.createMany({
         data: [
             {
@@ -184,7 +184,7 @@ async function updateCv() {
 
     // Eliminar certificaciones existentes y crear nuevas
     await prisma.cvCertification.deleteMany({ where: { cvVersionId } })
-    
+
     await prisma.cvCertification.createMany({
         data: [
             {
@@ -225,7 +225,7 @@ async function updateCv() {
 
     // Eliminar idiomas existentes y crear nuevos
     await prisma.cvLanguage.deleteMany({ where: { cvVersionId } })
-    
+
     await prisma.cvLanguage.createMany({
         data: [
             {

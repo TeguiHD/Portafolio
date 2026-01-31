@@ -183,7 +183,7 @@ function calculateNextOccurrence(
     dayOfWeek?: number
 ): Date {
     const now = new Date();
-    let next = new Date(fromDate);
+    const next = new Date(fromDate);
     const freq = frequency.toLowerCase();
 
     while (next <= now) {

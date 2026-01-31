@@ -6,7 +6,6 @@ import { useToast } from "@/components/ui/Toast";
 import {
     Mail,
     Search,
-    Filter,
     Inbox,
     CheckCircle2,
     Archive,

@@ -24,7 +24,7 @@ export function TechnologiesManager() {
   };
 
   const filtered = useMemo(() => {
-    let result = techs.filter(
+    const result = techs.filter(
       (t) =>
         t.name.toLowerCase().includes(filter.toLowerCase()) &&
         (selectedCategory === "all" || t.category === selectedCategory)

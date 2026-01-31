@@ -59,7 +59,7 @@ function addResult(result: TestResult): void {
 
 async function testSecurityHeaders(): Promise<void> {
     log('\n🔒 Testing Security Headers...', colors.blue)
-    
+
     try {
         const response = await fetch(BASE_URL)
         const headers = response.headers
@@ -156,7 +156,7 @@ async function testSecurityHeaders(): Promise<void> {
 
 async function testSQLInjection(): Promise<void> {
     log('\n💉 Testing SQL Injection Protection...', colors.blue)
-    
+
     const payloads = [
         "' OR '1'='1",
         "1; DROP TABLE users--",
@@ -170,12 +170,12 @@ async function testSQLInjection(): Promise<void> {
         try {
             // Test via query parameter
             const response = await fetch(`${BASE_URL}/api/test?id=${encodeURIComponent(payload)}`)
-            
+
             // If server returns 500 with SQL error, it's vulnerable
             const text = await response.text()
-            const hasError = text.toLowerCase().includes('sql') || 
-                           text.toLowerCase().includes('syntax') ||
-                           text.toLowerCase().includes('query')
+            const hasError = text.toLowerCase().includes('sql') ||
+                text.toLowerCase().includes('syntax') ||
+                text.toLowerCase().includes('query')
 
             addResult({
                 name: `SQL Injection: ${payload.slice(0, 20)}...`,
@@ -194,7 +194,7 @@ async function testSQLInjection(): Promise<void> {
 
 async function testXSS(): Promise<void> {
     log('\n🕷️ Testing XSS Protection...', colors.blue)
-    
+
     const payloads = [
         '<script>alert("XSS")</script>',
         '<img src=x onerror=alert("XSS")>',
@@ -235,7 +235,7 @@ async function testXSS(): Promise<void> {
 
 async function testHoneypots(): Promise<void> {
     log('\n🍯 Testing Honeypot Detection...', colors.blue)
-    
+
     const honeypotPaths = [
         '/wp-admin',
         '/wp-login.php',
@@ -252,7 +252,7 @@ async function testHoneypots(): Promise<void> {
     for (const path of honeypotPaths) {
         try {
             const response = await fetch(`${BASE_URL}${path}`)
-            
+
             // Good: Server returns 403/404 or tracks the request
             addResult({
                 name: `Honeypot: ${path}`,
@@ -273,12 +273,12 @@ async function testHoneypots(): Promise<void> {
 
 async function testRateLimiting(): Promise<void> {
     log('\n⏱️ Testing Rate Limiting...', colors.blue)
-    
+
     const requests = 50
     const results429: number[] = []
-    
+
     const startTime = Date.now()
-    
+
     for (let i = 0; i < requests; i++) {
         try {
             const response = await fetch(`${BASE_URL}/api/auth/csrf`)
@@ -298,7 +298,7 @@ async function testRateLimiting(): Promise<void> {
         category: 'Rate Limit',
         passed: isRateLimited,
         severity: 'high',
-        details: isRateLimited 
+        details: isRateLimited
             ? `Rate limit activado después de ${results429[0]} requests`
             : `${requests} requests en ${duration}ms sin rate limit`,
         recommendation: 'Implementar rate limiting por IP y por usuario',
@@ -309,7 +309,7 @@ async function testRateLimiting(): Promise<void> {
 
 async function testAuthentication(): Promise<void> {
     log('\n🔐 Testing Authentication Security...', colors.blue)
-    
+
     // Test brute force protection
     const attempts = 10
     let blocked = false
@@ -339,8 +339,8 @@ async function testAuthentication(): Promise<void> {
         category: 'Auth',
         passed: blocked,
         severity: 'high',
-        details: blocked 
-            ? 'Protección activa' 
+        details: blocked
+            ? 'Protección activa'
             : `${attempts} intentos sin bloqueo`,
         recommendation: 'Bloquear después de 5-10 intentos fallidos',
     })
@@ -377,7 +377,7 @@ async function testAuthentication(): Promise<void> {
 
 async function testCookieSecurity(): Promise<void> {
     log('\n🍪 Testing Cookie Security...', colors.blue)
-    
+
     try {
         const response = await fetch(BASE_URL)
         const cookies = response.headers.get('set-cookie') || ''
@@ -424,7 +424,7 @@ async function testCookieSecurity(): Promise<void> {
 
 async function testInfoDisclosure(): Promise<void> {
     log('\n🔍 Testing Information Disclosure...', colors.blue)
-    
+
     try {
         const response = await fetch(BASE_URL)
         const headers = response.headers
@@ -451,7 +451,7 @@ async function testInfoDisclosure(): Promise<void> {
             recommendation: 'Remover X-Powered-By header',
         })
 
-    } catch (error) {
+    } catch (_error) {
         // Ignore
     }
 
@@ -479,7 +479,7 @@ async function testInfoDisclosure(): Promise<void> {
 
 async function testCORS(): Promise<void> {
     log('\n🌐 Testing CORS Configuration...', colors.blue)
-    
+
     try {
         const response = await fetch(`${BASE_URL}/api/test`, {
             method: 'OPTIONS',
@@ -490,7 +490,7 @@ async function testCORS(): Promise<void> {
         })
 
         const acao = response.headers.get('access-control-allow-origin')
-        
+
         addResult({
             name: 'CORS Origin Restriction',
             category: 'CORS',
@@ -516,7 +516,7 @@ async function testCORS(): Promise<void> {
 
 async function testFileUpload(): Promise<void> {
     log('\n📁 Testing File Upload Security...', colors.blue)
-    
+
     // These tests only log recommendations since they require actual upload endpoints
     addResult({
         name: 'File Type Validation',
@@ -564,7 +564,7 @@ function generateReport(): void {
 
     // Group by category
     const categories = [...new Set(results.map(r => r.category))]
-    
+
     log('\n📋 Results by Category:')
     for (const category of categories) {
         const catResults = results.filter(r => r.category === category)

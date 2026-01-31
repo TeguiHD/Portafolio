@@ -164,7 +164,7 @@ Genera una cotización profesional para este proyecto.`;
         let parsed;
         try {
             // Clean potential markdown code blocks
-            let cleanContent = content
+            const cleanContent = content
                 .replace(/```json\s*/gi, "")
                 .replace(/```\s*/gi, "")
                 .replace(/<think>[\s\S]*?<\/think>/gi, "")

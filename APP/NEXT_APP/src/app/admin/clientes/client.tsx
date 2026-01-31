@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getClientsWithSearchAction, deleteClientAction } from "../../../modules/admin/clients/actions";
 import { Search, Trash2, User, Key, Plus, FileText, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
@@ -9,23 +9,34 @@ import ClientSecurityManager from "./security-manager";
 import ContactInfoModal from "./contact-info-modal";
 import CreateClientModal from "../cotizaciones/components/CreateClientModal";
 
+interface Client {
+    id: string;
+    name: string;
+    slug: string;
+    email?: string | null;
+    contactName?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    _count?: { quotations: number };
+}
+
 export default function ClientsPageClient() {
-    const [clients, setClients] = useState<any[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
-    const fetchClients = async (silent = false) => {
+    const fetchClients = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         const data = await getClientsWithSearchAction(search);
-        setClients(data);
+        setClients(data as Client[]);
         setLoading(false);
-    };
+    }, [search]);
 
     useEffect(() => {
         const timeout = setTimeout(() => fetchClients(), 300);
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [fetchClients]);
 
     const handleDelete = async (id: string) => {
         if (!confirm("¿Estás seguro de que deseas eliminar este cliente?")) return;
@@ -99,7 +110,7 @@ export default function ClientsPageClient() {
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="flex items-center gap-2"><Key size={14} /> Cotizaciones:</span>
-                                    <span className="bg-slate-800 px-2 py-0.5 rounded text-white text-xs">{client._count.quotations}</span>
+                                    <span className="bg-slate-800 px-2 py-0.5 rounded text-white text-xs">{client._count?.quotations ?? 0}</span>
                                 </div>
 
                                 {client.contactName && (
