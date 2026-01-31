@@ -70,7 +70,7 @@ export default function GoalsPageClient() {
             body: JSON.stringify({ amount }),
         });
         if (!res.ok) throw new Error("Error al contribuir");
-        const { data, meta: contributeMeta } = await res.json();
+        const { data: _data, meta: contributeMeta } = await res.json();
 
         // Show celebration if milestone reached
         if (contributeMeta?.achievedMilestones?.length > 0) {
@@ -124,7 +124,7 @@ export default function GoalsPageClient() {
     return (
         <div className="space-y-6">
             <FinanceBreadcrumbs />
-            
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>

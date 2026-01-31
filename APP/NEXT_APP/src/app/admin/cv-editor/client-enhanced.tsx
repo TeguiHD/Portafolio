@@ -224,7 +224,7 @@ export default function CvEditorPageClientEnhanced() {
         setActiveTab("projects");
     }, []);
 
-    const handleAddEducation = useCallback((edu: Education) => {
+    const _handleAddEducation = useCallback((edu: Education) => {
         setData((prev) => ({
             ...prev,
             education: [...prev.education, edu],
@@ -232,7 +232,7 @@ export default function CvEditorPageClientEnhanced() {
         setHasUnsavedChanges(true);
     }, []);
 
-    const handleAddSkillCategory = useCallback((category: SkillCategory) => {
+    const _handleAddSkillCategory = useCallback((category: SkillCategory) => {
         setData((prev) => ({
             ...prev,
             skills: [...prev.skills, category],
@@ -240,7 +240,7 @@ export default function CvEditorPageClientEnhanced() {
         setHasUnsavedChanges(true);
     }, []);
 
-    const handleAddCertification = useCallback((cert: Certification) => {
+    const _handleAddCertification = useCallback((cert: Certification) => {
         setData((prev) => ({
             ...prev,
             certifications: [...prev.certifications, cert],
@@ -248,7 +248,7 @@ export default function CvEditorPageClientEnhanced() {
         setHasUnsavedChanges(true);
     }, []);
 
-    const handleAddLanguage = useCallback((lang: Language) => {
+    const _handleAddLanguage = useCallback((lang: Language) => {
         setData((prev) => ({
             ...prev,
             languages: [...prev.languages, lang],
