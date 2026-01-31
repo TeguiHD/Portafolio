@@ -6,8 +6,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { verifyMFA, useRecoveryCode } from '@/lib/mfa'
 import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
@@ -45,7 +43,7 @@ function checkRateLimit(userId: string): { allowed: boolean; remainingAttempts: 
     return { allowed: true, remainingAttempts: MAX_ATTEMPTS - attempts.count }
 }
 
-function resetRateLimit(userId: string): void {
+function _resetRateLimit(userId: string): void {
     mfaAttempts.delete(userId)
 }
 

@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { initializeMFASetup, verifyMFA, encryptMFASecret, decryptMFASecret, generateTOTP } from '@/lib/mfa'
+import { initializeMFASetup } from '@/lib/mfa'
 import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
@@ -18,7 +18,7 @@ const getClientIP = (request: NextRequest): string => {
 }
 
 // GET - Check MFA status
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
         const session = await auth()
 

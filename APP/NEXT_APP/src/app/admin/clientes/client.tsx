@@ -13,10 +13,10 @@ interface Client {
     id: string;
     name: string;
     slug: string;
-    email?: string | null;
-    contactName?: string | null;
-    contactEmail?: string | null;
-    contactPhone?: string | null;
+    email?: string;
+    contactName?: string;
+    contactEmail?: string;
+    contactPhone?: string;
     _count?: { quotations: number };
 }
 

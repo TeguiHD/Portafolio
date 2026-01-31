@@ -29,7 +29,7 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
     // Reset form when opening
     // useEffect(() => { ... }, [isOpen]); // Optional, depends on UX preference
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const _handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!formData.name.trim()) {
@@ -40,7 +40,7 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
         startTransition(async () => {
             try {
                 // Use the server action directly
-                const res = await createClientAction({
+                const _res = await createClientAction({
                     name: formData.name,
                     company: formData.company,
                     contactName: formData.representative,

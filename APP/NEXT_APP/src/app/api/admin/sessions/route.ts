@@ -8,11 +8,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog, AuditActions } from "@/lib/audit";
-import {
-    getBrowserFromUserAgent,
-    getDeviceFromUserAgent,
-    getOSFromUserAgent
-} from "@/lib/session-manager";
 
 export const dynamic = "force-dynamic";
 

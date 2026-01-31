@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasPermission, getUserPermissionsForUI, grantPermission, revokePermission, resetPermission, invalidatePermissionCache } from "@/lib/permission-check";
+import { hasPermission, getUserPermissionsForUI, grantPermission, revokePermission, resetPermission } from "@/lib/permission-check";
 import { createAuditLog, AuditActions } from "@/lib/audit";
 
 // GET - Get user's permissions
