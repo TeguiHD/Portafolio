@@ -30,10 +30,10 @@ interface Props {
 
 const ITEMS_PER_PAGE = 9;
 
-export default function QuotationsListClient({ quotations, clientId, clientName, clientSlug, baseUrl }: Props) {
+export default function QuotationsListClient({ quotations, clientId: _clientId, clientName: _clientName, clientSlug, baseUrl }: Props) {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const router = useRouter();
+    const _router = useRouter();
 
     // Filter
     const filtered = quotations.filter(q =>

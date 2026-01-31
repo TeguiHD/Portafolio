@@ -13,7 +13,7 @@ interface Props {
     expiresAt: Date | null;
 }
 
-export default function AccessControlModal({ isOpen, onClose, quotationId, currentMode, expiresAt }: Props) {
+export default function AccessControlModal({ isOpen, onClose, quotationId, currentMode, expiresAt: _expiresAt }: Props) {
     const [mode, setMode] = useState<"public" | "code">(currentMode);
     const [duration, setDuration] = useState<string>("15d");
     const [isPending, startTransition] = useTransition();

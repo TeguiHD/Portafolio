@@ -20,7 +20,7 @@ export default function QuotationWorkspace({ initialData, clientId, clientName, 
     const [draft, setDraft] = useState<QuotationData>(initialData);
     const [viewMode, setViewMode] = useState<"visual" | "code">("visual");
     const [showAi, setShowAi] = useState(false);
-    const [showPreview, setShowPreview] = useState(true); // For mobile/tablet toggling
+    const [showPreview, _setShowPreview] = useState(true); // For mobile/tablet toggling
     const [isFinalizing, setIsFinalizing] = useState(false);
 
     // Update draft wrapper to maintain QuotationDraft compatibility

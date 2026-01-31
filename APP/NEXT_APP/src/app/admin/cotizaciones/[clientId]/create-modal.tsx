@@ -12,7 +12,7 @@ interface Props {
     initialProjectName?: string;
 }
 
-export default function CreateQuotationModal({ clientId, clientSlug, clientName, autoOpen = false, initialProjectName }: Props) {
+export default function CreateQuotationModal({ clientId, clientSlug, clientName, autoOpen = false, initialProjectName: _initialProjectName }: Props) {
     const [isOpen, setIsOpen] = useState(autoOpen);
 
     const handleClose = () => {

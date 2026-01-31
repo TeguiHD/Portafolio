@@ -294,7 +294,7 @@ export default function ContactPageClient() {
                     ) : (
                         <div className="divide-y divide-white/5">
                             {messages.map((msg) => {
-                                const StatusIcon = STATUS_CONFIG[msg.status].icon;
+                                const _StatusIcon = STATUS_CONFIG[msg.status].icon;
                                 const isSelected = selectedMessage?.id === msg.id;
 
                                 return (
