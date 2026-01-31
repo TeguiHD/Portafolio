@@ -196,6 +196,7 @@ const BLOCKED_URL_PATTERNS = [
     /<script/i,               // XSS in URL
     /javascript:/i,           // JavaScript protocol
     /data:text\/html/i,       // Data URL XSS
+    // eslint-disable-next-line no-control-regex
     /\x00/,                   // Null byte injection
     /union.*select/i,         // SQL injection
     /exec\s*\(/i,             // Command injection

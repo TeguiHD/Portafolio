@@ -57,7 +57,7 @@ export async function createQuotationAction(formData: FormData) {
 
     try {
         // Get client
-        const client = await (prisma as any).quotationClient.findUnique({
+        const client = await prisma.quotationClient.findUnique({
             where: { id: clientId }
         });
 
@@ -71,7 +71,7 @@ export async function createQuotationAction(formData: FormData) {
 
         // Generate unique slug
         let slug = slugify(projectName);
-        const existingSlug = await (prisma as any).quotation.findFirst({
+        const existingSlug = await prisma.quotation.findFirst({
             where: { clientId, slug }
         });
         if (existingSlug) {
@@ -90,7 +90,7 @@ export async function createQuotationAction(formData: FormData) {
         }
 
         // Create quotation
-        await (prisma as any).quotation.create({
+        await prisma.quotation.create({
             data: {
                 folio,
                 slug,
@@ -147,7 +147,7 @@ export async function updateQuotationAccessAction(
             codeExpiresAt = calculateExpiration(duration || "15d");
         }
 
-        await (prisma as any).quotation.update({
+        await prisma.quotation.update({
             where: { id: quotationId },
             data: {
                 accessMode: mode,
@@ -179,7 +179,7 @@ export async function toggleVisibilityAction(
 
     try {
         // Verify ownership (unless superadmin)
-        const quotation = await (prisma as any).quotation.findUnique({
+        const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
             include: { client: true }
         });
@@ -194,7 +194,7 @@ export async function toggleVisibilityAction(
             return { success: false, error: "No autorizado" };
         }
 
-        await (prisma as any).quotation.update({
+        await prisma.quotation.update({
             where: { id: quotationId },
             data: { isVisible }
         });

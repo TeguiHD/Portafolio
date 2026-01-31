@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sanitizeQuotationHTML } from "@/lib/quotation-sanitizer";
+import { sanitizeQuotationHtml } from "@/lib/quotation-sanitizer";
 
 export const dynamic = "force-dynamic";
 
@@ -75,10 +75,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Sanitize HTML content
-        const { sanitized: safeHtml } = sanitizeQuotationHTML(htmlContent);
+        const safeHtml = sanitizeQuotationHtml(htmlContent);
 
         // Generate unique slug
-        let baseSlug = generateSlug(projectName);
+        const baseSlug = generateSlug(projectName);
         let slug = baseSlug;
         let counter = 1;
 

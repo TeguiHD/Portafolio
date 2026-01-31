@@ -16,7 +16,7 @@ export function sanitizeQuotationHtml(html: string): string {
             FORBID_TAGS: [],
             FORBID_ATTR: ["on*"],
         });
-    } catch (error) {
+    } catch {
         // Fallback: Regex-based sanitization (if JSDOM is missing/fails)
         console.warn("JSDOM not found, using regex sanitization fallback");
 
