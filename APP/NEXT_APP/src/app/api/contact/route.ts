@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 8. Create message in database
-        const contactMessage = await prisma.contactMessage.create({
+        const _contactMessage = await prisma.contactMessage.create({
             data: {
                 email: sanitizedEmail,
                 name: sanitizedName,

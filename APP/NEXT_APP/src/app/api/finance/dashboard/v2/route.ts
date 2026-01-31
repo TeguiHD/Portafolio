@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
         const userId = session.user.id;
         const { searchParams } = new URL(request.url);
-        const currency = searchParams.get("currency") || "CLP";
+        const _currency = searchParams.get("currency") || "CLP";
 
         const now = new Date();
         const monthStart = startOfMonth(now);
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
         // Get accounts for balance calculation
         const accounts = await prisma.financeAccount.findMany({
-            where: { 
+            where: {
                 userId,
                 isActive: true,
             },
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
         const dayOfMonth = now.getDate();
         const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
         const expectedSpendingToDate = (totalBudget / daysInMonth) * dayOfMonth;
-        
+
         let monthStatus: "under" | "on-track" | "over" = "under";
         if (thisMonthExpenses > expectedSpendingToDate * 1.1) {
             monthStatus = "over";
@@ -206,13 +206,13 @@ export async function GET(request: NextRequest) {
         const netThisMonth = thisMonthIncome - thisMonthExpenses;
         const netLastMonth = lastMonthIncome - lastMonthExpenses;
         const balanceChange = netThisMonth - netLastMonth;
-        const balanceChangePercent = netLastMonth !== 0 
-            ? ((netThisMonth - netLastMonth) / Math.abs(netLastMonth)) * 100 
+        const balanceChangePercent = netLastMonth !== 0
+            ? ((netThisMonth - netLastMonth) / Math.abs(netLastMonth)) * 100
             : 0;
 
         // Category spending
         const categorySpending = new Map<string, { amount: number; name: string; lastMonth: number }>();
-        
+
         for (const tx of thisMonthTransactions.filter(t => t.type === "EXPENSE")) {
             const catName = tx.category?.name || "Otros";
             const current = categorySpending.get(catName) || { amount: 0, name: catName, lastMonth: 0 };
@@ -231,7 +231,7 @@ export async function GET(request: NextRequest) {
 
         const topCategories = Array.from(categorySpending.entries())
             .map(([id, data]) => {
-                const change = data.lastMonth > 0 
+                const change = data.lastMonth > 0
                     ? Math.round(((data.amount - data.lastMonth) / data.lastMonth) * 100)
                     : 0;
                 const nameLower = data.name.toLowerCase();
@@ -421,8 +421,8 @@ function generateSmartAlerts(input: AlertGeneratorInput) {
         dismissable: boolean;
     }> = [];
 
-    const budgetUsedPercent = input.totalBudget > 0 
-        ? (input.thisMonthExpenses / input.totalBudget) * 100 
+    const budgetUsedPercent = input.totalBudget > 0
+        ? (input.thisMonthExpenses / input.totalBudget) * 100
         : 0;
 
     const dayProgressPercent = (input.dayOfMonth / input.daysInMonth) * 100;
@@ -474,7 +474,7 @@ function generateSmartAlerts(input: AlertGeneratorInput) {
     // Low balance warning
     const avgDailySpending = input.thisMonthExpenses / input.dayOfMonth;
     const daysOfFundsLeft = avgDailySpending > 0 ? input.totalBalance / avgDailySpending : 999;
-    
+
     if (daysOfFundsLeft < 7 && daysOfFundsLeft > 0) {
         alerts.push({
             id: "low-balance",
@@ -511,10 +511,10 @@ function generateInsights(input: InsightGeneratorInput) {
     const smallExpenses = input.thisMonthTransactions.filter(
         t => t.type === "EXPENSE" && t.amount < 10000 // Less than 10,000 CLP
     );
-    
+
     const smallExpenseTotal = smallExpenses.reduce((sum: number, t: any) => sum + t.amount, 0);
-    const smallExpensePercent = input.thisMonthExpenses > 0 
-        ? (smallExpenseTotal / input.thisMonthExpenses) * 100 
+    const smallExpensePercent = input.thisMonthExpenses > 0
+        ? (smallExpenseTotal / input.thisMonthExpenses) * 100
         : 0;
 
     if (smallExpensePercent > 20 && smallExpenses.length > 10) {
@@ -562,10 +562,10 @@ function generateInsights(input: InsightGeneratorInput) {
         const day = new Date(t.transactionDate).getDay();
         return t.type === "EXPENSE" && (day === 0 || day === 6);
     });
-    
+
     const weekendTotal = weekendExpenses.reduce((sum: number, t: any) => sum + t.amount, 0);
-    const weekendPercent = input.thisMonthExpenses > 0 
-        ? (weekendTotal / input.thisMonthExpenses) * 100 
+    const weekendPercent = input.thisMonthExpenses > 0
+        ? (weekendTotal / input.thisMonthExpenses) * 100
         : 0;
 
     if (weekendPercent > 40) {
@@ -580,9 +580,9 @@ function generateInsights(input: InsightGeneratorInput) {
 
     // Check for subscription-like recurring expenses
     const subscriptionKeywords = ["netflix", "spotify", "disney", "hbo", "amazon", "apple", "google", "microsoft", "icloud", "youtube"];
-    
-    const subscriptionExpenses = input.thisMonthTransactions.filter((t: any) => 
-        t.type === "EXPENSE" && 
+
+    const subscriptionExpenses = input.thisMonthTransactions.filter((t: any) =>
+        t.type === "EXPENSE" &&
         t.description &&
         subscriptionKeywords.some(kw => t.description.toLowerCase().includes(kw))
     );

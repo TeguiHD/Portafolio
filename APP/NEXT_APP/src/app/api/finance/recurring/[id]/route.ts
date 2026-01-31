@@ -176,7 +176,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         if (action === "mark_paid") {
             // Determine type from category or default to EXPENSE
             const transactionType = existing.category?.type || "EXPENSE";
-            
+
             // Get account ID - use existing or find default account
             let accountId = existing.accountId;
             if (!accountId) {
@@ -189,7 +189,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 }
                 accountId = defaultAccount.id;
             }
-            
+
             // Create the transaction
             transaction = await prisma.transaction.create({
                 data: {
@@ -285,7 +285,7 @@ function calculateNextDueDate(
     currentDate: Date,
     frequency: string,
     dayOfMonth?: number,
-    dayOfWeek?: number
+    _dayOfWeek?: number
 ): Date {
     const next = new Date(currentDate);
     const freq = frequency.toUpperCase();

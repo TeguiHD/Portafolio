@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role, BudgetPeriod } from "@prisma/client";
+import type { Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 

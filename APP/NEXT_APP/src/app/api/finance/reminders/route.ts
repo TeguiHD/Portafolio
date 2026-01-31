@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -72,8 +72,8 @@ export async function GET() {
 
         // Budget warnings
         for (const budget of budgets) {
-            const percentUsed = toNumber(budget.amount) > 0 
-                ? (toNumber(budget.currentSpent) / toNumber(budget.amount)) * 100 
+            const percentUsed = toNumber(budget.amount) > 0
+                ? (toNumber(budget.currentSpent) / toNumber(budget.amount)) * 100
                 : 0;
 
             if (percentUsed >= 90 && percentUsed < 100) {
@@ -101,8 +101,8 @@ export async function GET() {
 
         // Goal updates
         for (const goal of goals) {
-            const progress = toNumber(goal.targetAmount) > 0 
-                ? (toNumber(goal.currentAmount) / toNumber(goal.targetAmount)) * 100 
+            const progress = toNumber(goal.targetAmount) > 0
+                ? (toNumber(goal.currentAmount) / toNumber(goal.targetAmount)) * 100
                 : 0;
 
             // Milestone reached
@@ -123,7 +123,7 @@ export async function GET() {
                 const daysToDeadline = Math.ceil(
                     (new Date(goal.deadline).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
                 );
-                
+
                 if (daysToDeadline > 0 && daysToDeadline <= 7 && progress < 100) {
                     reminders.push({
                         id: `goal-deadline-${goal.id}`,

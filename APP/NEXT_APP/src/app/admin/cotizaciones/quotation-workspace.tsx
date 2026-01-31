@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Layout, Code, Eye, X, MessageSquare, ChevronRight, ChevronLeft } from "lucide-react";
+import { Sparkles, Code, Eye, X, MessageSquare, ChevronRight } from "lucide-react";
 import { QuotationData } from "../../../modules/quotations/types";
 import QuotationForm from "./components/quotation-form";
 import QuotationPreview from "./components/quotation-preview";

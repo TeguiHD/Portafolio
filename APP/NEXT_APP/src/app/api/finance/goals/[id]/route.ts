@@ -156,7 +156,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         }
 
         const body = await request.json();
-        const { amount, note } = contributeSchema.parse(body);
+        const { amount, note: _note } = contributeSchema.parse(body);
 
         // Verify goal belongs to user
         const existing = await prisma.savingsGoal.findFirst({

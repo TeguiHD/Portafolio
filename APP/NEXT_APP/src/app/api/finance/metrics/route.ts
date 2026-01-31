@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         }
 
         const searchParams = request.nextUrl.searchParams;
-        const currency = searchParams.get("currency") || "CLP";
+        const _currency = searchParams.get("currency") || "CLP";
 
         const userId = session.user.id;
         const now = new Date();
@@ -116,21 +116,21 @@ export async function GET(request: NextRequest) {
             .reduce((sum, t) => sum + toNumber(t.amount), 0);
 
         // Calculate savings rate
-        const savingsRate = monthlyIncome > 0 
-            ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 
+        const savingsRate = monthlyIncome > 0
+            ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100
             : 0;
 
         // Calculate streaks
         const loggedDays = transactionDays.length;
-        
+
         // Budget streak (days under budget)
         const totalBudget = budgets.reduce((sum, b) => sum + toNumber(b.amount), 0);
         const totalSpent = budgets.reduce((sum, b) => sum + toNumber(b.currentSpent), 0);
         const budgetStreak = totalBudget > 0 && totalSpent <= totalBudget ? now.getDate() : 0;
 
         // Month comparison
-        const vsLastMonth = lastMonthExpenses > 0 
-            ? ((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 
+        const vsLastMonth = lastMonthExpenses > 0
+            ? ((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100
             : 0;
 
         // Category trends (simplified - would need more historical data for accuracy)
@@ -199,10 +199,10 @@ export async function GET(request: NextRequest) {
 
         healthScore = Math.max(0, Math.min(100, healthScore));
 
-        const healthStatus = 
+        const healthStatus =
             healthScore >= 80 ? "excellent" :
-            healthScore >= 60 ? "good" :
-            healthScore >= 40 ? "fair" : "poor";
+                healthScore >= 60 ? "good" :
+                    healthScore >= 40 ? "fair" : "poor";
 
         const metrics = {
             savingsRate: Math.max(0, savingsRate),

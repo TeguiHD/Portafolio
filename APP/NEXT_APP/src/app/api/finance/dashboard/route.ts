@@ -6,7 +6,6 @@ import { convertCurrency, type SupportedCurrency } from "@/services/exchange-rat
 import { formatCurrency } from "@/lib/currency";
 import type { FinanceDashboardData, DashboardSummary, CategorySummary, RecentTransaction, BudgetStatus, FinanceAlert } from "@/modules/finance/types";
 import type { Role } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +64,7 @@ export async function GET(request: Request) {
             accounts,
             transactions,
             budgets,
-            categories,
+            _categories,
             previousMonthTransactions,
         ] = await Promise.all([
             // Active accounts

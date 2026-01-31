@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-    CV_FIELD_LIMITS,
-    CV_ARRAY_LIMITS,
-    sanitizeCvField,
-    sanitizeCvStringArray,
-    devLog,
-} from "@/lib/security";
+import { devLog } from "@/lib/security";
 
 // Helper to transform DB data to frontend format
 function transformCvVersion(version: any) {

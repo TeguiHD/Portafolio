@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 
         const searchParams = request.nextUrl.searchParams;
         const personalized = searchParams.get("personalized") === "true";
-        const currency = searchParams.get("currency") || "CLP";
+        const _currency = searchParams.get("currency") || "CLP";
 
         const userId = session.user.id;
         const tips: Tip[] = [...defaultTips];
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
             // High spending category tip
             const topCategory = Object.entries(categorySpending)
                 .sort(([, a], [, b]) => b - a)[0];
-            
+
             if (topCategory && topCategory[1] > totalExpenses * 0.3) {
                 tips.unshift({
                     id: "personal-category",

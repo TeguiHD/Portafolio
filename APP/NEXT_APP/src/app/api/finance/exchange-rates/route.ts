@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/finance/exchange-rates/refresh - Force refresh rates
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Search, User, ArrowRight, X, Code, Globe, Lock, Loader2, Copy, Check, ExternalLink, Sparkles, Layout } from "lucide-react";
+import { Plus, Search, ArrowRight, X, Code, Globe, Lock, Loader2, Copy, Check, ExternalLink, Sparkles, Layout } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createInitialQuotationData, QuotationData } from "../../../../modules/quotations/types";
 import QuotationWorkspace from "../quotation-workspace";

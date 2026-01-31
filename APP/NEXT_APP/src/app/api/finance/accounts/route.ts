@@ -20,7 +20,7 @@ const createAccountSchema = z.object({
 });
 
 // GET - List user accounts
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {

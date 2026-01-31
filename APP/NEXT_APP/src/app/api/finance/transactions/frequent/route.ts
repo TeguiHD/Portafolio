@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 
 // GET /api/finance/transactions/frequent
 // Returns frequently used transactions for quick-add feature
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
         const session = await auth();
 

@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { v4 as uuidv4 } from "uuid";
 import { useToast } from "@/components/ui/Toast";
 import { CvEditorPageSkeleton } from "@/components/ui/Skeleton";
 import { ExperienceSection, type Experience } from "@/modules/cv/components/ExperienceSection";
-import { EducationSection, type Education } from "@/modules/cv/components/EducationSection";
+import { EducationSection } from "@/modules/cv/components/EducationSection";
 import { ProjectsSection, type Project } from "@/modules/cv/components/ProjectsSection";
-import { SkillsSection, type SkillCategory } from "@/modules/cv/components/SkillsSection";
+import { SkillsSection } from "@/modules/cv/components/SkillsSection";
 import { LatexPreview } from "@/modules/cv/components/LatexPreview";
 import { FloatingCvChat } from "@/modules/cv/components/CvAIChat";
 import { generateLatex, type CvData } from "@/modules/cv/utils/latex-templates";

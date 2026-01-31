@@ -180,7 +180,7 @@ function calculateNextOccurrence(
     fromDate: Date,
     frequency: string,
     dayOfMonth?: number,
-    dayOfWeek?: number
+    _dayOfWeek?: number
 ): Date {
     const now = new Date();
     const next = new Date(fromDate);

@@ -1,7 +1,7 @@
 "use client";
 
 import { QuotationData, ProviderCostItem, ProfessionalFeeItem } from "../../../../modules/quotations/types";
-import { Plus, Trash2, Calendar, GripVertical } from "lucide-react";
+import { Plus, Trash2, GripVertical } from "lucide-react";
 
 interface Props {
     data: QuotationData;

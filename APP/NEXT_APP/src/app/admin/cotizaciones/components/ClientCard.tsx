@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, Phone, FileText, Eye, ChevronRight } from "lucide-react";
+import { FileText, Eye, ChevronRight } from "lucide-react";
 import ContactInfoModal from "../../clientes/contact-info-modal";
 
 interface Client {

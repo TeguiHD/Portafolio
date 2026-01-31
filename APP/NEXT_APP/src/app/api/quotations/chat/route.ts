@@ -330,7 +330,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Security: Sanitize user input
-        const { blocked, sanitized, reason } = sanitizeInput(lastMessage.content);
+        const { blocked, sanitized: _sanitized, reason } = sanitizeInput(lastMessage.content);
 
         if (blocked) {
             if (reason === "prompt_injection") {

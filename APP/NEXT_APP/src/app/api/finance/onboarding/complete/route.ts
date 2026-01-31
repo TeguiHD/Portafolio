@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 
 // POST /api/finance/onboarding/complete
 // Mark finance onboarding as complete and create default categories
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
     try {
         const session = await auth();
 

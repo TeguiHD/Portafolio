@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Code, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import QuotationCard from "./quotation-card";
 import { useRouter } from "next/navigation";
 

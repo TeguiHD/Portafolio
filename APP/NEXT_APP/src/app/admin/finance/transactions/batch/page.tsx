@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useFinance } from "@/modules/finance/context/FinanceContext";
 import type { OCRData } from "@/modules/finance/components/OCRResultDisplay";
 
@@ -40,7 +40,7 @@ interface Category {
 }
 
 export default function BatchTransactionsPage() {
-    const { baseCurrency, triggerRefresh } = useFinance();
+    const { triggerRefresh } = useFinance();
     const [transactions, setTransactions] = useState<BatchTransaction[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -115,7 +115,7 @@ export default function BatchTransactionsPage() {
     // Build notes from OCR data
     function buildNotes(ocrData: OCRData): string {
         const parts: string[] = [];
-        
+
         if (ocrData.documentType && ocrData.documentType !== "unknown") {
             const typeLabels: Record<string, string> = {
                 boleta: "Boleta Electrónica",
@@ -124,11 +124,11 @@ export default function BatchTransactionsPage() {
             };
             parts.push(`📄 ${typeLabels[ocrData.documentType] || ocrData.documentType}`);
         }
-        
+
         if (ocrData.documentNumber?.value) {
             parts.push(`Folio: ${ocrData.documentNumber.value}`);
         }
-        
+
         if (ocrData.merchant?.value?.rut) {
             parts.push(`RUT: ${ocrData.merchant.value.rut}`);
         }
@@ -146,7 +146,7 @@ export default function BatchTransactionsPage() {
 
     // Update a transaction
     const updateTransaction = useCallback((id: string, updates: Partial<BatchTransaction>) => {
-        setTransactions(prev => prev.map(t => 
+        setTransactions(prev => prev.map(t =>
             t.id === id ? { ...t, ...updates } : t
         ));
     }, []);
@@ -187,9 +187,9 @@ export default function BatchTransactionsPage() {
             updateTransaction(transaction.id, { status: "saved" });
             return true;
         } catch (err) {
-            updateTransaction(transaction.id, { 
-                status: "error", 
-                error: err instanceof Error ? err.message : "Error desconocido" 
+            updateTransaction(transaction.id, {
+                status: "error",
+                error: err instanceof Error ? err.message : "Error desconocido"
             });
             return false;
         }
@@ -198,9 +198,9 @@ export default function BatchTransactionsPage() {
     // Save all pending transactions
     const saveAll = useCallback(async () => {
         setIsSaving(true);
-        
+
         const pendingTransactions = transactions.filter(t => t.status === "pending");
-        
+
         for (const transaction of pendingTransactions) {
             await saveTransaction(transaction);
         }
@@ -260,7 +260,7 @@ export default function BatchTransactionsPage() {
                     <div>
                         <h1 className="text-2xl font-bold text-white">Registrar Transacciones</h1>
                         <p className="text-neutral-400 text-sm">
-                            {stats.total} boleta{stats.total !== 1 ? "s" : ""} escaneada{stats.total !== 1 ? "s" : ""} • 
+                            {stats.total} boleta{stats.total !== 1 ? "s" : ""} escaneada{stats.total !== 1 ? "s" : ""} •
                             Total: ${stats.totalAmount.toLocaleString("es-CL")}
                         </p>
                     </div>
@@ -302,11 +302,10 @@ export default function BatchTransactionsPage() {
                             key={transaction.id}
                             layout
                             onClick={() => setSelectedId(transaction.id)}
-                            className={`relative bg-neutral-900/50 rounded-xl border p-4 cursor-pointer transition-all ${
-                                selectedId === transaction.id
+                            className={`relative bg-neutral-900/50 rounded-xl border p-4 cursor-pointer transition-all ${selectedId === transaction.id
                                     ? "border-purple-500 ring-2 ring-purple-500/20"
                                     : "border-neutral-800 hover:border-neutral-700"
-                            }`}
+                                }`}
                         >
                             <div className="flex items-start gap-3">
                                 {/* Thumbnail */}
@@ -529,7 +528,7 @@ export default function BatchTransactionsPage() {
             <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-neutral-950/90 backdrop-blur-sm border-t border-neutral-800 p-4">
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <div className="text-sm text-neutral-400">
-                        {stats.saved} de {stats.total} guardadas • 
+                        {stats.saved} de {stats.total} guardadas •
                         Total: <span className="text-white font-medium">${stats.totalAmount.toLocaleString("es-CL")}</span>
                     </div>
                     <div className="flex items-center gap-3">
