@@ -68,7 +68,7 @@ function LoginForm() {
             setTimeout(() => {
                 window.location.href = callbackUrl;
             }, 500);
-        } catch (_err) {
+        } catch {
             toast.error("Error", "No se pudo iniciar sesión");
             setLoading(false);
         }

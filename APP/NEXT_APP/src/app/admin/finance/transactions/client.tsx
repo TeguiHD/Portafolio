@@ -2,32 +2,54 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TransactionList, TransactionForm } from "@/modules/finance";
+import { TransactionList, TransactionForm, type TransactionListItem } from "@/modules/finance";
 import { useFinance } from "@/modules/finance/context/FinanceContext";
 import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+
+// Note: Extended transaction type handled in TransactionList via props
+
+// Form data type matching TransactionForm's Partial<TransactionFormData> & { id?: string }
+interface TransactionFormData {
+    id?: string;
+    type?: "INCOME" | "EXPENSE";
+    amount?: string;         // String as expected by TransactionForm
+    displayAmount?: string;  // For display formatting
+    description?: string;
+    merchant?: string;
+    notes?: string;
+    categoryId?: string;
+    accountId?: string;
+    currencyId?: string;
+    transactionDate?: string;
+}
 
 export default function TransactionsPageClient() {
     const { triggerRefresh } = useFinance();
     const [showForm, setShowForm] = useState(false);
-    const [editingTransaction, setEditingTransaction] = useState<any>(null);
+    const [editingTransaction, setEditingTransaction] = useState<TransactionFormData | undefined>(undefined);
 
     const handleSuccess = () => {
         setShowForm(false);
-        setEditingTransaction(null);
+        setEditingTransaction(undefined);
         triggerRefresh();
     };
 
-    const handleEdit = (transaction: any) => {
+    const handleEdit = (transaction: TransactionListItem) => {
+        // Map transaction to form data format
+        const transactionType = transaction.type === "TRANSFER" ? "EXPENSE" : transaction.type;
+        const amountStr = String(Number(transaction.amount));
+
         setEditingTransaction({
             id: transaction.id,
-            type: transaction.type,
-            amount: String(transaction.amount),
+            type: transactionType,
+            amount: amountStr,
+            displayAmount: amountStr,
             description: transaction.description || "",
             merchant: transaction.merchant || "",
-            notes: transaction.notes || "",
+            notes: "",
             categoryId: transaction.category?.id || "",
             accountId: transaction.account.id,
-            currencyId: transaction.currency.id,
+            currencyId: transaction.currency.code,
             transactionDate: new Date(transaction.transactionDate).toISOString().split("T")[0],
         });
         setShowForm(true);
@@ -35,13 +57,13 @@ export default function TransactionsPageClient() {
 
     const handleCancel = () => {
         setShowForm(false);
-        setEditingTransaction(null);
+        setEditingTransaction(undefined);
     };
 
     return (
         <div className="space-y-6">
             <FinanceBreadcrumbs />
-            
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -67,7 +89,7 @@ export default function TransactionsPageClient() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
                     onClick={() => {
-                        setEditingTransaction(null);
+                        setEditingTransaction(undefined);
                         setShowForm(true);
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-accent-1 hover:bg-accent-1/90 text-white rounded-xl transition-colors"

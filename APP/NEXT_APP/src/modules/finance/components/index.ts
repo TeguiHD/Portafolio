@@ -14,22 +14,22 @@ export { BudgetOverview } from "./BudgetOverview";
 
 // Transaction Components
 export { TransactionForm } from "./TransactionForm";
-export { TransactionList } from "./TransactionList";
+export { TransactionList, type TransactionListItem } from "./TransactionList";
 
 // Budget Components
-export { BudgetForm } from "./BudgetForm";
+export { BudgetForm, type BudgetData } from "./BudgetForm";
 export { BudgetList } from "./BudgetList";
 
 // Goal Components
-export { GoalForm } from "./GoalForm";
+export { GoalForm, type GoalData } from "./GoalForm";
 export { GoalList } from "./GoalList";
 
 // Report Components
 export { SummaryCards } from "./SummaryCards";
-export { CategoryBreakdown } from "./CategoryBreakdown";
-export { DailyChart } from "./DailyChart";
-export { InsightsCard } from "./InsightsCard";
-export { TrendsChart } from "./TrendsChart";
+export { CategoryBreakdown, type CategoryData } from "./CategoryBreakdown";
+export { DailyChart, type DailyData } from "./DailyChart";
+export { InsightsCard, type Insight } from "./InsightsCard";
+export { TrendsChart, type TrendData } from "./TrendsChart";
 
 // Recurring Payments Components
 export { RecurringForm } from "./RecurringForm";

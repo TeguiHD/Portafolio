@@ -3,16 +3,20 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { BudgetForm } from "@/modules/finance/components/BudgetForm";
+import { BudgetForm, type BudgetData } from "@/modules/finance/components/BudgetForm";
 
 interface PageProps {
     params: Promise<{ id: string }>;
 }
 
+interface Budget extends BudgetData {
+    id: string;
+}
+
 export default function EditBudgetPage({ params }: PageProps) {
     const { id } = use(params);
     const router = useRouter();
-    const [budget, setBudget] = useState<any>(null);
+    const [budget, setBudget] = useState<Budget | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +36,7 @@ export default function EditBudgetPage({ params }: PageProps) {
         fetchBudget();
     }, [id]);
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: BudgetData) => {
         setError(null);
         const res = await fetch(`/api/finance/budgets/${id}`, {
             method: "PUT",
@@ -100,7 +104,7 @@ export default function EditBudgetPage({ params }: PageProps) {
             {/* Form */}
             <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
                 <BudgetForm
-                    budget={budget}
+                    budget={budget || undefined}
                     onSubmit={handleSubmit}
                     onCancel={() => router.push("/admin/finance/budgets")}
                 />

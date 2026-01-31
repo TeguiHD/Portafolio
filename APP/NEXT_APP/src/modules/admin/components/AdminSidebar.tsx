@@ -275,6 +275,7 @@ function MenuGroupComponent({
                                 return (
                                     <Link
                                         key={item.href}
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Typed routes issue with dynamic menu structure
                                         href={item.href as any}
                                         onClick={(e) => onNavClick(e, closeSidebar)}
                                         style={isThrottled ? { pointerEvents: 'none', opacity: 0.7 } : undefined}
@@ -376,6 +377,7 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
                     return (
                         <Link
                             key={item.href}
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Typed routes issue with dynamic menu structure
                             href={item.href as any}
                             onClick={(e) => handleNavClick(e, closeSidebar)}
                             style={isNavThrottled ? { pointerEvents: 'none', opacity: 0.7 } : undefined}

@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { Lock, CreditCard, Activity, ShieldCheck, ChevronRight, TrendingUp, TrendingDown, User, FileText, Fingerprint, Shield, AlertTriangle, Sparkles, CheckCircle2 } from "lucide-react";
+import { Lock, CreditCard, ShieldCheck, ChevronRight, TrendingUp, TrendingDown, FileText, Shield, Sparkles, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 const modules = [
@@ -51,7 +51,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
     const [currentView, setCurrentView] = useState(0); // 0: dashboard, 1: AI advice, 2: OCR scan
     const [scanProgress, setScanProgress] = useState(0);
     const [aiTyping, setAiTyping] = useState("");
-    const [isMounted, setIsMounted] = useState(false);
+    const [_isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -104,6 +104,8 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
             }
         }, 50);
         return () => clearInterval(typeInterval);
+        // aiAdvices is a constant array defined above - no need to include in deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isActive, currentView]);
 
     // OCR scan animation
@@ -304,7 +306,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
     const [analysisProgress, setAnalysisProgress] = useState(0);
     const [highlightedLine, setHighlightedLine] = useState(-1);
     const [overallScore, setOverallScore] = useState(42);
-    const [isMounted, setIsMounted] = useState(false);
+    const [_isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -496,7 +498,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
 // Security Demo Component  
 function SecurityDemo({ isActive }: { isActive: boolean }) {
     const [logs, setLogs] = useState<string[]>([]);
-    const [isMounted, setIsMounted] = useState(false);
+    const [_isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -526,6 +528,8 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
             });
         }, 1500);
         return () => clearInterval(interval);
+        // logTemplates is a constant array defined in component scope
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isActive]);
 
     return (
@@ -581,7 +585,7 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
 }
 
 // Subtle Restricted Overlay - Always visible but doesn't block view
-function RestrictedOverlay({ color, colorRgb }: { color: string; colorRgb: string }) {
+function RestrictedOverlay({ color: _color, colorRgb }: { color: string; colorRgb: string }) {
     const [scanLine, setScanLine] = useState(0);
 
     useEffect(() => {
@@ -659,7 +663,7 @@ function RestrictedBadge({ color, colorRgb, isHovered }: { color: string; colorR
 }
 
 // Info Panel - Appears on hover/tap over the demo
-function InfoPanel({ mod, isVisible, isMobile }: { mod: typeof modules[0]; isVisible: boolean; isMobile: boolean }) {
+function InfoPanel({ mod, isVisible, isMobile: _isMobile }: { mod: typeof modules[0]; isVisible: boolean; isMobile: boolean }) {
     return (
         <motion.div
             className="absolute bottom-0 left-0 right-0 z-25 pointer-events-none"
@@ -711,7 +715,7 @@ function InfoPanel({ mod, isVisible, isMobile }: { mod: typeof modules[0]; isVis
 function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: number; layout: 'pillar' | 'wide' | 'normal' }) {
     const [isHovered, setIsHovered] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    const [isMounted, setIsMounted] = useState(false);
+    const [_isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);

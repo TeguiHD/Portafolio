@@ -54,7 +54,7 @@ const projects = [
 ];
 
 export function ShowcaseSection() {
-  const [isMounted, setIsMounted] = useState(false);
+  const [_isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -126,6 +126,7 @@ export function ShowcaseSection() {
         </div>
 
         <div className="mt-12 text-center">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Route /projects does not exist yet so typed routes fail */}
           <Link href={"/projects" as any}>
             <span className="text-gray-500 hover:text-white transition-colors border-b border-transparent hover:border-white pb-0.5 cursor-pointer">
               Ver archivo completo de casos

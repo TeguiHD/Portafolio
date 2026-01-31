@@ -47,22 +47,22 @@ export function generateTOTPSecret(): string {
 export function generateTOTP(secret: string, timestamp?: number): string {
     const time = timestamp || Date.now()
     const counter = Math.floor(time / 1000 / MFA_CONFIG.period)
-    
+
     const secretBuffer = base32Decode(secret)
     const counterBuffer = Buffer.alloc(8)
     counterBuffer.writeBigUInt64BE(BigInt(counter))
-    
+
     const hmac = createHmac('sha1', secretBuffer)
     hmac.update(counterBuffer)
     const hash = hmac.digest()
-    
+
     const offset = hash[hash.length - 1] & 0x0f
-    const binary = 
+    const binary =
         ((hash[offset] & 0x7f) << 24) |
         ((hash[offset + 1] & 0xff) << 16) |
         ((hash[offset + 2] & 0xff) << 8) |
         (hash[offset + 3] & 0xff)
-    
+
     const otp = binary % Math.pow(10, MFA_CONFIG.digits)
     return otp.toString().padStart(MFA_CONFIG.digits, '0')
 }
@@ -72,18 +72,18 @@ export function generateTOTP(secret: string, timestamp?: number): string {
  */
 export function verifyTOTP(secret: string, token: string): boolean {
     const now = Date.now()
-    
+
     // Check current and adjacent time windows
     for (let i = -MFA_CONFIG.window; i <= MFA_CONFIG.window; i++) {
         const timestamp = now + (i * MFA_CONFIG.period * 1000)
         const expected = generateTOTP(secret, timestamp)
-        
+
         // Constant-time comparison
         if (timingSafeCompare(token, expected)) {
             return true
         }
     }
-    
+
     return false
 }
 
@@ -101,7 +101,7 @@ export function generateOTPAuthURI(
         digits: MFA_CONFIG.digits.toString(),
         period: MFA_CONFIG.period.toString(),
     })
-    
+
     const label = encodeURIComponent(`${MFA_CONFIG.issuer}:${userEmail}`)
     return `otpauth://totp/${label}?${params.toString()}`
 }
@@ -114,19 +114,19 @@ export function generateOTPAuthURI(
 export function generateRecoveryCodes(): string[] {
     const codes: string[] = []
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  // Sin I, O, 0, 1 para evitar confusión
-    
+
     for (let i = 0; i < MFA_CONFIG.recoveryCodesCount; i++) {
         let code = ''
         const bytes = randomBytes(MFA_CONFIG.recoveryCodeLength)
-        
+
         for (let j = 0; j < MFA_CONFIG.recoveryCodeLength; j++) {
             code += chars[bytes[j] % chars.length]
         }
-        
+
         // Formato: XXXX-XXXX
         codes.push(`${code.slice(0, 4)}-${code.slice(4)}`)
     }
-    
+
     return codes
 }
 
@@ -142,18 +142,18 @@ export function hashRecoveryCode(code: string, secret: string): string {
  * Verify recovery code
  */
 export function verifyRecoveryCode(
-    code: string, 
-    hashedCodes: string[], 
+    code: string,
+    hashedCodes: string[],
     secret: string
 ): { valid: boolean; index: number } {
     const codeHash = hashRecoveryCode(code, secret)
-    
+
     for (let i = 0; i < hashedCodes.length; i++) {
         if (timingSafeCompare(codeHash, hashedCodes[i])) {
             return { valid: true, index: i }
         }
     }
-    
+
     return { valid: false, index: -1 }
 }
 
@@ -168,16 +168,16 @@ export function encryptMFASecret(secret: string): string {
     if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
         throw new Error('ENCRYPTION_KEY must be at least 32 characters')
     }
-    
+
     const key = scryptSync(ENCRYPTION_KEY, 'mfa-salt', 32)
     const iv = randomBytes(16)
     const cipher = createCipheriv('aes-256-gcm', key, iv)
-    
+
     let encrypted = cipher.update(secret, 'utf8', 'base64')
     encrypted += cipher.final('base64')
-    
+
     const authTag = cipher.getAuthTag()
-    
+
     return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`
 }
 
@@ -188,19 +188,19 @@ export function decryptMFASecret(encryptedSecret: string): string {
     if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
         throw new Error('ENCRYPTION_KEY must be at least 32 characters')
     }
-    
+
     const [ivBase64, authTagBase64, encrypted] = encryptedSecret.split(':')
-    
+
     const key = scryptSync(ENCRYPTION_KEY, 'mfa-salt', 32)
     const iv = Buffer.from(ivBase64, 'base64')
     const authTag = Buffer.from(authTagBase64, 'base64')
-    
+
     const decipher = createDecipheriv('aes-256-gcm', key, iv)
     decipher.setAuthTag(authTag)
-    
+
     let decrypted = decipher.update(encrypted, 'base64', 'utf8')
     decrypted += decipher.final('utf8')
-    
+
     return decrypted
 }
 
@@ -212,21 +212,21 @@ function base32Encode(buffer: Buffer): string {
     let result = ''
     let bits = 0
     let value = 0
-    
+
     for (const byte of buffer) {
         value = (value << 8) | byte
         bits += 8
-        
+
         while (bits >= 5) {
             result += BASE32_CHARS[(value >>> (bits - 5)) & 0x1f]
             bits -= 5
         }
     }
-    
+
     if (bits > 0) {
         result += BASE32_CHARS[(value << (5 - bits)) & 0x1f]
     }
-    
+
     return result
 }
 
@@ -235,20 +235,20 @@ function base32Decode(encoded: string): Buffer {
     const bytes: number[] = []
     let bits = 0
     let value = 0
-    
+
     for (const char of cleanedInput) {
         const index = BASE32_CHARS.indexOf(char)
         if (index === -1) continue
-        
+
         value = (value << 5) | index
         bits += 5
-        
+
         if (bits >= 8) {
             bytes.push((value >>> (bits - 8)) & 0xff)
             bits -= 8
         }
     }
-    
+
     return Buffer.from(bytes)
 }
 
@@ -256,15 +256,16 @@ function base32Decode(encoded: string): Buffer {
 
 function timingSafeCompare(a: string, b: string): boolean {
     if (a.length !== b.length) {
-        // Still do comparison to maintain constant time
+        // Still do comparison to maintain constant time (prevent timing attacks)
         const dummy = a
-        let result = 0
+        let _unused = 0
         for (let i = 0; i < dummy.length; i++) {
-            result |= dummy.charCodeAt(i) ^ dummy.charCodeAt(i)
+            _unused |= dummy.charCodeAt(i) ^ dummy.charCodeAt(i)
         }
+        void _unused  // Ensure the variable is "used"
         return false
     }
-    
+
     let result = 0
     for (let i = 0; i < a.length; i++) {
         result |= a.charCodeAt(i) ^ b.charCodeAt(i)
@@ -288,12 +289,12 @@ export interface MFASetupResult {
 export function initializeMFASetup(userEmail: string): MFASetupResult {
     const secret = generateTOTPSecret()
     const recoveryCodes = generateRecoveryCodes()
-    
+
     return {
         secret: encryptMFASecret(secret),
         qrCodeURI: generateOTPAuthURI(secret, userEmail),
         recoveryCodes: recoveryCodes,
-        recoveryHashes: recoveryCodes.map(code => 
+        recoveryHashes: recoveryCodes.map(code =>
             hashRecoveryCode(code, ENCRYPTION_KEY)
         ),
     }
@@ -318,14 +319,14 @@ export function useRecoveryCode(
     hashedCodes: string[]
 ): { valid: boolean; remainingCodes: string[] } {
     const result = verifyRecoveryCode(code, hashedCodes, ENCRYPTION_KEY)
-    
+
     if (result.valid) {
         // Remove used code
         const remainingCodes = [...hashedCodes]
         remainingCodes.splice(result.index, 1)
         return { valid: true, remainingCodes }
     }
-    
+
     return { valid: false, remainingCodes: hashedCodes }
 }
 

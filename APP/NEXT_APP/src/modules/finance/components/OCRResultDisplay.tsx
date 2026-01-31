@@ -51,29 +51,29 @@ export interface OCRData {
     isValidDocument: boolean;
     documentType: "boleta" | "factura" | "ticket" | "unknown";
     validationMessage?: string;
-    
+
     documentNumber?: { value: string | null; confidence: number };
     emissionDate?: { value: string; confidence: number };
     paymentDate?: string;
-    
+
     merchant?: { value: OCRMerchant; confidence: number };
     customer?: OCRCustomer;
-    
+
     purchaseType?: string;
     paymentMethod?: string;
-    
+
     items?: OCRItem[];
     financials?: OCRFinancials;
-    
+
     // Legacy fields
     amount?: { value: number; confidence: number };
     date?: { value: string; confidence: number };
     rut?: { value: string | null; confidence: number };
     suggestedCategory?: { value: string; confidence: number; categoryId?: string; categoryName?: string };
-    
+
     barcodeData?: { value: string | null; confidence: number };
     siiCode?: { value: string | null; confidence: number };
-    
+
     defaultAccountId?: string;
     defaultAccountName?: string;
 }
@@ -110,7 +110,7 @@ const formatDate = (dateStr: string) => {
 const ConfidenceBadge = ({ confidence }: { confidence: number }) => {
     const percentage = Math.round(confidence * 100);
     const color = percentage >= 90 ? "emerald" : percentage >= 70 ? "amber" : "red";
-    
+
     return (
         <span className={`text-xs px-1.5 py-0.5 rounded bg-${color}-500/20 text-${color}-400`}>
             {percentage}%
@@ -119,14 +119,14 @@ const ConfidenceBadge = ({ confidence }: { confidence: number }) => {
 };
 
 // Section component
-const Section = ({ title, icon, children, defaultOpen = true }: { 
-    title: string; 
-    icon: React.ReactNode; 
+const Section = ({ title, icon, children, defaultOpen = true }: {
+    title: string;
+    icon: React.ReactNode;
     children: React.ReactNode;
     defaultOpen?: boolean;
 }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
-    
+
     return (
         <div className="border border-neutral-700/50 rounded-xl overflow-hidden">
             <button
@@ -161,14 +161,14 @@ const Section = ({ title, icon, children, defaultOpen = true }: {
 };
 
 // Info row component
-const InfoRow = ({ label, value, confidence, mono = false }: { 
-    label: string; 
+const InfoRow = ({ label, value, confidence, mono = false }: {
+    label: string;
     value: string | number | null | undefined;
     confidence?: number;
     mono?: boolean;
 }) => {
     if (!value) return null;
-    
+
     return (
         <div className="flex justify-between items-center py-1.5 border-b border-neutral-700/30 last:border-0">
             <span className="text-sm text-neutral-400">{label}</span>
@@ -180,20 +180,20 @@ const InfoRow = ({ label, value, confidence, mono = false }: {
     );
 };
 
-export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, onRetry }: OCRResultDisplayProps) {
+export function OCRResultDisplay({ data, imageData: _imageData, processingTime, onConfirm, onRetry }: OCRResultDisplayProps) {
     const [activeTab, setActiveTab] = useState<"summary" | "details" | "items">("summary");
-    
+
     const documentTypeLabels: Record<string, string> = {
         boleta: "📄 Boleta Electrónica",
         factura: "📋 Factura Electrónica",
         ticket: "🎫 Ticket",
         unknown: "📝 Documento",
     };
-    
+
     const merchant = data.merchant?.value;
     const financials = data.financials;
     const items = data.items || [];
-    
+
     return (
         <div className="space-y-4">
             {/* Document Header */}
@@ -229,18 +229,17 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                     </div>
                 </div>
             </div>
-            
+
             {/* Tabs */}
             <div className="flex gap-2 border-b border-neutral-700/50 pb-2">
                 {["summary", "details", "items"].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab as typeof activeTab)}
-                        className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                            activeTab === tab
+                        className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${activeTab === tab
                                 ? "bg-purple-500/20 text-purple-400"
                                 : "text-neutral-400 hover:text-white hover:bg-neutral-800"
-                        }`}
+                            }`}
                     >
                         {tab === "summary" && "Resumen"}
                         {tab === "details" && "Detalles"}
@@ -248,7 +247,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                     </button>
                 ))}
             </div>
-            
+
             {/* Tab Content */}
             <div className="space-y-3">
                 {activeTab === "summary" && (
@@ -279,7 +278,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                                 <InfoRow label="Total" value={formatCurrency(data.amount?.value || 0)} confidence={data.amount?.confidence} />
                             )}
                         </Section>
-                        
+
                         {/* Category Suggestion */}
                         {data.suggestedCategory && (
                             <div className="flex items-center gap-3 p-3 bg-neutral-800/50 rounded-xl">
@@ -297,7 +296,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                         )}
                     </>
                 )}
-                
+
                 {activeTab === "details" && (
                     <>
                         {/* Merchant Info */}
@@ -324,7 +323,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                                 )}
                             </Section>
                         )}
-                        
+
                         {/* Customer Info (for facturas) */}
                         {data.customer && (
                             <Section
@@ -338,7 +337,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                                 <InfoRow label="Giro" value={data.customer.businessType} />
                             </Section>
                         )}
-                        
+
                         {/* Transaction Details */}
                         <Section
                             title="Documento"
@@ -355,7 +354,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                         </Section>
                     </>
                 )}
-                
+
                 {activeTab === "items" && (
                     <div className="space-y-2">
                         {items.length === 0 ? (
@@ -375,7 +374,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                                     <div className="col-span-2 text-right">P.Unit</div>
                                     <div className="col-span-3 text-right">Total</div>
                                 </div>
-                                
+
                                 {/* Items List */}
                                 {items.map((item, index) => (
                                     <motion.div
@@ -407,7 +406,7 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                                         </div>
                                     </motion.div>
                                 ))}
-                                
+
                                 {/* Items Summary */}
                                 <div className="pt-3 mt-3 border-t border-neutral-700/50 space-y-1">
                                     <div className="flex justify-between text-sm">
@@ -428,14 +427,14 @@ export function OCRResultDisplay({ data, imageData, processingTime, onConfirm, o
                     </div>
                 )}
             </div>
-            
+
             {/* Processing Time */}
             {processingTime && (
                 <div className="text-xs text-neutral-500 text-center">
                     Procesado en {(processingTime / 1000).toFixed(2)}s
                 </div>
             )}
-            
+
             {/* Actions */}
             <div className="flex gap-3 pt-2">
                 <button

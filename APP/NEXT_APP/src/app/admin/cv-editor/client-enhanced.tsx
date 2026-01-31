@@ -84,6 +84,30 @@ export default function CvEditorPageClientEnhanced() {
     const toast = useToast();
 
     // Load versions on mount
+    const loadVersion = useCallback(async (id: string) => {
+        try {
+            const res = await fetch(`/api/cv/${id}`);
+            if (res.ok) {
+                const version = await res.json();
+                // Merge with initial data to ensure all fields exist
+                setData({
+                    ...initialData,
+                    ...(version.data as ExtendedCvData),
+                    certifications: version.data?.certifications || [],
+                    languages: version.data?.languages || [],
+                });
+                if (version.designConfig) {
+                    setDesignConfig({ ...DEFAULT_DESIGN_CONFIG, ...version.designConfig });
+                }
+                setCurrentVersionId(id);
+                setHasUnsavedChanges(false);
+            }
+        } catch (error) {
+            console.error("Failed to load CV version:", error);
+            toast.error("Error al cargar la versión");
+        }
+    }, [toast]);
+
     useEffect(() => {
         const loadVersions = async () => {
             try {
@@ -110,31 +134,7 @@ export default function CvEditorPageClientEnhanced() {
             }
         };
         loadVersions();
-    }, []);
-
-    const loadVersion = async (id: string) => {
-        try {
-            const res = await fetch(`/api/cv/${id}`);
-            if (res.ok) {
-                const version = await res.json();
-                // Merge with initial data to ensure all fields exist
-                setData({
-                    ...initialData,
-                    ...(version.data as ExtendedCvData),
-                    certifications: version.data?.certifications || [],
-                    languages: version.data?.languages || [],
-                });
-                if (version.designConfig) {
-                    setDesignConfig({ ...DEFAULT_DESIGN_CONFIG, ...version.designConfig });
-                }
-                setCurrentVersionId(id);
-                setHasUnsavedChanges(false);
-            }
-        } catch (error) {
-            console.error("Failed to load CV version:", error);
-            toast.error("Error al cargar la versión");
-        }
-    };
+    }, [loadVersion]);
 
     const saveVersion = async (name?: string) => {
         setIsSaving(true);

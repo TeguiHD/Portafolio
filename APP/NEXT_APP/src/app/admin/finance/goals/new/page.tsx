@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { GoalForm } from "@/modules/finance/components/GoalForm";
+import { GoalForm, type GoalData } from "@/modules/finance/components/GoalForm";
 
 export default function NewGoalPage() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: GoalData) => {
         setError(null);
         const res = await fetch("/api/finance/goals", {
             method: "POST",

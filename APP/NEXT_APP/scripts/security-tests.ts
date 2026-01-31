@@ -451,8 +451,8 @@ async function testInfoDisclosure(): Promise<void> {
             recommendation: 'Remover X-Powered-By header',
         })
 
-    } catch (_error) {
-        // Ignore
+    } catch {
+        // Ignore - network errors are expected
     }
 
     // Test error pages

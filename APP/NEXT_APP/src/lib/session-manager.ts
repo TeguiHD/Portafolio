@@ -6,7 +6,6 @@
 import { prisma } from "@/lib/prisma";
 import { createAuditLog, AuditActions } from "@/lib/audit";
 import { createNotification } from "@/lib/notificationService";
-import type { NotificationType, NotificationPriority } from "@prisma/client";
 
 // Helper to extract browser name from user agent
 export function getBrowserFromUserAgent(userAgent: string | null): string {

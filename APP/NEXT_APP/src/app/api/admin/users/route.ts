@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, encryptEmail, decryptEmail } from "@/lib/security.server";
 import { NotificationHelpers } from "@/lib/notificationService";
 import { createAuditLog, AuditActions } from "@/lib/audit";
+import { Prisma } from "@prisma/client";
 
 export async function GET() {
     // DAL pattern: Verify admin access close to data access
@@ -145,7 +146,11 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: "Cannot modify a Super Admin" }, { status: 403 });
         }
 
-        const data: any = {};
+        // ... (existing imports)
+
+        // ...
+
+        const data: Prisma.UserUpdateInput = {};
 
         // Role hierarchy check for role changes
         if (role) {

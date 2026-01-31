@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { QuotationData, QuotationItem } from "../types";
 import { v4 as uuidv4 } from "uuid";
@@ -83,7 +83,7 @@ export function QuotationAIChat({
 
     // NEW: Session persistence
     const [sessionId, setSessionId] = useState<string | null>(null);
-    const [isLoadingSession, setIsLoadingSession] = useState(true);
+    const [_isLoadingSession, setIsLoadingSession] = useState(true);
 
     // Load session from DB on mount
     useEffect(() => {

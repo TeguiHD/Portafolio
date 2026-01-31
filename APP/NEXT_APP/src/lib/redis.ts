@@ -39,6 +39,7 @@ export async function getRedisClient(): Promise<RedisClientType> {
         throw new Error('REDIS_URL environment variable is not configured');
     }
 
+    const isDevelopment = process.env.NODE_ENV !== 'production';
     isConnecting = true;
 
     connectionPromise = (async () => {
@@ -46,14 +47,19 @@ export async function getRedisClient(): Promise<RedisClientType> {
             redisClient = createClient({
                 url: redisUrl,
                 socket: {
-                    connectTimeout: 5000,
+                    // Development: Fast fail (2s timeout, 3 retries max)
+                    // Production: More resilient (5s timeout, 10 retries)
+                    connectTimeout: isDevelopment ? 2000 : 5000,
                     reconnectStrategy: (retries) => {
-                        // Exponential backoff with max 30 seconds
-                        if (retries > 10) {
+                        const maxRetries = isDevelopment ? 3 : 10;
+                        if (retries > maxRetries) {
                             console.error('[Redis] Max reconnection attempts reached');
                             return new Error('Redis max retries exceeded');
                         }
-                        return Math.min(retries * 500, 30000);
+                        // In dev: faster backoff (100ms, 200ms, 400ms)
+                        // In prod: slower backoff (500ms, 1s, 2s, etc.)
+                        const baseDelay = isDevelopment ? 100 : 500;
+                        return Math.min(retries * baseDelay, isDevelopment ? 1000 : 30000);
                     },
                 },
             });
@@ -280,7 +286,8 @@ export async function checkRateLimit(
 
         // Development: Use in-memory fallback with reduced logging
         if (!redisUnavailableWarned) {
-            console.warn('[Dev] Redis unavailable - using in-memory rate limiting fallback');
+            console.warn('[Dev] Redis unavailable - using in-memory rate limiting fallback:',
+                error instanceof Error ? error.message : 'Unknown error');
             redisUnavailableWarned = true;
         }
 

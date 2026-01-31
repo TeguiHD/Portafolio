@@ -51,7 +51,7 @@ export function ProviderCostsTable({ items, onChange }: ProviderCostsTableProps)
         return formatNum(min);
     };
 
-    const total = items.reduce((sum, item) => {
+    const _total = items.reduce((sum, item) => {
         const avg = item.costMax ? (item.costMin + item.costMax) / 2 : item.costMin;
         return sum + avg;
     }, 0);

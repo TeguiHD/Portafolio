@@ -221,8 +221,6 @@ export async function askFinanceQuestion(
     question: string,
     context: FinancialData
 ): Promise<{ success: boolean; answer?: string; error?: string }> {
-    const startTime = Date.now();
-
     try {
         const apiKey = getApiKey();
 
@@ -235,10 +233,10 @@ Mantén la respuesta en 2-3 párrafos máximo.`;
 - Gastos: $${context.totals.expenses.toLocaleString()}
 - Balance: $${context.totals.balance.toLocaleString()}
 - Categorías principales: ${context.categories
-            .filter((c) => c.type === "EXPENSE")
-            .slice(0, 3)
-            .map((c) => c.name)
-            .join(", ")}`;
+                .filter((c) => c.type === "EXPENSE")
+                .slice(0, 3)
+                .map((c) => c.name)
+                .join(", ")}`;
 
         const response = await fetch(OPENROUTER_API_URL, {
             method: "POST",

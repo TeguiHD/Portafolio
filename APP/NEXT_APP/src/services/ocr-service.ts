@@ -38,7 +38,7 @@ const SECURITY = {
         /\bdeveloper\s+mode\s+enabled\b/i,
         /respond\s+without\s+(any\s+)?restrictions/i,
     ],
-    
+
     // Script/code injection patterns - only actual code/HTML injection
     SCRIPT_INJECTION_PATTERNS: [
         /<script[\s>]/i,
@@ -50,7 +50,7 @@ const SECURITY = {
         /window\s*\.\s*(location|open)\s*=/i,
         /\.innerHTML\s*=/i,
     ],
-    
+
     // SQL injection patterns (extra protection, we use parameterized queries)
     SQL_INJECTION_PATTERNS: [
         /'\s*OR\s*'1'\s*=\s*'1/i,
@@ -61,7 +61,7 @@ const SECURITY = {
         /;\s*UPDATE\s+\w+\s+SET\s+/i,
         /--\s*$/m, // SQL comment at end of line
     ],
-    
+
     // Maximum lengths for each field
     MAX_LENGTHS: {
         merchant: 100,
@@ -74,12 +74,12 @@ const SECURITY = {
         rawText: 1000,
         itemDescription: 100,
     },
-    
+
     // Allowed characters for specific fields
     ALLOWED_PATTERNS: {
-        documentNumber: /^[A-Za-z0-9\-_]+$/,
-        barcodeData: /^[A-Za-z0-9\-_]+$/,
-        rut: /^[\d.Kk\-]+$/,
+        documentNumber: /^[A-Za-z0-9_-]+$/,
+        barcodeData: /^[A-Za-z0-9_-]+$/,
+        rut: /^[\d.Kk-]+$/,
         amount: /^[\d.,]+$/,
     },
 };
@@ -143,42 +143,42 @@ export interface OCRResult {
         isValidDocument: boolean;
         documentType: DocumentType;
         validationMessage?: string;
-        
+
         // Document info
         documentNumber: { value: string | null; confidence: number }; // Folio
         emissionDate: { value: string; confidence: number };          // Fecha emisión
         paymentDate?: string;                                          // Fecha de pago (si difiere)
-        
+
         // Merchant/Business info
         merchant: { value: OCRMerchant; confidence: number };
-        
+
         // Customer info (mainly for facturas)
         customer?: OCRCustomer;
-        
+
         // Transaction details
         purchaseType?: string;    // Tipo de venta (DEL GIRO, etc.)
         paymentMethod?: string;   // Forma de pago (Crédito, Débito, Efectivo, etc.)
-        
+
         // Items/Products
         items: OCRItem[];
-        
+
         // Financial breakdown
         financials: OCRFinancials;
-        
+
         // Legacy fields (for compatibility)
         amount: { value: number; confidence: number };
         date: { value: string; confidence: number };
         rut: { value: string | null; confidence: number };
         suggestedCategory: { value: string; confidence: number };
-        
+
         // Document identifiers
         barcodeData: { value: string | null; confidence: number };
         siiCode: { value: string | null; confidence: number };
-        
+
         // Deprecated - use financials instead
         subtotal?: number;
         tax?: number;
-        
+
         rawText: string;
     };
     error?: string;
@@ -227,11 +227,12 @@ function detectSQLInjection(text: string): boolean {
  */
 function sanitizeString(text: string | null | undefined, maxLength: number = 200): string {
     if (!text) return "";
-    
+
     let sanitized = String(text)
         // Remove null bytes
         .replace(/\0/g, "")
         // Remove control characters except newlines and tabs
+        // eslint-disable-next-line no-control-regex
         .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
         // Remove HTML tags
         .replace(/<[^>]*>/g, "")
@@ -246,12 +247,12 @@ function sanitizeString(text: string | null | undefined, maxLength: number = 200
         .replace(/on\w+=/gi, "")
         // Trim whitespace
         .trim();
-    
+
     // Truncate to max length
     if (sanitized.length > maxLength) {
         sanitized = sanitized.substring(0, maxLength);
     }
-    
+
     return sanitized;
 }
 
@@ -260,12 +261,12 @@ function sanitizeString(text: string | null | undefined, maxLength: number = 200
  */
 function sanitizeCode(text: string | null | undefined, maxLength: number = 50): string | null {
     if (!text) return null;
-    
+
     // Only allow alphanumeric, hyphens, and underscores
     const sanitized = String(text)
         .replace(/[^A-Za-z0-9\-_]/g, "")
         .substring(0, maxLength);
-    
+
     return sanitized.length > 0 ? sanitized : null;
 }
 
@@ -276,7 +277,7 @@ function sanitizeCode(text: string | null | undefined, maxLength: number = 50): 
 function securityCheck(data: Record<string, unknown>): string[] {
     const flags: string[] = [];
     const jsonStr = JSON.stringify(data);
-    
+
     // Check for prompt injection
     if (detectPromptInjection(jsonStr)) {
         flags.push("PROMPT_INJECTION_DETECTED");
@@ -287,7 +288,7 @@ function securityCheck(data: Record<string, unknown>): string[] {
             }
         });
     }
-    
+
     // Check for script injection
     if (detectScriptInjection(jsonStr)) {
         flags.push("SCRIPT_INJECTION_DETECTED");
@@ -298,13 +299,13 @@ function securityCheck(data: Record<string, unknown>): string[] {
             }
         });
     }
-    
+
     // Check for SQL injection (don't block, just log)
     if (detectSQLInjection(jsonStr)) {
         flags.push("SQL_INJECTION_WARNING");
         console.warn("[OCR Security] SQL injection pattern detected - logging only");
     }
-    
+
     // Check for suspiciously long fields
     for (const [key, value] of Object.entries(data)) {
         if (typeof value === "string" && value.length > 500) {
@@ -312,7 +313,7 @@ function securityCheck(data: Record<string, unknown>): string[] {
             console.warn(`[OCR Security] Suspiciously long field: ${key} (${value.length} chars)`);
         }
     }
-    
+
     return flags;
 }
 
@@ -324,7 +325,7 @@ export async function processReceiptOCR(imageBase64: string): Promise<OCRResult>
 
     try {
         const apiKey = process.env.DEEPSEEK_OPENROUTER_API_KEY;
-        
+
         if (!apiKey) {
             console.error("[OCR] No OpenRouter API key configured");
             return {
@@ -541,13 +542,13 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales.`
  * Parse AI response and validate document
  * SECURITY: Applies sanitization and injection detection
  */
-function parseAndValidateResponse(content: string): { 
-    data: OCRResult["data"] | undefined; 
+function parseAndValidateResponse(content: string): {
+    data: OCRResult["data"] | undefined;
     error?: string;
     securityFlags?: string[];
 } {
     const securityFlags: string[] = [];
-    
+
     try {
         // Clean up potential markdown code blocks
         let jsonStr = content
@@ -562,7 +563,7 @@ function parseAndValidateResponse(content: string): {
         }
 
         const data = JSON.parse(jsonStr);
-        
+
         // Debug: Log what the AI returned
         console.log("[OCR] AI Response parsed:", {
             isValidDocument: data.isValidDocument,
@@ -577,10 +578,10 @@ function parseAndValidateResponse(content: string): {
         // ====================================================================
         const rawSecurityFlags = securityCheck(data);
         securityFlags.push(...rawSecurityFlags);
-        
+
         // If critical security issues detected, reject the data
-        if (rawSecurityFlags.some(f => 
-            f.includes("PROMPT_INJECTION") || 
+        if (rawSecurityFlags.some(f =>
+            f.includes("PROMPT_INJECTION") ||
             f.includes("SCRIPT_INJECTION")
         )) {
             console.error("[OCR Security] Rejecting response due to injection attempt");
@@ -607,7 +608,7 @@ function parseAndValidateResponse(content: string): {
         // Parse financials from new format or legacy format
         const financials = parseFinancials(data);
         const totalAmount = financials.total;
-        
+
         // Validate amount
         if (totalAmount < VALIDATION.MIN_AMOUNT) {
             return {
@@ -627,13 +628,13 @@ function parseAndValidateResponse(content: string): {
 
         // Parse merchant info
         const merchantInfo = parseMerchant(data);
-        
+
         // Parse customer info (mainly for facturas)
         const customerInfo = parseCustomer(data);
-        
+
         // Parse items
         const items = parseItems(data.items);
-        
+
         // Parse confidence values
         const confidence = data.confidence || {};
 
@@ -641,7 +642,7 @@ function parseAndValidateResponse(content: string): {
         const validatedData: OCRResult["data"] = {
             isValidDocument: true,
             documentType,
-            
+
             // Document info
             documentNumber: {
                 value: sanitizeCode(data.documentNumber, SECURITY.MAX_LENGTHS.documentNumber),
@@ -652,26 +653,26 @@ function parseAndValidateResponse(content: string): {
                 confidence: Math.min(1, Math.max(0, Number(confidence.date) || 0.8)),
             },
             paymentDate: data.paymentDate ? normalizeDate(data.paymentDate) : undefined,
-            
+
             // Merchant info
             merchant: {
                 value: merchantInfo,
                 confidence: Math.min(1, Math.max(0, Number(confidence.merchant) || 0.85)),
             },
-            
+
             // Customer info
             customer: customerInfo,
-            
+
             // Transaction details
             purchaseType: sanitizeString(data.purchaseType, 50) || undefined,
             paymentMethod: sanitizeString(data.paymentMethod, 50) || undefined,
-            
+
             // Items
             items,
-            
+
             // Financials
             financials,
-            
+
             // Legacy fields for compatibility
             amount: {
                 value: totalAmount,
@@ -689,7 +690,7 @@ function parseAndValidateResponse(content: string): {
                 value: sanitizeString(data.category, SECURITY.MAX_LENGTHS.category) || "Otros",
                 confidence: Math.min(1, Math.max(0, Number(confidence.category) || 0.7)),
             },
-            
+
             // Document identifiers
             barcodeData: {
                 value: sanitizeCode(data.barcodeData, SECURITY.MAX_LENGTHS.barcodeData),
@@ -699,11 +700,11 @@ function parseAndValidateResponse(content: string): {
                 value: sanitizeString(data.siiCode, SECURITY.MAX_LENGTHS.siiCode),
                 confidence: data.siiCode ? 0.75 : 0,
             },
-            
+
             // Legacy
             subtotal: financials.subtotal,
             tax: financials.tax,
-            
+
             rawText: "",
         };
 
@@ -759,12 +760,12 @@ function parseFinancials(data: Record<string, unknown>): OCRFinancials {
             total: parseNumber(fin.total) || parseNumber(data.amount) || 0,
         };
     }
-    
+
     // Legacy format
     const total = parseNumber(data.amount) || 0;
     const subtotal = parseNumber(data.subtotal) || Math.round(total / 1.19);
     const tax = parseNumber(data.tax) || Math.round(total - subtotal);
-    
+
     return {
         subtotal,
         tax,
@@ -777,7 +778,7 @@ function parseFinancials(data: Record<string, unknown>): OCRFinancials {
  */
 function parseAdditionalTaxes(taxes: unknown): OCRFinancials["additionalTaxes"] {
     if (!Array.isArray(taxes)) return undefined;
-    
+
     return taxes
         .filter((t): t is Record<string, unknown> => typeof t === "object" && t !== null)
         .map(t => ({
@@ -796,7 +797,7 @@ function parseMerchant(data: Record<string, unknown>): OCRMerchant {
     if (data.merchant && typeof data.merchant === "object" && !Array.isArray(data.merchant)) {
         const m = data.merchant as Record<string, unknown>;
         const location = m.location as Record<string, unknown> | undefined;
-        
+
         return {
             name: sanitizeString(String(m.name || m.businessName || ""), SECURITY.MAX_LENGTHS.merchant) || "Comercio",
             businessName: sanitizeString(String(m.businessName || ""), SECURITY.MAX_LENGTHS.merchant) || undefined,
@@ -812,7 +813,7 @@ function parseMerchant(data: Record<string, unknown>): OCRMerchant {
             } : undefined,
         };
     }
-    
+
     // Legacy format - merchant is just a string
     return {
         name: sanitizeString(String(data.merchant || ""), SECURITY.MAX_LENGTHS.merchant) || "Comercio",
@@ -825,12 +826,12 @@ function parseMerchant(data: Record<string, unknown>): OCRMerchant {
  */
 function parseCustomer(data: Record<string, unknown>): OCRCustomer | undefined {
     if (!data.customer || typeof data.customer !== "object") return undefined;
-    
+
     const c = data.customer as Record<string, unknown>;
     const hasData = c.name || c.rut || c.address || c.businessType;
-    
+
     if (!hasData) return undefined;
-    
+
     return {
         name: sanitizeString(String(c.name || ""), 100) || undefined,
         rut: normalizeRUT(String(c.rut || "")) || undefined,
@@ -845,7 +846,7 @@ function parseCustomer(data: Record<string, unknown>): OCRCustomer | undefined {
 function parseNumber(value: unknown): number | undefined {
     if (typeof value === "number") return value;
     if (typeof value === "string") {
-        const cleaned = value.replace(/[^0-9.,\-]/g, "").replace(/\./g, "").replace(",", ".");
+        const cleaned = value.replace(/[^0-9.,-]/g, "").replace(/\./g, "").replace(",", ".");
         const num = parseFloat(cleaned);
         return isNaN(num) ? undefined : num;
     }
@@ -863,21 +864,7 @@ function validateDocumentType(type: string | undefined): DocumentType {
     return "unknown";
 }
 
-/**
- * Parse amount from string
- */
-function parseAmount(amountStr: string): number {
-    if (!amountStr) return 0;
-    
-    // Clean the amount string
-    const cleaned = amountStr
-        .replace(/[^0-9.,]/g, "")
-        .replace(/\./g, "") // Remove thousand separators
-        .replace(",", "."); // Convert decimal separator
-    
-    const value = parseFloat(cleaned);
-    return !isNaN(value) && value > 0 ? value : 0;
-}
+// Note: parseAmount removed - parseNumber handles all amount parsing
 
 /**
  * Normalize date to YYYY-MM-DD format
@@ -920,7 +907,7 @@ function normalizeRUT(rut: string | null | undefined): string | null {
     if (match) {
         const [, p1, p2, p3, dv] = match;
         const formatted = `${p1}.${p2}.${p3}-${dv.toUpperCase()}`;
-        
+
         // Validate RUT
         if (validateChileanRUT(formatted)) {
             return formatted;
@@ -937,18 +924,18 @@ function validateChileanRUT(rut: string): boolean {
     const cleanRut = rut.replace(/[.-]/g, "").toUpperCase();
     const body = cleanRut.slice(0, -1);
     const dv = cleanRut.slice(-1);
-    
+
     let sum = 0;
     let multiplier = 2;
-    
+
     for (let i = body.length - 1; i >= 0; i--) {
         sum += parseInt(body[i]) * multiplier;
         multiplier = multiplier === 7 ? 2 : multiplier + 1;
     }
-    
+
     const expectedDV = 11 - (sum % 11);
     const calculatedDV = expectedDV === 11 ? "0" : expectedDV === 10 ? "K" : String(expectedDV);
-    
+
     return dv === calculatedDV;
 }
 
@@ -965,32 +952,32 @@ function parseItems(items: unknown): OCRItem[] {
     const limitedItems = items.slice(0, 50);
 
     return limitedItems
-        .filter((item): item is Record<string, unknown> => 
+        .filter((item): item is Record<string, unknown> =>
             typeof item === "object" && item !== null
         )
         .map(item => {
             // Sanitize all fields
             const code = sanitizeCode(String(item.code || ""), 20) || undefined;
             const description = sanitizeString(
-                String(item.description || "Item"), 
+                String(item.description || "Item"),
                 SECURITY.MAX_LENGTHS.itemDescription
             ) || "Item";
-            
+
             // Validate numeric values
             const quantity = Math.max(0, Math.min(10000, Number(item.quantity) || 1));
             const unitPrice = Math.max(0, Math.min(VALIDATION.MAX_AMOUNT, Number(item.unitPrice) || 0));
             const discount = Math.max(0, Math.min(VALIDATION.MAX_AMOUNT, Number(item.discount) || 0));
             const additionalTax = Math.max(0, Math.min(VALIDATION.MAX_AMOUNT, Number(item.additionalTax) || 0));
             const total = Math.max(0, Math.min(VALIDATION.MAX_AMOUNT, Number(item.total) || 0));
-            
-            return { 
+
+            return {
                 code,
-                description, 
-                quantity, 
-                unitPrice, 
+                description,
+                quantity,
+                unitPrice,
                 discount: discount > 0 ? discount : undefined,
                 additionalTax: additionalTax > 0 ? additionalTax : undefined,
-                total 
+                total
             };
         })
         .filter(item => item.total > 0 || item.unitPrice > 0);
@@ -1000,10 +987,10 @@ function parseItems(items: unknown): OCRItem[] {
  * Store receipt image and get URL
  */
 export async function storeReceiptImage(
-    imageBase64: string,
-    transactionId: string
+    _imageBase64: string,
+    _transactionId: string
 ): Promise<{ url: string; thumbnailUrl: string } | null> {
-    // For now, return null - implement with Cloudinary/S3 later
-    // The image is stored in the Receipt model as base64 or URL
-    return null;;
+    // TODO: Implement with Cloudinary/S3
+    // Parameters prefixed with _ until implementation
+    return null;
 }

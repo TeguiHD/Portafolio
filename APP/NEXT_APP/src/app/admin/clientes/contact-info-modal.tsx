@@ -88,7 +88,7 @@ export default function ContactInfoModal({ client, onUpdate }: Props) {
             } else {
                 toast.error(res.error || "Error al actualizar");
             }
-        } catch (_error) {
+        } catch {
             toast.error("Error de conexión");
         } finally {
             setLoading(false);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateRegexWithAI, generateExamplesForRegex, generateCodeForRegex } from "@/services/gemini";
 import { prisma } from "@/lib/prisma";
 import { createHash } from "crypto";
+import { checkRateLimitAtomic } from "@/lib/rate-limit";
 
 // Configuration
 const RATE_LIMIT = 5;  // requests per window
@@ -40,88 +41,20 @@ function getCookieId(request: NextRequest): string {
     return hash(Date.now().toString() + Math.random().toString());
 }
 
-// Database-backed rate limiting with fingerprinting
-async function checkRateLimitDB(
-    ip: string,
-    fingerprint: string,
-    cookieId: string
-): Promise<{ allowed: boolean; remaining: number; resetIn: number; isNewCookie: boolean }> {
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - RATE_WINDOW_MS);
-
-    // Create combined identifier (any match will trigger rate limit)
-    const identifier = hash(`${ip}|${fingerprint}|${cookieId}`);
-
-    try {
-        // Check for existing entry
-        const existing = await prisma.rateLimitEntry.findUnique({
-            where: { identifier }
-        });
-
-        // If exists and within window
-        if (existing && existing.windowStart > windowStart) {
-            if (existing.count >= RATE_LIMIT) {
-                const resetIn = existing.windowStart.getTime() + RATE_WINDOW_MS - now.getTime();
-                return { allowed: false, remaining: 0, resetIn, isNewCookie: false };
-            }
-
-            // Increment count
-            await prisma.rateLimitEntry.update({
-                where: { identifier },
-                data: { count: existing.count + 1 }
-            });
-
-            const resetIn = existing.windowStart.getTime() + RATE_WINDOW_MS - now.getTime();
-            return {
-                allowed: true,
-                remaining: RATE_LIMIT - existing.count - 1,
-                resetIn,
-                isNewCookie: false
-            };
-        }
-
-        // Create or reset entry
-        await prisma.rateLimitEntry.upsert({
-            where: { identifier },
-            create: {
-                identifier,
-                ip: ip.slice(0, 45),
-                fingerprint,
-                cookieId,
-                count: 1,
-                windowStart: now
-            },
-            update: {
-                count: 1,
-                windowStart: now,
-                ip: ip.slice(0, 45),
-                fingerprint,
-                cookieId
-            }
-        });
-
-        return {
-            allowed: true,
-            remaining: RATE_LIMIT - 1,
-            resetIn: RATE_WINDOW_MS,
-            isNewCookie: !existing
-        };
-
-    } catch (error) {
-        console.error("[RateLimit] Database error:", error);
-        // Fallback: allow request on DB error (don't block users due to our issues)
-        return { allowed: true, remaining: RATE_LIMIT - 1, resetIn: RATE_WINDOW_MS, isNewCookie: false };
-    }
-}
-
 export async function POST(request: NextRequest) {
     const ip = getClientIP(request);
     const fingerprint = getFingerprint(request);
     const cookieId = getCookieId(request);
     const isNewCookie = !request.cookies.get(COOKIE_NAME)?.value;
 
-    // Check rate limit with database
-    const rateCheck = await checkRateLimitDB(ip, fingerprint, cookieId);
+    // SECURITY: Check rate limit with atomic operations to prevent bypass via concurrent requests
+    const identifier = hash(`${ip}|${fingerprint}|${cookieId}`);
+    const rateCheck = await checkRateLimitAtomic({
+        limit: RATE_LIMIT,
+        windowMs: RATE_WINDOW_MS,
+        identifier,
+        metadata: { ip, fingerprint, cookieId },
+    });
 
     // Build response headers
     const responseHeaders: Record<string, string> = {

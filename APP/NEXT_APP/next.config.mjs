@@ -62,25 +62,8 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=(), payment=()',
           },
-          // Content Security Policy
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:* https://cdn.jsdelivr.net https://unpkg.com https://assets.calendly.com https://static.cloudflareinsights.com https://cdn.tailwindcss.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com",
-              "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com",
-              "img-src 'self' data: blob: https: http:",
-              "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
-              "connect-src 'self' http://localhost:* https://api.frankfurter.app https://openrouter.ai https://api.calendly.com https://cloudflareinsights.com",
-              "frame-src 'self' https://calendly.com",
-              "media-src 'self' data: blob: http://localhost:*",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-              "frame-ancestors 'self'",
-            ].join('; '),
-          },
+          // Content Security Policy is now set dynamically by middleware.ts
+          // with per-request nonces for improved security (no unsafe-inline)
         ],
       },
     ];

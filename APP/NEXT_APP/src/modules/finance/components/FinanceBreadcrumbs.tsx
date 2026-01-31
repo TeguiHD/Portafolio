@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Home } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface BreadcrumbItem {
     label: string;
@@ -43,27 +41,27 @@ interface FinanceBreadcrumbsProps {
     backUrl?: string;
 }
 
-export function FinanceBreadcrumbs({ 
-    extraItems = [], 
+export function FinanceBreadcrumbs({
+    extraItems = [],
     showBackButton = true,
-    backUrl 
+    backUrl
 }: FinanceBreadcrumbsProps) {
     const pathname = usePathname();
-    
+
     // Generate breadcrumbs from current path
     const generateBreadcrumbs = (): BreadcrumbItem[] => {
         const paths = pathname.split("/").filter(Boolean);
         const breadcrumbs: BreadcrumbItem[] = [];
-        
+
         let currentPath = "";
         for (const path of paths) {
             currentPath += `/${path}`;
-            
+
             // Skip dynamic segments like [id]
             if (path.startsWith("[") || /^[a-f0-9-]{36}$/i.test(path)) {
                 continue;
             }
-            
+
             const routeInfo = routeLabels[currentPath];
             if (routeInfo) {
                 breadcrumbs.push({
@@ -73,18 +71,18 @@ export function FinanceBreadcrumbs({
                 });
             }
         }
-        
+
         return breadcrumbs;
     };
-    
+
     const breadcrumbs = [...generateBreadcrumbs(), ...extraItems];
-    
+
     // Determine back URL
-    const parentPath = breadcrumbs.length > 1 
-        ? breadcrumbs[breadcrumbs.length - 2].href 
+    const parentPath = breadcrumbs.length > 1
+        ? breadcrumbs[breadcrumbs.length - 2].href
         : "/admin/finance";
     const actualBackUrl = backUrl || parentPath;
-    
+
     if (breadcrumbs.length <= 1) {
         return null; // Don't show breadcrumbs on main finance page
     }
@@ -107,18 +105,18 @@ export function FinanceBreadcrumbs({
                     <span className="hidden sm:inline">Volver</span>
                 </a>
             )}
-            
+
             {/* Breadcrumb Trail */}
             <div className="flex items-center gap-1 text-sm overflow-x-auto">
                 {breadcrumbs.map((crumb, index) => {
                     const isLast = index === breadcrumbs.length - 1;
-                    
+
                     return (
                         <div key={crumb.href} className="flex items-center">
                             {index > 0 && (
                                 <ChevronRight className="w-4 h-4 text-neutral-600 mx-1 flex-shrink-0" />
                             )}
-                            
+
                             {isLast ? (
                                 <span className="flex items-center gap-1.5 text-white font-medium px-2 py-1">
                                     {crumb.icon && <span className="text-base">{crumb.icon}</span>}
@@ -144,11 +142,11 @@ export function FinanceBreadcrumbs({
 /**
  * Simplified back button component for pages that just need a back link
  */
-export function FinanceBackButton({ 
-    href, 
-    label = "Volver" 
-}: { 
-    href: string; 
+export function FinanceBackButton({
+    href,
+    label = "Volver"
+}: {
+    href: string;
     label?: string;
 }) {
     return (

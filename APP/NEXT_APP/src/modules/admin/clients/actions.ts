@@ -45,7 +45,8 @@ export async function deleteClientAction(id: string) {
         await prisma.quotationClient.delete({ where: { id } });
         revalidatePath("/admin/clientes");
         return { success: true };
-    } catch (e) {
+    } catch (error) {
+        console.error('[Client Action] Delete failed:', error instanceof Error ? error.message : error);
         return { success: false, error: "Error al eliminar cliente" };
     }
 }

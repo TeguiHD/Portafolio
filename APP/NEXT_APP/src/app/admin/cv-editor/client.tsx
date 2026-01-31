@@ -53,6 +53,22 @@ export default function CvEditorPageClient() {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const toast = useToast();
 
+    // Load version helper - declared before useEffect
+    const loadVersion = useCallback(async (id: string) => {
+        try {
+            const res = await fetch(`/api/cv/${id}`);
+            if (res.ok) {
+                const version = await res.json();
+                setData(version.data as CvData);
+                setCurrentVersionId(id);
+                setHasUnsavedChanges(false);
+            }
+        } catch (error) {
+            console.error("Failed to load CV version:", error);
+            toast.error("Error al cargar la versión");
+        }
+    }, [toast]);
+
     // Load versions on mount
     useEffect(() => {
         const loadVersions = async () => {
@@ -81,22 +97,7 @@ export default function CvEditorPageClient() {
             }
         };
         loadVersions();
-    }, []);
-
-    const loadVersion = async (id: string) => {
-        try {
-            const res = await fetch(`/api/cv/${id}`);
-            if (res.ok) {
-                const version = await res.json();
-                setData(version.data as CvData);
-                setCurrentVersionId(id);
-                setHasUnsavedChanges(false);
-            }
-        } catch (error) {
-            console.error("Failed to load CV version:", error);
-            toast.error("Error al cargar la versión");
-        }
-    };
+    }, [loadVersion]);
 
     const saveVersion = async (name?: string) => {
         setIsSaving(true);

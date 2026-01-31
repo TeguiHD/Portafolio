@@ -254,6 +254,24 @@ model QuotationClient {
   @@index([userId])
 }
 
+// Security: Access log for quotation sharing
+model QuotationAccessLog {
+  id            String   @id @default(cuid())
+  quotationId   String
+  clientSlug    String
+  quotationSlug String
+  ipAddress     String
+  userAgent     String?
+  fingerprint   String?
+  accessResult  String   // "success", "invalid_code", "expired", "rate_limited"
+  createdAt     DateTime @default(now())
+  
+  @@index([quotationId, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([accessResult])
+  @@index([createdAt])
+}
+
 model CvVersion {
   id             String            @id @default(cuid())
   name           String

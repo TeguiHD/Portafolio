@@ -174,7 +174,7 @@ export function withSecurity(
                             headers: {
                                 "Retry-After": String(resetIn),
                                 "X-RateLimit-Limit": String(rateLimit.limit),
-                                "X-RateLimit-Remaining": "0",
+                                "X-RateLimit-Remaining": String(remaining),
                                 "X-RateLimit-Reset": String(resetIn),
                             },
                         }

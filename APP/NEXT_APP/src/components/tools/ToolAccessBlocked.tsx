@@ -33,6 +33,7 @@ export function ToolAccessBlocked({ accessType, toolName = "Herramienta" }: Tool
                         </svg>
                     ),
                     action: (
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Typed routes issue
                         <Link href={"/admin/login" as any} className="px-6 py-2.5 rounded-xl bg-accent-1 text-white font-medium hover:bg-opacity-90 transition-all">
                             Iniciar Sesión
                         </Link>

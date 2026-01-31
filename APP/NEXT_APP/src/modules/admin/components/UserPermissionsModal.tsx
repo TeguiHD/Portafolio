@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Permission {
@@ -41,13 +41,7 @@ export function UserPermissionsModal({
     const [updating, setUpdating] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (isOpen && userId) {
-            loadPermissions();
-        }
-    }, [isOpen, userId]);
-
-    const loadPermissions = async () => {
+    const loadPermissions = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -61,7 +55,13 @@ export function UserPermissionsModal({
         } finally {
             setLoading(false);
         }
-    };
+    }, [userId]);
+
+    useEffect(() => {
+        if (isOpen && userId) {
+            loadPermissions();
+        }
+    }, [isOpen, userId, loadPermissions]);
 
     const updatePermission = async (
         permissionCode: string,

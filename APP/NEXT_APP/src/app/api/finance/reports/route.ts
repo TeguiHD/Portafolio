@@ -70,7 +70,7 @@ export async function GET(request: Request) {
             .reduce((sum, t) => sum + t.amount, 0);
 
         // By category
-        const expensesByCategory = new Map<string, { category: any; amount: number; count: number }>();
+        const expensesByCategory = new Map<string, { category: { id: string; name: string; icon: string | null; color: string | null }; amount: number; count: number }>();
         currentTransactions
             .filter((t) => t.type === "EXPENSE")
             .forEach((t) => {
@@ -199,12 +199,41 @@ export async function GET(request: Request) {
     }
 }
 
+interface CategoryBreakdownItem {
+    category: {
+        id: string;
+        name: string;
+        icon: string | null;
+        color: string | null;
+    };
+    amount: number;
+    count: number;
+    prevAmount: number;
+    delta: number;
+    percentage: number;
+}
+
+interface TransactionForInsight {
+    type: "INCOME" | "EXPENSE" | "TRANSFER";
+    amount: number;
+    merchant: string | null;
+    description: string | null;
+}
+
+interface DailyDataItem {
+    date: string;
+    day: number;
+    income: number;
+    expense: number;
+    balance: number;
+}
+
 interface InsightParams {
     currentExpenses: number;
     prevExpenses: number;
-    categoryBreakdown: any[];
-    currentTransactions: any[];
-    dailyData: any[];
+    categoryBreakdown: CategoryBreakdownItem[];
+    currentTransactions: TransactionForInsight[];
+    dailyData: DailyDataItem[];
 }
 
 function generateInsights(params: InsightParams): Array<{ type: string; icon: string; title: string; description: string; impact: "high" | "medium" | "low" }> {
@@ -239,7 +268,7 @@ function generateInsights(params: InsightParams): Array<{ type: string; icon: st
         insights.push({
             type: "category_spike",
             icon: "⚠️",
-            title: `${biggestIncrease.category.icon} ${biggestIncrease.category.name} aumentó ${Math.round(biggestIncrease.delta)}%`,
+            title: `${biggestIncrease.category.icon || "📈"} ${biggestIncrease.category.name} aumentó ${Math.round(biggestIncrease.delta)}%`,
             description: `Esta categoría pasó de $${formatAmount(biggestIncrease.prevAmount)} a $${formatAmount(biggestIncrease.amount)}.`,
             impact: "medium" as const,
         });
@@ -275,7 +304,7 @@ function generateInsights(params: InsightParams): Array<{ type: string; icon: st
         const top = categoryBreakdown[0];
         insights.push({
             type: "dominant_category",
-            icon: top.category.icon,
+            icon: top.category.icon || "📊",
             title: `${top.category.name} domina tu gasto`,
             description: `${Math.round(top.percentage)}% de tus gastos van a esta categoría. ¿Es intencional?`,
             impact: "medium" as const,

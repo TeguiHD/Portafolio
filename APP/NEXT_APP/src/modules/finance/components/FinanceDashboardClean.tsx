@@ -49,7 +49,7 @@ interface FinanceDashboardCleanProps {
     userId: string;
 }
 
-export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
+export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardCleanProps) {
     const { baseCurrency, refreshKey } = useFinance();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -90,7 +90,7 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
     const handleBatchScanComplete = (results: { data: OCRData; imageData: string }[]) => {
         setShowScanner(false);
         if (results.length === 0) return;
-        
+
         if (results.length === 1) {
             const ocrData = results[0].data;
             const params = new URLSearchParams({
@@ -150,14 +150,14 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
 
     if (!data) return null;
 
-    const spentPercent = data.monthProgress.budget > 0 
-        ? Math.min((data.monthProgress.spent / data.monthProgress.budget) * 100, 100) 
+    const spentPercent = data.monthProgress.budget > 0
+        ? Math.min((data.monthProgress.spent / data.monthProgress.budget) * 100, 100)
         : 0;
 
     return (
         <div className="pb-24 max-w-4xl mx-auto">
             <OfflineIndicator />
-            
+
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-2xl font-bold text-white">Finanzas</h1>
@@ -167,7 +167,7 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
             </div>
 
             {/* Balance Card */}
-            <motion.div 
+            <motion.div
                 initial={isMounted ? { opacity: 0, y: 20 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-2xl p-6 mb-6 border border-neutral-700/50"
@@ -178,11 +178,10 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
                         {formatCurrency(data.balance.available, baseCurrency)}
                     </span>
                     {data.balance.change !== 0 && (
-                        <span className={`text-sm px-2 py-0.5 rounded-full ${
-                            data.balance.change >= 0 
-                                ? "bg-emerald-500/20 text-emerald-400" 
+                        <span className={`text-sm px-2 py-0.5 rounded-full ${data.balance.change >= 0
+                                ? "bg-emerald-500/20 text-emerald-400"
                                 : "bg-red-500/20 text-red-400"
-                        }`}>
+                            }`}>
                             {data.balance.change >= 0 ? "+" : ""}{data.balance.changePercent.toFixed(1)}%
                         </span>
                     )}
@@ -193,20 +192,19 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
                     <div className="flex justify-between text-sm mb-2">
                         <span className="text-neutral-400">Gastos del mes</span>
                         <span className="text-white">
-                            {formatCurrency(data.monthProgress.spent)} 
+                            {formatCurrency(data.monthProgress.spent)}
                             <span className="text-neutral-500"> / {formatCurrency(data.monthProgress.budget)}</span>
                         </span>
                     </div>
                     <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
-                        <motion.div 
+                        <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${spentPercent}%` }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
-                            className={`h-full rounded-full ${
-                                data.monthProgress.status === "under" ? "bg-emerald-500" :
-                                data.monthProgress.status === "on-track" ? "bg-amber-500" :
-                                "bg-red-500"
-                            }`}
+                            className={`h-full rounded-full ${data.monthProgress.status === "under" ? "bg-emerald-500" :
+                                    data.monthProgress.status === "on-track" ? "bg-amber-500" :
+                                        "bg-red-500"
+                                }`}
                         />
                     </div>
                     <p className="text-xs text-neutral-500 mt-2">
@@ -265,8 +263,8 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
             >
                 <div className="flex items-center justify-between p-4 border-b border-neutral-800">
                     <h2 className="font-medium text-white">Últimos movimientos</h2>
-                    <a 
-                        href="/admin/finance/transactions" 
+                    <a
+                        href="/admin/finance/transactions"
                         className="text-sm text-blue-400 hover:text-blue-300"
                     >
                         Ver todo
@@ -286,9 +284,8 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
                                         {new Date(tx.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
                                     </p>
                                 </div>
-                                <span className={`font-medium ${
-                                    tx.type === "expense" ? "text-red-400" : "text-emerald-400"
-                                }`}>
+                                <span className={`font-medium ${tx.type === "expense" ? "text-red-400" : "text-emerald-400"
+                                    }`}>
                                     {tx.type === "expense" ? "-" : "+"}{formatCurrency(tx.amount)}
                                 </span>
                             </div>
@@ -352,7 +349,7 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
                                 className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
                                 onClick={() => setShowFabMenu(false)}
                             />
-                            
+
                             <motion.button
                                 initial={{ opacity: 0, y: 20, scale: 0.8 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -394,16 +391,15 @@ export function FinanceDashboardClean({ userId }: FinanceDashboardCleanProps) {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowFabMenu(!showFabMenu)}
-                    className={`relative z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
-                        showFabMenu 
-                            ? "bg-neutral-700" 
+                    className={`relative z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${showFabMenu
+                            ? "bg-neutral-700"
                             : "bg-blue-600 hover:bg-blue-500"
-                    }`}
+                        }`}
                 >
-                    <svg 
-                        className={`w-6 h-6 text-white transition-transform ${showFabMenu ? "rotate-45" : ""}`} 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
+                    <svg
+                        className={`w-6 h-6 text-white transition-transform ${showFabMenu ? "rotate-45" : ""}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
                         stroke="currentColor"
                     >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />

@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { secureApiEndpoint } from "@/lib/api-security";
 import { generateQuotationWithAI } from "@/services/quotation-ai";
 
 export async function POST(request: NextRequest) {
     try {
-        // Verify authentication
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
+        // SECURITY: Verify session + permission
+        const security = await secureApiEndpoint(request, {
+            requireAuth: true,
+            requiredPermission: "quotations.create",
+        });
+
+        if (security.error) return security.error;
 
         const body = await request.json();
         const { clientName, projectName, projectType, description, requirements } = body;

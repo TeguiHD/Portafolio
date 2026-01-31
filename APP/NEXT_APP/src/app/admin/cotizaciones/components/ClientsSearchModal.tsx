@@ -85,11 +85,12 @@ export default function ClientsSearchModal({ clients, isSuperAdmin, isSpyMode, i
                 case "quotations":
                     comparison = a._count.quotations - b._count.quotations;
                     break;
-                case "createdAt":
+                case "createdAt": {
                     const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                     const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                     comparison = dateA - dateB;
                     break;
+                }
             }
             return sortOrder === "asc" ? comparison : -comparison;
         });

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { QuotationData, QuotationItem, ProviderCostItem, ProfessionalFeeItem } from "../types";
+import type { QuotationData, ProfessionalFeeItem } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import {
     projectTypes,
@@ -18,10 +18,10 @@ import { CommercialConditionsSection } from "./CommercialConditionsSection";
 interface QuotationFormProps {
     data: QuotationData;
     updateData: (updates: Partial<QuotationData>) => void;
-    subtotal: number;
+    subtotal: number; // Reserved for potential future use
 }
 
-export function QuotationForm({ data, updateData, subtotal }: QuotationFormProps) {
+export function QuotationForm({ data, updateData, subtotal: _subtotal }: QuotationFormProps) {
     const [selectedProjectType, setSelectedProjectType] = useState<ProjectType | null>(null);
     const [showTemplateModal, setShowTemplateModal] = useState(false);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -33,7 +33,7 @@ export function QuotationForm({ data, updateData, subtotal }: QuotationFormProps
         return sum + avg;
     }, 0);
     const feesTotal = data.professionalFees.reduce((sum, item) => sum + item.price, 0);
-    const grandTotal = feesTotal; // Provider costs are separate (paid by client directly)
+    const _grandTotal = feesTotal; // Provider costs are separate (paid by client directly)
 
     // Legacy functions for template modal
     const addFromTemplate = (template: ServiceTemplate) => {
@@ -47,7 +47,7 @@ export function QuotationForm({ data, updateData, subtotal }: QuotationFormProps
         setShowTemplateModal(false);
     };
 
-    const handleProjectTypeSelect = (type: ProjectType) => {
+    const _handleProjectTypeSelect = (type: ProjectType) => {
         setSelectedProjectType(type);
         const projectInfo = projectTypes.find(pt => pt.id === type);
         if (projectInfo) {

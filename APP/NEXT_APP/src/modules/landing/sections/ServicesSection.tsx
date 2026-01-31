@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 export function ServicesSection() {
   const featuredService = services.find((s) => s.featured);
   const regularServices = services.filter((s) => !s.featured);
-  const [isMounted, setIsMounted] = useState(false);
+  const [_isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);

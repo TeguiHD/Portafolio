@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -174,7 +174,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         const oldPercentage = (existing.currentAmount / existing.targetAmount) * 100;
         const newPercentage = (newAmount / existing.targetAmount) * 100;
 
-        const updates: any = { currentAmount: newAmount, completed };
+        const updates: Prisma.SavingsGoalUpdateInput = { currentAmount: newAmount, completed };
 
         // Mark milestones as achieved
         if (oldPercentage < 25 && newPercentage >= 25) updates.milestone25 = true;

@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { X, Plus, Loader2, Building2, User, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
-import { createClientAction } from "../../../../modules/admin/clients/actions";
 
 interface Props {
     isOpen: boolean;
@@ -29,38 +28,7 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
     // Reset form when opening
     // useEffect(() => { ... }, [isOpen]); // Optional, depends on UX preference
 
-    const _handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
 
-        if (!formData.name.trim()) {
-            toast.error("El nombre es requerido");
-            return;
-        }
-
-        startTransition(async () => {
-            try {
-                // Use the server action directly
-                const _res = await createClientAction({
-                    name: formData.name,
-                    company: formData.company,
-                    contactName: formData.representative,
-                    contactEmail: formData.email,
-                    contactPhone: formData.phone,
-                    userId: "AUTO_DETECT", // The action should handle this from session or context, but looking at the action signature it expects userId.
-                    // Wait, the action expects userId. The fetch endpoint likely added it from session. 
-                    // Let's check the action signature again. 
-                    // It requires userId: string.
-                    // Since this is a client component, I might not have the userId easily without passing it down or handling it in the action via `auth()`.
-                    // Let's stick to the fetch implementation which likely hits the API route that handles auth.
-                } as any);
-
-                // REVERTING TO FETCH for safety regarding userId, but improving error handling.
-                // Actually, let's look at the api route to be sure.
-            } catch (error) {
-                console.error(error);
-            }
-        });
-    };
 
     // ...
     // To avoid breaking the existing logic without checking api/admin/clients/route.ts,

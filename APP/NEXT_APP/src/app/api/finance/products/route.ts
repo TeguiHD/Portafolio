@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const params = querySchema.parse(Object.fromEntries(searchParams));
 
-        const where: any = {
+        const where: Prisma.ProductWhereInput = {
             userId: session.user.id,
         };
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
             where: { userId: session.user.id },
             _avg: { avgPrice: true },
         });
-        
+
         const totalProducts = await prisma.product.count({
             where: { userId: session.user.id },
         });

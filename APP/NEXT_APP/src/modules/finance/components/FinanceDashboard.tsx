@@ -15,7 +15,7 @@ interface FinanceDashboardProps {
     userId: string;
 }
 
-export function FinanceDashboard({ userId }: FinanceDashboardProps) {
+export function FinanceDashboard({ userId: _userId }: FinanceDashboardProps) {
     const { baseCurrency, dateRange, refreshKey, setIsLoading } = useFinance();
     const [data, setData] = useState<FinanceDashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -35,7 +35,7 @@ export function FinanceDashboard({ userId }: FinanceDashboardProps) {
                 });
 
                 const response = await fetch(`/api/finance/dashboard?${params}`);
-                
+
                 if (!response.ok) {
                     throw new Error("Error al cargar datos del dashboard");
                 }

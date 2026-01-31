@@ -69,8 +69,7 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
     };
 
     const handleOpenOverleaf = () => {
-        // Encode LaTeX for Overleaf URL
-        const encoded = encodeURIComponent(latexContent);
+        // Open in Overleaf with base64 encoded content
         const overleafUrl = `https://www.overleaf.com/docs?snip_uri=data:text/x-tex;base64,${btoa(unescape(encodeURIComponent(latexContent)))}`;
         window.open(overleafUrl, "_blank");
         success("Abriendo en Overleaf...");
@@ -175,21 +174,19 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setActiveView("latex")}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeView === "latex"
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeView === "latex"
                                     ? "bg-accent-1/20 text-accent-1"
                                     : "text-neutral-400 hover:text-white"
-                            }`}
+                                }`}
                         >
                             Código LaTeX
                         </button>
                         <button
                             onClick={() => setActiveView("info")}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeView === "info"
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeView === "info"
                                     ? "bg-accent-1/20 text-accent-1"
                                     : "text-neutral-400 hover:text-white"
-                            }`}
+                                }`}
                         >
                             Información
                         </button>
@@ -213,9 +210,8 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
                 {activeView === "latex" ? (
                     <div className="relative">
                         <div
-                            className={`bg-[#1e1e1e] rounded-xl border border-white/10 overflow-hidden transition-all duration-300 ${
-                                isExpanded ? "max-h-none" : "max-h-96"
-                            }`}
+                            className={`bg-[#1e1e1e] rounded-xl border border-white/10 overflow-hidden transition-all duration-300 ${isExpanded ? "max-h-none" : "max-h-96"
+                                }`}
                         >
                             {/* Code Header */}
                             <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10">

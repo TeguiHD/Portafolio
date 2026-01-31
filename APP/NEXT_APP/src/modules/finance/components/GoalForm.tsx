@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency";
 
+export interface GoalData {
+    name: string;
+    icon: string;
+    color: string;
+    targetAmount: number;
+    currentAmount: number;
+    deadline: string | null;
+}
+
 interface GoalFormProps {
     goal?: {
         id: string;
@@ -13,7 +22,7 @@ interface GoalFormProps {
         currentAmount: number;
         deadline: string | null;
     };
-    onSubmit: (data: any) => Promise<void>;
+    onSubmit: (data: GoalData) => Promise<void>;
     onCancel: () => void;
 }
 
@@ -93,11 +102,10 @@ export function GoalForm({ goal, onSubmit, onCancel }: GoalFormProps) {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, icon })}
                                 className={`w-10 h-10 text-xl flex items-center justify-center rounded-lg transition-all
-                                          ${
-                                              formData.icon === icon
-                                                  ? "bg-white/10 ring-2 ring-blue-500"
-                                                  : "hover:bg-white/5"
-                                          }`}
+                                          ${formData.icon === icon
+                                        ? "bg-white/10 ring-2 ring-blue-500"
+                                        : "hover:bg-white/5"
+                                    }`}
                             >
                                 {icon}
                             </button>
@@ -113,9 +121,8 @@ export function GoalForm({ goal, onSubmit, onCancel }: GoalFormProps) {
                                 key={color}
                                 type="button"
                                 onClick={() => setFormData({ ...formData, color })}
-                                className={`w-10 h-10 rounded-lg transition-all ${
-                                    formData.color === color ? "ring-2 ring-white ring-offset-2 ring-offset-gray-900" : ""
-                                }`}
+                                className={`w-10 h-10 rounded-lg transition-all ${formData.color === color ? "ring-2 ring-white ring-offset-2 ring-offset-gray-900" : ""
+                                    }`}
                                 style={{ backgroundColor: color }}
                             />
                         ))}

@@ -108,7 +108,26 @@ export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
 
                 {/* Contact Actions */}
                 <div className="mb-4">
-                    <ContactInfoModal client={client as any} />
+                    <ContactInfoModal client={{
+                        ...client,
+                        email: client.email || undefined,
+                        company: client.company || undefined,
+                        // Strip incompatible properties by not including them or explicitly excluding if I were destructuring.
+                        // Since I am spreading ...client, I am including them.
+                        // TS complains about object literal specifying known properties if I explicity set user: undefined.
+                        // But spreading ...client includes them!
+                        // Wait, if I spread `...client` AND the target interface doesn't have them, usually it's allowed unless I explicitly add properties that trigger excess check?
+                        // Or if `ContactInfoModal` type is exact? Interfaces are usually open.
+                        // The error said: "Object literal may only specify known properties, and 'user' does not exist in type 'Client'."
+                        // This usually happens when I explicitly ADD properties that are not in the target type.
+                        // But I was setting them to `undefined`.
+                        // If I simple spread ...client, it carries `user`. If the target type is `Client`, and I pass a specific object literal...
+                        // If I remove `user: undefined` line, it might work if strict object literal check isn't triggered by spread.
+                        // Actually, I can just construct the object manually to be safe.
+                        id: client.id,
+                        name: client.name,
+                        slug: client.slug,
+                    }} />
                 </div>
 
                 {/* Main Action */}

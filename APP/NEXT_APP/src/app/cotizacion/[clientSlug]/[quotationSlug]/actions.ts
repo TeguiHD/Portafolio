@@ -1,8 +1,8 @@
 "use server";
 
 import { QuotationAccessService } from "@/services/quotation-access";
-import { cookies } from "next/headers";
-import { headers } from "next/headers";
+import { generateAccessToken } from "@/lib/secure-token";
+import { cookies, headers } from "next/headers";
 
 export async function verifyQuotationAccessAction(
     clientSlug: string,
@@ -11,21 +11,32 @@ export async function verifyQuotationAccessAction(
 ) {
     const headersList = await headers();
     const ip = headersList.get("x-forwarded-for") || headersList.get("x-real-ip") || "unknown";
+    const userAgent = headersList.get("user-agent") || undefined;
 
     const result = await QuotationAccessService.validateCode(
         clientSlug,
         quotationSlug,
         code,
-        ip
+        ip,
+        userAgent
     );
 
-    if (result.allowed) {
-        // Set session cookie
+    if (result.allowed && result.quotationId) {
+        // Generate cryptographically signed token instead of plain "authorized"
+        const token = generateAccessToken(
+            result.quotationId,
+            clientSlug,
+            quotationSlug,
+            60 * 60 * 24 // 24 hours
+        );
+
+        // Set secure session cookie with path-specific scope
         const cookieStore = await cookies();
-        cookieStore.set(`qt_access_${clientSlug}_${quotationSlug}`, "authorized", {
+        cookieStore.set(`qt_access_${clientSlug}_${quotationSlug}`, token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
+            sameSite: "strict", // Stricter than "lax" for CSRF protection
+            path: `/cotizacion/${clientSlug}/${quotationSlug}`,
             maxAge: 60 * 60 * 24 // 24 hours
         });
 

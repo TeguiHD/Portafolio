@@ -111,7 +111,7 @@ export default function RegexTesterPage() {
             toast.success("Regex generada", data.explanation || "Expresión regular lista para probar");
             setGeneratedExamples([]);  // Clear previous examples on new regex
 
-        } catch (err) {
+        } catch {
             toast.error("Error de conexión", "No se pudo conectar con el servicio de IA");
         } finally {
             setIsGenerating(false);
@@ -146,7 +146,7 @@ export default function RegexTesterPage() {
             setGeneratedExamples(data.examples || []);
             toast.success("Ejemplos generados", `${data.examples?.length || 0} ejemplos válidos`);
 
-        } catch (err) {
+        } catch {
             toast.error("Error de conexión", "No se pudo conectar con el servicio de IA");
         } finally {
             setIsGeneratingExamples(false);

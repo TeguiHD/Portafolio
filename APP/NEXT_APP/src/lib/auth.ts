@@ -46,7 +46,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 email: { label: "Email", type: "email" },
                 password: { label: "Password", type: "password" }
             },
-            async authorize(credentials, request) {
+            async authorize(credentials, _request) {
                 // Get request context for security logging
                 const headersList = await headers()
                 const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] ||
@@ -260,6 +260,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 // Generate unique token ID for session tracking
                 token.jti = generateTokenId()
             }
+
+            // Handle session updates (e.g., role changes)
+            if (trigger === "update") {
+                // Token refresh - could re-fetch user data here if needed
+                token.updatedAt = Date.now()
+            }
+
             return token
         },
         async session({ session, token }) {

@@ -60,19 +60,28 @@ const visibilityConfig = {
 export default function ToolsPageClient() {
     const [tools, setTools] = useState<Tool[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [updating, setUpdating] = useState<string | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [expandedTool, setExpandedTool] = useState<string | null>(null);
 
     const fetchTools = async () => {
+        setError(null);
         try {
             const res = await fetch("/api/tools/admin");
-            if (res.ok) {
-                const data = await res.json();
-                setTools(data.tools || []);
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    setError("No tienes permisos para ver las herramientas");
+                } else {
+                    setError("Error al cargar herramientas");
+                }
+                return;
             }
-        } catch (error) {
-            console.error("Error fetching tools:", error);
+            const data = await res.json();
+            setTools(data.tools || []);
+        } catch (err) {
+            console.error("Error fetching tools:", err);
+            setError("Error de conexión al servidor");
         } finally {
             setLoading(false);
         }
@@ -137,6 +146,30 @@ export default function ToolsPageClient() {
 
     if (loading) {
         return <ToolsPageSkeleton />;
+    }
+
+    if (error) {
+        return (
+            <div className="space-y-6 max-w-5xl mx-auto">
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 sm:p-12 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                        <XCircle size={32} className="text-red-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Error</h3>
+                    <p className="text-neutral-400 text-sm max-w-sm mx-auto mb-4">{error}</p>
+                    <button
+                        onClick={() => {
+                            setLoading(true);
+                            fetchTools();
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 transition-colors text-sm"
+                    >
+                        <RefreshCw size={16} />
+                        Reintentar
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     return (

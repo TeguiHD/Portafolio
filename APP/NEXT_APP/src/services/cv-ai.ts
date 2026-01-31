@@ -391,7 +391,7 @@ export async function generateCvSuggestion(
             }
 
             parsed = JSON.parse(jsonMatch[0]);
-        } catch (parseError) {
+        } catch {
             console.error("Failed to parse AI response:", content);
             return {
                 success: false,

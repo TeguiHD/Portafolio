@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
 import { cn } from "@/components/ui/Button";
 import { ThrottledLink } from "@/components/ui/ThrottledLink";
@@ -9,7 +9,6 @@ const navItems = [
   { label: "Herramientas", href: "/#tools-belt" },
   { label: "Proyectos", href: "/#casos" },
   { label: "Stack", href: "/#tecnologias" },
-  { label: "Contacto", href: "/#contact" },
 ];
 
 export function Navbar() {
@@ -118,6 +117,7 @@ export function Navbar() {
             {navItems.map((item) => (
               <ThrottledLink
                 key={item.href}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Hash links are valid but strict typed routes may complain
                 href={item.href as any}
                 onClick={() => suppressHideFor()}
                 className="relative px-3.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-white/5"
@@ -183,6 +183,7 @@ export function Navbar() {
               {navItems.map((item) => (
                 <ThrottledLink
                   key={item.href}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Hash links are valid but strict typed routes may complain
                   href={item.href as any}
                   onClick={() => {
                     suppressHideFor();

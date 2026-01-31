@@ -1,6 +1,7 @@
 "use client";
 
 import { ThrottledLink } from "@/components/ui/ThrottledLink";
+import { ExternalLink } from "@/components/ui/ExternalLink";
 
 export function FooterSection() {
   return (
@@ -37,9 +38,9 @@ export function FooterSection() {
         <div>
           <h3 className="font-bold text-white mb-4 text-sm tracking-wider">SOCIAL</h3>
           <ul className="space-y-2 text-sm text-gray-500">
-            <li><a href="https://github.com/TeguiHD" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a></li>
-            <li><a href="https://linkedin.com/in/nicoholas-lopetegui" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">LinkedIn</a></li>
-            <li><a href="mailto:contact@nicoholas.dev" className="hover:text-white transition-colors">Email</a></li>
+            <li><ExternalLink href="https://github.com/TeguiHD" className="hover:text-white transition-colors">GitHub</ExternalLink></li>
+            <li><ExternalLink href="https://linkedin.com/in/nicoholas-lopetegui" className="hover:text-white transition-colors">LinkedIn</ExternalLink></li>
+            <li><ExternalLink href="mailto:contact@nicoholas.dev" className="hover:text-white transition-colors">Email</ExternalLink></li>
           </ul>
         </div>
 
@@ -50,3 +51,4 @@ export function FooterSection() {
     </footer>
   );
 }
+

@@ -114,7 +114,7 @@ interface FinanceDashboardV2Props {
     userId: string;
 }
 
-export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
+export function FinanceDashboardV2({ userId: _userId }: FinanceDashboardV2Props) {
     const { baseCurrency, refreshKey } = useFinance();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -132,7 +132,7 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
             if (res.ok) {
                 const result = await res.json();
                 setData(result.data);
-                
+
                 // Check if needs onboarding
                 if (result.needsOnboarding) {
                     setShowOnboarding(true);
@@ -157,9 +157,9 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
     // Handle batch scan complete - multiple receipts
     const handleBatchScanComplete = (results: { data: OCRData; imageData: string }[]) => {
         setShowScanner(false);
-        
+
         if (results.length === 0) return;
-        
+
         if (results.length === 1) {
             // Single receipt - navigate to form with pre-filled data
             const ocrData = results[0].data;
@@ -219,9 +219,9 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
             {/* Page Header */}
             <PageHeader />
             <OfflineIndicator />
-            
+
             {/* Hero Section - Balance Disponible */}
-            <motion.section 
+            <motion.section
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 p-6 md:p-8 mb-6"
@@ -240,7 +240,7 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
 
                     {/* Hero Metric */}
                     <div className="flex items-baseline gap-3 mb-4">
-                        <motion.span 
+                        <motion.span
                             key={data.balance.available}
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
@@ -248,13 +248,12 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                         >
                             {formatCurrency(data.balance.available, baseCurrency)}
                         </motion.span>
-                        
+
                         {/* Change indicator */}
-                        <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                            data.balance.change >= 0 
-                                ? "bg-green-500/20 text-green-300" 
+                        <span className={`text-sm font-medium px-2 py-1 rounded-full ${data.balance.change >= 0
+                                ? "bg-green-500/20 text-green-300"
                                 : "bg-red-500/20 text-red-300"
-                        }`}>
+                            }`}>
                             {data.balance.change >= 0 ? "+" : ""}
                             {data.balance.changePercent.toFixed(1)}%
                         </span>
@@ -270,24 +269,23 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                                 {formatCurrency(data.monthProgress.spent)} de {formatCurrency(data.monthProgress.budget)}
                             </span>
                         </div>
-                        
+
                         {/* Progress bar */}
                         <div className="h-3 bg-white/20 rounded-full overflow-hidden">
-                            <motion.div 
+                            <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.min((data.monthProgress.spent / data.monthProgress.budget) * 100, 100)}%` }}
                                 transition={{ duration: 0.8, ease: "easeOut" }}
-                                className={`h-full rounded-full ${
-                                    data.monthProgress.status === "under" ? "bg-green-400" :
-                                    data.monthProgress.status === "on-track" ? "bg-yellow-400" :
-                                    "bg-red-400"
-                                }`}
+                                className={`h-full rounded-full ${data.monthProgress.status === "under" ? "bg-green-400" :
+                                        data.monthProgress.status === "on-track" ? "bg-yellow-400" :
+                                            "bg-red-400"
+                                    }`}
                             />
                         </div>
-                        
+
                         {/* Daily average */}
                         <p className="text-blue-200 text-xs mt-2">
-                            Promedio diario: {formatCurrency(data.monthProgress.dailyAverage)} • 
+                            Promedio diario: {formatCurrency(data.monthProgress.dailyAverage)} •
                             {data.monthProgress.status === "under" && " ✓ Vas bien"}
                             {data.monthProgress.status === "on-track" && " ⚠️ En el límite"}
                             {data.monthProgress.status === "over" && " 🔴 Sobre presupuesto"}
@@ -299,16 +297,16 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
             {/* Smart Alerts */}
             <AnimatePresence>
                 {visibleAlerts.length > 0 && (
-                    <motion.section 
+                    <motion.section
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-3 mb-6"
                     >
                         {visibleAlerts.map((alert, index) => (
-                            <SmartAlertCard 
-                                key={alert.id} 
-                                alert={alert} 
+                            <SmartAlertCard
+                                key={alert.id}
+                                alert={alert}
                                 onDismiss={() => dismissAlert(alert.id)}
                                 delay={index * 0.1}
                             />
@@ -320,7 +318,7 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
             {/* Quick Actions - Frecuentes */}
             {/* Goals Progress */}
             {data.goals.length > 0 && (
-                <motion.section 
+                <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
@@ -343,7 +341,7 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                 <div className="lg:col-span-2 space-y-6">
                     {/* AI Insights */}
                     {data.insights.length > 0 && (
-                        <motion.section 
+                        <motion.section
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 }}
@@ -360,7 +358,7 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                     )}
 
                     {/* Recent Transactions */}
-                    <motion.section 
+                    <motion.section
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 }}
@@ -369,8 +367,8 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                             <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
                                 <span>📋</span> Últimos Movimientos
                             </h3>
-                            <a 
-                                href="/admin/finance/transactions" 
+                            <a
+                                href="/admin/finance/transactions"
                                 className="text-xs text-blue-400 hover:text-blue-300"
                             >
                                 Ver todos →
@@ -378,16 +376,16 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                         </div>
                         <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 overflow-hidden">
                             {data.recentTransactions.slice(0, 5).map((tx, index) => (
-                                <TransactionRow 
-                                    key={tx.id} 
-                                    transaction={tx} 
+                                <TransactionRow
+                                    key={tx.id}
+                                    transaction={tx}
                                     isLast={index === Math.min(data.recentTransactions.length - 1, 4)}
                                 />
                             ))}
                             {data.recentTransactions.length === 0 && (
                                 <div className="p-8 text-center text-gray-500">
                                     <p>No hay transacciones recientes</p>
-                                    <a 
+                                    <a
                                         href="/admin/finance/transactions/new"
                                         className="mt-2 inline-block text-blue-400 hover:text-blue-300 text-sm"
                                     >
@@ -400,7 +398,7 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                 </div>
 
                 {/* Right: Categories */}
-                <motion.section 
+                <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
@@ -410,9 +408,9 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                     </h3>
                     <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-4">
                         {data.topCategories.slice(0, 6).map((cat, index) => (
-                            <CategoryRow 
-                                key={cat.id} 
-                                category={cat} 
+                            <CategoryRow
+                                key={cat.id}
+                                category={cat}
                                 index={index}
                                 total={data.monthProgress.spent}
                             />
@@ -475,7 +473,7 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                                 className="fixed inset-0 z-30"
                                 onClick={() => setShowFabMenu(false)}
                             />
-                            
+
                             {/* Option: Scan with AI (Multiple receipts) */}
                             <motion.button
                                 initial={{ opacity: 0, y: 20, scale: 0.8 }}
@@ -531,11 +529,10 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowFabMenu(!showFabMenu)}
-                    className={`relative z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
-                        showFabMenu 
-                            ? "bg-neutral-700 rotate-45" 
+                    className={`relative z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${showFabMenu
+                            ? "bg-neutral-700 rotate-45"
                             : "bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600"
-                    }`}
+                        }`}
                     title="Nueva transacción"
                 >
                     <svg className="w-6 h-6 text-white transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -552,12 +549,12 @@ export function FinanceDashboardV2({ userId }: FinanceDashboardV2Props) {
 
 // Sub-components
 
-function SmartAlertCard({ 
-    alert, 
-    onDismiss, 
-    delay 
-}: { 
-    alert: SmartAlert; 
+function SmartAlertCard({
+    alert,
+    onDismiss,
+    delay
+}: {
+    alert: SmartAlert;
     onDismiss: () => void;
     delay: number;
 }) {
@@ -587,7 +584,7 @@ function SmartAlertCard({
                 <p className="font-medium">{alert.title}</p>
                 <p className="text-sm opacity-80 mt-0.5">{alert.message}</p>
                 {alert.action && (
-                    <a 
+                    <a
                         href={alert.action.href}
                         className="inline-block mt-2 text-sm underline hover:no-underline"
                     >
@@ -596,7 +593,7 @@ function SmartAlertCard({
                 )}
             </div>
             {alert.dismissable && (
-                <button 
+                <button
                     onClick={onDismiss}
                     className="p-1 hover:bg-white/10 rounded-lg transition-colors"
                 >
@@ -628,7 +625,7 @@ function GoalCard({ goal }: { goal: Goal }) {
                 </span>
             </div>
             <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                <motion.div 
+                <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(progress, 100)}%` }}
                     className="h-full rounded-full"
@@ -670,11 +667,11 @@ function InsightCard({ insight }: { insight: Insight }) {
     );
 }
 
-function TransactionRow({ 
-    transaction, 
-    isLast 
-}: { 
-    transaction: Transaction; 
+function TransactionRow({
+    transaction,
+    isLast
+}: {
+    transaction: Transaction;
     isLast: boolean;
 }) {
     const isExpense = transaction.type === "expense";
@@ -697,19 +694,19 @@ function TransactionRow({
     );
 }
 
-function CategoryRow({ 
-    category, 
+function CategoryRow({
+    category,
     index,
-    total 
-}: { 
-    category: CategorySpend; 
+    total
+}: {
+    category: CategorySpend;
     index: number;
     total: number;
 }) {
     const percentage = total > 0 ? (category.amount / total) * 100 : 0;
 
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
@@ -732,7 +729,7 @@ function CategoryRow({
                 </div>
             </div>
             <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                <motion.div 
+                <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${percentage}%` }}
                     transition={{ duration: 0.5, delay: index * 0.05 }}
@@ -749,7 +746,7 @@ function DashboardSkeleton() {
         <div className="space-y-6 animate-pulse">
             {/* Hero skeleton */}
             <div className="h-48 bg-gray-800 rounded-3xl" />
-            
+
             {/* Quick actions skeleton */}
             <div className="flex gap-3">
                 {[1, 2, 3].map(i => (

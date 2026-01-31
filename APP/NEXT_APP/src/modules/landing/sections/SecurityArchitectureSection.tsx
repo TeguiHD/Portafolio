@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Shield, Lock, Server, Globe, Database, FileKey, CheckCircle2 } from "lucide-react";
+import { Shield, Lock, Globe, Database, FileKey, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const securityFeatures = [
@@ -25,7 +25,7 @@ const securityLogs = [
 ];
 
 export function SecurityArchitectureSection() {
-    const [isMounted, setIsMounted] = useState(false);
+    const [_isMounted, setIsMounted] = useState(false);
     const [logs, setLogs] = useState(securityLogs);
 
     useEffect(() => {

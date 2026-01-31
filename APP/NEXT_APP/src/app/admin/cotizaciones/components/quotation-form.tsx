@@ -11,7 +11,7 @@ interface Props {
 export default function QuotationForm({ data, onChange }: Props) {
 
     // Generic handlers
-    const handleChange = (field: keyof QuotationData, value: any) => {
+    const handleChange = <K extends keyof QuotationData>(field: K, value: QuotationData[K]) => {
         onChange({ ...data, [field]: value });
     };
 

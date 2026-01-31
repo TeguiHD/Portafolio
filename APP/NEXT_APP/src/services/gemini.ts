@@ -131,7 +131,7 @@ export async function generateRegexWithAI(userPrompt: string): Promise<RegexGene
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("[AI] API error:", response.status, errorText);
+            console.error(`[AI] API error (${response.status}):`, errorText.slice(0, 500));
 
             if (response.status === 429) {
                 return {
@@ -211,7 +211,7 @@ export async function generateRegexWithAI(userPrompt: string): Promise<RegexGene
         let parsed;
         try {
             parsed = JSON.parse(jsonMatch[0]);
-        } catch (parseError) {
+        } catch {
             debugLog('JSON parse error');
             return {
                 success: false,
@@ -332,7 +332,7 @@ export async function generateExamplesForRegex(regex: string, flags: string): Pr
 
         if (!response.ok) {
             const errorText = await response.text();
-            debugLog('Examples API error:', response.status);
+            debugLog('Examples API error:', response.status, errorText.slice(0, 200));
 
             if (response.status === 429) {
                 return {
@@ -525,7 +525,7 @@ Modo: ${mode}`;
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            debugLog('Code API error:', response.status);
+            debugLog('Code API error:', response.status, errorData);
             return {
                 success: false,
                 error: `Error del servicio de IA (${response.status})`,

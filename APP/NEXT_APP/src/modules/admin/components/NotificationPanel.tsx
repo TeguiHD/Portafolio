@@ -5,12 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Bell,
     X,
-    Check,
     CheckCheck,
     User,
     Shield,
     FileText,
-    Settings,
     AlertTriangle,
     Key,
     UserPlus,

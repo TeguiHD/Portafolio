@@ -285,18 +285,18 @@ export default function UnitConverterPage() {
                                         const bottomStraight = svg.getElementById('bottomMorphToStraight');
 
                                         // Phase 1: Morph to curves
-                                        (topCurve as any)?.beginElement?.();
-                                        (bottomCurve as any)?.beginElement?.();
+                                        (topCurve as unknown as SVGAnimationElement)?.beginElement?.();
+                                        (bottomCurve as unknown as SVGAnimationElement)?.beginElement?.();
 
                                         // Phase 2: Spin
                                         setTimeout(() => {
-                                            (spin as any)?.beginElement?.();
+                                            (spin as unknown as SVGAnimationElement)?.beginElement?.();
                                         }, 50);
 
                                         // Phase 3: Return to straight
                                         setTimeout(() => {
-                                            (topStraight as any)?.beginElement?.();
-                                            (bottomStraight as any)?.beginElement?.();
+                                            (topStraight as unknown as SVGAnimationElement)?.beginElement?.();
+                                            (bottomStraight as unknown as SVGAnimationElement)?.beginElement?.();
                                         }, 800);
                                     }
 

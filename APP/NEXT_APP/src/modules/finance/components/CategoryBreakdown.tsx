@@ -2,7 +2,7 @@
 
 import { formatCurrency } from "@/lib/currency";
 
-interface CategoryData {
+export interface CategoryData {
     category: {
         id: string;
         name: string;
@@ -99,13 +99,12 @@ export function CategoryBreakdown({ categories, totalExpenses }: CategoryBreakdo
                                 <div className="flex items-center gap-2">
                                     {cat.prevAmount > 0 && (
                                         <span
-                                            className={`text-xs px-2 py-0.5 rounded-full ${
-                                                cat.delta > 0
+                                            className={`text-xs px-2 py-0.5 rounded-full ${cat.delta > 0
                                                     ? "bg-red-500/20 text-red-400"
                                                     : cat.delta < 0
-                                                    ? "bg-green-500/20 text-green-400"
-                                                    : "bg-gray-500/20 text-gray-400"
-                                            }`}
+                                                        ? "bg-green-500/20 text-green-400"
+                                                        : "bg-gray-500/20 text-gray-400"
+                                                }`}
                                         >
                                             {cat.delta > 0 ? "+" : ""}
                                             {cat.delta}%

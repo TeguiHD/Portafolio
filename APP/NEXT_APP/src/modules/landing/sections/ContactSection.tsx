@@ -33,6 +33,10 @@ export function ContactSection() {
     setStatus("sending");
     setErrorMessage("");
 
+    // Timeout controller - 30 seconds max
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
@@ -44,7 +48,10 @@ export function ContactSection() {
           website: honeypot,
           formStartTime,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -57,9 +64,14 @@ export function ContactSection() {
         setStatus("error");
         setErrorMessage(data.error || "Error al enviar el mensaje");
       }
-    } catch {
+    } catch (error) {
+      clearTimeout(timeoutId);
       setStatus("error");
-      setErrorMessage("Error de conexión");
+      if (error instanceof Error && error.name === "AbortError") {
+        setErrorMessage("Tiempo de espera agotado. Intenta de nuevo.");
+      } else {
+        setErrorMessage("Error de conexión");
+      }
     }
   }, [name, email, message, honeypot, formStartTime, status]);
 

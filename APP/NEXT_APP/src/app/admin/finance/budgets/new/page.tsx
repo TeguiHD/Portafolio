@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { BudgetForm } from "@/modules/finance/components/BudgetForm";
+import { BudgetForm, type BudgetData } from "@/modules/finance/components/BudgetForm";
 
 export default function NewBudgetPage() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: BudgetData) => {
         setError(null);
         const res = await fetch("/api/finance/budgets", {
             method: "POST",

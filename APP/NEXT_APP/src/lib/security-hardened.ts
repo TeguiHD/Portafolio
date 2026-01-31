@@ -29,14 +29,14 @@ export function secureCompare(a: string, b: string): boolean {
     // Ensure both strings are same length to prevent length-based timing attack
     const aBuffer = Buffer.from(a, 'utf8')
     const bBuffer = Buffer.from(b, 'utf8')
-    
+
     // If lengths differ, still compare to prevent timing leak
     if (aBuffer.length !== bBuffer.length) {
         // Compare with itself to maintain constant time
         timingSafeEqual(aBuffer, aBuffer)
         return false
     }
-    
+
     return timingSafeEqual(aBuffer, bBuffer)
 }
 
@@ -47,7 +47,7 @@ export function secureHashCompare(token: string, storedHash: string, secret: str
     const tokenHash = createHash('sha256')
         .update(token + secret)
         .digest('hex')
-    
+
     return secureCompare(tokenHash, storedHash)
 }
 
@@ -100,14 +100,14 @@ function calculateEntropy(str: string): number {
     for (const char of str) {
         freq[char] = (freq[char] || 0) + 1
     }
-    
+
     let entropy = 0
     const len = str.length
     for (const count of Object.values(freq)) {
         const p = count / len
         entropy -= p * Math.log2(p)
     }
-    
+
     return entropy
 }
 
@@ -120,18 +120,18 @@ export function detectAnomalies(
 ): AnomalyScore {
     const reasons: string[] = []
     let score = 0
-    
+
     // Get user's fingerprint history
     const history = fingerprintHistory.get(userId) || []
-    
+
     // Check for suspicious patterns
-    
+
     // 1. User agent entropy too low (possible bot)
     if (fingerprint.entropy < 3.0) {
         score += 20
         reasons.push('LOW_UA_ENTROPY')
     }
-    
+
     // 2. Rapid IP changes (possible proxy rotation)
     const recentIPs = new Set(
         history.filter(f => f.timestamp > Date.now() - 5 * 60 * 1000)
@@ -141,7 +141,7 @@ export function detectAnomalies(
         score += 30
         reasons.push('RAPID_IP_ROTATION')
     }
-    
+
     // 3. User agent changes while IP stays same
     const ipHistory = history.filter(f => f.ipHash === fingerprint.ipHash)
     const uniqueUAs = new Set(ipHistory.map(f => f.userAgentHash))
@@ -149,20 +149,20 @@ export function detectAnomalies(
         score += 25
         reasons.push('UA_SWITCHING')
     }
-    
+
     // 4. Missing standard headers (possible headless browser)
     if (!fingerprint.acceptLanguage || !fingerprint.acceptEncoding) {
         score += 15
         reasons.push('MISSING_HEADERS')
     }
-    
+
     // 5. Request velocity anomaly
     const last5Min = history.filter(f => f.timestamp > Date.now() - 5 * 60 * 1000)
     if (last5Min.length > 50) {
         score += 20
         reasons.push('HIGH_VELOCITY')
     }
-    
+
     // 6. Known bot patterns
     const uaLower = fingerprint.userAgentHash.toLowerCase()
     const botPatterns = ['headless', 'phantom', 'selenium', 'puppeteer', 'playwright']
@@ -170,17 +170,17 @@ export function detectAnomalies(
         score += 40
         reasons.push('BOT_PATTERN_DETECTED')
     }
-    
+
     // Update history
     history.push(fingerprint)
-    
+
     // Clean old entries
     const cleanedHistory = history
         .filter(f => f.timestamp > Date.now() - FINGERPRINT_WINDOW)
         .slice(-MAX_FINGERPRINTS)
-    
+
     fingerprintHistory.set(userId, cleanedHistory)
-    
+
     return { score: Math.min(score, 100), reasons }
 }
 
@@ -198,11 +198,11 @@ export function safeRegexTest(pattern: string, input: string, flags = ''): boole
     if (input.length > 10000) {
         return null  // Refuse to process very long inputs
     }
-    
+
     // Use cached compiled regex
     const cacheKey = pattern + flags
     let regex = safeRegexCache.get(cacheKey)
-    
+
     if (!regex) {
         try {
             regex = new RegExp(pattern, flags)
@@ -211,19 +211,19 @@ export function safeRegexTest(pattern: string, input: string, flags = ''): boole
             return null  // Invalid regex
         }
     }
-    
+
     // For Node.js, we can't truly timeout regex, but we can limit input size
     // In production, consider using 're2' package for safe regex
-    
+
     const start = performance.now()
     const result = regex.test(input)
     const duration = performance.now() - start
-    
+
     // Log slow regex for monitoring
     if (duration > REGEX_TIMEOUT_MS) {
         console.warn(`[SECURITY] Slow regex detected: ${duration}ms for pattern ${pattern.slice(0, 50)}`)
     }
-    
+
     return result
 }
 
@@ -247,14 +247,14 @@ export const SafePatterns = {
  */
 export function deepFreeze<T extends object>(obj: T): Readonly<T> {
     Object.freeze(obj)
-    
+
     for (const key of Object.keys(obj)) {
         const value = (obj as Record<string, unknown>)[key]
         if (value && typeof value === 'object' && !Object.isFrozen(value)) {
             deepFreeze(value as object)
         }
     }
-    
+
     return obj
 }
 
@@ -270,7 +270,7 @@ export function safeJsonParse<T>(json: string): T | null {
             }
             return value
         })
-        
+
         return parsed as T
     } catch {
         return null
@@ -282,7 +282,7 @@ export function safeJsonParse<T>(json: string): T | null {
  */
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
     const dangerous = ['__proto__', 'constructor', 'prototype']
-    
+
     for (const key of Object.keys(obj)) {
         if (dangerous.includes(key)) {
             delete obj[key]
@@ -290,7 +290,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
             sanitizeObject(obj[key] as Record<string, unknown>)
         }
     }
-    
+
     return obj
 }
 
@@ -309,8 +309,8 @@ const BLOCKED_HOSTS = [
 
 const BLOCKED_PREFIXES = [
     '10.',
-    '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', 
-    '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', 
+    '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.',
+    '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.',
     '172.30.', '172.31.',
     '192.168.',
     'fc00:',
@@ -330,34 +330,34 @@ const ALLOWED_EXTERNAL_HOSTS = [
 export function validateExternalUrl(urlString: string): { safe: boolean; reason?: string } {
     try {
         const url = new URL(urlString)
-        
+
         // Only allow HTTPS in production
         if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
             return { safe: false, reason: 'HTTPS_REQUIRED' }
         }
-        
+
         // Check blocked hosts
         if (BLOCKED_HOSTS.includes(url.hostname)) {
             return { safe: false, reason: 'BLOCKED_HOST' }
         }
-        
+
         // Check blocked IP ranges
         for (const prefix of BLOCKED_PREFIXES) {
             if (url.hostname.startsWith(prefix)) {
                 return { safe: false, reason: 'PRIVATE_IP_RANGE' }
             }
         }
-        
+
         // Only allow whitelisted external hosts
         if (!ALLOWED_EXTERNAL_HOSTS.includes(url.hostname)) {
             return { safe: false, reason: 'HOST_NOT_WHITELISTED' }
         }
-        
+
         // Block non-standard ports
         if (url.port && !['80', '443', ''].includes(url.port)) {
             return { safe: false, reason: 'NON_STANDARD_PORT' }
         }
-        
+
         return { safe: true }
     } catch {
         return { safe: false, reason: 'INVALID_URL' }
@@ -368,7 +368,9 @@ export function validateExternalUrl(urlString: string): { safe: boolean; reason?
 
 const LOG_DANGEROUS_PATTERNS = [
     /[\n\r]/g,           // Newlines (log forging)
+    // eslint-disable-next-line no-control-regex
     /\x1b\[[0-9;]*m/g,   // ANSI escape codes
+    // eslint-disable-next-line no-control-regex
     /\x00/g,             // Null bytes
 ]
 
@@ -377,16 +379,16 @@ const LOG_DANGEROUS_PATTERNS = [
  */
 export function sanitizeForLog(input: string, maxLength = 500): string {
     let sanitized = input
-    
+
     for (const pattern of LOG_DANGEROUS_PATTERNS) {
         sanitized = sanitized.replace(pattern, ' ')
     }
-    
+
     // Truncate long strings
     if (sanitized.length > maxLength) {
         sanitized = sanitized.slice(0, maxLength) + '...[TRUNCATED]'
     }
-    
+
     return sanitized
 }
 
@@ -395,7 +397,7 @@ export function sanitizeForLog(input: string, maxLength = 500): string {
  */
 export function safeLogObject(obj: Record<string, unknown>): Record<string, unknown> {
     const safe: Record<string, unknown> = {}
-    
+
     for (const [key, value] of Object.entries(obj)) {
         if (typeof value === 'string') {
             safe[sanitizeForLog(key, 100)] = sanitizeForLog(value)
@@ -408,7 +410,7 @@ export function safeLogObject(obj: Record<string, unknown>): Record<string, unkn
             safe[key] = '[OBJECT]'
         }
     }
-    
+
     return safe
 }
 
@@ -441,22 +443,22 @@ export function validateFileMagicBytes(
     expectedType?: string
 ): { valid: boolean; detectedType?: string; reason?: string } {
     const bytes = buffer instanceof Buffer ? buffer : Buffer.from(buffer)
-    
+
     if (bytes.length < 8) {
         return { valid: false, reason: 'FILE_TOO_SMALL' }
     }
-    
+
     for (const sig of ALLOWED_FILE_SIGNATURES) {
         const offset = sig.offset || 0
         let matches = true
-        
+
         for (let i = 0; i < sig.signature.length; i++) {
             if (bytes[offset + i] !== sig.signature[i]) {
                 matches = false
                 break
             }
         }
-        
+
         if (matches) {
             // WebP has additional check
             if (sig.mime === 'image/webp') {
@@ -469,7 +471,7 @@ export function validateFileMagicBytes(
                     }
                 }
             }
-            
+
             if (matches) {
                 if (expectedType && sig.mime !== expectedType) {
                     return {
@@ -482,7 +484,7 @@ export function validateFileMagicBytes(
             }
         }
     }
-    
+
     return { valid: false, reason: 'UNKNOWN_FILE_TYPE' }
 }
 
@@ -499,23 +501,23 @@ export function validateBase64Image(dataUrl: string): {
     if (!match) {
         return { valid: false, reason: 'INVALID_DATA_URL' }
     }
-    
+
     const [, declaredMime, base64Data] = match
-    
+
     // Validate base64
     try {
         const buffer = Buffer.from(base64Data, 'base64')
-        
+
         // Check actual file type matches declared type
         const validation = validateFileMagicBytes(buffer, declaredMime)
-        
+
         if (!validation.valid) {
             return {
                 valid: false,
                 reason: validation.reason || 'MAGIC_BYTES_MISMATCH'
             }
         }
-        
+
         return { valid: true, mime: declaredMime }
     } catch {
         return { valid: false, reason: 'INVALID_BASE64' }
@@ -544,36 +546,37 @@ export function validateStrictInput(
         type = 'text',
         allowEmpty = false
     } = options
-    
+
     // Null/undefined check
     if (input == null) {
         if (allowEmpty) return { valid: true, sanitized: '' }
         return { valid: false, error: 'INPUT_REQUIRED' }
     }
-    
+
     // Type check
     if (typeof input !== 'string') {
         return { valid: false, error: 'MUST_BE_STRING' }
     }
-    
+
     let sanitized = input.trim()
-    
+
     // Length checks
     if (!allowEmpty && sanitized.length === 0) {
         return { valid: false, error: 'INPUT_REQUIRED' }
     }
-    
+
     if (sanitized.length < minLength) {
         return { valid: false, error: `MIN_LENGTH_${minLength}` }
     }
-    
+
     if (sanitized.length > maxLength) {
         return { valid: false, error: `MAX_LENGTH_${maxLength}` }
     }
-    
+
     // Remove null bytes and control characters
+    // eslint-disable-next-line no-control-regex
     sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '')
-    
+
     // Type-specific validation
     switch (type) {
         case 'email':
@@ -582,31 +585,31 @@ export function validateStrictInput(
             }
             sanitized = sanitized.toLowerCase()
             break
-            
+
         case 'username':
             if (!/^[a-zA-Z][a-zA-Z0-9_-]{2,29}$/.test(sanitized)) {
                 return { valid: false, error: 'INVALID_USERNAME' }
             }
             break
-            
+
         case 'numeric':
             if (!SafePatterns.numeric.test(sanitized)) {
                 return { valid: false, error: 'MUST_BE_NUMERIC' }
             }
             break
-            
+
         case 'alphanumeric':
             if (!SafePatterns.alphanumeric.test(sanitized)) {
                 return { valid: false, error: 'MUST_BE_ALPHANUMERIC' }
             }
             break
     }
-    
+
     // Custom pattern
     if (pattern && !pattern.test(sanitized)) {
         return { valid: false, error: 'PATTERN_MISMATCH' }
     }
-    
+
     return { valid: true, sanitized }
 }
 
@@ -665,12 +668,12 @@ export function verifyRequestSignature(
     if (Math.abs(now - timestamp) > maxAgeMs) {
         return { valid: false, reason: 'TIMESTAMP_EXPIRED' }
     }
-    
+
     const expectedSignature = signRequest(method, path, body, timestamp, secret)
-    
+
     if (!secureCompare(signature, expectedSignature)) {
         return { valid: false, reason: 'INVALID_SIGNATURE' }
     }
-    
+
     return { valid: true }
 }

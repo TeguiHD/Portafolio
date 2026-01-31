@@ -2,7 +2,7 @@
 
 import { formatCurrency } from "@/lib/currency";
 
-interface DailyData {
+export interface DailyData {
     date: string;
     day: number;
     income: number;
@@ -89,11 +89,10 @@ export function DailyChart({ data, month, year }: DailyChartProps) {
 
                             {/* Expense bar */}
                             <div
-                                className={`w-full rounded-t transition-all duration-300 ${
-                                    day.expense > avgDaily * 1.5
+                                className={`w-full rounded-t transition-all duration-300 ${day.expense > avgDaily * 1.5
                                         ? "bg-red-500/80 hover:bg-red-500"
                                         : "bg-red-400/60 hover:bg-red-400"
-                                }`}
+                                    }`}
                                 style={{ height: `${expenseHeight}%`, minHeight: day.expense > 0 ? "2px" : 0 }}
                             />
 

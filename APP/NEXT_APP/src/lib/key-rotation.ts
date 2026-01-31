@@ -14,7 +14,7 @@
  */
 
 import 'server-only'
-import { randomBytes, createCipheriv, createDecipheriv, scryptSync, createHash } from 'crypto'
+import { randomBytes, createCipheriv, createDecipheriv, scryptSync } from 'crypto'
 
 // ============= TYPES =============
 
@@ -71,7 +71,7 @@ class KeyStore {
      */
     private initializeFromEnv(): void {
         const envKeys = process.env.ENCRYPTION_KEYS
-        
+
         if (envKeys) {
             try {
                 const parsed = JSON.parse(envKeys) as KeyVersion[]
@@ -79,7 +79,7 @@ class KeyStore {
                     key.createdAt = new Date(key.createdAt)
                     key.expiresAt = new Date(key.expiresAt)
                     this.keys.set(key.id, key)
-                    
+
                     if (key.status === 'active') {
                         this.currentKeyId = key.id
                     }
@@ -112,7 +112,7 @@ class KeyStore {
 
         this.keys.set(keyVersion.id, keyVersion)
         this.currentKeyId = keyVersion.id
-        
+
         console.log(`🔐 Initial encryption key created: ${keyVersion.id}`)
     }
 
@@ -143,12 +143,12 @@ class KeyStore {
         const iv = randomBytes(16)
         const derivedKey = scryptSync(MASTER_KEY, 'key-encryption', 32)
         const cipher = createCipheriv('aes-256-gcm', derivedKey, iv)
-        
+
         let encrypted = cipher.update(key, 'utf8', 'base64')
         encrypted += cipher.final('base64')
-        
+
         const authTag = cipher.getAuthTag()
-        
+
         return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`
     }
 
@@ -164,13 +164,13 @@ class KeyStore {
         const iv = Buffer.from(ivB64, 'base64')
         const authTag = Buffer.from(tagB64, 'base64')
         const derivedKey = scryptSync(MASTER_KEY, 'key-encryption', 32)
-        
+
         const decipher = createDecipheriv('aes-256-gcm', derivedKey, iv)
         decipher.setAuthTag(authTag)
-        
+
         let decrypted = decipher.update(encrypted, 'base64', 'utf8')
         decrypted += decipher.final('utf8')
-        
+
         return decrypted
     }
 
@@ -179,12 +179,12 @@ class KeyStore {
      */
     getCurrentKey(): { id: string; key: Buffer } | null {
         if (!this.currentKeyId) return null
-        
+
         const keyVersion = this.keys.get(this.currentKeyId)
         if (!keyVersion || keyVersion.status !== 'active') return null
 
         keyVersion.usageCount++
-        
+
         return {
             id: keyVersion.id,
             key: Buffer.from(this.decryptKeyWithMaster(keyVersion.key), 'base64'),
@@ -197,10 +197,10 @@ class KeyStore {
     getKeyById(keyId: string): Buffer | null {
         const keyVersion = this.keys.get(keyId)
         if (!keyVersion) return null
-        
+
         // Only allow active, rotating, or deprecated keys for decryption
         if (keyVersion.status === 'revoked') return null
-        
+
         return Buffer.from(this.decryptKeyWithMaster(keyVersion.key), 'base64')
     }
 
@@ -225,7 +225,7 @@ class KeyStore {
             // Generate new key
             const newKey = this.generateKey()
             const maxVersion = Math.max(...Array.from(this.keys.values()).map(k => k.version), 0)
-            
+
             const newKeyVersion: KeyVersion = {
                 id: this.generateKeyId(),
                 version: maxVersion + 1,
@@ -237,7 +237,7 @@ class KeyStore {
             }
 
             this.keys.set(newKeyVersion.id, newKeyVersion)
-            
+
             const oldKeyId = this.currentKeyId
             this.currentKeyId = newKeyVersion.id
 
@@ -286,7 +286,7 @@ class KeyStore {
         const key = this.keys.get(keyId)
         if (key && key.status !== 'revoked') {
             key.status = 'deprecated'
-            
+
             this.logEvent({
                 timestamp: new Date(),
                 type: 'key_deprecated',
@@ -304,14 +304,14 @@ class KeyStore {
     revokeKey(keyId: string): boolean {
         const key = this.keys.get(keyId)
         if (!key) return false
-        
+
         // Cannot revoke active key
         if (key.status === 'active' && keyId === this.currentKeyId) {
             return false
         }
 
         key.status = 'revoked'
-        
+
         this.logEvent({
             timestamp: new Date(),
             type: 'key_revoked',
@@ -332,7 +332,7 @@ class KeyStore {
 
         // Keep only maxVersions
         const keysToRemove = allKeys.slice(this.config.maxVersions)
-        
+
         for (const key of keysToRemove) {
             if (key.status === 'deprecated' || key.status === 'revoked') {
                 this.keys.delete(key.id)
@@ -345,7 +345,7 @@ class KeyStore {
      */
     private logEvent(event: RotationEvent): void {
         this.rotationLog.push(event)
-        
+
         // Keep only last 100 events
         if (this.rotationLog.length > 100) {
             this.rotationLog.shift()
@@ -363,13 +363,13 @@ class KeyStore {
         recentEvents: RotationEvent[]
     } {
         const keysByStatus: Record<string, number> = {}
-        
+
         for (const key of this.keys.values()) {
             keysByStatus[key.status] = (keysByStatus[key.status] || 0) + 1
         }
 
         const currentKey = this.currentKeyId ? this.keys.get(this.currentKeyId) : null
-        
+
         return {
             currentKeyId: this.currentKeyId,
             totalKeys: this.keys.size,
@@ -384,10 +384,10 @@ class KeyStore {
      */
     needsRotation(): boolean {
         if (!this.currentKeyId) return true
-        
+
         const currentKey = this.keys.get(this.currentKeyId)
         if (!currentKey) return true
-        
+
         return new Date() >= currentKey.expiresAt
     }
 
@@ -396,7 +396,7 @@ class KeyStore {
      */
     getAllKeys(): Omit<KeyVersion, 'key'>[] {
         return Array.from(this.keys.values())
-            .map(({ key, ...rest }) => rest) // Remove actual key from response
+            .map(({ key: _key, ...rest }) => rest) // Remove actual key from response
             .sort((a, b) => b.version - a.version)
     }
 
@@ -459,17 +459,17 @@ export function stopAutoRotation(): void {
  */
 export function encryptWithRotatingKey(plaintext: string): string {
     const keyInfo = keyStore.getCurrentKey()
-    
+
     if (!keyInfo) {
         throw new Error('No active encryption key available')
     }
 
     const iv = randomBytes(16)
     const cipher = createCipheriv('aes-256-gcm', keyInfo.key, iv)
-    
+
     let encrypted = cipher.update(plaintext, 'utf8', 'base64')
     encrypted += cipher.final('base64')
-    
+
     const authTag = cipher.getAuthTag()
 
     // Format: version:keyId:iv:tag:data
@@ -481,13 +481,13 @@ export function encryptWithRotatingKey(plaintext: string): string {
  */
 export function decryptWithRotatingKey(ciphertext: string): string {
     const parts = ciphertext.split(':')
-    
+
     if (parts[0] !== 'v1' || parts.length !== 5) {
         throw new Error('Invalid encrypted format')
     }
 
     const [, keyId, ivB64, tagB64, encrypted] = parts
-    
+
     const key = keyStore.getKeyById(keyId)
     if (!key) {
         throw new Error(`Key not found or revoked: ${keyId}`)
@@ -495,13 +495,13 @@ export function decryptWithRotatingKey(ciphertext: string): string {
 
     const iv = Buffer.from(ivB64, 'base64')
     const authTag = Buffer.from(tagB64, 'base64')
-    
+
     const decipher = createDecipheriv('aes-256-gcm', key, iv)
     decipher.setAuthTag(authTag)
-    
+
     let decrypted = decipher.update(encrypted, 'base64', 'utf8')
     decrypted += decipher.final('utf8')
-    
+
     return decrypted
 }
 
@@ -510,14 +510,14 @@ export function decryptWithRotatingKey(ciphertext: string): string {
  */
 export function needsReEncryption(ciphertext: string): boolean {
     const parts = ciphertext.split(':')
-    
+
     if (parts[0] !== 'v1' || parts.length !== 5) {
         return true // Unknown format, should re-encrypt
     }
 
     const keyId = parts[1]
     const currentKey = keyStore.getCurrentKey()
-    
+
     return keyId !== currentKey?.id
 }
 

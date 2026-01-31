@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { formatCurrency } from "@/lib/currency";
 import { useFinance } from "../context/FinanceContext";
 
 interface Tip {
@@ -79,8 +78,8 @@ export function FinanceTips({ limit = 3, showPersonalized = true }: FinanceTipsP
                 <h3 className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                     <span>💡</span> Tips Financieros
                 </h3>
-                <a 
-                    href="/admin/finance/tips" 
+                <a
+                    href="/admin/finance/tips"
                     className="text-xs text-blue-400 hover:text-blue-300"
                 >
                     Ver todos →
@@ -91,11 +90,10 @@ export function FinanceTips({ limit = 3, showPersonalized = true }: FinanceTipsP
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 <button
                     onClick={() => setSelectedType(null)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                        !selectedType
-                            ? "bg-accent-1 text-white"
-                            : "bg-neutral-800 text-neutral-400 hover:text-white"
-                    }`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${!selectedType
+                        ? "bg-accent-1 text-white"
+                        : "bg-neutral-800 text-neutral-400 hover:text-white"
+                        }`}
                 >
                     Todos
                 </button>
@@ -103,11 +101,10 @@ export function FinanceTips({ limit = 3, showPersonalized = true }: FinanceTipsP
                     <button
                         key={type}
                         onClick={() => setSelectedType(type)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                            selectedType === type
-                                ? "bg-accent-1 text-white"
-                                : "bg-neutral-800 text-neutral-400 hover:text-white"
-                        }`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${selectedType === type
+                            ? "bg-accent-1 text-white"
+                            : "bg-neutral-800 text-neutral-400 hover:text-white"
+                            }`}
                     >
                         {config.icon} {config.label}
                     </button>
@@ -119,9 +116,9 @@ export function FinanceTips({ limit = 3, showPersonalized = true }: FinanceTipsP
                 {filteredTips.length > 0 ? (
                     <div className="space-y-3">
                         {filteredTips.map((tip, index) => (
-                            <TipCard 
-                                key={tip.id} 
-                                tip={tip} 
+                            <TipCard
+                                key={tip.id}
+                                tip={tip}
                                 config={typeConfig[tip.type]}
                                 onDismiss={() => dismissTip(tip.id)}
                                 delay={index * 0.1}
@@ -186,7 +183,7 @@ function TipCard({
                         )}
                     </div>
                     <p className="text-sm text-neutral-400">{tip.description}</p>
-                    
+
                     {tip.impact && (
                         <p className="text-xs text-emerald-400 mt-2">
                             💵 {tip.impact}

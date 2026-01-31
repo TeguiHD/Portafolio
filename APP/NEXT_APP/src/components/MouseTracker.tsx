@@ -74,8 +74,8 @@ export function MouseTracker() {
   // 0 50% 50% 50% creates a teardrop pointing Top-Left
   const borderRadius = useTransform(deformation, (v) => `${v} 50% 50% 50%`);
 
-  // Scale stretch based on velocity
-  const scaleLong = useTransform(
+  // Scale stretch based on velocity (computed for future use)
+  const _scaleLong = useTransform(
     [smoothVelocityX, smoothVelocityY],
     ([vx, vy]: number[]) => {
       const magnitude = Math.sqrt(vx * vx + vy * vy);

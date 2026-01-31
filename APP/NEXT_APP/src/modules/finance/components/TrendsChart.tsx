@@ -2,7 +2,7 @@
 
 import { formatCurrency } from "@/lib/currency";
 
-interface TrendData {
+export interface TrendData {
     key: string;
     year: number;
     month: number;

@@ -3,14 +3,30 @@ import { requirePagePermission } from "@/lib/page-security";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FileText, Eye } from "lucide-react";
+import { ArrowLeft, FileText, Eye, ChevronRight } from "lucide-react";
 import CreateQuotationModal from "./create-modal";
 import QuotationsList from "./quotations-list";
+
+// Type for quotations to pass to client component
+interface Quotation {
+    id: string;
+    folio: string;
+    projectName: string;
+    createdAt: Date;
+    updatedAt: Date;
+    status: string;
+    total: number;
+    accessMode: string;
+    isActive: boolean;
+    isVisible: boolean;
+    slug: string;
+    codeExpiresAt: Date | null;
+}
 
 export const dynamic = "force-dynamic";
 
 async function getClientWithQuotations(clientId: string, userId: string, isSuperAdmin: boolean) {
-    const client = await (prisma as any).quotationClient.findUnique({
+    const client = await prisma.quotationClient.findUnique({
         where: { id: clientId },
         include: {
             quotations: {
@@ -77,13 +93,20 @@ export default async function ClientQuotationsPage({
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <Link
-                        href="/admin/cotizaciones"
-                        className="text-slate-400 hover:text-white text-sm flex items-center gap-1 mb-2 transition-colors"
-                    >
-                        <ArrowLeft size={14} />
-                        Volver a Clientes
-                    </Link>
+                    {/* Breadcrumb Navigation */}
+                    <nav className="flex items-center gap-2 text-sm text-slate-400 mb-3">
+                        <Link
+                            href="/admin/cotizaciones"
+                            className="hover:text-white transition-colors flex items-center gap-1"
+                        >
+                            <ArrowLeft size={14} />
+                            Cotizaciones
+                        </Link>
+                        <ChevronRight size={14} className="text-slate-600" />
+                        <span className="text-white font-medium truncate max-w-[200px]">
+                            {client.name}
+                        </span>
+                    </nav>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold">
                             {client.name.substring(0, 2).toUpperCase()}
@@ -112,7 +135,7 @@ export default async function ClientQuotationsPage({
                 </div>
             ) : (
                 <QuotationsList
-                    quotations={client.quotations as any[]}
+                    quotations={client.quotations as unknown as Quotation[]}
                     clientId={client.id}
                     clientName={client.name}
                     clientSlug={client.slug}

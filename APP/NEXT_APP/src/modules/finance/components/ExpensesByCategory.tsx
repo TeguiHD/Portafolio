@@ -15,7 +15,7 @@ interface ExpensesByCategoryProps {
 export function ExpensesByCategory({
     categories,
     currency,
-    totalExpenses,
+    totalExpenses: _totalExpenses,  // Reserved for future percentage calculations
     isLoading = false,
 }: ExpensesByCategoryProps) {
     const [isMounted, setIsMounted] = useState(false);
@@ -92,7 +92,7 @@ export function ExpensesByCategory({
                 {topCategories.map((category, index) => {
                     // Generate a deterministic color based on category name
                     const colors = [
-                        "#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", 
+                        "#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0",
                         "#9966FF", "#FF9F40", "#7CFC00", "#FF6B6B"
                     ];
                     const colorIndex = category.categoryName.charCodeAt(0) % colors.length;
@@ -125,7 +125,7 @@ export function ExpensesByCategory({
                                             {formatCurrency(category.amount, currency)}
                                         </span>
                                     </div>
-                                    
+
                                     {/* Progress bar */}
                                     <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
                                         <motion.div
@@ -148,9 +148,8 @@ export function ExpensesByCategory({
                             {category.trend !== 0 && (
                                 <div className="ml-11 mt-1">
                                     <span
-                                        className={`text-xs ${
-                                            category.trend > 0 ? "text-red-400" : "text-emerald-400"
-                                        }`}
+                                        className={`text-xs ${category.trend > 0 ? "text-red-400" : "text-emerald-400"
+                                            }`}
                                     >
                                         {category.trend > 0 ? "↑" : "↓"} {Math.abs(category.trend).toFixed(0)}% vs mes anterior
                                     </span>

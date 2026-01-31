@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -33,11 +33,10 @@ export async function GET(request: Request) {
         if (!canView) {
             return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
         }
-
         const { searchParams } = new URL(request.url);
         const includeInactive = searchParams.get("includeInactive") === "true";
 
-        const whereClause: any = { userId: session.user.id };
+        const whereClause: Prisma.RecurringPaymentWhereInput = { userId: session.user.id };
         if (!includeInactive) {
             whereClause.isActive = true;
         }

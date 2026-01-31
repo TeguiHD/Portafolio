@@ -2,13 +2,31 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SummaryCards } from "@/modules/finance/components/SummaryCards";
-import { CategoryBreakdown } from "@/modules/finance/components/CategoryBreakdown";
-import { DailyChart } from "@/modules/finance/components/DailyChart";
-import { InsightsCard } from "@/modules/finance/components/InsightsCard";
-import { TrendsChart } from "@/modules/finance/components/TrendsChart";
+import { CategoryBreakdown, CategoryData } from "@/modules/finance/components/CategoryBreakdown";
+import { DailyChart, DailyData } from "@/modules/finance/components/DailyChart";
+import { InsightsCard, Insight } from "@/modules/finance/components/InsightsCard";
+import { TrendsChart, TrendData } from "@/modules/finance/components/TrendsChart";
 import { formatCurrency } from "@/lib/currency";
 
 type Tab = "monthly" | "trends";
+
+interface MerchantItem {
+    name: string;
+    amount: number;
+    count: number;
+}
+
+interface ExpenseItem {
+    id: string;
+    amount: number;
+    date: string;
+    merchant?: string;
+    description?: string;
+    category?: {
+        name: string;
+        icon: string;
+    };
+}
 
 interface ReportData {
     period: { year: number; month: number };
@@ -20,15 +38,15 @@ interface ReportData {
         expenseChange: number;
         transactionCount: number;
     };
-    categoryBreakdown: any[];
-    dailyData: any[];
-    topMerchants: any[];
-    largestExpenses: any[];
-    insights: any[];
+    categoryBreakdown: CategoryData[];
+    dailyData: DailyData[];
+    topMerchants: MerchantItem[];
+    largestExpenses: ExpenseItem[];
+    insights: Insight[];
 }
 
 interface TrendsData {
-    trendData: any[];
+    trendData: TrendData[];
     summary: {
         avgIncome: number;
         avgExpenses: number;
@@ -126,8 +144,8 @@ export default function ReportsPageClient() {
                     <button
                         onClick={() => setActiveTab("monthly")}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "monthly"
-                                ? "bg-blue-600 text-white"
-                                : "text-gray-400 hover:text-white"
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-400 hover:text-white"
                             }`}
                     >
                         Mensual
@@ -135,8 +153,8 @@ export default function ReportsPageClient() {
                     <button
                         onClick={() => setActiveTab("trends")}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "trends"
-                                ? "bg-blue-600 text-white"
-                                : "text-gray-400 hover:text-white"
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-400 hover:text-white"
                             }`}
                     >
                         Tendencias
@@ -250,7 +268,7 @@ export default function ReportsPageClient() {
                             </h3>
                             {reportData.topMerchants.length > 0 ? (
                                 <div className="space-y-3">
-                                    {reportData.topMerchants.slice(0, 5).map((m: any, i: number) => (
+                                    {reportData.topMerchants.slice(0, 5).map((m, i: number) => (
                                         <div key={i} className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <span className="w-6 h-6 bg-gray-800 rounded-full flex items-center justify-center text-xs text-gray-400">
@@ -278,7 +296,7 @@ export default function ReportsPageClient() {
                             </h3>
                             {reportData.largestExpenses.length > 0 ? (
                                 <div className="space-y-3">
-                                    {reportData.largestExpenses.map((t: any, _i: number) => (
+                                    {reportData.largestExpenses.map((t, _i: number) => (
                                         <div key={t.id} className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-lg">{t.category?.icon || "💰"}</span>

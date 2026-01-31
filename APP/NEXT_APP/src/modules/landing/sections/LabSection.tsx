@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
 export function LabSection() {
-  const [isMounted, setIsMounted] = useState(false);
+  const [_isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);

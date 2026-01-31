@@ -24,7 +24,7 @@ function getPeriodDates(period: BudgetPeriod): { start: Date; end: Date } {
     let end: Date;
 
     switch (period) {
-        case "WEEKLY":
+        case "WEEKLY": {
             const dayOfWeek = now.getDay();
             start = new Date(now);
             start.setDate(now.getDate() - dayOfWeek);
@@ -33,15 +33,17 @@ function getPeriodDates(period: BudgetPeriod): { start: Date; end: Date } {
             end.setDate(start.getDate() + 6);
             end.setHours(23, 59, 59, 999);
             break;
+        }
         case "MONTHLY":
             start = new Date(now.getFullYear(), now.getMonth(), 1);
             end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
             break;
-        case "QUARTERLY":
+        case "QUARTERLY": {
             const quarter = Math.floor(now.getMonth() / 3);
             start = new Date(now.getFullYear(), quarter * 3, 1);
             end = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59, 999);
             break;
+        }
         case "YEARLY":
             start = new Date(now.getFullYear(), 0, 1);
             end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
@@ -87,8 +89,14 @@ export async function GET(request: Request) {
         const budgetsWithSpending = await Promise.all(
             budgets.map(async (budget) => {
                 const { start, end } = getPeriodDates(budget.period);
-                
-                const whereClause: any = {
+
+                const whereClause: {
+                    userId: string;
+                    type: "EXPENSE";
+                    isDeleted: boolean;
+                    transactionDate: { gte: Date; lte: Date };
+                    categoryId?: string;
+                } = {
                     userId: session.user.id,
                     type: "EXPENSE",
                     isDeleted: false,

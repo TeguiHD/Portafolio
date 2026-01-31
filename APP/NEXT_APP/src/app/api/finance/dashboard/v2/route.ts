@@ -488,10 +488,19 @@ function generateSmartAlerts(input: AlertGeneratorInput) {
     return alerts.slice(0, 3); // Max 3 alerts
 }
 
+interface TransactionWithCategory {
+    id: string;
+    type: "INCOME" | "EXPENSE" | "TRANSFER";
+    amount: number;
+    description: string | null;
+    transactionDate: Date;
+    category: { name: string } | null;
+}
+
 interface InsightGeneratorInput {
     userId: string;
-    thisMonthTransactions: any[];
-    lastMonthTransactions: any[];
+    thisMonthTransactions: TransactionWithCategory[];
+    lastMonthTransactions: TransactionWithCategory[];
     thisMonthExpenses: number;
     lastMonthExpenses: number;
     categorySpending: Array<{ name: string; amount: number; change: number }>;
@@ -512,7 +521,7 @@ function generateInsights(input: InsightGeneratorInput) {
         t => t.type === "EXPENSE" && t.amount < 10000 // Less than 10,000 CLP
     );
 
-    const smallExpenseTotal = smallExpenses.reduce((sum: number, t: any) => sum + t.amount, 0);
+    const smallExpenseTotal = smallExpenses.reduce((sum: number, t) => sum + t.amount, 0);
     const smallExpensePercent = input.thisMonthExpenses > 0
         ? (smallExpenseTotal / input.thisMonthExpenses) * 100
         : 0;
@@ -558,12 +567,12 @@ function generateInsights(input: InsightGeneratorInput) {
     }
 
     // Weekend spending pattern
-    const weekendExpenses = input.thisMonthTransactions.filter((t: any) => {
+    const weekendExpenses = input.thisMonthTransactions.filter((t) => {
         const day = new Date(t.transactionDate).getDay();
         return t.type === "EXPENSE" && (day === 0 || day === 6);
     });
 
-    const weekendTotal = weekendExpenses.reduce((sum: number, t: any) => sum + t.amount, 0);
+    const weekendTotal = weekendExpenses.reduce((sum: number, t) => sum + t.amount, 0);
     const weekendPercent = input.thisMonthExpenses > 0
         ? (weekendTotal / input.thisMonthExpenses) * 100
         : 0;
@@ -581,14 +590,14 @@ function generateInsights(input: InsightGeneratorInput) {
     // Check for subscription-like recurring expenses
     const subscriptionKeywords = ["netflix", "spotify", "disney", "hbo", "amazon", "apple", "google", "microsoft", "icloud", "youtube"];
 
-    const subscriptionExpenses = input.thisMonthTransactions.filter((t: any) =>
+    const subscriptionExpenses = input.thisMonthTransactions.filter((t) =>
         t.type === "EXPENSE" &&
         t.description &&
-        subscriptionKeywords.some(kw => t.description.toLowerCase().includes(kw))
+        subscriptionKeywords.some(kw => t.description!.toLowerCase().includes(kw))
     );
 
     if (subscriptionExpenses.length >= 3) {
-        const subsTotal = subscriptionExpenses.reduce((sum: number, t: any) => sum + t.amount, 0);
+        const subsTotal = subscriptionExpenses.reduce((sum: number, t) => sum + t.amount, 0);
         insights.push({
             id: "subscriptions",
             type: "spending_pattern",

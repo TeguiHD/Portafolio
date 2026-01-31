@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { hash } from "argon2";
 import { randomBytes } from "crypto";
 import { sanitizeQuotationHtml } from "@/lib/quotation-sanitizer";
+import { hasPermission } from "@/lib/permission-check";
+import type { Role } from "@prisma/client";
 
 // Generate readable secure code
 function generateSecureCode(): string {
@@ -41,6 +43,16 @@ export async function createQuotationAction(formData: FormData) {
     const session = await auth();
     if (!session?.user?.id) {
         return { success: false, error: "No autorizado" };
+    }
+
+    // SECURITY: Check granular permission
+    const canCreate = await hasPermission(
+        session.user.id,
+        session.user.role as Role,
+        "quotations.create"
+    );
+    if (!canCreate) {
+        return { success: false, error: "Permiso denegado" };
     }
 
     const clientId = formData.get("clientId") as string;
@@ -136,6 +148,16 @@ export async function updateQuotationAccessAction(
         return { success: false, error: "No autorizado" };
     }
 
+    // SECURITY: Check granular permission
+    const canEdit = await hasPermission(
+        session.user.id,
+        session.user.role as Role,
+        "quotations.edit"
+    );
+    if (!canEdit) {
+        return { success: false, error: "Permiso denegado" };
+    }
+
     try {
         let accessCode: string | null = null;
         let accessCodePlain: string | undefined;
@@ -175,6 +197,16 @@ export async function toggleVisibilityAction(
     const session = await auth();
     if (!session?.user?.id) {
         return { success: false, error: "No autorizado" };
+    }
+
+    // SECURITY: Check granular permission
+    const canEdit = await hasPermission(
+        session.user.id,
+        session.user.role as Role,
+        "quotations.edit"
+    );
+    if (!canEdit) {
+        return { success: false, error: "Permiso denegado" };
     }
 
     try {

@@ -99,6 +99,7 @@ export default function BlogPage() {
                                 transition={{ delay: idx * 0.1 }}
                             >
                                 <Link
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     href={`/blog/${post.slug}` as any}
                                     className="group block glass-panel rounded-2xl border-2 border-accent-1/30 p-8 transition-all hover:border-accent-1 hover:bg-accent-1/5"
                                 >
@@ -140,6 +141,7 @@ export default function BlogPage() {
                                 transition={{ delay: 0.2 + idx * 0.05 }}
                             >
                                 <Link
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     href={`/blog/${post.slug}` as any}
                                     className="group flex items-center gap-6 glass-panel rounded-xl border border-accent-1/20 p-6 transition-all hover:border-accent-1/40 hover:bg-white/5"
                                 >

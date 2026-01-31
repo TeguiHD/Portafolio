@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const type = searchParams.get("type"); // INCOME or EXPENSE
 
-        const where: any = {
+        const where: Prisma.FinanceCategoryWhereInput = {
             isActive: true,
             OR: [
                 { userId: null }, // Global/system categories

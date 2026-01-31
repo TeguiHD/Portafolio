@@ -85,6 +85,7 @@ export function QuickActions({ permissions }: QuickActionsProps) {
                         transition={{ delay: 0.3 + idx * 0.1 }}
                     >
                         <Link
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Typed routes issue with dynamic admin paths
                             href={action.href as any}
                             className="group block glass-panel rounded-xl sm:rounded-2xl border border-accent-1/20 p-4 sm:p-6 hover:border-accent-1/40 transition-all active:scale-[0.98]"
                         >

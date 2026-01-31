@@ -3,6 +3,7 @@
  * Records security-relevant events for administrative review
  */
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 // Audit categories
@@ -95,7 +96,7 @@ export async function createAuditLog(params: AuditLogParams): Promise<void> {
                 userId: params.userId || null,
                 targetId: params.targetId || null,
                 targetType: params.targetType || null,
-                metadata: params.metadata as unknown as Record<string, any> | undefined,
+                metadata: params.metadata as unknown as Prisma.InputJsonValue | undefined,
                 ipAddress: params.ipAddress || null,
                 userAgent: params.userAgent || null,
             },

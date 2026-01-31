@@ -3,16 +3,20 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { GoalForm } from "@/modules/finance/components/GoalForm";
+import { GoalForm, type GoalData } from "@/modules/finance/components/GoalForm";
 
 interface PageProps {
     params: Promise<{ id: string }>;
 }
 
+interface Goal extends GoalData {
+    id: string;
+}
+
 export default function EditGoalPage({ params }: PageProps) {
     const { id } = use(params);
     const router = useRouter();
-    const [goal, setGoal] = useState<any>(null);
+    const [goal, setGoal] = useState<Goal | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +36,7 @@ export default function EditGoalPage({ params }: PageProps) {
         fetchGoal();
     }, [id]);
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: GoalData) => {
         setError(null);
         const res = await fetch(`/api/finance/goals/${id}`, {
             method: "PUT",
@@ -102,7 +106,7 @@ export default function EditGoalPage({ params }: PageProps) {
 
             {/* Form */}
             <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                <GoalForm goal={goal} onSubmit={handleSubmit} onCancel={() => router.push("/admin/finance/goals")} />
+                <GoalForm goal={goal || undefined} onSubmit={handleSubmit} onCancel={() => router.push("/admin/finance/goals")} />
             </div>
         </div>
     );

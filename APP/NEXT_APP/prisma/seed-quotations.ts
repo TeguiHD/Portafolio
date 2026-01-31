@@ -59,7 +59,7 @@ async function main() {
 
     try {
         htmlContent = fs.readFileSync(htmlPath, "utf-8");
-    } catch (_e) {
+    } catch {
         console.error("❌ Could not read HTML file at: " + htmlPath);
         // Fallback or exit
         return;

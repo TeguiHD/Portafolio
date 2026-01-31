@@ -62,7 +62,7 @@ export const renderQRToCanvas = async (
     };
 
     // Helper to draw different shapes
-    const drawShape = (x: number, y: number, shapeStyle: string, isEyeModule: boolean) => {
+    const drawShape = (x: number, y: number, shapeStyle: string, _isEyeModule: boolean) => {
         const s = tileSize;
         const cx = x + s / 2;
         const cy = y + s / 2;

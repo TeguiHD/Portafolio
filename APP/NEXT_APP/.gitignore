@@ -16,3 +16,7 @@ seed_log*.txt
 seed_error*.txt
 
 /src/generated/prisma
+
+# Security notes (private)
+SEGURIDAD.txt
+lint_report.txt

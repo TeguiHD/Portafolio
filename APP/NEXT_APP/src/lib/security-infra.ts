@@ -20,7 +20,7 @@ import { getRedisClient } from './redis';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const REDIS_HEALTH_CHECK_TIMEOUT_MS = 5000;
-const SECURITY_INCIDENT_TYPES = [
+export const SECURITY_INCIDENT_TYPES = [
     'rate_limit_bypass_attempt',
     'unauthorized_tool_access',
     'privilege_escalation',

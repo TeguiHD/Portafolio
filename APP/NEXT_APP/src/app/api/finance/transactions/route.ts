@@ -4,7 +4,7 @@ import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { convertCurrency, type SupportedCurrency } from "@/services/exchange-rate";
 import { z } from "zod";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 import { logFinanceEvent, AuditActions } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const params = querySchema.parse(Object.fromEntries(searchParams));
 
-        const where: any = {
+        const where: Prisma.TransactionWhereInput = {
             userId: session.user.id,
             isDeleted: false,
         };
@@ -199,54 +199,79 @@ export async function POST(request: Request) {
             }
         }
 
-        // Create transaction with items
-        const transaction = await prisma.transaction.create({
-            data: {
-                userId: session.user.id,
-                type: data.type,
-                amount: data.amount,
-                description: data.description,
-                merchant: data.merchant,
-                notes: data.notes,
-                categoryId,
-                accountId: data.accountId,
-                toAccountId: data.toAccountId,
-                currencyId: data.currencyId,
-                transactionDate: data.transactionDate,
-                receiptId: data.receiptId,
-                source: data.source,
-                originalAmount,
-                exchangeRate,
-                autoCategorizationScore,
-                // Document identification
-                documentType: data.documentType,
-                documentNumber: data.documentNumber,
-                merchantRut: data.merchantRut,
-                // Create items if provided
-                items: data.items && data.items.length > 0 ? {
-                    create: data.items.map(item => ({
-                        description: item.description,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        totalPrice: item.totalPrice,
-                    })),
-                } : undefined,
-            },
-            include: {
-                category: true,
-                account: { include: { currency: true } },
-                currency: true,
-                items: true,
-            },
+        // SECURITY: Atomic transaction creation + balance update to prevent race conditions
+        // This ensures balance is updated in the same database transaction as the record creation
+        const transaction = await prisma.$transaction(async (tx) => {
+            // Create the transaction record
+            const newTransaction = await tx.transaction.create({
+                data: {
+                    userId: session.user.id,
+                    type: data.type,
+                    amount: data.amount,
+                    description: data.description,
+                    merchant: data.merchant,
+                    notes: data.notes,
+                    categoryId,
+                    accountId: data.accountId,
+                    toAccountId: data.toAccountId,
+                    currencyId: data.currencyId,
+                    transactionDate: data.transactionDate,
+                    receiptId: data.receiptId,
+                    source: data.source,
+                    originalAmount,
+                    exchangeRate,
+                    autoCategorizationScore,
+                    // Document identification
+                    documentType: data.documentType,
+                    documentNumber: data.documentNumber,
+                    merchantRut: data.merchantRut,
+                    // Create items if provided
+                    items: data.items && data.items.length > 0 ? {
+                        create: data.items.map(item => ({
+                            description: item.description,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                            totalPrice: item.totalPrice,
+                        })),
+                    } : undefined,
+                },
+                include: {
+                    category: true,
+                    account: { include: { currency: true } },
+                    currency: true,
+                    items: true,
+                },
+            });
+
+            // Update account balance atomically within the same transaction
+            if (data.type === "INCOME") {
+                await tx.financeAccount.update({
+                    where: { id: data.accountId },
+                    data: { currentBalance: { increment: data.amount } },
+                });
+            } else if (data.type === "EXPENSE") {
+                await tx.financeAccount.update({
+                    where: { id: data.accountId },
+                    data: { currentBalance: { decrement: data.amount } },
+                });
+            } else if (data.type === "TRANSFER" && data.toAccountId) {
+                await tx.financeAccount.update({
+                    where: { id: data.accountId },
+                    data: { currentBalance: { decrement: data.amount } },
+                });
+                await tx.financeAccount.update({
+                    where: { id: data.toAccountId },
+                    data: { currentBalance: { increment: data.amount } },
+                });
+            }
+
+            return newTransaction;
         });
 
-        // If items provided, try to update product catalog
+        // Non-critical: Update product catalog (outside transaction - can fail independently)
         if (data.items && data.items.length > 0 && data.merchant) {
             await updateProductCatalog(session.user.id, data.items, data.merchant);
         }
-
-        // Update account balance
-        await updateAccountBalance(data.accountId, data.type, data.amount, data.toAccountId);
 
         // Audit log for transaction creation
         await logFinanceEvent(
@@ -271,37 +296,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Datos inválidos", details: error.issues }, { status: 400 });
         }
         return NextResponse.json({ error: "Error al crear transacción" }, { status: 500 });
-    }
-}
-
-// Helper: Update account balance after transaction
-async function updateAccountBalance(
-    accountId: string,
-    type: "INCOME" | "EXPENSE" | "TRANSFER",
-    amount: number,
-    toAccountId?: string
-) {
-    if (type === "INCOME") {
-        await prisma.financeAccount.update({
-            where: { id: accountId },
-            data: { currentBalance: { increment: amount } },
-        });
-    } else if (type === "EXPENSE") {
-        await prisma.financeAccount.update({
-            where: { id: accountId },
-            data: { currentBalance: { decrement: amount } },
-        });
-    } else if (type === "TRANSFER" && toAccountId) {
-        await prisma.$transaction([
-            prisma.financeAccount.update({
-                where: { id: accountId },
-                data: { currentBalance: { decrement: amount } },
-            }),
-            prisma.financeAccount.update({
-                where: { id: toAccountId },
-                data: { currentBalance: { increment: amount } },
-            }),
-        ]);
     }
 }
 
@@ -362,6 +356,7 @@ async function suggestCategory(
 }
 
 // Helper: Update product catalog with items from transaction
+// SECURITY: Uses atomic operations to prevent race conditions with concurrent transactions
 async function updateProductCatalog(
     userId: string,
     items: Array<{ description: string; quantity: number; unitPrice: number; totalPrice: number }>,
@@ -374,59 +369,49 @@ async function updateProductCatalog(
             // Skip items with very short or generic names
             if (normalizedName.length < 3 || normalizedName === "item") continue;
 
-            // Try to find existing product
-            const existingProduct = await prisma.product.findUnique({
-                where: {
-                    userId_normalizedName: {
-                        userId,
-                        normalizedName,
-                    },
-                },
-            });
-
-            if (existingProduct) {
-                // Update existing product stats
-                const newPriceCount = existingProduct.priceCount + 1;
-                const newAvgPrice = ((existingProduct.avgPrice || 0) * existingProduct.priceCount + item.unitPrice) / newPriceCount;
-                const newMinPrice = Math.min(existingProduct.minPrice || Infinity, item.unitPrice);
-                const newMaxPrice = Math.max(existingProduct.maxPrice || 0, item.unitPrice);
-
-                // Add merchant to common merchants if not already present
-                const commonMerchants = existingProduct.commonMerchants || [];
-                if (!commonMerchants.includes(merchant)) {
-                    commonMerchants.push(merchant);
-                }
-
-                await prisma.product.update({
-                    where: { id: existingProduct.id },
-                    data: {
-                        lastPrice: item.unitPrice,
-                        avgPrice: newAvgPrice,
-                        minPrice: newMinPrice,
-                        maxPrice: newMaxPrice,
-                        priceCount: newPriceCount,
-                        purchaseCount: { increment: 1 },
-                        lastPurchased: new Date(),
-                        commonMerchants,
-                    },
-                });
-            } else {
-                // Create new product
-                await prisma.product.create({
-                    data: {
-                        userId,
-                        name: item.description,
-                        normalizedName,
-                        lastPrice: item.unitPrice,
-                        avgPrice: item.unitPrice,
-                        minPrice: item.unitPrice,
-                        maxPrice: item.unitPrice,
-                        priceCount: 1,
-                        purchaseCount: 1,
-                        lastPurchased: new Date(),
-                        commonMerchants: [merchant],
-                    },
-                });
+            try {
+                // ATOMIC UPSERT: Create or update product in one operation to prevent race conditions
+                // Use raw SQL for atomic calculation of avg/min/max to avoid lost updates
+                await prisma.$executeRaw`
+                    INSERT INTO "Product" (
+                        "id", "userId", "name", "normalizedName", "lastPrice", 
+                        "avgPrice", "minPrice", "maxPrice", "priceCount", 
+                        "purchaseCount", "lastPurchased", "commonMerchants", "createdAt", "updatedAt"
+                    )
+                    VALUES (
+                        gen_random_uuid()::text,
+                        ${userId},
+                        ${item.description},
+                        ${normalizedName},
+                        ${item.unitPrice},
+                        ${item.unitPrice},
+                        ${item.unitPrice},
+                        ${item.unitPrice},
+                        1,
+                        1,
+                        NOW(),
+                        ARRAY[${merchant}]::text[],
+                        NOW(),
+                        NOW()
+                    )
+                    ON CONFLICT ("userId", "normalizedName") DO UPDATE SET
+                        "lastPrice" = ${item.unitPrice},
+                        "avgPrice" = (("Product"."avgPrice" * "Product"."priceCount") + ${item.unitPrice}) / ("Product"."priceCount" + 1),
+                        "minPrice" = LEAST("Product"."minPrice", ${item.unitPrice}),
+                        "maxPrice" = GREATEST("Product"."maxPrice", ${item.unitPrice}),
+                        "priceCount" = "Product"."priceCount" + 1,
+                        "purchaseCount" = "Product"."purchaseCount" + 1,
+                        "lastPurchased" = NOW(),
+                        "commonMerchants" = CASE 
+                            WHEN NOT ${merchant} = ANY("Product"."commonMerchants") 
+                            THEN array_append("Product"."commonMerchants", ${merchant})
+                            ELSE "Product"."commonMerchants"
+                        END,
+                        "updatedAt" = NOW()
+                `;
+            } catch (itemError) {
+                // Log individual item errors but continue with other items
+                console.warn(`[ProductCatalog] Failed to upsert product "${normalizedName}":`, itemError);
             }
         }
     } catch (error) {

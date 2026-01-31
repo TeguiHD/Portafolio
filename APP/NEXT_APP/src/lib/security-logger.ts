@@ -16,7 +16,7 @@ import { createHash } from 'crypto'
 
 export type SecurityEventSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 
-export type SecurityEventCategory = 
+export type SecurityEventCategory =
     | 'AUTHENTICATION'
     | 'AUTHORIZATION'
     | 'INPUT_VALIDATION'
@@ -37,34 +37,53 @@ export interface SecurityEvent {
     // Event identification
     eventId: string
     timestamp: string
-    
+
     // Event classification
     category: SecurityEventCategory
     severity: SecurityEventSeverity
     eventType: string
-    
+
     // Request context
     requestId?: string
     ipAddress: string
     ipAddressHash: string  // For privacy-compliant logging
     userAgent?: string
     userAgentHash?: string
-    
+
     // User context
     userId?: string
     sessionId?: string
-    
+
     // Event details
     resource?: string
     action?: string
     outcome: 'SUCCESS' | 'FAILURE' | 'BLOCKED'
-    
+
     // Additional context
     details?: Record<string, unknown>
-    
+
     // Threat indicators
     iocType?: string  // Indicator of Compromise type
     iocValue?: string
+
+    // Enhanced security data (Issue #7)
+    enrichedData?: EnrichedSecurityData
+}
+
+// Enhanced security data for better threat analysis
+export interface EnrichedSecurityData {
+    os: string           // Windows, macOS, Linux, iOS, Android, Unknown
+    browser: string      // Chrome, Firefox, Safari, Edge, Bot, Unknown
+    requestCount: number // Requests from this IP in last 5 min
+    bypassAttempts: BypassAttemptData
+}
+
+export interface BypassAttemptData {
+    headerSpoofing: boolean      // X-Forwarded-For manipulation detected
+    proxyDetected: boolean       // Proxy/VPN indicators found
+    ipMismatch: boolean          // Multiple IPs in request
+    botSignature: boolean        // Known bot patterns in UA
+    suspiciousHeaders: string[]  // List of suspicious headers found
 }
 
 // ============= CONFIGURATION =============
@@ -81,6 +100,21 @@ const FLUSH_INTERVAL = 30000  // 30 seconds
 const threatScores = new Map<string, { score: number; events: string[]; lastUpdate: number }>()
 const THREAT_DECAY_MS = 30 * 60 * 1000  // 30 minutes
 const THREAT_THRESHOLD = 50
+
+// Cleanup stale threat scores periodically
+function cleanupStaleThreatScores(): void {
+    const now = Date.now()
+    for (const [key, record] of threatScores.entries()) {
+        if (now - record.lastUpdate > THREAT_DECAY_MS) {
+            threatScores.delete(key)
+        }
+    }
+}
+
+// Run cleanup every 5 minutes
+if (typeof setInterval !== 'undefined') {
+    setInterval(cleanupStaleThreatScores, 5 * 60 * 1000)
+}
 
 // ============= HELPER FUNCTIONS =============
 
@@ -100,9 +134,203 @@ function hashValue(value: string): string {
 function sanitizeForLog(value: string, maxLength = 200): string {
     return value
         .replace(/[\n\r]/g, ' ')      // Remove newlines
+        // eslint-disable-next-line no-control-regex
         .replace(/\x1b\[[0-9;]*m/g, '') // Remove ANSI codes
+        // eslint-disable-next-line no-control-regex
         .replace(/[\x00-\x1F]/g, '')    // Remove control chars
         .slice(0, maxLength)
+}
+
+// ============= ENHANCED SECURITY DETECTION (Issue #7) =============
+
+// IP request counter for tracking request frequency
+const ipRequestCounts = new Map<string, { count: number; firstSeen: number }>()
+const REQUEST_WINDOW_MS = 5 * 60 * 1000 // 5 minutes
+
+// Cleanup old request counts periodically
+function cleanupOldRequestCounts(): void {
+    const now = Date.now()
+    for (const [key, record] of ipRequestCounts.entries()) {
+        if (now - record.firstSeen > REQUEST_WINDOW_MS) {
+            ipRequestCounts.delete(key)
+        }
+    }
+}
+
+if (typeof setInterval !== 'undefined') {
+    setInterval(cleanupOldRequestCounts, 60 * 1000) // Every minute
+}
+
+/**
+ * Parse User-Agent to extract OS and browser information
+ */
+export function parseUserAgent(ua: string): { os: string; browser: string } {
+    const uaLower = ua.toLowerCase()
+
+    // Detect OS
+    let os = 'Unknown'
+    if (uaLower.includes('windows nt 10') || uaLower.includes('windows nt 11')) {
+        os = 'Windows 10/11'
+    } else if (uaLower.includes('windows')) {
+        os = 'Windows'
+    } else if (uaLower.includes('mac os x') || uaLower.includes('macintosh')) {
+        os = 'macOS'
+    } else if (uaLower.includes('iphone') || uaLower.includes('ipad')) {
+        os = 'iOS'
+    } else if (uaLower.includes('android')) {
+        os = 'Android'
+    } else if (uaLower.includes('linux')) {
+        os = 'Linux'
+    } else if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('python')) {
+        os = 'CLI/Script'
+    }
+
+    // Detect Browser
+    let browser = 'Unknown'
+    if (uaLower.includes('edg/')) {
+        browser = 'Edge'
+    } else if (uaLower.includes('chrome') && !uaLower.includes('edg')) {
+        browser = 'Chrome'
+    } else if (uaLower.includes('firefox')) {
+        browser = 'Firefox'
+    } else if (uaLower.includes('safari') && !uaLower.includes('chrome')) {
+        browser = 'Safari'
+    } else if (uaLower.includes('bot') || uaLower.includes('crawler') || uaLower.includes('spider')) {
+        browser = 'Bot'
+    } else if (uaLower.includes('curl')) {
+        browser = 'cURL'
+    } else if (uaLower.includes('python')) {
+        browser = 'Python'
+    } else if (uaLower.includes('postman')) {
+        browser = 'Postman'
+    }
+
+    return { os, browser }
+}
+
+/**
+ * Track and count requests from an IP address
+ */
+export function trackIpRequests(ipHash: string): number {
+    const now = Date.now()
+    const existing = ipRequestCounts.get(ipHash)
+
+    if (existing) {
+        // Check if within window
+        if (now - existing.firstSeen < REQUEST_WINDOW_MS) {
+            existing.count++
+            return existing.count
+        } else {
+            // Reset counter
+            ipRequestCounts.set(ipHash, { count: 1, firstSeen: now })
+            return 1
+        }
+    } else {
+        ipRequestCounts.set(ipHash, { count: 1, firstSeen: now })
+        return 1
+    }
+}
+
+/**
+ * Get current request count for an IP (without incrementing)
+ */
+export function getIpRequestCount(ipHash: string): number {
+    const existing = ipRequestCounts.get(ipHash)
+    if (!existing) return 0
+
+    const now = Date.now()
+    if (now - existing.firstSeen > REQUEST_WINDOW_MS) return 0
+
+    return existing.count
+}
+
+// Known bad bot signatures
+const BOT_SIGNATURES = [
+    'sqlmap', 'nikto', 'nmap', 'masscan', 'zgrab', 'nuclei',
+    'wpscan', 'dirbuster', 'gobuster', 'ffuf', 'burpsuite',
+    'acunetix', 'nessus', 'openvas', 'qualys', 'owasp',
+    'havij', 'slowloris', 'loic', 'hoic'
+]
+
+// Suspicious header names that may indicate attacks
+const SUSPICIOUS_HEADERS = [
+    'x-injected', 'x-attack', 'x-exploit', 'x-hack',
+    'x-sql', 'x-cmd', 'x-shell', 'x-payload'
+]
+
+/**
+ * Detect potential bypass attempts from request headers
+ */
+export function detectBypassAttempts(headers: Headers): BypassAttemptData {
+    const suspiciousFound: string[] = []
+
+    // Check for header spoofing (multiple X-Forwarded-For values)
+    const xForwardedFor = headers.get('x-forwarded-for') || ''
+    const hasMultipleIps = xForwardedFor.split(',').length > 3
+    const headerSpoofing = hasMultipleIps ||
+        (xForwardedFor.includes('127.0.0.1') && xForwardedFor.includes(','))
+
+    if (headerSpoofing) suspiciousFound.push('x-forwarded-for-spoofing')
+
+    // Check for proxy indicators
+    const proxyHeaders = ['via', 'x-proxy', 'forwarded', 'x-real-ip']
+    let proxyCount = 0
+    for (const h of proxyHeaders) {
+        if (headers.get(h)) proxyCount++
+    }
+    const proxyDetected = proxyCount >= 2
+
+    if (proxyDetected) suspiciousFound.push('multiple-proxy-headers')
+
+    // Check for IP mismatch indicators
+    const cfConnectingIp = headers.get('cf-connecting-ip')
+    const xRealIp = headers.get('x-real-ip')
+    const ipMismatch = !!(cfConnectingIp && xRealIp && cfConnectingIp !== xRealIp)
+
+    if (ipMismatch) suspiciousFound.push('ip-mismatch')
+
+    // Check for bot signatures in User-Agent
+    const ua = (headers.get('user-agent') || '').toLowerCase()
+    const botSignature = BOT_SIGNATURES.some(sig => ua.includes(sig))
+
+    if (botSignature) suspiciousFound.push('known-attack-tool')
+
+    // Check for suspicious custom headers
+    for (const suspicious of SUSPICIOUS_HEADERS) {
+        if (headers.has(suspicious)) {
+            suspiciousFound.push(suspicious)
+        }
+    }
+
+    return {
+        headerSpoofing,
+        proxyDetected,
+        ipMismatch,
+        botSignature,
+        suspiciousHeaders: suspiciousFound
+    }
+}
+
+/**
+ * Create enriched security data from request
+ */
+export function createEnrichedSecurityData(
+    userAgent: string,
+    ipHash: string,
+    headers?: Headers
+): EnrichedSecurityData {
+    const { os, browser } = parseUserAgent(userAgent)
+    const requestCount = trackIpRequests(ipHash)
+    const bypassAttempts = headers
+        ? detectBypassAttempts(headers)
+        : { headerSpoofing: false, proxyDetected: false, ipMismatch: false, botSignature: false, suspiciousHeaders: [] }
+
+    return {
+        os,
+        browser,
+        requestCount,
+        bypassAttempts
+    }
 }
 
 // ============= EVENT LOGGING =============
@@ -121,22 +349,22 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'eventId' | 'timesta
         userAgent: event.userAgent ? sanitizeForLog(event.userAgent, 300) : undefined,
         resource: event.resource ? sanitizeForLog(event.resource, 500) : undefined,
     }
-    
+
     // Log to console (structured for log aggregation)
     const logLevel = getSeverityLogLevel(event.severity)
     console[logLevel]('[SECURITY]', JSON.stringify(fullEvent))
-    
+
     // Add to buffer for batch processing
     eventBuffer.push(fullEvent)
-    
+
     // Update threat score
     updateThreatScore(fullEvent)
-    
+
     // Flush if buffer is full
     if (eventBuffer.length >= BUFFER_SIZE) {
         flushEventBuffer()
     }
-    
+
     // Alert on critical events
     if (event.severity === 'CRITICAL') {
         handleCriticalEvent(fullEvent)
@@ -164,21 +392,21 @@ const SEVERITY_SCORES: Record<SecurityEventSeverity, number> = {
 function updateThreatScore(event: SecurityEvent): void {
     const key = event.ipAddressHash
     const now = Date.now()
-    
+
     const existing = threatScores.get(key)
-    
+
     if (existing) {
         // Apply decay
         const elapsed = now - existing.lastUpdate
         const decay = Math.floor(elapsed / 60000) * 2  // Decay 2 points per minute
         const decayedScore = Math.max(0, existing.score - decay)
-        
+
         // Add new score
         const newScore = decayedScore + SEVERITY_SCORES[event.severity]
         existing.score = newScore
         existing.events.push(event.eventType)
         existing.lastUpdate = now
-        
+
         // Check threshold
         if (newScore >= THREAT_THRESHOLD && decayedScore < THREAT_THRESHOLD) {
             handleThreatThresholdExceeded(key, newScore, existing.events)
@@ -198,9 +426,9 @@ function updateThreatScore(event: SecurityEvent): void {
 export function getThreatScore(ipAddress: string): number {
     const key = hashValue(ipAddress)
     const record = threatScores.get(key)
-    
+
     if (!record) return 0
-    
+
     // Apply decay
     const elapsed = Date.now() - record.lastUpdate
     const decay = Math.floor(elapsed / 60000) * 2
@@ -221,7 +449,7 @@ function handleCriticalEvent(event: SecurityEvent): void {
     // - PagerDuty/OpsGenie
     // - Slack/Teams webhook
     // - Email to security team
-    
+
     console.error('🚨 [CRITICAL SECURITY EVENT]', {
         eventId: event.eventId,
         category: event.category,
@@ -230,14 +458,14 @@ function handleCriticalEvent(event: SecurityEvent): void {
         user: event.userId,
         resource: event.resource,
     })
-    
+
     // TODO: Implement webhook notification
     // await sendSecurityAlert(event)
 }
 
 function handleThreatThresholdExceeded(
-    ipHash: string, 
-    score: number, 
+    ipHash: string,
+    score: number,
     events: string[]
 ): void {
     console.error('🚨 [THREAT THRESHOLD EXCEEDED]', {
@@ -246,23 +474,23 @@ function handleThreatThresholdExceeded(
         recentEvents: events.slice(-10),
         threshold: THREAT_THRESHOLD,
     })
-    
+
     // TODO: Implement automatic blocking
     // await addToBlocklist(ipHash)
 }
 
 function flushEventBuffer(): void {
     if (eventBuffer.length === 0) return
-    
+
     // In production, this would send to:
     // - SIEM (Splunk, ELK, etc.)
     // - Security data lake
     // - Audit database
-    
+
     if (isDevelopment) {
         console.log(`[SECURITY] Flushed ${eventBuffer.length} events`)
     }
-    
+
     eventBuffer.length = 0
 }
 
@@ -299,7 +527,7 @@ export const SecurityLogger = {
             },
         })
     },
-    
+
     /**
      * Log brute force attempt
      */
@@ -309,10 +537,10 @@ export const SecurityLogger = {
         targetResource: string
         attemptCount: number
     }): void {
-        const severity: SecurityEventSeverity = 
+        const severity: SecurityEventSeverity =
             params.attemptCount >= 10 ? 'HIGH' :
-            params.attemptCount >= 5 ? 'MEDIUM' : 'LOW'
-        
+                params.attemptCount >= 5 ? 'MEDIUM' : 'LOW'
+
         logSecurityEvent({
             category: 'BRUTE_FORCE',
             severity,
@@ -326,7 +554,7 @@ export const SecurityLogger = {
             },
         })
     },
-    
+
     /**
      * Log injection attempt
      */
@@ -353,7 +581,7 @@ export const SecurityLogger = {
             iocValue: params.type,
         })
     },
-    
+
     /**
      * Log rate limit violation
      */
@@ -378,7 +606,7 @@ export const SecurityLogger = {
             },
         })
     },
-    
+
     /**
      * Log unauthorized access attempt
      */
@@ -403,7 +631,7 @@ export const SecurityLogger = {
             },
         })
     },
-    
+
     /**
      * Log suspicious file upload
      */
@@ -432,7 +660,7 @@ export const SecurityLogger = {
             },
         })
     },
-    
+
     /**
      * Log API abuse
      */
@@ -459,7 +687,7 @@ export const SecurityLogger = {
             },
         })
     },
-    
+
     /**
      * Log session anomaly
      */
@@ -486,7 +714,7 @@ export const SecurityLogger = {
             },
         })
     },
-    
+
     /**
      * Log data access for compliance
      */

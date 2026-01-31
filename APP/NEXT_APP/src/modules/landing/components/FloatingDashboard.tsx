@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { Shield, Server, Activity, AlertTriangle } from "lucide-react";
 

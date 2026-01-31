@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { formatCurrency } from "@/lib/currency";
 
 interface Category {
     id: string;
@@ -36,7 +35,7 @@ interface RecurringPaymentData {
 interface RecurringFormProps {
     payment?: RecurringPaymentData;
     initialData?: RecurringPaymentData;
-    onSubmit?: (data: any) => Promise<void>;
+    onSubmit?: (data: Omit<RecurringPaymentData, "id"> & { id?: string }) => Promise<void>;
     onSuccess?: () => void;
     onCancel?: () => void;
 }
@@ -95,9 +94,10 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
         fetchData();
     }, [fetchData]);
 
-    const filteredCategories = categories.filter((c: any) => {
-        if (formData.type === "INCOME") return c.type === "INCOME" || c.type === "BOTH";
-        return c.type === "EXPENSE" || c.type === "BOTH";
+    const filteredCategories = categories.filter((c) => {
+        const categoryWithType = c as Category & { type?: string };
+        if (formData.type === "INCOME") return categoryWithType.type === "INCOME" || categoryWithType.type === "BOTH";
+        return categoryWithType.type === "EXPENSE" || categoryWithType.type === "BOTH";
     });
 
     const validate = () => {
@@ -137,11 +137,11 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
                 await onSubmit(submitData);
             } else {
                 // Default API call
-                const url = data?.id 
-                    ? `/api/finance/recurring/${data.id}` 
+                const url = data?.id
+                    ? `/api/finance/recurring/${data.id}`
                     : "/api/finance/recurring";
                 const method = data?.id ? "PUT" : "POST";
-                
+
                 const res = await fetch(url, {
                     method,
                     headers: { "Content-Type": "application/json" },
@@ -166,22 +166,20 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
                 <button
                     type="button"
                     onClick={() => setFormData({ ...formData, type: "EXPENSE", categoryId: "" })}
-                    className={`flex-1 py-3 rounded-lg font-medium transition-all ${
-                        formData.type === "EXPENSE"
-                            ? "bg-red-500/20 text-red-400"
-                            : "text-gray-400 hover:text-white"
-                    }`}
+                    className={`flex-1 py-3 rounded-lg font-medium transition-all ${formData.type === "EXPENSE"
+                        ? "bg-red-500/20 text-red-400"
+                        : "text-gray-400 hover:text-white"
+                        }`}
                 >
                     💸 Gasto
                 </button>
                 <button
                     type="button"
                     onClick={() => setFormData({ ...formData, type: "INCOME", categoryId: "" })}
-                    className={`flex-1 py-3 rounded-lg font-medium transition-all ${
-                        formData.type === "INCOME"
-                            ? "bg-green-500/20 text-green-400"
-                            : "text-gray-400 hover:text-white"
-                    }`}
+                    className={`flex-1 py-3 rounded-lg font-medium transition-all ${formData.type === "INCOME"
+                        ? "bg-green-500/20 text-green-400"
+                        : "text-gray-400 hover:text-white"
+                        }`}
                 >
                     💰 Ingreso
                 </button>
@@ -279,7 +277,7 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
                                  text-white focus:outline-none focus:border-blue-500"
                     >
                         <option value="">Sin categoría</option>
-                        {filteredCategories.map((cat: any) => (
+                        {filteredCategories.map((cat) => (
                             <option key={cat.id} value={cat.id}>
                                 {cat.icon} {cat.name}
                             </option>
@@ -394,9 +392,9 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
                     disabled={loading}
                     className={`flex-1 px-4 py-3 rounded-xl font-medium disabled:opacity-50
                               ${formData.type === "EXPENSE"
-                                  ? "bg-gradient-to-r from-red-600 to-red-500 text-white"
-                                  : "bg-gradient-to-r from-green-600 to-green-500 text-white"
-                              }`}
+                            ? "bg-gradient-to-r from-red-600 to-red-500 text-white"
+                            : "bg-gradient-to-r from-green-600 to-green-500 text-white"
+                        }`}
                 >
                     {loading ? "Guardando..." : payment ? "Actualizar" : "Crear pago recurrente"}
                 </button>

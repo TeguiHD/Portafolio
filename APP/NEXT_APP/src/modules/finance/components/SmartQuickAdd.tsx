@@ -68,8 +68,8 @@ export function SmartQuickAdd({ onQuickAdd, onCreateTransaction }: SmartQuickAdd
                     const data = await res.json();
                     setFrequentTransactions(data.data || []);
                 }
-            } catch (err) {
-                console.error("Error fetching frequent transactions:", err);
+            } catch (e) {
+                console.error("Error fetching frequent transactions:", e);
             } finally {
                 setLoading(false);
             }
@@ -89,7 +89,7 @@ export function SmartQuickAdd({ onQuickAdd, onCreateTransaction }: SmartQuickAdd
                         "¡Agregado!",
                         `${transaction.description} - ${formatCurrency(transaction.amount)}`
                     );
-                } catch (err) {
+                } catch {
                     error(
                         "Error",
                         "No se pudo agregar la transacción"

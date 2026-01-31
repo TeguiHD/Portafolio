@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +51,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         }
 
         // Get transactions for this budget's period and category
-        const whereClause: any = {
+        const whereClause: Prisma.TransactionWhereInput = {
             userId: session.user.id,
             type: "EXPENSE",
             isDeleted: false,

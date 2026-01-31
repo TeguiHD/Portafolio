@@ -91,7 +91,7 @@ export function AIAnalysis() {
             }
 
             setAnswer(data.answer);
-        } catch (err) {
+        } catch {
             setAnswer("Lo siento, no pude procesar tu pregunta. Intenta de nuevo.");
         } finally {
             setAskingQuestion(false);

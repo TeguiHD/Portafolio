@@ -6,7 +6,7 @@ import { formatCurrency, type SupportedCurrency } from "@/lib/currency";
 import { useFinance } from "../context/FinanceContext";
 import type { TransactionType } from "../types";
 
-interface Transaction {
+export interface TransactionListItem {
     id: string;
     type: TransactionType;
     amount: number;
@@ -19,7 +19,7 @@ interface Transaction {
 }
 
 interface TransactionListProps {
-    onEdit?: (transaction: Transaction) => void;
+    onEdit?: (transaction: TransactionListItem) => void;
     onDelete?: (id: string) => void;
 }
 
@@ -33,8 +33,8 @@ interface Filters {
 }
 
 export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
-    const { baseCurrency, refreshKey } = useFinance();
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const { baseCurrency: _baseCurrency, refreshKey } = useFinance();  // baseCurrency reserved for future formatting
+    const [transactions, setTransactions] = useState<TransactionListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
     const [filters, setFilters] = useState<Filters>({
@@ -54,7 +54,7 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "15" });
-            
+
             if (filters.type) params.set("type", filters.type);
             if (filters.categoryId) params.set("categoryId", filters.categoryId);
             if (filters.accountId) params.set("accountId", filters.accountId);
@@ -101,6 +101,8 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
     // Fetch transactions when filters or page changes
     useEffect(() => {
         fetchTransactions(pagination.page);
+        // pagination.page is passed as parameter, fetchTransactions already handles it
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fetchTransactions, refreshKey]);
 
     const handleFilterChange = (name: keyof Filters, value: string) => {
@@ -139,10 +141,10 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
         const date = new Date(dateStr);
         const now = new Date();
         const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays === 0) return "Hoy";
         if (diffDays === 1) return "Ayer";
-        
+
         return date.toLocaleDateString("es-CL", { day: "numeric", month: "short", year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
     };
 
@@ -175,11 +177,10 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
                 {/* Filter Toggle */}
                 <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-colors ${
-                        showFilters || activeFiltersCount > 0
-                            ? "bg-accent-1/10 border-accent-1/30 text-accent-1"
-                            : "bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-white"
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-colors ${showFilters || activeFiltersCount > 0
+                        ? "bg-accent-1/10 border-accent-1/30 text-accent-1"
+                        : "bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-white"
+                        }`}
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -376,11 +377,11 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    
+
                     <span className="px-4 py-2 text-neutral-400">
                         Página {pagination.page} de {pagination.totalPages}
                     </span>
-                    
+
                     <button
                         onClick={() => fetchTransactions(pagination.page + 1)}
                         disabled={pagination.page === pagination.totalPages}

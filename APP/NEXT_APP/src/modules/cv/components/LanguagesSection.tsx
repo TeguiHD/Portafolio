@@ -68,11 +68,10 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setShowQuickAdd(!showQuickAdd)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors ${
-                            showQuickAdd
+                        className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors ${showQuickAdd
                                 ? "bg-blue-500/20 text-blue-400"
                                 : "bg-white/10 text-neutral-400 hover:text-white"
-                        }`}
+                            }`}
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -112,11 +111,10 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
                                             key={lang.name}
                                             onClick={() => !isAdded && addLanguage(lang.name)}
                                             disabled={isAdded}
-                                            className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-all ${
-                                                isAdded
+                                            className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-all ${isAdded
                                                     ? "bg-white/5 text-neutral-500 cursor-not-allowed"
                                                     : "bg-white/10 text-white hover:bg-white/20"
-                                            }`}
+                                                }`}
                                         >
                                             <span>{lang.flag}</span>
                                             {lang.name}
@@ -146,7 +144,6 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
                 <div className="space-y-4">
                     <AnimatePresence>
                         {languages.map((lang) => {
-                            const levelInfo = getLevelInfo(lang.level);
                             return (
                                 <motion.div
                                     key={lang.id}
@@ -174,11 +171,10 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
                                                 <button
                                                     key={level.value}
                                                     onClick={() => updateLanguage(lang.id, { level: level.value })}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                                        lang.level === level.value
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang.level === level.value
                                                             ? level.color
                                                             : "bg-white/5 text-neutral-400 hover:text-white"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {level.label}
                                                 </button>

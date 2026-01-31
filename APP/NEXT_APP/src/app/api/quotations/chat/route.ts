@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySessionForApi } from "@/lib/auth/dal";
+import { secureApiEndpoint } from "@/lib/api-security";
 
 // ============= AI PROVIDER CONFIGURATION =============
 // Primary: Groq (fast, free tier)
@@ -310,11 +310,13 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
     try {
-        // DAL pattern: Verify session close to data access
-        const session = await verifySessionForApi();
-        if (!session) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
+        // SECURITY: Verify session + permission
+        const security = await secureApiEndpoint(request, {
+            requireAuth: true,
+            requiredPermission: "quotations.create",
+        });
+
+        if (security.error) return security.error;
 
         const body = await request.json();
         const { messages, currentData } = body;
@@ -531,7 +533,7 @@ export async function POST(request: NextRequest) {
             actions: [],
         });
     } catch (error) {
-        console.error('[QuotationChat] Chat error');
+        console.error('[QuotationChat] Chat error:', error instanceof Error ? error.message : error);
         return NextResponse.json(
             { error: "Error interno" },
             { status: 500 }

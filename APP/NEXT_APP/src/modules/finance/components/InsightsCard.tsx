@@ -1,6 +1,6 @@
 "use client";
 
-interface Insight {
+export interface Insight {
     type: string;
     icon: string;
     title: string;

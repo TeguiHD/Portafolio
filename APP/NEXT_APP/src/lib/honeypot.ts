@@ -158,7 +158,45 @@ export async function catchAllHoneypot(request: NextRequest): Promise<NextRespon
 
         // Sensitive file attempts
         { pattern: /\/(passwd|shadow|id_rsa|\.ssh)/i, type: 'sensitive_file' },
-        { pattern: /\/(aws|secrets)/i, type: 'credentials' },  // Note: 'credentials' word removed - conflicts with NextAuth
+        { pattern: /\/(aws|secrets)/i, type: 'credentials' },
+
+        // === ENHANCED PATTERNS (Issue #7) ===
+
+        // Log4j / Log4Shell exploit (CVE-2021-44228)
+        { pattern: /\$\{(jndi|lookup|lower|upper)/i, type: 'log4shell' },
+        { pattern: /\/(jndi|ldap|rmi):/i, type: 'log4shell' },
+
+        // Spring4Shell (CVE-2022-22965)
+        { pattern: /class\.module\.classLoader/i, type: 'spring4shell' },
+
+        // SQL Injection patterns in URL
+        { pattern: /(union\s+(all\s+)?select|order\s+by\s+\d|--\+|;\s*drop|;\s*delete)/i, type: 'sql_injection' },
+        { pattern: /('|%27)\s*(or|and)\s*('|%27|\d)/i, type: 'sql_injection' },
+        { pattern: /(sleep\(|benchmark\(|waitfor\s+delay)/i, type: 'sql_injection_timing' },
+
+        // XSS attempts in URL
+        { pattern: /(<script|javascript:|on(load|error|click)=)/i, type: 'xss_attempt' },
+
+        // Path traversal
+        { pattern: /(\.\.\/|\.\.\\|%2e%2e%2f)/i, type: 'path_traversal' },
+
+        // Server-Side Template Injection (SSTI)
+        { pattern: /(\{\{|\$\{|<%|#{)/i, type: 'ssti_attempt' },
+
+        // Remote Code Execution attempts
+        { pattern: /(eval\(|exec\(|system\(|passthru\(|shell_exec)/i, type: 'rce_attempt' },
+
+        // LFI/RFI attempts
+        { pattern: /(\/etc\/passwd|c:\\windows|file:\/\/|php:\/\/)/i, type: 'lfi_rfi' },
+
+        // API discovery scans
+        { pattern: /\/(api\/v?\d|openapi|swagger\.json|api-docs)/i, type: 'api_scan' },
+
+        // Admin panel scans
+        { pattern: /\/(admin|administrator|manager|webadmin|siteadmin)/i, type: 'admin_scan' },
+
+        // Webshell patterns
+        { pattern: /\/(cmd|shell|c99|r57|webshell)/i, type: 'webshell' },
     ]
 
     for (const { pattern, type } of honeypotPatterns) {

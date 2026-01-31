@@ -63,20 +63,20 @@ interface TransactionFormProps {
 function formatWithThousandSeparator(value: string): string {
     // Remove all non-numeric characters except decimal point
     const cleanValue = value.replace(/[^\d.]/g, '');
-    
+
     // Split integer and decimal parts
     const parts = cleanValue.split('.');
     const integerPart = parts[0] || '';
     const decimalPart = parts[1];
-    
+
     // Add thousand separators to integer part
     const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    
+
     // Combine with decimal part if exists
     if (decimalPart !== undefined) {
         return `${formattedInteger},${decimalPart.slice(0, 2)}`;
     }
-    
+
     return formattedInteger;
 }
 
@@ -90,10 +90,8 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
     const { baseCurrency, triggerRefresh } = useFinance();
     const isEditing = !!initialData?.id;
 
-    // Determine initial type - if it's TRANSFER or undefined, default to EXPENSE
-    const initialType = initialData?.type && initialData.type !== "TRANSFER" as any 
-        ? initialData.type as Exclude<TransactionType, "TRANSFER">
-        : "EXPENSE";
+    // Determine initial type - if it's undefined, default to EXPENSE
+    const initialType = initialData?.type || "EXPENSE";
 
     const [formData, setFormData] = useState<TransactionFormData>({
         type: initialType,
@@ -114,7 +112,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loadingData, setLoadingData] = useState(true);
-    
+
     // Receipt scanner state
     const [showScanner, setShowScanner] = useState(false);
     const [scannerState, setScannerState] = useState<"idle" | "capturing" | "processing" | "preview" | "result">("idle");
@@ -160,7 +158,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                     setCurrencies(data || []);
                     // Set default currency
                     if (!formData.currencyId && data?.length > 0) {
-                        const defaultCurrency = data.find((c: any) => c.code === baseCurrency) || data[0];
+                        const defaultCurrency = data.find((c: { code: string; id: string }) => c.code === baseCurrency) || data[0];
                         setFormData(prev => ({ ...prev, currencyId: defaultCurrency.id }));
                     }
                 }
@@ -172,12 +170,14 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
         }
 
         fetchFormData();
+        // formData.accountId and formData.currencyId intentionally excluded to prevent infinite re-render when setting defaults
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [baseCurrency]);
 
     // Filter categories by type and remove duplicates
     const filteredCategories = categories
         .filter(c => c.type === (formData.type === "INCOME" ? "INCOME" : "EXPENSE"))
-        .filter((category, index, self) => 
+        .filter((category, index, self) =>
             index === self.findIndex(c => c.id === category.id)
         );
 
@@ -278,7 +278,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
 
             const ocrData = data.data as OCRData;
             setProcessingTime(data.processingTime);
-            
+
             // Store full OCR result for display
             setScanResult(ocrData);
             setScannerState("result");
@@ -287,7 +287,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
             setScannerState("preview");
         }
     }, [imageData]);
-    
+
     const resetScanner = useCallback(() => {
         stopCamera();
         setImageData(null);
@@ -306,16 +306,16 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
         setScanResult(null);
         setProcessingTime(undefined);
     }, [stopCamera]);
-    
+
     // Apply OCR data to form
     const applyOCRData = useCallback(() => {
         if (!scanResult || !scanResult.isValidDocument) return;
-        
+
         const ocrData = scanResult;
         const merchantName = ocrData.merchant?.value?.name || "";
         const totalAmount = ocrData.financials?.total || ocrData.amount?.value || 0;
         const dateValue = ocrData.emissionDate?.value || ocrData.date?.value || new Date().toISOString().split("T")[0];
-        
+
         // Map OCR items to form items
         const formItems = ocrData.items?.map(item => ({
             description: item.description,
@@ -323,7 +323,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
             unitPrice: item.unitPrice,
             totalPrice: item.total,
         })) || undefined;
-        
+
         // Auto-fill form with validated OCR data
         setFormData(prev => ({
             ...prev,
@@ -350,7 +350,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
         // Build simplified notes (most data now shown in dedicated fields)
         const notesParts: string[] = [];
         const merchant = ocrData.merchant?.value;
-        
+
         // Location info
         if (merchant?.location) {
             const loc = merchant.location;
@@ -359,19 +359,19 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                 notesParts.push(`📍 ${locationParts.join(", ")}`);
             }
         }
-        
+
         // Payment method
         if (ocrData.paymentMethod) {
             notesParts.push(`💳 ${ocrData.paymentMethod}`);
         }
-        
+
         if (notesParts.length > 0) {
             setFormData(prev => ({
                 ...prev,
                 notes: notesParts.join(" | ") + (prev.notes ? `\n${prev.notes}` : ""),
             }));
         }
-        
+
         // Close scanner after applying
         closeScanner();
     }, [scanResult, closeScanner]);
@@ -388,10 +388,10 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                 categoryId: formData.categoryId || undefined,
             };
 
-            const url = isEditing 
-                ? `/api/finance/transactions/${initialData.id}` 
+            const url = isEditing
+                ? `/api/finance/transactions/${initialData.id}`
                 : "/api/finance/transactions";
-            
+
             const response = await fetch(url, {
                 method: isEditing ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
@@ -416,19 +416,19 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
     ) => {
         const { name, value } = e.target;
-        
+
         // Special handling for amount field with thousand separators
         if (name === "amount") {
             const rawValue = value.replace(/[^\d,]/g, '');
             const formattedValue = formatWithThousandSeparator(rawValue.replace(',', '.'));
-            setFormData(prev => ({ 
-                ...prev, 
+            setFormData(prev => ({
+                ...prev,
                 amount: parseFormattedValue(formattedValue),
-                displayAmount: formattedValue 
+                displayAmount: formattedValue
             }));
             return;
         }
-        
+
         setFormData(prev => ({ ...prev, [name]: value }));
 
         // Reset category when type changes
@@ -483,11 +483,10 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                         key={type}
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, type, categoryId: "" }))}
-                        className={`py-3 px-4 rounded-lg text-sm font-medium transition-all ${
-                            formData.type === type
-                                ? typeColors[type]
-                                : "text-neutral-400 hover:text-white hover:bg-neutral-700/50"
-                        }`}
+                        className={`py-3 px-4 rounded-lg text-sm font-medium transition-all ${formData.type === type
+                            ? typeColors[type]
+                            : "text-neutral-400 hover:text-white hover:bg-neutral-700/50"
+                            }`}
                     >
                         {type === "EXPENSE" ? "💸 Gasto" : "💰 Ingreso"}
                     </button>
@@ -744,8 +743,8 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                                                 onChange={(e) => {
                                                     const newItems = [...formData.items!];
                                                     const qty = parseFloat(e.target.value) || 1;
-                                                    newItems[idx] = { 
-                                                        ...newItems[idx], 
+                                                    newItems[idx] = {
+                                                        ...newItems[idx],
                                                         quantity: qty,
                                                         totalPrice: qty * newItems[idx].unitPrice
                                                     };
@@ -766,9 +765,9 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                                                 type="button"
                                                 onClick={() => {
                                                     const newItems = formData.items!.filter((_, i) => i !== idx);
-                                                    setFormData(prev => ({ 
-                                                        ...prev, 
-                                                        items: newItems.length > 0 ? newItems : undefined 
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        items: newItems.length > 0 ? newItems : undefined
                                                     }));
                                                 }}
                                                 className="p-1 text-neutral-500 hover:text-red-400 transition-colors"

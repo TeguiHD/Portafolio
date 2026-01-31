@@ -5,8 +5,8 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
     Terminal, QrCode, ArrowLeftRight, Lock,
-    Image as ImageIcon, FileCode, ArrowUpRight,
-    Link2, Dices, Calculator, Binary, Sparkles, Zap
+    FileCode, ArrowUpRight,
+    Link2, Sparkles, Zap
 } from "lucide-react";
 
 // Tools Data - Ordered by expected usage (most popular first)
@@ -87,7 +87,7 @@ const tools = [
 ];
 
 // 3D Card tilt effect hook
-function useTilt(ref: React.RefObject<HTMLDivElement | null>) {
+function useTilt(_ref: React.RefObject<HTMLDivElement | null>) {
     const x = useMotionValue(0);
     const y = useMotionValue(0);
 
@@ -133,7 +133,7 @@ function FeaturedToolCard({ tool, index }: { tool: typeof tools[0]; index: numbe
                 transition={{ duration: 0.6, delay: index * 0.1, ease: [0.21, 1.11, 0.81, 0.99] }}
                 style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={(e) => {
+                onMouseLeave={(_e) => {
                     handleMouseLeave();
                     setIsHovered(false);
                 }}
@@ -142,13 +142,13 @@ function FeaturedToolCard({ tool, index }: { tool: typeof tools[0]; index: numbe
             >
                 {/* Animated gradient border */}
                 <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tool.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                
+
                 {/* Inner card */}
                 <div className="absolute inset-[1px] rounded-2xl bg-[#0A0A0F] overflow-hidden">
                     {/* Glow effect */}
                     <motion.div
                         className="absolute -inset-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-700"
-                        animate={isHovered ? { 
+                        animate={isHovered ? {
                             background: [
                                 `radial-gradient(600px circle at 50% 50%, ${tool.glowColor}, transparent 40%)`,
                                 `radial-gradient(600px circle at 30% 30%, ${tool.glowColor}, transparent 40%)`,
@@ -232,7 +232,7 @@ function ToolCard({ tool, index }: { tool: typeof tools[0]; index: number }) {
             >
                 {/* Border gradient */}
                 <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${tool.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                
+
                 {/* Inner card */}
                 <div className="absolute inset-[1px] rounded-xl bg-[#0A0A0F]/95 backdrop-blur-sm overflow-hidden">
                     {/* Subtle glow */}
@@ -288,7 +288,7 @@ function ToolCard({ tool, index }: { tool: typeof tools[0]; index: number }) {
 }
 
 export function ToolsBeltSection() {
-    const [isMounted, setIsMounted] = useState(false);
+    const [_isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -320,7 +320,7 @@ export function ToolsBeltSection() {
                             <Zap className="w-3.5 h-3.5 text-emerald-400" />
                             <span className="text-xs font-mono text-emerald-400">Utilidades gratuitas</span>
                         </div>
-                        
+
                         <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-4">
                             Herramientas
                             <span className="block text-gray-500 text-3xl md:text-4xl lg:text-5xl font-light mt-1">de Producción</span>

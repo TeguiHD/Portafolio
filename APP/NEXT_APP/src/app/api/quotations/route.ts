@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifySessionForApi } from "@/lib/auth/dal";
+import { secureApiEndpoint } from "@/lib/api-security";
 import { NotificationHelpers } from "@/lib/notificationService";
 import { sanitizeInput, isValidEmail } from "@/lib/security";
 import { createAuditLog, AuditActions } from "@/lib/audit";
@@ -18,11 +18,14 @@ const QUOTATION_FIELD_LIMITS = {
 // Get all quotations for current user
 export async function GET(request: NextRequest) {
     try {
-        // DAL pattern: Verify session
-        const session = await verifySessionForApi();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // SECURITY: Verify session + permission
+        const security = await secureApiEndpoint(request, {
+            requireAuth: true,
+            requiredPermission: "quotations.view",
+        });
+
+        if (security.error) return security.error;
+        const session = security.session!;
 
         const quotations = await prisma.quotation.findMany({
             where: { userId: session.user.id },
@@ -42,11 +45,14 @@ export async function GET(request: NextRequest) {
 // Create new quotation
 export async function POST(request: NextRequest) {
     try {
-        // DAL pattern: Verify session
-        const session = await verifySessionForApi();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // SECURITY: Verify session + permission
+        const security = await secureApiEndpoint(request, {
+            requireAuth: true,
+            requiredPermission: "quotations.create",
+        });
+
+        if (security.error) return security.error;
+        const session = security.session!;
 
         const body = await request.json();
         const {
@@ -91,32 +97,66 @@ export async function POST(request: NextRequest) {
             ? sanitizeInput(String(notes).trim().slice(0, QUOTATION_FIELD_LIMITS.notes))
             : null;
 
-        // Generate folio
-        const year = new Date().getFullYear();
-        const count = await prisma.quotation.count({
-            where: {
-                folio: { startsWith: `WEB-${year}` },
-            },
-        });
-        const folio = `WEB-${year}-${String(count + 1).padStart(3, "0")}`;
+        // SECURITY: Generate folio atomically to prevent race conditions
+        // Uses transaction with retry logic to handle concurrent quotation creation
+        const MAX_RETRIES = 3;
+        let quotation = null;
+        let lastError = null;
 
-        const quotation = await prisma.quotation.create({
-            data: {
-                folio,
-                clientName: sanitizedClientName || "",
-                clientEmail: sanitizedClientEmail || "",
-                projectName: sanitizedProjectName || "",
-                items,
-                subtotal: Number(subtotal) || 0,
-                discount: Number(discount) || 0,
-                total: Number(total) || 0,
-                validDays: Number(validDays) || 15,
-                paymentTerms: sanitizedPaymentTerms,
-                timeline: sanitizedTimeline,
-                notes: sanitizedNotes,
-                userId: session.user.id,
-            },
-        });
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            try {
+                quotation = await prisma.$transaction(async (tx) => {
+                    // Get next folio number atomically within transaction
+                    const year = new Date().getFullYear();
+                    const prefix = `WEB-${year}`;
+
+                    // Use raw SQL for atomic count to avoid race conditions
+                    const result = await tx.$queryRaw<[{ count: bigint }]>`
+                        SELECT COUNT(*) as count FROM "Quotation" 
+                        WHERE "folio" LIKE ${prefix + '%'}
+                        FOR UPDATE
+                    `;
+                    const count = Number(result[0]?.count || 0);
+                    const folio = `${prefix}-${String(count + 1).padStart(3, "0")}`;
+
+                    // Create quotation with the generated folio
+                    return await tx.quotation.create({
+                        data: {
+                            folio,
+                            clientName: sanitizedClientName || "",
+                            clientEmail: sanitizedClientEmail || "",
+                            projectName: sanitizedProjectName || "",
+                            items,
+                            subtotal: Number(subtotal) || 0,
+                            discount: Number(discount) || 0,
+                            total: Number(total) || 0,
+                            validDays: Number(validDays) || 15,
+                            paymentTerms: sanitizedPaymentTerms,
+                            timeline: sanitizedTimeline,
+                            notes: sanitizedNotes,
+                            userId: session.user.id,
+                        },
+                    });
+                });
+
+                // Success - break out of retry loop
+                break;
+            } catch (error) {
+                lastError = error;
+                // Check if it's a unique constraint violation (P2002) - retry
+                if (error instanceof Error && 'code' in error && (error as { code: string }).code === 'P2002') {
+                    console.warn(`[Quotation] Folio collision on attempt ${attempt + 1}, retrying...`);
+                    continue;
+                }
+                // Other errors - rethrow immediately
+                throw error;
+            }
+        }
+
+        if (!quotation) {
+            console.error("[Quotation] Failed to create after max retries:", lastError);
+            throw lastError || new Error("Failed to generate unique folio");
+        }
 
         // Create notification for new quotation
         await NotificationHelpers.quotationCreated(

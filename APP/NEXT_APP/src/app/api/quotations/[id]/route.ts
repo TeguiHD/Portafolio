@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifySessionForApi } from "@/lib/auth/dal";
+import { secureApiEndpoint } from "@/lib/api-security";
 import { createAuditLog, AuditActions } from "@/lib/audit";
 
 // Get specific quotation
@@ -9,11 +9,14 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        // DAL pattern: Verify session close to data access
-        const session = await verifySessionForApi();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // SECURITY: Verify session + permission
+        const security = await secureApiEndpoint(request, {
+            requireAuth: true,
+            requiredPermission: "quotations.view",
+        });
+
+        if (security.error) return security.error;
+        const session = security.session!;
 
         const { id } = await params;
 
@@ -44,11 +47,14 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        // DAL pattern: Verify session close to data access
-        const session = await verifySessionForApi();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // SECURITY: Verify session + permission
+        const security = await secureApiEndpoint(request, {
+            requireAuth: true,
+            requiredPermission: "quotations.edit",
+        });
+
+        if (security.error) return security.error;
+        const session = security.session!;
 
         const { id } = await params;
         const body = await request.json();
@@ -115,11 +121,14 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        // DAL pattern: Verify session close to data access
-        const session = await verifySessionForApi();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // SECURITY: Verify session + permission
+        const security = await secureApiEndpoint(request, {
+            requireAuth: true,
+            requiredPermission: "quotations.delete",
+        });
+
+        if (security.error) return security.error;
+        const session = security.session!;
 
         const { id } = await params;
 

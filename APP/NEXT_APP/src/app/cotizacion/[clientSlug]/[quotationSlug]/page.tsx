@@ -1,5 +1,6 @@
 import { QuotationAccessService } from "@/services/quotation-access";
 import { sanitizeQuotationHtml } from "@/lib/quotation-sanitizer";
+import { verifyAccessToken } from "@/lib/secure-token";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import QuotationLoginForm from "./login-form";
@@ -46,14 +47,22 @@ export default async function QuotationPage({
         );
     }
 
-    // Check for session cookie
+    // Check for session cookie and verify it cryptographically
     const cookieStore = await cookies();
-    const session = cookieStore.get(`qt_access_${clientSlug}_${quotationSlug}`);
+    const sessionCookie = cookieStore.get(`qt_access_${clientSlug}_${quotationSlug}`);
 
-    if (session?.value === "authorized") {
-        // Already authenticated
-        const sanitized = sanitizeQuotationHtml(quotation.htmlContent || "");
-        return <QuotationViewer quotation={quotation} htmlContent={sanitized} />;
+    if (sessionCookie?.value) {
+        // Verify the token signature and expiration
+        const verification = verifyAccessToken(sessionCookie.value);
+
+        if (verification.valid &&
+            verification.payload?.clientSlug === clientSlug &&
+            verification.payload?.quotationSlug === quotationSlug) {
+            // Token is valid, allow access
+            const sanitized = sanitizeQuotationHtml(quotation.htmlContent || "");
+            return <QuotationViewer quotation={quotation} htmlContent={sanitized} />;
+        }
+        // Token is invalid or expired - continue to login form
     }
 
     // Show login form

@@ -639,6 +639,8 @@ export default function AsciiArtPage() {
             alert("Error al leer el archivo.");
         };
         reader.readAsDataURL(file);
+        // recordFailedValidation, recordUpload, validateFile are stable helper functions defined in component scope
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [convertToAscii]);
 
     // Regenerate ASCII when settings change

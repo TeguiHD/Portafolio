@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ColorPickerProps {
@@ -27,7 +27,8 @@ const hexToHsv = (hex: string) => {
     b /= 255;
 
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0, v = max;
+    let h = 0, s = 0;
+    const v = max;
     const d = max - min;
     s = max === 0 ? 0 : d / max;
 
@@ -123,8 +124,8 @@ export function ColorPicker({ color, onChange, label, className = "" }: ColorPic
     };
 
     // Mouse move handlers for drag
-    const handleSatMove = (e: any) => { if (e.buttons === 1 || e.touches) handleSaturationChange(e); };
-    const handleHueMove = (e: any) => { if (e.buttons === 1 || e.touches) handleHueChange(e); };
+    const handleSatMove = (e: React.MouseEvent | React.TouchEvent) => { if ('buttons' in e && e.buttons === 1 || 'touches' in e) handleSaturationChange(e); };
+    const handleHueMove = (e: React.MouseEvent | React.TouchEvent) => { if ('buttons' in e && e.buttons === 1 || 'touches' in e) handleHueChange(e); };
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>

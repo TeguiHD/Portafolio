@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { OCRResultDisplay, type OCRData } from "./OCRResultDisplay";
 
 interface BatchItem {
@@ -34,7 +34,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
     // Add images from file input
     const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
-        
+
         files.forEach(file => {
             if (!file.type.startsWith("image/")) return;
             if (file.size > 5 * 1024 * 1024) return; // Max 5MB
@@ -102,7 +102,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
             status: "pending",
         };
         setItems(prev => [...prev, newItem]);
-        
+
         // Don't stop camera - allow multiple captures
     }, []);
 
@@ -146,10 +146,10 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
         stopCamera();
 
         const pendingItems = items.filter(item => item.status === "pending");
-        
+
         for (const item of pendingItems) {
             // Update status to processing
-            setItems(prev => prev.map(i => 
+            setItems(prev => prev.map(i =>
                 i.id === item.id ? { ...i, status: "processing" as const } : i
             ));
 
@@ -157,7 +157,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
             const result = await processItem(item);
 
             // Update with result
-            setItems(prev => prev.map(i => 
+            setItems(prev => prev.map(i =>
                 i.id === item.id ? result : i
             ));
         }
@@ -173,7 +173,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                 data: item.result!,
                 imageData: item.imageData,
             }));
-        
+
         onComplete(successfulResults);
     }, [items, onComplete]);
 
@@ -254,7 +254,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                                 className="w-full h-full object-contain"
                             />
                             <canvas ref={canvasRef} className="hidden" />
-                            
+
                             {/* Camera controls */}
                             <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-4">
                                 <button
@@ -321,21 +321,20 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                                             <div
                                                 key={item.id}
                                                 onClick={() => setSelectedItem(item.id)}
-                                                className={`relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${
-                                                    selectedItem === item.id
+                                                className={`relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${selectedItem === item.id
                                                         ? "border-purple-500 ring-2 ring-purple-500/30"
                                                         : "border-transparent hover:border-neutral-600"
-                                                }`}
+                                                    }`}
                                             >
                                                 <img
                                                     src={item.imageData}
                                                     alt="Receipt"
                                                     className="w-full h-full object-cover"
                                                 />
-                                                
+
                                                 {/* Status overlay */}
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                                
+
                                                 {/* Status badge */}
                                                 <div className="absolute top-2 right-2">
                                                     {item.status === "pending" && (
@@ -418,8 +417,8 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                                         }
                                     }}
                                     onRetry={() => {
-                                        setItems(prev => prev.map(i => 
-                                            i.id === selectedItemData.id 
+                                        setItems(prev => prev.map(i =>
+                                            i.id === selectedItemData.id
                                                 ? { ...i, status: "pending" as const, result: undefined, error: undefined }
                                                 : i
                                         ));
@@ -436,8 +435,8 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                                     <p className="text-sm text-neutral-400 mb-4">{selectedItemData.error}</p>
                                     <button
                                         onClick={() => {
-                                            setItems(prev => prev.map(i => 
-                                                i.id === selectedItemData.id 
+                                            setItems(prev => prev.map(i =>
+                                                i.id === selectedItemData.id
                                                     ? { ...i, status: "pending" as const, error: undefined }
                                                     : i
                                             ));

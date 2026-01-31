@@ -96,11 +96,10 @@ export default function FinanceMetricsDashboard() {
                         <button
                             key={p}
                             onClick={() => setPeriod(p)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                period === p
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${period === p
                                     ? "bg-blue-600 text-white"
                                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                            }`}
+                                }`}
                         >
                             {p === "7d" ? "7 días" : p === "30d" ? "30 días" : "90 días"}
                         </button>
@@ -153,8 +152,8 @@ export default function FinanceMetricsDashboard() {
                         change={
                             metrics.adoption.newUsersLastWeek > 0
                                 ? ((metrics.adoption.newUsersThisWeek - metrics.adoption.newUsersLastWeek) /
-                                      metrics.adoption.newUsersLastWeek) *
-                                  100
+                                    metrics.adoption.newUsersLastWeek) *
+                                100
                                 : 0
                         }
                     />
@@ -249,13 +248,12 @@ function MetricCard({
                 <span className="text-2xl">{icon}</span>
                 {trend !== undefined && (
                     <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            trend > 0
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${trend > 0
                                 ? "bg-green-500/20 text-green-400"
                                 : trend < 0
-                                ? "bg-red-500/20 text-red-400"
-                                : "bg-gray-500/20 text-gray-400"
-                        }`}
+                                    ? "bg-red-500/20 text-red-400"
+                                    : "bg-gray-500/20 text-gray-400"
+                            }`}
                     >
                         {trend > 0 ? "+" : ""}
                         {trend.toFixed(1)}%
@@ -271,7 +269,7 @@ function MetricCard({
 
 function MetricSection({
     title,
-    icon,
+    icon: _icon,  // Reserved for future icon rendering
     children,
 }: {
     title: string;
@@ -302,9 +300,8 @@ function MetricRow({
                 <span className="text-white font-medium">{value}</span>
                 {change !== undefined && (
                     <span
-                        className={`text-xs ${
-                            change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-gray-400"
-                        }`}
+                        className={`text-xs ${change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-gray-400"
+                            }`}
                     >
                         {change > 0 ? "↑" : change < 0 ? "↓" : "→"}
                         {Math.abs(change).toFixed(0)}%

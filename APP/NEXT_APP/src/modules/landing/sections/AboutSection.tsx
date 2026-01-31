@@ -36,10 +36,15 @@ export function AboutSection() {
     const saved = localStorage.getItem("technologies");
     if (saved) {
       try {
-        const techs = JSON.parse(saved);
+        interface SavedTechnology {
+          name: string;
+          category: string;
+          featured?: boolean;
+        }
+        const techs = JSON.parse(saved) as SavedTechnology[];
         const formatted = techs
-          .filter((t: any) => t.featured !== false)
-          .map((t: any) => ({ name: t.name, category: t.category }));
+          .filter((t) => t.featured !== false)
+          .map((t) => ({ name: t.name, category: t.category }));
         if (formatted.length > 0) {
           setTechnologies(formatted);
         }

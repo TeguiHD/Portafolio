@@ -3,15 +3,15 @@
  * 
  * Manages secure access to quotations with:
  * - Rate-limited code validation
- * - Secure code generation
+ * - Secure code generation with high entropy
  * - Duration-based expiration
- * - Audit logging
+ * - Audit logging for security
  */
 
 import { prisma } from "@/lib/prisma";
 import { hash, verify } from "argon2";
 import { checkRateLimit, resetRateLimit } from "@/lib/redis";
-import { randomBytes } from "crypto";
+import { generateSecureAccessCode, createSessionFingerprint } from "@/lib/secure-token";
 
 // Rate limit config
 const MAX_ATTEMPTS = 5;
@@ -24,6 +24,8 @@ export interface AccessResult {
     allowed: boolean;
     reason: "valid" | "public" | "expired" | "invalid" | "rate_limited" | "not_found";
     remainingAttempts?: number;
+    quotationId?: string;
+    fingerprint?: string;
 }
 
 function slugify(text: string): string {
@@ -35,15 +37,6 @@ function slugify(text: string): string {
         .replace(/\s+/g, "-") // Spaces to hyphens
         .replace(/-+/g, "-") // Multiple hyphens to single
         .substring(0, 50); // Limit length
-}
-
-function generateSecureCode(): string {
-    // Generate a readable secure code: Word + Year + Symbol
-    const words = ["Sol", "Luna", "Mar", "Rio", "Nube", "Flor", "Arbol", "Monte"];
-    const word = words[Math.floor(Math.random() * words.length)];
-    const year = new Date().getFullYear();
-    const random = randomBytes(2).toString("hex").toUpperCase();
-    return `${word}${year}${random}!`;
 }
 
 function calculateExpiration(duration: CodeDuration): Date | null {
@@ -63,13 +56,14 @@ function calculateExpiration(duration: CodeDuration): Date | null {
 export class QuotationAccessService {
 
     /**
-     * Validate access code with rate limiting
+     * Validate access code with rate limiting and audit logging
      */
     static async validateCode(
         clientSlug: string,
         quotationSlug: string,
         inputCode: string,
-        ip: string
+        ip: string,
+        userAgent?: string
     ): Promise<AccessResult> {
         const rateLimitKey = `qt_rate:${ip}:${clientSlug}:${quotationSlug}`;
 
@@ -111,11 +105,28 @@ export class QuotationAccessService {
 
         try {
             const isValid = await verify(codeToCheck, inputCode);
+            const fingerprint = createSessionFingerprint(ip, userAgent || "unknown");
+
+            // Log access attempt
+            await this.logAccessAttempt(
+                quotation.id,
+                clientSlug,
+                quotationSlug,
+                ip,
+                userAgent,
+                fingerprint,
+                isValid ? "success" : "invalid_code"
+            );
 
             if (isValid) {
                 // Clear rate limit on success
                 await resetRateLimit(rateLimitKey);
-                return { allowed: true, reason: "valid" };
+                return {
+                    allowed: true,
+                    reason: "valid",
+                    quotationId: quotation.id,
+                    fingerprint
+                };
             } else {
                 // Already incremented by checkRateLimit, just return remaining
                 return {
@@ -131,10 +142,40 @@ export class QuotationAccessService {
     }
 
     /**
-     * Generate a new secure access code
+     * Log access attempt for security audit
+     */
+    private static async logAccessAttempt(
+        quotationId: string,
+        clientSlug: string,
+        quotationSlug: string,
+        ipAddress: string,
+        userAgent: string | undefined,
+        fingerprint: string,
+        accessResult: string
+    ): Promise<void> {
+        try {
+            await prisma.quotationAccessLog.create({
+                data: {
+                    quotationId,
+                    clientSlug,
+                    quotationSlug,
+                    ipAddress,
+                    userAgent,
+                    fingerprint,
+                    accessResult
+                }
+            });
+        } catch (e) {
+            // Don't fail the request if logging fails
+            console.error("Failed to log access attempt:", e);
+        }
+    }
+
+    /**
+     * Generate a new secure access code with high entropy
      */
     static generateCode(): string {
-        return generateSecureCode();
+        return generateSecureAccessCode();
     }
 
     /**
@@ -165,8 +206,8 @@ export class QuotationAccessService {
             return { success: true };
         }
 
-        // Generate new code
-        const plainCode = generateSecureCode();
+        // Generate new code with high entropy
+        const plainCode = generateSecureAccessCode();
         const hashedCode = await hash(plainCode);
         const expiresAt = duration ? calculateExpiration(duration) : null;
 

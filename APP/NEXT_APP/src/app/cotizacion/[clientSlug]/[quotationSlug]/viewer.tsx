@@ -138,7 +138,7 @@ export default function QuotationViewer({ quotation, htmlContent }: QuotationVie
                         display: "block"
                     }}
                     title={quotation.projectName}
-                    sandbox="allow-scripts allow-modals allow-popups"
+                    sandbox="allow-same-origin allow-scripts"
                     onLoad={(e) => {
                         const iframe = e.target as HTMLIFrameElement;
                         try {

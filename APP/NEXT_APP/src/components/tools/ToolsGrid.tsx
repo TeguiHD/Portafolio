@@ -79,15 +79,8 @@ export default function ToolsGrid({ tools }: ToolsGridProps) {
         }, {} as Record<string, Tool[]>);
     }, [filteredTools]);
 
-    // Count filtered results
-    const filteredCounts = useMemo(() => {
-        const counts: Record<string, number> = {};
-        CATEGORY_ORDER.forEach(cat => {
-            counts[cat] = filteredTools.filter(t => t.category === cat).length;
-        });
-        counts["all"] = filteredTools.length;
-        return counts;
-    }, [filteredTools]);
+    // Note: filteredCounts could be added here for showing filtered counts
+    // in category tabs, but currently categoryTools is used directly
 
     return (
         <div className="space-y-8">

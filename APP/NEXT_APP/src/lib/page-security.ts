@@ -55,6 +55,7 @@ export async function requirePagePermission(permissionCode: string): Promise<Ses
         })
 
         // Redirect to unauthorized page
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Typed routes issue
         redirect('/unauthorized' as any)
     }
 
@@ -83,6 +84,7 @@ export async function requireAllPermissions(permissionCodes: string[]): Promise<
                 resource: `page:${code}`,
                 requiredPermission: code
             })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Typed routes issue
             redirect('/unauthorized' as any)
         }
     }
@@ -116,5 +118,6 @@ export async function requireAnyPermission(permissionCodes: string[]): Promise<S
         resource: `page:${permissionCodes.join('|')}`,
         requiredPermission: permissionCodes.join(' OR ')
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Typed routes issue
     redirect('/unauthorized' as any)
 }

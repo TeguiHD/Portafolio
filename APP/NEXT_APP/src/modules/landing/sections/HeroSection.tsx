@@ -104,6 +104,8 @@ export function HeroSection() {
       uptimeCounter.start();
     }, 1000);
     return () => clearTimeout(timer);
+    // Counter start functions are stable refs that shouldn't trigger effect re-runs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

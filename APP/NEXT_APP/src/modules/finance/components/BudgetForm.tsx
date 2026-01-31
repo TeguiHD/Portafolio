@@ -10,6 +10,16 @@ interface Category {
     color: string | null;
 }
 
+export interface BudgetData {
+    name: string;
+    categoryId: string | null;
+    amount: number;
+    period: string;
+    alertAt75: boolean;
+    alertAt90: boolean;
+    alertAt100: boolean;
+}
+
 interface BudgetFormProps {
     budget?: {
         id: string;
@@ -21,7 +31,7 @@ interface BudgetFormProps {
         alertAt90: boolean;
         alertAt100: boolean;
     };
-    onSubmit: (data: any) => Promise<void>;
+    onSubmit: (data: BudgetData) => Promise<void>;
     onCancel: () => void;
 }
 
