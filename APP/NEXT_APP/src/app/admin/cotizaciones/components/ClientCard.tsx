@@ -58,7 +58,8 @@ export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyM
         .toUpperCase();
 
     const isOwner = currentUserId && client.user?.id === currentUserId;
-    const isSharedWithMe = !isOwner && client.sharedWith?.some(s => s.sharedByUserId !== currentUserId);
+    // isSharedWithMe logic removed as it was unused
+
     // Wait, sharedWith contains who it is shared WITH.
     // If I am browsing, and I see a client...
     // If it's my client, sharedWith shows who *I* shared it with.

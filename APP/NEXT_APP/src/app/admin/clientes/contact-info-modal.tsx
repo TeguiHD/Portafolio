@@ -57,7 +57,7 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
             } else {
                 toast.error(res.error || "Error al eliminar cliente");
             }
-        } catch (error) {
+        } catch {
             toast.error("Error al procesar la solicitud");
         } finally {
             setLoading(false);
