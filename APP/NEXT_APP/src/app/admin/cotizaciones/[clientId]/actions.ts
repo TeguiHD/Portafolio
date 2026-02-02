@@ -112,7 +112,7 @@ export async function createQuotationAction(formData: FormData) {
                 subtotal: total,
                 items: [],
                 htmlContent: cleanHtmlContent,
-                status: "sent",
+                status: "PENDING",
                 validDays: 15,
                 userId: session.user.id,
                 clientId,
@@ -237,5 +237,168 @@ export async function toggleVisibilityAction(
     } catch (error) {
         console.error("Error toggling visibility:", error);
         return { success: false, error: "Error al cambiar visibilidad" };
+    }
+}
+
+export async function deleteQuotationAction(quotationId: string) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, error: "No autorizado" };
+    }
+
+    // SECURITY: Check granular permission
+    const canDelete = await hasPermission(
+        session.user.id,
+        session.user.role as Role,
+        "quotations.delete"
+    );
+    if (!canDelete) {
+        return { success: false, error: "Permiso denegado" };
+    }
+
+    try {
+        // Verify ownership (unless superadmin)
+        const quotation = await prisma.quotation.findUnique({
+            where: { id: quotationId },
+            include: { client: true }
+        });
+
+        if (!quotation) {
+            return { success: false, error: "Cotización no encontrada" };
+        }
+
+        // Check ownership: user must own the client or be superadmin
+        const isSuperAdmin = session.user.role === "SUPERADMIN";
+        if (!isSuperAdmin && quotation.client?.userId !== session.user.id) {
+            return { success: false, error: "No autorizado" };
+        }
+
+        // Soft Delete (Business Requirement: Retention for backup/audit)
+        await prisma.quotation.update({
+            where: { id: quotationId },
+            data: {
+                isDeleted: true,
+                deletedAt: new Date()
+            }
+        });
+
+        revalidatePath("/admin/cotizaciones");
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting quotation:", error);
+        return { success: false, error: "Error al eliminar cotización" };
+    }
+}
+
+export async function getQuotationForEditAction(quotationId: string) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, error: "No autorizado", data: null };
+    }
+
+    // SECURITY: Check granular permission
+    const canView = await hasPermission(
+        session.user.id,
+        session.user.role as Role,
+        "quotations.view"
+    );
+    if (!canView) {
+        return { success: false, error: "Permiso denegado", data: null };
+    }
+
+    try {
+        const quotation = await prisma.quotation.findUnique({
+            where: { id: quotationId },
+            include: { client: true }
+        });
+
+        if (!quotation) {
+            return { success: false, error: "Cotización no encontrada", data: null };
+        }
+
+        // Check ownership: user must own the client or be superadmin
+        const isSuperAdmin = session.user.role === "SUPERADMIN";
+        if (!isSuperAdmin && quotation.client?.userId !== session.user.id) {
+            return { success: false, error: "No autorizado", data: null };
+        }
+
+        return {
+            success: true,
+            data: {
+                id: quotation.id,
+                folio: quotation.folio,
+                projectName: quotation.projectName,
+                htmlContent: quotation.htmlContent,
+                total: quotation.total,
+                status: quotation.status,
+                notes: quotation.notes
+            }
+        };
+    } catch (error) {
+        console.error("Error getting quotation:", error);
+        return { success: false, error: "Error al obtener cotización", data: null };
+    }
+}
+
+export async function updateQuotationAction(
+    quotationId: string,
+    data: {
+        projectName?: string;
+        htmlContent?: string;
+        total?: number;
+        notes?: string;
+    }
+) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, error: "No autorizado" };
+    }
+
+    // SECURITY: Check granular permission
+    const canEdit = await hasPermission(
+        session.user.id,
+        session.user.role as Role,
+        "quotations.edit"
+    );
+    if (!canEdit) {
+        return { success: false, error: "Permiso denegado" };
+    }
+
+    try {
+        // Verify ownership (unless superadmin)
+        const quotation = await prisma.quotation.findUnique({
+            where: { id: quotationId },
+            include: { client: true }
+        });
+
+        if (!quotation) {
+            return { success: false, error: "Cotización no encontrada" };
+        }
+
+        // Check ownership: user must own the client or be superadmin
+        const isSuperAdmin = session.user.role === "SUPERADMIN";
+        if (!isSuperAdmin && quotation.client?.userId !== session.user.id) {
+            return { success: false, error: "No autorizado" };
+        }
+
+        // Sanitize HTML if provided
+        const updateData: Record<string, unknown> = {};
+        if (data.projectName) updateData.projectName = data.projectName.trim().slice(0, 200);
+        if (data.htmlContent) updateData.htmlContent = sanitizeQuotationHtml(data.htmlContent);
+        if (data.total !== undefined) updateData.total = data.total;
+        if (data.notes !== undefined) updateData.notes = data.notes?.trim().slice(0, 1000) || null;
+
+        await prisma.quotation.update({
+            where: { id: quotationId },
+            data: updateData
+        });
+
+        revalidatePath("/admin/cotizaciones");
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating quotation:", error);
+        return { success: false, error: "Error al actualizar cotización" };
     }
 }

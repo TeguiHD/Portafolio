@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Users, FileText, Plus, Search, Eye, Grid, List } from "lucide-react";
+import { Users, FileText, Plus, Search, Eye, Grid, List, Key } from "lucide-react";
 import UnifiedQuotationCreation from "./components/UnifiedQuotationCreation";
+import RedeemCodeModal from "./components/RedeemCodeModal";
 import ClientCard from "./components/ClientCard";
 import ClientsSearchModal from "./components/ClientsSearchModal";
 import SpyModeModal from "./components/SpyModeModal";
@@ -12,22 +13,29 @@ interface Client {
     id: string;
     name: string;
     email: string | null;
-    phone?: string | null;
+    contactPhone?: string | null;
     company?: string | null;
     slug: string;
     createdAt?: string | Date;
     _count: { quotations: number };
-    user?: { name: string | null; email: string | null } | null;
+    user?: { id: string; name: string | null; email: string | null } | null;
+    sharedWith?: {
+        permission: string;
+        sharedByUserId: string;
+        createdAt: string | Date;
+    }[];
 }
 
 interface Props {
     clients: Client[];
     isSuperAdmin: boolean;
+    currentUserId: string;
 }
 
-export default function QuotationsView({ clients, isSuperAdmin }: Props) {
+export default function QuotationsView({ clients, isSuperAdmin, currentUserId }: Props) {
     const [showWizard, setShowWizard] = useState(false);
     const [showSearchModal, setShowSearchModal] = useState(false);
+    const [showRedeemModal, setShowRedeemModal] = useState(false);
     const [showSpyModal, setShowSpyModal] = useState(false);
     const [spyUserId, setSpyUserId] = useState<string | null>(null);
     const [spyUserName, setSpyUserName] = useState<string>("");
@@ -46,8 +54,6 @@ export default function QuotationsView({ clients, isSuperAdmin }: Props) {
     const handleSpyUserSelect = (userId: string, userName: string) => {
         setSpyUserId(userId || null);
         setSpyUserName(userName);
-        // TODO: Refresh clients with spy user filter
-        // This would require page refresh or server action
         if (userId) {
             window.location.href = `/admin/cotizaciones?spyUserId=${userId}`;
         } else {
@@ -128,6 +134,16 @@ export default function QuotationsView({ clients, isSuperAdmin }: Props) {
                     >
                         <Plus size={18} />
                         <span className="hidden sm:inline">Nueva Cotización</span>
+                    </button>
+
+                    {/* Redeem Code */}
+                    <button
+                        onClick={() => setShowRedeemModal(true)}
+                        className="flex items-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-4 py-2 rounded-lg font-medium transition-colors"
+                        title="Vincular cliente mediante código"
+                    >
+                        <Key size={18} />
+                        <span className="hidden xl:inline">Vincular Cliente</span>
                     </button>
                 </div>
             </div>
@@ -223,6 +239,7 @@ export default function QuotationsView({ clients, isSuperAdmin }: Props) {
                             client={client}
                             isSuperAdmin={isSuperAdmin}
                             isSpyMode={!!spyUserId}
+                            currentUserId={currentUserId}
                         />
                     ))}
                 </div>
@@ -282,6 +299,11 @@ export default function QuotationsView({ clients, isSuperAdmin }: Props) {
                     onClose={() => setShowWizard(false)}
                 />
             )}
+
+            <RedeemCodeModal
+                isOpen={showRedeemModal}
+                onClose={() => setShowRedeemModal(false)}
+            />
 
             <ClientsSearchModal
                 clients={clients}

@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/page-security";
+import { hasPermission } from "@/lib/permission-check";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Eye, ChevronRight } from "lucide-react";
 import CreateQuotationModal from "./create-modal";
 import QuotationsList from "./quotations-list";
+import type { Role } from "@prisma/client";
 
 // Type for quotations to pass to client component
 interface Quotation {
@@ -16,6 +18,7 @@ interface Quotation {
     updatedAt: Date;
     status: string;
     total: number;
+    totalPaid: number;
     accessMode: string;
     isActive: boolean;
     isVisible: boolean;
@@ -30,6 +33,7 @@ async function getClientWithQuotations(clientId: string, userId: string, isSuper
         where: { id: clientId },
         include: {
             quotations: {
+                where: { isDeleted: false },
                 orderBy: { createdAt: "desc" }
             },
             user: { select: { name: true, email: true } }
@@ -69,6 +73,12 @@ export default async function ClientQuotationsPage({
     if (!client) {
         notFound();
     }
+
+    // Check edit and delete permissions
+    const [canEdit, canDelete] = await Promise.all([
+        hasPermission(session.user.id, session.user.role as Role, "quotations.edit"),
+        hasPermission(session.user.id, session.user.role as Role, "quotations.delete")
+    ]);
 
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const isSpying = isSuperAdmin && client.userId !== session.user.id;
@@ -140,6 +150,8 @@ export default async function ClientQuotationsPage({
                     clientName={client.name}
                     clientSlug={client.slug}
                     baseUrl={baseUrl}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                 />
             )}
         </div>

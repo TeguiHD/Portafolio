@@ -82,7 +82,7 @@ async function main() {
                 projectName: "Plataforma Web & Gestión de Pedidos",
                 total: 320000,
                 subtotal: 320000,
-                status: "sent",
+                status: "PENDING",
                 validDays: 15,
                 items: [], // JSON required
                 htmlContent: htmlContent,

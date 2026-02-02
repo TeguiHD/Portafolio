@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { UserCog, Building2, User, Mail, Phone, MapPin, Briefcase, FileText, Loader2, Save, X } from "lucide-react";
-import { updateClientContactAction, UpdateClientContactData } from "../../../modules/admin/clients/actions";
+import { useRouter } from "next/navigation";
+import { UserCog, Building2, User, Mail, Phone, MapPin, Briefcase, FileText, Loader2, Save, X, Trash2 } from "lucide-react";
+import { updateClientContactAction, deleteClientAction, UpdateClientContactData } from "../../../modules/admin/clients/actions";
 import { toast } from "sonner";
 
 interface Client {
@@ -23,11 +24,13 @@ interface Client {
 interface Props {
     client: Client;
     onUpdate?: () => void;
+    canDelete?: boolean;
 }
 
-export default function ContactInfoModal({ client, onUpdate }: Props) {
+export default function ContactInfoModal({ client, onUpdate, canDelete }: Props) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
     const [formData, setFormData] = useState<UpdateClientContactData>({
         name: client.name,
         company: client.company || "",
@@ -39,6 +42,27 @@ export default function ContactInfoModal({ client, onUpdate }: Props) {
         contactRole: client.contactRole || "",
         email: client.email || "", // Legacy/System email
     });
+
+    const handleDelete = async () => {
+        if (!confirm("¿Estás seguro de que deseas eliminar este cliente? Se eliminarán lógicamente sus cotizaciones asociadas. Esta acción no se puede deshacer.")) return;
+
+        try {
+            setLoading(true);
+            const res = await deleteClientAction(client.id);
+            if (res.success) {
+                toast.success("Cliente eliminado correctamente");
+                setOpen(false);
+                router.refresh();
+                if (onUpdate) onUpdate();
+            } else {
+                toast.error(res.error || "Error al eliminar cliente");
+            }
+        } catch (error) {
+            toast.error("Error al procesar la solicitud");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const modalRef = useRef<HTMLDivElement>(null);
 
@@ -280,6 +304,28 @@ export default function ContactInfoModal({ client, onUpdate }: Props) {
                             </div>
                         </div>
                     </div>
+
+                    {/* Danger Zone */}
+                    {canDelete && (
+                        <div className="space-y-4 pt-4 border-t border-slate-800">
+                            <h3 className="text-sm uppercase tracking-wider text-red-500/80 font-bold flex items-center gap-2">
+                                <Trash2 size={16} /> Zona de Peligro
+                            </h3>
+                            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-red-200 font-medium">Eliminar Cliente</p>
+                                    <p className="text-xs text-red-400/60 mt-0.5">Esta acción eliminará el cliente y sus cotizaciones.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleDelete}
+                                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/20 rounded-lg text-xs font-medium transition-all"
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
                         <button

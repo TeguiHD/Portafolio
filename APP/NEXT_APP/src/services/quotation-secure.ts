@@ -56,7 +56,7 @@ export class QuotationSecureService {
             where: { slug },
             include: {
                 quotations: {
-                    where: { status: { not: "draft" } }, // Only show sent/accepted
+                    where: { status: { not: "DRAFT" } }, // Only show sent/accepted
                     select: {
                         id: true,
                         folio: true,
@@ -96,7 +96,7 @@ export class QuotationSecureService {
             where: {
                 id: quotationId,
                 clientId: client.id,
-                status: { not: "draft" }
+                status: { not: "DRAFT" }
             },
             select: {
                 id: true,

@@ -14,9 +14,12 @@ export function LabSection() {
   return (
     <section
       id="lab"
-      className="relative overflow-x-hidden overflow-y-visible bg-gradient-to-b from-[#050914] via-[#0a1328] to-[#050914] px-5 py-24 sm:px-10"
+      className="relative overflow-x-hidden overflow-y-visible px-5 py-24 sm:px-10"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,184,169,0.12),transparent_30%),radial-gradient(circle_at_80%_60%,rgba(255,138,0,0.12),transparent_30%)]" />
+      {/* Background Gradient with Mask */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#050914] via-[#0a1328] to-[#050914] -z-20 [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_80%,transparent)]" />
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,184,169,0.12),transparent_30%),radial-gradient(circle_at_80%_60%,rgba(255,138,0,0.12),transparent_30%)] [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]" />
       <div className="relative mx-auto flex max-w-6xl flex-col gap-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>

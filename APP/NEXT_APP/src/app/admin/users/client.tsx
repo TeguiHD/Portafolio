@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, X, ShieldCheck, Ban, CheckCircle, Key, AlertTriangle, Search, ChevronLeft, ChevronRight, Filter, Shield, Eye, EyeOff } from "lucide-react";
+import { UserPlus, X, ShieldCheck, Ban, CheckCircle, Key, AlertTriangle, Search, ChevronLeft, ChevronRight, Filter, Shield, Eye, EyeOff, UserCog } from "lucide-react";
 import { UserPermissionsModal } from "@/modules/admin/components/UserPermissionsModal";
+import { UserLifecycleModal } from "./user-lifecycle-modal";
 import { Select } from "@/components/ui/Select";
 import { UsersPageSkeleton } from "@/components/ui/Skeleton";
 
@@ -15,6 +16,8 @@ type User = {
     isActive: boolean;
     avatar: string | null;
     createdAt: string;
+    deletionStatus?: string;
+    deletionScheduledAt?: string | null;
     _count: { quotations: number; sessions: number };
 };
 
@@ -79,6 +82,12 @@ export default function UsersPageClient() {
         userName: string | null;
         userRole: string;
     }>({ isOpen: false, userId: "", userName: null, userRole: "" });
+
+    // Lifecycle Modal State
+    const [lifecycleModal, setLifecycleModal] = useState<{
+        isOpen: boolean;
+        user: User | null;
+    }>({ isOpen: false, user: null });
 
     useEffect(() => {
         fetchUsers();
@@ -463,6 +472,14 @@ export default function UsersPageClient() {
                                                     </button>
 
                                                     <button
+                                                        onClick={() => setLifecycleModal({ isOpen: true, user })}
+                                                        className="p-2 rounded-lg text-neutral-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all"
+                                                        title="Gestión del ciclo de vida (GDPR)"
+                                                    >
+                                                        <UserCog size={18} />
+                                                    </button>
+
+                                                    <button
                                                         onClick={() => setPasswordModal({ isOpen: true, userId: user.id, userName: user.name || user.email })}
                                                         className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-all"
                                                         title="Cambiar contraseña"
@@ -755,6 +772,14 @@ export default function UsersPageClient() {
                 userId={permissionsModal.userId}
                 userName={permissionsModal.userName}
                 userRole={permissionsModal.userRole}
+            />
+
+            {/* Lifecycle Modal */}
+            <UserLifecycleModal
+                isOpen={lifecycleModal.isOpen}
+                onClose={() => setLifecycleModal({ isOpen: false, user: null })}
+                user={lifecycleModal.user}
+                onUserUpdated={fetchUsers}
             />
         </div>
     );

@@ -300,7 +300,7 @@ export function ToolsBeltSection() {
     return (
         <section id="tools-belt" className="relative py-24 md:py-32 px-4 sm:px-6 overflow-hidden">
             {/* Background effects */}
-            <div className="absolute inset-0 -z-10">
+            <div className="absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]">
                 {/* Gradient orbs */}
                 <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[100px] animate-pulse-slow" />
                 <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-500/5 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: "2s" }} />

@@ -20,6 +20,17 @@ model User {
   failedLoginAttempts Int                      @default(0)
   lockedUntil         DateTime?
   lastLoginAt         DateTime?
+  
+  // User lifecycle management (GDPR/Security compliance)
+  deletionStatus      UserDeletionStatus       @default(ACTIVE)
+  deletionRequestedAt DateTime?                // When user/admin requested deletion
+  deletionScheduledAt DateTime?                // When data will be permanently deleted
+  deletedAt           DateTime?                // When account was soft-deleted
+  deletedBy           String?                  // Admin who processed the deletion
+  deletionReason      String?                  // Reason for account termination
+  anonymizedAt        DateTime?                // When PII was anonymized
+  dataExportedAt      DateTime?                // GDPR: when user data was exported
+  
   auditLogs           AuditLog[]
   budgets             Budget[]
   categoryFeedbacks   CategoryFeedback[]
@@ -39,6 +50,26 @@ model User {
   categorizationRules UserCategorizationRule[]
   permissions         UserPermission[]
   userSessions        UserSession[]
+
+  // Secure Sharing & Connections
+  sharingCode         String?                  @unique // Unique code for finding this user
+  sentConnections     UserConnection[]         @relation("SentConnections")
+  receivedConnections UserConnection[]         @relation("ReceivedConnections")
+  sharedClients       SharedClient[]           @relation("SharedWithUser")
+  
+  @@index([sharingCode])
+  @@index([deletionStatus])
+  @@index([deletionScheduledAt])
+}
+
+// User account lifecycle states for GDPR compliance
+enum UserDeletionStatus {
+  ACTIVE              // Normal active account
+  SUSPENDED           // Temporarily suspended (can be reactivated)
+  DELETION_REQUESTED  // User requested deletion, in grace period
+  DELETION_SCHEDULED  // Admin confirmed deletion, awaiting execution
+  ANONYMIZED          // PII removed, statistical data retained
+  DELETED             // Fully deleted (only audit trail remains)
 }
 
 model Session {
@@ -190,36 +221,47 @@ model CtaClick {
 }
 
 model Quotation {
-  id            String           @id @default(cuid())
-  folio         String           @unique
+  id            String                   @id @default(cuid())
+  folio         String                   @unique
   clientName    String
   clientEmail   String?
   projectName   String
   items         Json
   subtotal      Float
-  discount      Float            @default(0)
+  discount      Float                    @default(0)
   total         Float
-  validDays     Int              @default(15)
+  validDays     Int                      @default(15)
   paymentTerms  String?
   timeline      String?
   notes         String?
-  status        String           @default("draft")
-  isVisible     Boolean          @default(true)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  status        QuotationStatus          @default(DRAFT)
+  isVisible     Boolean                  @default(true)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
   userId        String
   clientId      String?
   htmlContent   String?
   accessCode    String?
-  accessMode    String           @default("code")
+  accessMode    String                   @default("code")
   codeExpiresAt DateTime?
   slug          String?
-  client        QuotationClient? @relation(fields: [clientId], references: [id])
-  user          User             @relation(fields: [userId], references: [id])
+  
+  // Payment tracking
+  totalPaid     Float                    @default(0)
+  
+  // Soft Delete
+  isDeleted     Boolean                  @default(false)
+  deletedAt     DateTime?
+
+  client        QuotationClient?         @relation(fields: [clientId], references: [id])
+  user          User                     @relation(fields: [userId], references: [id])
+  payments      QuotationPayment[]
+  statusHistory QuotationStatusHistory[]
 
   @@unique([clientId, slug])
   @@index([slug])
   @@index([userId])
+  @@index([status])
 }
 
 model QuotationClient {
@@ -249,6 +291,10 @@ model QuotationClient {
   userId          String
   user            User        @relation(fields: [userId], references: [id])
   quotations      Quotation[]
+  
+  // Sharing
+  sharedWith      SharedClient[]
+  shareCodes      ClientShareCode[]
 
   @@index([slug])
   @@index([userId])
@@ -782,6 +828,56 @@ model CategoryFeedback {
   @@index([userId, ruleCreated])
 }
 
+// Security & Sharing Models
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
+enum PermissionLevel {
+  VIEW
+  COMMENT
+  EDIT
+  FULL
+}
+
+model UserConnection {
+  id              String           @id @default(cuid())
+  requesterId     String
+  addresseeId     String
+  status          ConnectionStatus @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  requester       User             @relation("SentConnections", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee       User             @relation("ReceivedConnections", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+  @@index([status])
+}
+
+model SharedClient {
+  id               String          @id @default(cuid())
+  clientId         String
+  sharedWithUserId String
+  permission       PermissionLevel @default(VIEW)
+  sharedByUserId   String          // Audit trail: who shared it
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  client           QuotationClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sharedWithUser   User            @relation("SharedWithUser", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, sharedWithUserId])
+  @@index([sharedWithUserId])
+  @@index([clientId])
+}
+
 model UserCategorizationRule {
   id                 String   @id @default(cuid())
   userId             String
@@ -898,4 +994,85 @@ enum AlertStatus {
   ACTIVE
   TRIGGERED
   DISMISSED
+}
+
+// ============================================
+// QUOTATION WORKFLOW & PAYMENT MODELS
+// ============================================
+
+// Quotation Status Workflow
+enum QuotationStatus {
+  DRAFT           // Initial state - not yet sent
+  PENDING         // Sent to client, awaiting response
+  REVISION        // Client requested changes
+  APPROVED        // Client accepted the quotation
+  REJECTED        // Client rejected the quotation
+  COMPLETED       // Fully paid and closed
+}
+
+// Payment Method Options
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  CHECK
+  PAYPAL
+  CRYPTO
+  OTHER
+}
+
+// Secure client sharing codes
+model ClientShareCode {
+  id           String          @id @default(cuid())
+  code         String          @unique  // Hashed secure code
+  clientId     String
+  createdById  String
+  permission   PermissionLevel @default(VIEW)
+  expiresAt    DateTime
+  maxUses      Int             @default(1)
+  usedCount    Int             @default(0)
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  
+  client       QuotationClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  @@index([code])
+  @@index([expiresAt])
+  @@index([clientId])
+  @@index([createdById])
+}
+
+// Payment tracking for quotations
+model QuotationPayment {
+  id           String        @id @default(cuid())
+  quotationId  String
+  amount       Float
+  method       PaymentMethod
+  reference    String?       // Transaction reference/receipt number
+  notes        String?
+  paidAt       DateTime      @default(now())
+  registeredBy String
+  createdAt    DateTime      @default(now())
+  
+  quotation    Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  
+  @@index([quotationId])
+  @@index([paidAt])
+}
+
+// Status change history for audit trail
+model QuotationStatusHistory {
+  id           String          @id @default(cuid())
+  quotationId  String
+  fromStatus   QuotationStatus?
+  toStatus     QuotationStatus
+  changedBy    String
+  reason       String?         // Optional reason for status change
+  metadata     Json?           // Additional context
+  createdAt    DateTime        @default(now())
+  
+  quotation    Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  
+  @@index([quotationId, createdAt])
 }

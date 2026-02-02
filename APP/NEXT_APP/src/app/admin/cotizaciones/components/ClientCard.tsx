@@ -2,22 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FileText, Eye, ChevronRight } from "lucide-react";
+import { FileText, Eye, ChevronRight, Share2, User } from "lucide-react";
 import ContactInfoModal from "../../clientes/contact-info-modal";
+import ShareModal from "@/components/quotations/ShareModal";
 
 interface Client {
     id: string;
     name: string;
     email: string | null;
-    phone?: string | null;
+    contactPhone?: string | null;
     slug: string;
     company?: string | null;
     _count: { quotations: number };
-    user?: { name: string | null; email: string | null } | null;
+    user?: { id: string; name: string | null; email: string | null } | null;
+    sharedWith?: {
+        permission: string;
+        sharedByUserId: string;
+        createdAt: string | Date;
+    }[];
 }
 
 interface Props {
     client: Client;
+    currentUserId?: string;
     isSuperAdmin: boolean;
     isSpyMode?: boolean;
 }
@@ -38,8 +45,10 @@ function getAvatarColor(name: string): string {
     return colors[hash % colors.length];
 }
 
-export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
+export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyMode }: Props) {
     const [isHovered, setIsHovered] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+
     const avatarColor = getAvatarColor(client.name);
     const initials = client.name
         .split(" ")
@@ -47,6 +56,16 @@ export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
         .join("")
         .substring(0, 2)
         .toUpperCase();
+
+    const isOwner = currentUserId && client.user?.id === currentUserId;
+    const isSharedWithMe = !isOwner && client.sharedWith?.some(s => s.sharedByUserId !== currentUserId);
+    // Wait, sharedWith contains who it is shared WITH.
+    // If I am browsing, and I see a client...
+    // If it's my client, sharedWith shows who *I* shared it with.
+    // If it's a shared client, the API returns it because I am in sharedWith list.
+    // So if !isOwner, it must be shared with me (or I am superadmin/spy).
+
+    const sharedBy = !isOwner && !isSuperAdmin ? client.user?.name : null;
 
     return (
         <div
@@ -65,9 +84,16 @@ export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
                 <div className="flex items-start justify-between mb-4">
                     {/* Avatar */}
                     <div
-                        className={`w-14 h-14 rounded-xl bg-gradient-to-br ${avatarColor} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
+                        className={`w-14 h-14 rounded-xl bg-gradient-to-br ${avatarColor} flex items-center justify-center text-white font-bold text-lg shadow-lg relative`}
                     >
                         {initials}
+
+                        {/* Shared Badge (if shared with me) */}
+                        {sharedBy && (
+                            <div className="absolute -bottom-2 -right-2 bg-indigo-600 border-2 border-slate-900 rounded-full p-1" title={`Compartido por ${sharedBy}`}>
+                                <User size={10} className="text-white" />
+                            </div>
+                        )}
                     </div>
 
                     {/* Badges */}
@@ -82,6 +108,21 @@ export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
                                 Spy
                             </span>
                         )}
+                        {/* Share button for owner */}
+                        {isOwner && (
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setShowShareModal(true);
+                                }}
+                                className="bg-slate-800/80 hover:bg-indigo-500/20 hover:text-indigo-400 backdrop-blur text-slate-300 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-medium transition-colors"
+                            >
+                                <Share2 size={12} />
+                                Compartir
+                            </button>
+                        )}
+
+
                     </div>
                 </div>
 
@@ -94,10 +135,15 @@ export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
                         <p className="text-sm text-slate-400 truncate mb-1">{client.company}</p>
                     )}
                     <p className="text-xs text-slate-500 font-mono">/{client.slug}</p>
+                    {sharedBy && (
+                        <p className="text-xs text-indigo-400 mt-1 flex items-center gap-1">
+                            <Share2 size={10} /> Compartido por {sharedBy}
+                        </p>
+                    )}
                 </div>
 
                 {/* Owner info (superadmin spy mode) */}
-                {isSuperAdmin && client.user && (
+                {isSuperAdmin && client.user && !isOwner && (
                     <div className="mb-4 py-2 px-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
                         <p className="text-xs text-amber-400/80 truncate">
                             <span className="opacity-70">Propietario:</span>{" "}
@@ -109,25 +155,13 @@ export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
                 {/* Contact Actions */}
                 <div className="mb-4">
                     <ContactInfoModal client={{
-                        ...client,
-                        email: client.email || undefined,
-                        company: client.company || undefined,
-                        // Strip incompatible properties by not including them or explicitly excluding if I were destructuring.
-                        // Since I am spreading ...client, I am including them.
-                        // TS complains about object literal specifying known properties if I explicity set user: undefined.
-                        // But spreading ...client includes them!
-                        // Wait, if I spread `...client` AND the target interface doesn't have them, usually it's allowed unless I explicitly add properties that trigger excess check?
-                        // Or if `ContactInfoModal` type is exact? Interfaces are usually open.
-                        // The error said: "Object literal may only specify known properties, and 'user' does not exist in type 'Client'."
-                        // This usually happens when I explicitly ADD properties that are not in the target type.
-                        // But I was setting them to `undefined`.
-                        // If I simple spread ...client, it carries `user`. If the target type is `Client`, and I pass a specific object literal...
-                        // If I remove `user: undefined` line, it might work if strict object literal check isn't triggered by spread.
-                        // Actually, I can just construct the object manually to be safe.
                         id: client.id,
                         name: client.name,
+                        email: client.email || undefined,
+                        contactPhone: client.contactPhone || undefined,
+                        company: client.company || undefined,
                         slug: client.slug,
-                    }} />
+                    }} canDelete={isSuperAdmin || !!isOwner} />
                 </div>
 
                 {/* Main Action */}
@@ -139,6 +173,15 @@ export default function ClientCard({ client, isSuperAdmin, isSpyMode }: Props) {
                     <ChevronRight size={16} className="transform group-hover/btn:translate-x-1 transition-transform" />
                 </Link>
             </div>
+
+            {isOwner && currentUserId && (
+                <ShareModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    client={client}
+                    currentUserId={currentUserId}
+                />
+            )}
         </div>
     );
 }

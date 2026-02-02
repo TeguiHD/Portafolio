@@ -7,5 +7,14 @@ export default async function ClientsPage() {
     // Permission check
     await requirePagePermission('quotations.view') // Assuming 'quotations.view' or add 'clients.view' if specific
 
-    return <ClientsPageClient />
+    // Get session for UI logic
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+
+    if (!session?.user?.id) return null;
+
+    return <ClientsPageClient
+        currentUserId={session.user.id}
+        isSuperAdmin={session.user.role === "SUPERADMIN"}
+    />
 }

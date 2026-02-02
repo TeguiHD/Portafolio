@@ -46,7 +46,7 @@ export function SecurityArchitectureSection() {
     }, []);
 
     return (
-        <section id="architecture" className="relative py-24 px-4 sm:px-6 bg-bg-dark overflow-hidden">
+        <section id="architecture" className="relative py-24 px-4 sm:px-6 overflow-hidden">
             <div className="max-w-7xl mx-auto">
 
                 {/* Header */}

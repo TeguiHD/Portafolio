@@ -1,9 +1,8 @@
 # Dockerfile Optimizado para Producción
 # USO: La app debe estar PRE-COMPILADA antes de construir la imagen
-# Esto evita hacer npm run build dentro del contenedor (ahorra RAM)
 # SEGURIDAD: Usando Node 23 (última versión) para máxima seguridad
 
-FROM node:23-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
@@ -12,16 +11,18 @@ ENV NODE_ENV=production
 
 # Copiar archivos de dependencias
 COPY package*.json ./
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install --prod --frozen-lockfile
+RUN npm ci --omit=dev
 
 # Copiar app pre-compilada y assets
 COPY .next ./.next
 COPY public ./public
 COPY prisma ./prisma
-COPY next.config.ts ./
+COPY next.config.mjs ./
+COPY prisma.config.ts ./
 
-# Generar cliente Prisma
+# Generar cliente Prisma (DATABASE_URL solo para generar, no conecta)
+ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV DATABASE_URL=${DATABASE_URL}
 RUN npx prisma generate
 
 # Puerto y usuario no-root
@@ -29,4 +30,4 @@ EXPOSE 3000
 USER node
 
 # Comando de inicio
-CMD ["pnpm", "run", "start"]
+CMD ["npm", "run", "start"]

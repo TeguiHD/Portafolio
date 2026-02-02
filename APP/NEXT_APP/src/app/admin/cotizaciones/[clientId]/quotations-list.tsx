@@ -13,6 +13,7 @@ interface Quotation {
     updatedAt: Date;
     status: string;
     total: number;
+    totalPaid?: number;
     accessMode: string;
     isActive: boolean;
     isVisible: boolean;
@@ -26,11 +27,13 @@ interface Props {
     clientName: string;
     clientSlug: string;
     baseUrl: string;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const ITEMS_PER_PAGE = 9;
 
-export default function QuotationsListClient({ quotations, clientId: _clientId, clientName: _clientName, clientSlug, baseUrl }: Props) {
+export default function QuotationsListClient({ quotations, clientId: _clientId, clientName: _clientName, clientSlug, baseUrl, canEdit = false, canDelete = false }: Props) {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const _router = useRouter();
@@ -86,6 +89,8 @@ export default function QuotationsListClient({ quotations, clientId: _clientId, 
                             quotation={quotation}
                             clientSlug={clientSlug}
                             baseUrl={baseUrl}
+                            canEdit={canEdit}
+                            canDelete={canDelete}
                         />
                     ))}
                 </div>

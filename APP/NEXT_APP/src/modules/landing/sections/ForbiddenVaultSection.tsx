@@ -827,7 +827,7 @@ export function ForbiddenVaultSection() {
         <section id="vault" className="relative py-24 sm:py-32 px-4 sm:px-6">
 
             {/* Background Ambience */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(251,191,36,0.05),transparent_50%)] -z-10" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(251,191,36,0.15),transparent_70%)] -z-10 [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_80%,transparent)]" />
 
             <div className="max-w-7xl mx-auto">
 

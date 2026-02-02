@@ -29,20 +29,76 @@ export async function deleteClientAction(id: string) {
     // Check for existing quotations
     const client = await prisma.quotationClient.findUnique({
         where: { id },
-        include: { _count: { select: { quotations: true } } }
     });
 
     if (!client) return { success: false, error: "Cliente no encontrado" };
 
-    if (client._count.quotations > 0) {
-        return {
-            success: false,
-            error: `No se puede eliminar: El cliente tiene ${client._count.quotations} cotización(es) asociada(s). Elimínalas primero.`
-        };
+    // Get active quotations count (ignoring soft-deleted)
+    const activeQuotationsCount = await prisma.quotation.count({
+        where: {
+            clientId: id,
+            isDeleted: false
+        }
+    });
+
+    // Get session for permission check and audit logging
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+
+
+
+    if (activeQuotationsCount > 0) {
+        // [SECURITY] Strict check: Only SUPERADMIN can delete clients with data
+        if (session?.user?.role !== "SUPERADMIN") {
+            return {
+                success: false,
+                error: `No se puede eliminar: El cliente tiene ${activeQuotationsCount} cotización(es) activas. Solo un Superadministrador puede eliminar clientes con datos asociados.`
+            };
+        }
+
+        // Cascade delete (soft delete) if superadmin deletes a client with quotations?
+        // Or hard delete quotations? User said "se espera que esos datos realmente no se borren".
+        // But if we delete the CLIENT, the linkage is gone unless we soft-delete the client too.
+        // Assuming for now we hard-delete the associations or soft-delete them.
+        // Given the prompt "las cotizaciones se pueden borrar... se entiende que se borra... pero no se borren", 
+        // implies we should SOFT DELETE the quotations when deleting the client.
+
+        try {
+            // Soft delete all active quotations for this client
+            await prisma.quotation.updateMany({
+                where: { clientId: id, isDeleted: false },
+                data: { isDeleted: true, deletedAt: new Date() }
+            });
+        } catch (error) {
+            console.error("Error cleaning up client quotations:", error);
+            return { success: false, error: "Error al limpiar datos asociados del cliente" };
+        }
+    }
+
+    // [SECURITY] Ownership check
+    // If not superadmin, must be owner
+    if (session?.user?.role !== "SUPERADMIN" && client.userId !== session?.user?.id) {
+        return { success: false, error: "No tienes permiso para eliminar este cliente" };
     }
 
     try {
         await prisma.quotationClient.delete({ where: { id } });
+
+        // [AUDIT] Log the deletion
+        await prisma.auditLog.create({
+            data: {
+                action: "DELETE_CLIENT",
+                category: "clients",
+                userId: session?.user?.id,
+                targetId: id,
+                targetType: "QuotationClient",
+                metadata: {
+                    deletedByRole: session?.user?.role,
+                    hadQuotations: activeQuotationsCount > 0
+                }
+            }
+        });
+
         revalidatePath("/admin/clientes");
         return { success: true };
     } catch (error) {

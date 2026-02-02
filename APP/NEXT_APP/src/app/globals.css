@@ -96,14 +96,10 @@
   box-sizing: border-box;
 }
 
-html,
-body {
-  height: 100%;
-  overflow-x: hidden;
-}
-
 html {
   scroll-behavior: smooth;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 body {
@@ -115,6 +111,8 @@ body {
   width: 100%;
   position: relative;
   cursor: none;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
 /* Typography Overrides */
@@ -219,12 +217,12 @@ pre,
   -webkit-text-fill-color: transparent;
 }
 
-/* Mouse cursor handling overrides */
-button,
+/* Mouse cursor handling overrides - DESACTIVADO TEMPORALMENTE PARA DEBUG */
+/* button,
 a,
 [role="button"] {
   cursor: none !important;
-}
+} */
 
 /* CYBER BRUTALISM ANIMATIONS - Hero */
 

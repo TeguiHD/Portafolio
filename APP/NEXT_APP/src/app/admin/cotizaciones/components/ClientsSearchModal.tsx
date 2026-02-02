@@ -13,7 +13,7 @@ interface Client {
     slug: string;
     createdAt?: string | Date;
     _count: { quotations: number };
-    user?: { name: string | null; email: string | null } | null;
+    user?: { id: string; name: string | null; email: string | null } | null;
 }
 
 interface Props {

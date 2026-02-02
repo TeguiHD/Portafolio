@@ -23,16 +23,31 @@ async function getClients(
 
     const where = isSuperAdmin && !spyUserId
         ? {} // Superadmin sees all clients (no spy mode)
-        : { userId: targetUserId }; // Filter by specific user
+        : {
+            OR: [
+                { userId: targetUserId },
+                {
+                    sharedWith: {
+                        some: {
+                            sharedWithUserId: targetUserId
+                        }
+                    }
+                }
+            ]
+        }; // Filter by specific user + shared clients
 
     return prisma.quotationClient.findMany({
         where,
         orderBy: { createdAt: "desc" },
         include: {
-            _count: { select: { quotations: true } },
-            user: isSuperAdmin
-                ? { select: { name: true, email: true } }
-                : undefined
+            _count: { select: { quotations: { where: { isDeleted: false } } } },
+            user: {
+                select: { id: true, name: true, email: true }
+            },
+            sharedWith: {
+                where: { sharedWithUserId: targetUserId },
+                select: { permission: true, sharedByUserId: true, createdAt: true }
+            }
         }
     });
 }
@@ -75,8 +90,9 @@ export default async function QuotationsPage({
 
     return (
         <QuotationsView
-            clients={clients}
+            clients={clients as any}
             isSuperAdmin={isSuperAdmin}
+            currentUserId={session.user.id}
         />
     );
 }

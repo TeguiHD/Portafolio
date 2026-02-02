@@ -28,8 +28,32 @@ export async function GET(request: NextRequest) {
         const session = security.session!;
 
         const quotations = await prisma.quotation.findMany({
-            where: { userId: session.user.id },
+            where: {
+                OR: [
+                    { userId: session.user.id },
+                    {
+                        client: {
+                            sharedWith: {
+                                some: {
+                                    sharedWithUserId: session.user.id
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             orderBy: { createdAt: "desc" },
+            include: {
+                client: {
+                    select: {
+                        name: true,
+                        sharedWith: {
+                            where: { sharedWithUserId: session.user.id },
+                            select: { permission: true }
+                        }
+                    }
+                }
+            }
         });
 
         return NextResponse.json(quotations);
@@ -67,7 +91,30 @@ export async function POST(request: NextRequest) {
             paymentTerms,
             timeline,
             notes,
+            clientId, // [NEW] Accept clientId
         } = body;
+
+        // [NEW] Validate Client Ownership if provided
+        if (clientId) {
+            const client = await prisma.quotationClient.findUnique({
+                where: { id: clientId },
+                select: { userId: true }
+            });
+
+            if (!client) {
+                return NextResponse.json(
+                    { error: "Cliente no encontrado" },
+                    { status: 404 }
+                );
+            }
+
+            if (client.userId !== session.user.id) {
+                return NextResponse.json(
+                    { error: "No tienes permiso para usar este cliente" },
+                    { status: 403 }
+                );
+            }
+        }
 
         // SECURITY: Validate email format if provided
         if (clientEmail && !isValidEmail(clientEmail)) {
@@ -135,6 +182,7 @@ export async function POST(request: NextRequest) {
                             timeline: sanitizedTimeline,
                             notes: sanitizedNotes,
                             userId: session.user.id,
+                            clientId: clientId || null, // [NEW] Link to client
                         },
                     });
                 });

@@ -199,6 +199,19 @@ const menuStructure: {
                 },
             ],
         },
+        {
+            id: "collaboration",
+            name: "Colaboración",
+            icon: icons.users, // reusing users icon or maybe a network one
+            items: [
+                {
+                    name: "Conexiones",
+                    href: "/admin/connections",
+                    icon: icons.users,
+                    requiredPermission: "dashboard.view", // Accessible to all dashboard users
+                },
+            ],
+        },
     ],
 };
 

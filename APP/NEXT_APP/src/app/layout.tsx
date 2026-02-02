@@ -4,8 +4,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 
-import MouseTrackerWrapper from "@/components/MouseTrackerWrapper";
-import { SmoothScroll } from "@/components/ui/SmoothScroll";
+import { DropCursor } from "@/components/DropCursor";
 import { BackgroundManager } from "@/modules/landing/layout/BackgroundManager";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -77,14 +76,12 @@ export default function RootLayout({
         </noscript>
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased text-white selection:bg-accent-success/30`}>
-        <SmoothScroll>
-          <BackgroundManager />
-          <ToastProvider>
-            <MouseTrackerWrapper />
-            <AnalyticsTracker />
-            {children}
-          </ToastProvider>
-        </SmoothScroll>
+        <BackgroundManager />
+        <ToastProvider>
+          <DropCursor />
+          <AnalyticsTracker />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

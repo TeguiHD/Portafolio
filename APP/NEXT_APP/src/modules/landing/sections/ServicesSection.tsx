@@ -17,7 +17,7 @@ export function ServicesSection() {
 
   return (
     <section id="servicios" className="relative overflow-x-hidden overflow-y-visible px-5 py-32 sm:px-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_10%,rgba(184,160,130,0.08),transparent_30%),radial-gradient(circle_at_10%_40%,rgba(0,212,170,0.1),transparent_30%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_10%,rgba(184,160,130,0.08),transparent_30%),radial-gradient(circle_at_10%_40%,rgba(0,212,170,0.1),transparent_30%)] [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]" />
 
       <div className="relative mx-auto flex max-w-7xl flex-col gap-16">
         {/* Header */}

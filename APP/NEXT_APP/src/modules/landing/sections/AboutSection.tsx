@@ -56,7 +56,7 @@ export function AboutSection() {
 
   return (
     <section id="about" className="relative overflow-x-hidden overflow-y-visible px-5 py-32 sm:px-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(184,160,130,0.08),transparent_35%),radial-gradient(circle_at_80%_50%,rgba(0,212,170,0.1),transparent_35%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(184,160,130,0.08),transparent_35%),radial-gradient(circle_at_80%_50%,rgba(0,212,170,0.1),transparent_35%)] [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]" />
 
       <div className="relative mx-auto grid max-w-7xl gap-16 lg:grid-cols-2 lg:items-center">
         {/* Izquierda: Historia + Valores (Construcción de Autoridad) */}

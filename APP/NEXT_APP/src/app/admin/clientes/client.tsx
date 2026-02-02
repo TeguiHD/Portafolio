@@ -17,10 +17,16 @@ interface Client {
     contactName?: string;
     contactEmail?: string;
     contactPhone?: string;
+    userId: string; // Required for permission check
     _count?: { quotations: number };
 }
 
-export default function ClientsPageClient() {
+interface ClientsPageClientProps {
+    currentUserId: string;
+    isSuperAdmin: boolean;
+}
+
+export default function ClientsPageClient({ currentUserId, isSuperAdmin }: ClientsPageClientProps) {
     const [clients, setClients] = useState<Client[]>([]);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);

@@ -86,8 +86,24 @@ const terminalLines = [
 
 export function HeroSection() {
   const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 500], [0, 150]);
-  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+
+  // Get viewport height for responsive fade calculation
+  const [viewportHeight, setViewportHeight] = useState(800); // Default fallback
+
+  useEffect(() => {
+    const updateViewportHeight = () => {
+      setViewportHeight(window.innerHeight);
+    };
+    updateViewportHeight();
+    window.addEventListener("resize", updateViewportHeight);
+    return () => window.removeEventListener("resize", updateViewportHeight);
+  }, []);
+
+  // Fade out when scrolled past viewport height - more gradual
+  const fadeOutStart = viewportHeight * 0.3;
+  const fadeOutEnd = viewportHeight * 1.2;
+  const y = useTransform(scrollY, [0, fadeOutEnd], [0, 200]);
+  const opacity = useTransform(scrollY, [fadeOutStart, fadeOutEnd], [1, 0]);
 
   const typedText = useTypingEffect(terminalLines, 60, 2500);
   const projectsCounter = useCounter(500, 2500);
@@ -104,17 +120,17 @@ export function HeroSection() {
       uptimeCounter.start();
     }, 1000);
     return () => clearTimeout(timer);
-    // Counter start functions are stable refs that shouldn't trigger effect re-runs
+    // Counter start functions are stable refs that shouldn't trigger re-runs
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <section
       id="hero"
-      className="relative min-h-[100vh] flex flex-col justify-center items-center overflow-hidden px-4 sm:px-6 pt-20"
+      className="relative min-h-screen flex flex-col justify-start items-center overflow-hidden px-4 sm:px-6 pt-16 sm:pt-20 pb-16"
     >
       {/* Background Effects */}
-      <div className="absolute inset-0 -z-10">
+      <div className="absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,black_80%,transparent)]">
         {/* Primary glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] max-w-[1000px] max-h-[1000px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse-slow" />
         {/* Secondary accent */}
@@ -132,16 +148,15 @@ export function HeroSection() {
       {/* Main Content - Grid Layout */}
       <motion.div
         style={{ y, opacity }}
-        className="w-full max-w-7xl mx-auto z-10 flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12"
-      >
+        className="w-full max-w-7xl mx-auto z-10 flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-12 my-auto">
         {/* Left: Text Content */}
-        <div className="w-full lg:w-3/5 xl:w-2/3">
+        <div className="w-full lg:w-3/5 xl:w-2/3 flex flex-col">
           {/* Terminal Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-8 md:mb-12"
+            className="mb-4 sm:mb-6 md:mb-8"
           >
             <div className="inline-flex items-center gap-3 px-4 py-2 bg-black/40 border border-emerald-500/30 rounded-lg backdrop-blur-sm">
               <div className="flex gap-1.5">
@@ -159,17 +174,17 @@ export function HeroSection() {
           </motion.div>
 
           {/* Main Headline - Direct Professional Messaging */}
-          <div className="space-y-2 md:space-y-4 mb-8 md:mb-12">
+          <div className="space-y-1 sm:space-y-2 md:space-y-4 mb-4 sm:mb-6 md:mb-8">
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.1 }}
               className="text-left"
             >
-              <span className="block text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-light text-gray-400 tracking-tight">
+              <span className="block text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-light text-gray-400 tracking-tight">
                 Desarrollo
               </span>
-              <span className="block text-5xl sm:text-7xl md:text-8xl lg:text-[120px] font-black tracking-tighter text-white animate-glitch leading-[0.9]">
+              <span className="block text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white animate-glitch leading-[0.9]">
                 SOLUCIONES.
               </span>
             </motion.h1>
@@ -180,10 +195,10 @@ export function HeroSection() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="text-left"
             >
-              <span className="block text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-light italic text-gray-500 tracking-tight">
+              <span className="block text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-light italic text-gray-500 tracking-tight">
                 Entrego
               </span>
-              <span className="block text-5xl sm:text-7xl md:text-8xl lg:text-[120px] font-black tracking-tighter text-outline-white leading-[0.9] hover:text-white transition-all duration-500">
+              <span className="block text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter text-outline-white leading-[0.9] hover:text-white transition-all duration-500">
                 RESULTADOS.
               </span>
             </motion.h2>
@@ -194,7 +209,7 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="max-w-2xl mb-10 md:mb-14"
+            className="max-w-2xl mb-6 sm:mb-8 md:mb-10"
           >
             <p className="text-lg sm:text-xl md:text-2xl text-gray-400 leading-relaxed">
               <span className="text-white font-semibold">Desarrollador Full Stack</span> que transforma{" "}
@@ -209,7 +224,7 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="flex flex-row flex-wrap items-center gap-4 mb-16 md:mb-20"
+            className="flex flex-row flex-wrap items-center gap-3 sm:gap-4 mb-6 sm:mb-8"
           >
             <Link href="#tools-belt">
               <Button
@@ -236,7 +251,7 @@ export function HeroSection() {
             initial={{ opacity: 0 }}
             animate={isMounted ? { opacity: 1 } : { opacity: 1 }}
             transition={{ delay: 0.8, duration: 1 }}
-            className="grid grid-cols-3 gap-6 sm:gap-12 max-w-xl mt-12"
+            className="grid grid-cols-3 gap-4 sm:gap-8 md:gap-12 max-w-xl"
           >
             {[
               { value: projectsCounter.count, suffix: "+", label: "Proyectos", icon: Code2 },
@@ -288,11 +303,11 @@ export function HeroSection() {
       </motion.div >
 
       {/* Decorative elements - subtle geometric patterns */}
-      < div className="absolute inset-0 pointer-events-none overflow-hidden" >
+      <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
         {/* Orbiting rings - subtle visual depth */}
-        < div className="absolute top-[15%] right-[5%] w-[400px] h-[400px] border border-white/5 rounded-full animate-[spin_80s_linear_infinite]" />
+        <div className="absolute top-[15%] right-[5%] w-[400px] h-[400px] border border-white/5 rounded-full animate-[spin_80s_linear_infinite]" />
         <div className="absolute top-[15%] right-[5%] w-[600px] h-[600px] border border-white/[0.03] rounded-full animate-[spin_60s_linear_infinite_reverse]" />
-      </div >
-    </section >
+      </div>
+    </section>
   );
 }

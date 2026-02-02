@@ -62,6 +62,7 @@ export function ShowcaseSection() {
 
   return (
     <section id="casos" className="relative py-32 px-4 sm:px-6">
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0F1724]/0 via-[#0F1724]/50 to-[#0F1724]/0 -z-10 [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]" />
       <div className="max-w-7xl mx-auto">
 
         <div className="mb-16">

@@ -48,15 +48,15 @@ export function BackgroundManager() {
             {/* Dynamic Glow Orb */}
             <motion.div
                 animate={{
-                    background: activeSection === 'vault' ? 'radial-gradient(circle, rgba(245,158,11,0.15) 0%, rgba(0,0,0,0) 70%)'
-                        : activeSection === 'hero' ? 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%)'
-                            : 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 70%)',
+                    background: activeSection === 'vault' ? 'radial-gradient(circle, rgba(245,158,11,0.15) 0%, rgba(0,0,0,0) 35%)'
+                        : activeSection === 'hero' ? 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 35%)'
+                            : 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 35%)',
                     scale: [1, 1.2, 1],
-                    x: activeSection === 'hero' ? '0%' : activeSection === 'tools-belt' ? '-30%' : '30%',
-                    y: activeSection === 'hero' ? '0%' : activeSection === 'vault' ? '-20%' : '20%',
+                    x: activeSection === 'hero' ? '0%' : activeSection === 'tools-belt' ? '-15%' : '15%',
+                    y: activeSection === 'hero' ? '0%' : activeSection === 'vault' ? '-10%' : '10%',
                 }}
                 transition={{ duration: 2, ease: "easeInOut" }}
-                className="absolute inset-0 w-full h-full"
+                className="absolute -inset-[50%] w-[200%] h-[200%]"
             />
         </div>
     );

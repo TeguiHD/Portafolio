@@ -17,7 +17,7 @@ node_modules
 .gitlab-ci.yml
 
 # Build output
-.next
+# .next  # Needed for production build
 out
 build
 dist
