@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { getSession } from '@/lib/auth/dal'
+import { auth } from '@/lib/auth'
 
 export default async function UnauthorizedPage() {
-    const session = await getSession()
+    const session = await auth()
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#050912] via-[#0c1224] to-[#050912] flex items-center justify-center p-4">

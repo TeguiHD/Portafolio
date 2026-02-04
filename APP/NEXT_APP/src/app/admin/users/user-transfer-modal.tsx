@@ -33,15 +33,6 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
     const [loading, setLoading] = useState(false);
     const [transferring, setTransferring] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            setStep("select_target");
-            setSelectedTarget(null);
-            setSearchQuery("");
-            fetchTargetUsers();
-        }
-    }, [isOpen]); // fetchTargetUsers added to deps below via useCallback
-
     const fetchTargetUsers = useCallback(async () => {
         setLoading(true);
         try {
@@ -50,11 +41,12 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
             if (data.users) {
                 // Filter out source user and inactive/deleted users if necessary
                 // Ideally, backend should support filtering, but for now filtering locally
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const validTargets = data.users.filter((u: any) =>
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     u.id !== sourceUser?.id && u.isActive && (u as any).deletionStatus !== "DELETED"
                 );
-                // Casting to any for intermediate filter because the API return type isn't fully typed here
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 setTargetUsers(validTargets.map((u: any) => ({
                     id: u.id,
                     name: u.name,
@@ -69,6 +61,15 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
             setLoading(false);
         }
     }, [sourceUser?.id]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setStep("select_target");
+            setSelectedTarget(null);
+            setSearchQuery("");
+            fetchTargetUsers();
+        }
+    }, [isOpen, fetchTargetUsers]);
 
     const filteredTargets = targetUsers.filter(user =>
     (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||

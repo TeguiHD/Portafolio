@@ -198,7 +198,16 @@ function SharedResourceBrowser() {
     );
 }
 
-function StatsCard({ label, value, icon: Icon, color, bg }: any) {
+interface StatsCardProps {
+    label: string;
+    value: number | string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    icon: any;
+    color: string;
+    bg: string;
+}
+
+function StatsCard({ label, value, icon: Icon, color, bg }: StatsCardProps) {
     return (
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex items-center gap-4">
             <div className={`p-3 rounded-lg ${bg}`}>
@@ -222,7 +231,7 @@ function SecurityPanel({ code, setCode }: { code: string, setCode: (c: string) =
                 setCode(data.newCode);
                 toast.success("Código rotado exitosamente");
             }
-        } catch (e) {
+        } catch {
             toast.error("Error al rotar código");
         }
     };
@@ -288,7 +297,7 @@ function ConnectRequestPanel({ onSent }: { onSent: () => void }) {
             } else {
                 toast.error(data.error);
             }
-        } catch (e) {
+        } catch {
             toast.error("Error de conexión");
         } finally {
             setLoading(false);
@@ -321,7 +330,7 @@ function ConnectRequestPanel({ onSent }: { onSent: () => void }) {
     );
 }
 
-function ConnectionCard({ connection, currentUserId, onUpdate }: any) {
+function ConnectionCard({ connection, currentUserId, onUpdate }: { connection: Connection, currentUserId: string, onUpdate: () => void }) {
     const isIncoming = connection.addresseeId === currentUserId;
     const isPending = connection.status === "PENDING";
     const otherUser = isIncoming ? connection.requester : connection.addressee;
@@ -334,7 +343,7 @@ function ConnectionCard({ connection, currentUserId, onUpdate }: any) {
             });
             onUpdate();
             toast.success(status === "ACCEPTED" ? "Conectado" : "Actualizado");
-        } catch (e) {
+        } catch {
             toast.error("Error");
         }
     };
