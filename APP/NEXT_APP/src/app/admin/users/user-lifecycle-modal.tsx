@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-    X, 
-    AlertTriangle, 
-    Shield, 
-    Trash2, 
-    RotateCcw, 
-    Download, 
-    UserX, 
+import {
+    X,
+    AlertTriangle,
+    Shield,
+    Trash2,
+    RotateCcw,
+    Download,
+    UserX,
     Clock,
     ShieldOff,
     FileText,
@@ -78,18 +78,7 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
     const [dataSummary, setDataSummary] = useState<UserDataSummary | null>(null);
     const [exportedData, setExportedData] = useState<Record<string, unknown> | null>(null);
 
-    // Reset state when modal opens/closes
-    useEffect(() => {
-        if (isOpen && user) {
-            setSelectedAction(null);
-            setReason("");
-            setConfirmText("");
-            setExportedData(null);
-            fetchDataSummary();
-        }
-    }, [isOpen, user]);
-
-    const fetchDataSummary = async () => {
+    const fetchDataSummary = useCallback(async () => {
         if (!user) return;
         setLoadingSummary(true);
         try {
@@ -107,13 +96,24 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
         } finally {
             setLoadingSummary(false);
         }
-    };
+    }, [user]);
+
+    // Reset state when modal opens/closes
+    useEffect(() => {
+        if (isOpen && user) {
+            setSelectedAction(null);
+            setReason("");
+            setConfirmText("");
+            setExportedData(null);
+            fetchDataSummary();
+        }
+    }, [isOpen, user, fetchDataSummary]);
 
     const getAvailableActions = (): ActionType[] => {
         if (!user) return [];
-        
+
         const status = user.deletionStatus || "ACTIVE";
-        
+
         switch (status) {
             case "ACTIVE":
                 return ["suspend", "request_deletion", "export_data"];
@@ -190,7 +190,7 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
 
     const downloadExportedData = () => {
         if (!exportedData || !user) return;
-        
+
         const blob = new Blob([JSON.stringify(exportedData, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -206,7 +206,7 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
     const getStatusBadge = () => {
         if (!user) return null;
         const status = user.deletionStatus || "ACTIVE";
-        
+
         const badges: Record<string, { color: string; label: string }> = {
             ACTIVE: { color: "bg-green-500/20 text-green-400 border-green-500/30", label: "Activo" },
             SUSPENDED: { color: "bg-amber-500/20 text-amber-400 border-amber-500/30", label: "Suspendido" },
@@ -360,11 +360,10 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
                                             setSelectedAction(action);
                                             setConfirmText("");
                                         }}
-                                        className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
-                                            selectedAction === action 
-                                                ? "ring-2 ring-offset-2 ring-offset-slate-900 ring-indigo-500"
-                                                : ""
-                                        } ${getActionColor(action)}`}
+                                        className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${selectedAction === action
+                                            ? "ring-2 ring-offset-2 ring-offset-slate-900 ring-indigo-500"
+                                            : ""
+                                            } ${getActionColor(action)}`}
                                     >
                                         {getActionIcon(action)}
                                         <div className="text-left flex-1">
@@ -423,11 +422,10 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
                                 <button
                                     onClick={handleExecuteAction}
                                     disabled={loading}
-                                    className={`w-full py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
-                                        ["anonymize", "permanent_delete"].includes(selectedAction)
-                                            ? "bg-red-600 hover:bg-red-500 text-white"
-                                            : "bg-indigo-600 hover:bg-indigo-500 text-white"
-                                    } disabled:opacity-50`}
+                                    className={`w-full py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${["anonymize", "permanent_delete"].includes(selectedAction)
+                                        ? "bg-red-600 hover:bg-red-500 text-white"
+                                        : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                        } disabled:opacity-50`}
                                 >
                                     {loading ? (
                                         <>

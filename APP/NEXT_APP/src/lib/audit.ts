@@ -14,6 +14,7 @@ export type AuditCategory =
     | "tools"      // Tool changes
     | "quotations" // Quotation CRUD
     | "finance"    // Finance module events
+    | "admin"      // Admin actions
     | "system";    // System events
 
 // Common audit actions

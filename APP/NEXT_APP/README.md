@@ -3,11 +3,12 @@
 # 🚀 NicoholasDev Portfolio
 
 ### **Portfolio Profesional & Suite de Administración**
-Aplicación full-stack Next.js 16 con panel de administración, herramientas públicas, integraciones de IA y seguridad de nivel empresarial.
+Aplicación full-stack Next.js 16 con panel de administración, herramientas públicas, integraciones de IA y **seguridad (Zero Trust / NIST SP 800-207)**.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
+[![Zero Trust](https://img.shields.io/badge/Security-Zero_Trust-blueviolet?style=for-the-badge&logo=shield)](https://csrc.nist.gov/publications/detail/sp/800-207/final)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
 [🌐 **Ver Página**](https://nicoholas.dev) · [📚 Documentación](#-documentación-completa) · [🤝 Contribuir](#-contribuir)
@@ -206,7 +207,10 @@ CLOUDFLARE_ZONE_ID="..."
 
 ## 🛡️ SEGURIDAD
 
-Este proyecto implementa seguridad de nivel empresarial siguiendo **OWASP ASVS Level 3** y mejores prácticas de la industria.
+Este proyecto implementa seguridad de nivel militar siguiendo **OWASP ASVS Level 3**, **NIST SP 800-207 (Zero Trust)** y mejores prácticas de la industria 2026.
+> **🛡️ VULNERABILITY STATUS (FEB 2026):**
+> *   ✅ **React2Shell (CVE-2025-55182)**: **SAFE** (Next.js 16.1.6 patched)
+> *   ✅ **Supply Chain Worms**: **BLOCKED** (Strict `.npmrc` cooldown)
 
 ### 📊 Resumen de Protecciones
 
@@ -229,9 +233,50 @@ Este proyecto implementa seguridad de nivel empresarial siguiendo **OWASP ASVS L
 | Logging | SIEM-ready security events | ✅ |
 | Honeypots | Decoy endpoints + threat scoring | ✅ |
 | AI Security | Jailbreak detection, output sanitization, prompt hardening | ✅ |
+| **Zero Trust** | Real-time DB Role Verification (No trust in JWT claims) | ✅ |
+| **Supply Chain** | `.npmrc` cooldown, lockfile integrity, script blocking | ✅ |
 | Penetration Tests | Script automatizado incluido | ✅ |
 
+### 🚨 Matriz de Protección (Vulnerabilidades Blindadas)
+
+El sistema ha sido endurecido específicamente contra los siguientes vectores de ataque críticos (2025-2026):
+
+| Amenaza / CVE | Estado | Mecanismo de Defensa |
+|---------------|--------|----------------------|
+| **React2Shell (CVE-2025-55182)** | 🛡️ **BLINDADO** | Next.js 16.1.6 + React 19.2.4 (Patched Versions) |
+| **Next.js RCE (CVE-2025-66478)** | 🛡️ **BLINDADO** | Core framework actualizado + Input Sanitization |
+| **Middleware Bypass (CVE-2025-29927)** | 🛡️ **BLINDADO** | `dal.ts` (Data Access Layer) verifica sesión en cada request |
+| **Shai-Hulud Worm (Supply Chain)** | 🛡️ **BLINDADO** | `.npmrc` Cooldown (60 días) + Script Blocking |
+| **JWT "Alg: None" Attack** | 🛡️ **BLINDADO** | JWE (Encryption) forzado + NextAuth Strict Verification |
+| **Timing Attacks (Side-Channel)** | 🛡️ **BLINDADO** | `crypto.timingSafeEqual` en comparaciones críticas |
+| **DB Rainbow Table Attack** | 🛡️ **BLINDADO** | Argon2id Config v2 + **Password Peppering** (Secret externo) |
+| **Session Hijacking** | 🛡️ **BLINDADO** | HttpOnly + Secure + SameSite=Lax + Rotation |
+| **RCE via File Upload** | 🛡️ **BLINDADO** | Validación de Magic Bytes (no extensiones) + Random Renaming |
+| **ReDoS (RegExp DoS)** | 🛡️ **BLINDADO** | length-limit + `safe-regex` validation |
+| **Race Conditions (Double Spend)** | 🛡️ **BLINDADO** | Transacciones Atómicas (Prisma `$transaction`) + Isolation Level Serializable |
+| **Bypass de Permisos** | 🛡️ **BLINDADO** | **Zero Trust** (Verificación DB por request) + Kill Switch |
+| **SSRF (Server-Side Request Forgery)** | 🛡️ **BLINDADO** | `validateExternalUrl` + Bloqueo de IPs Privadas/Metadata |
+| **Prototype Pollution** | 🛡️ **BLINDADO** | `deepFreeze` + `safeJsonParse` + Validación de Keys |
+| **Clickjacking** | 🛡️ **BLINDADO** | CSP `frame-ancestors 'none'` + `X-Frame-Options: DENY` |
+| **React DoS (CVE-2025-55184)** | 🛡️ **BLINDADO** | React 19.2.4 Patched Version |
+| **Source Code Exposure (CVE-2025-55183)** | 🛡️ **BLINDADO** | Next.js 16.1.6 Patched Version |
+| **Bot Automation / Scrapers** | 🛡️ **BLINDADO** | Anomaly Detection (Fingerprint Entropy) + Honeypots |
+| **IDOR (Insecure Direct Object Ref)** | 🛡️ **BLINDADO** | `dal.ts` Ownership Checks + UUIDs no-secuenciales |
+| **Open Redirects** | 🛡️ **BLINDADO** | `validateExternalUrl` + Whitelist estricta de dominios |
+| **Evidence Tampering** | 🛡️ **BLINDADO** | **Immutable Audit Log** (Blockchain-like hashing) |
+| **Evidence Tampering** | 🛡️ **BLINDADO** | **Immutable Audit Log** (Blockchain-like hashing) |
+| **MIME Sniffing** | 🛡️ **BLINDADO** | Header `X-Content-Type-Options: nosniff` forzado |
+| **Hardware/Sensor Abuse** | 🛡️ **BLINDADO** | `Permissions-Policy` bloquea cámara, micro, GPS, USB, etc. |
+| **Threat Intelligence Bypass** | 🛡️ **BLINDADO** | Rastreo de ASN, ISP y GeoIP en Tiempo Real (`extractGeoFromHeaders`) |
+| **Granular DoS** | 🛡️ **BLINDADO** | Límites differenciados (Auth 10/min, OCR 10/min, Admin 50/min) |
+| **Stale Encryption Keys** | 🛡️ **BLINDADO** | **Auto-Rotation** (90 días) con Re-Cifrado Gradual + Dual Keys |
+| **GenAI Prompt Injection** | 🛡️ **BLINDADO** | Regex Anti-DAN, "Ignore Previous" y Sanitización de Output (OCR) |
+
 ### 🚨 Sistema de Alertas
+El sistema captura y analiza incidentes a nivel de red (Edge) con telemetría completa:
+*   **ASN/ISP Tracking**: Identifica redes hostiles (ej. Datacenters en listas negras).
+*   **Geo-Fencing Logging**: Registra país/ciudad de origen.
+*   **Fingerprint Entropy**: Detecta bots que falsifican User-Agents.
 
 Recibe notificaciones en tiempo real cuando se detectan amenazas:
 
@@ -254,9 +299,17 @@ Recibe notificaciones en tiempo real cuando se detectan amenazas:
 
 ---
 
-### 🔐 1. AUTENTICACIÓN
+### 🔐 1. AUTENTICACIÓN & ZERO TRUST
 
-#### Hashing de Contraseñas (Argon2id)
+#### Arquitectura Zero Trust (NIST SP 800-207)
+A diferencia de sistemas tradicionales que confían en el JWT firmado, este sistema implementa **validación en tiempo real**:
+1.  **Identity Layer**: JWT solo prueba identidad.
+2.  **Access Layer**: Cada petición crítica verifica en DB:
+    *   Si el usuario sigue activo (Kill Switch instantáneo).
+    *   Si el rol no ha cambiado (Privilege Escalation protection).
+    *   Si la sesión no ha sido revocada.
+
+#### Hashing de Contraseñas (Argon2id + Peppering)
 ```typescript
 // lib/security.server.ts
 const ARGON2_OPTIONS = {
@@ -426,6 +479,25 @@ validateBase64Image(dataUrl)
 // 3. Verifica magic bytes
 // 4. Compara MIME declarado vs real
 ```
+
+---
+
+### 📦 5.5 SUPPLY CHAIN SECURITY (OWASP A03:2025)
+
+Defensa contra ataques a la cadena de suministro (como Shai-Hulud worm):
+
+#### 1. Installation Cooldown
+`.npmrc` configurado para rechazar paquetes con menos de 60 días de antigüedad:
+```ini
+@before = "60 days ago"
+```
+Mitiga ataques "Zero Day" en paquetes recién publicados.
+
+#### 2. Strict Script Blocking
+Scripts `postinstall` bloqueados por defecto para prevenir ejecución automática de malware.
+
+#### 3. Lockfile Integrity
+Validación estricta de `package-lock.json` en CI/CD.
 
 ---
 

@@ -143,6 +143,13 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+  
+  // 🛡️ Immutable Audit Log (Blockchain-like)
+  previousHash String?  // Hash of the previous log
+  currentHash  String?  @unique // Hash of this log
+  signature    String?  // Cryptographic signature
+  verified     Boolean  @default(true)
+  
   user       User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])

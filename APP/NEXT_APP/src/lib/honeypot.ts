@@ -160,6 +160,10 @@ export async function catchAllHoneypot(request: NextRequest): Promise<NextRespon
         { pattern: /\/(passwd|shadow|id_rsa|\.ssh)/i, type: 'sensitive_file' },
         { pattern: /\/(aws|secrets)/i, type: 'credentials' },
 
+        // Infrastructure config attempts
+        { pattern: /\/(docker-compose\.yml|Dockerfile|k8s\.yml|kubernetes)/i, type: 'infra_exposure' },
+        { pattern: /\/(composer\.json|package\.json|yarn\.lock|pnpm-lock\.yaml)/i, type: 'dependency_exposure' },
+
         // === ENHANCED PATTERNS (Issue #7) ===
 
         // Log4j / Log4Shell exploit (CVE-2021-44228)

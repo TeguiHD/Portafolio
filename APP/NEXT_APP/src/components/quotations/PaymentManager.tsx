@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { formatCurrency, type SupportedCurrency } from "@/lib/currency";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -32,7 +32,7 @@ export function PaymentManager({
     onPaymentRegistered,
 }: PaymentManagerProps) {
     const [payments, setPayments] = useState<Payment[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    // isLoading removed as unused
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,13 +45,9 @@ export function PaymentManager({
     const remaining = Math.max(0, total - totalPaid);
     const progress = total > 0 ? (totalPaid / total) * 100 : 0;
 
-    useEffect(() => {
-        fetchPayments();
-    }, [quotationId]);
-
-    const fetchPayments = async () => {
+    const fetchPayments = useCallback(async () => {
         try {
-            setIsLoading(true);
+            // setIsLoading(true); // removed
             const res = await fetch(`/api/quotations/payments?quotationId=${quotationId}`);
             const data = await res.json();
             if (data.success) {
@@ -60,9 +56,13 @@ export function PaymentManager({
         } catch (error) {
             console.error("Error fetching payments:", error);
         } finally {
-            setIsLoading(false);
+            // setIsLoading(false); // removed
         }
-    };
+    }, [quotationId]);
+
+    useEffect(() => {
+        fetchPayments();
+    }, [fetchPayments]);
 
     const handleRegisterPayment = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -40,8 +40,7 @@ export default function ConnectionManager({ sharingCode, currentUserId }: { shar
             if (!res.ok) throw new Error("Failed to fetch");
             const data = await res.json();
             setConnections(data);
-        } catch (error) {
-            console.error(error);
+        } catch {
             toast.error("Error al cargar conexiones");
         } finally {
             setLoading(false);

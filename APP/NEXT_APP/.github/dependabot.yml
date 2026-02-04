@@ -1,0 +1,19 @@
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Security: Limit open PRs to prevent noise
+    open-pull-requests-limit: 10
+    # Security: Only major security fixes or explicit updates
+    versioning-strategy: increase-if-necessary
+    
+    # Cooldown implementation via separate workflow (see security.yml)
+    # Dependabot itself doesn't support "wait 7 days", but we limit frequency.
+    
+    ignore:
+      # Ignore unstable versions
+      - dependency-name: "*"
+        versions: ["*beta*", "*alpha*", "*rc*"]

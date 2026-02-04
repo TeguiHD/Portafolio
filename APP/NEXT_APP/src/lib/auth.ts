@@ -165,6 +165,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             reasons: anomalyScore.reasons
                         }
                     })
+
+                    // 🛡️ BLOCK HIGH RISK (>80)
+                    if (anomalyScore.score >= 80) {
+                        logger.auth.error('Blocked high risk login attempt', {
+                            userId: user.id,
+                            score: anomalyScore.score,
+                            reasons: anomalyScore.reasons
+                        })
+                        throw new Error("Login blocked due to suspicious activity. Please verify your identity.")
+                    }
                 }
 
                 // Verify password using Argon2id

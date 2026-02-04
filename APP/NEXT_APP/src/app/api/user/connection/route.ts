@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { secureApiEndpoint } from "@/lib/api-security";
-import { sanitizeInput } from "@/lib/security";
 import { z } from "zod";
 
 // Validation schemas

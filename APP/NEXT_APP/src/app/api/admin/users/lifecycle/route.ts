@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
-import { 
+import {
     suspendUser,
     reactivateUser,
     requestAccountDeletion,
@@ -34,16 +34,16 @@ const requestCounts = new Map<string, { count: number; resetAt: number }>();
 function checkRateLimit(adminId: string): boolean {
     const now = Date.now();
     const entry = requestCounts.get(adminId);
-    
+
     if (!entry || now > entry.resetAt) {
         requestCounts.set(adminId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
         return true;
     }
-    
+
     if (entry.count >= MAX_REQUESTS) {
         return false;
     }
-    
+
     entry.count++;
     return true;
 }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
             session.user.role as Role,
             "users.manage"
         );
-        
+
         if (!canManage) {
             return NextResponse.json({ error: "Permiso denegado" }, { status: 403 });
         }
@@ -156,35 +156,38 @@ export async function POST(request: NextRequest) {
                 result = await permanentlyDeleteUser(userId, session.user.id, reason);
                 break;
 
-            case "get_summary":
+            case "get_summary": {
                 const summary = await getUserDataSummary(userId);
                 if (!summary) {
                     return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
                 }
                 return NextResponse.json({ success: true, data: summary });
+            }
 
-            case "export_data":
+            case "export_data": {
                 const exportResult = await exportUserData(userId);
                 if (!exportResult.success) {
                     return NextResponse.json({ error: exportResult.error }, { status: 500 });
                 }
-                return NextResponse.json({ 
-                    success: true, 
+                return NextResponse.json({
+                    success: true,
                     data: exportResult.data,
                     message: "Datos exportados correctamente"
                 });
+            }
 
-            case "process_scheduled":
+            case "process_scheduled": {
                 // Only SUPERADMIN can process scheduled deletions
                 if (session.user.role !== "SUPERADMIN") {
                     return NextResponse.json({ error: "Solo SUPERADMIN puede ejecutar esto" }, { status: 403 });
                 }
                 const processResult = await processScheduledDeletions(session.user.id);
-                return NextResponse.json({ 
-                    success: true, 
+                return NextResponse.json({
+                    success: true,
                     processed: processResult.processed,
                     errors: processResult.errors
                 });
+            }
 
             default:
                 return NextResponse.json(
@@ -223,7 +226,7 @@ export async function GET(request: NextRequest) {
             session.user.role as Role,
             "users.view"
         );
-        
+
         if (!canView) {
             return NextResponse.json({ error: "Permiso denegado" }, { status: 403 });
         }

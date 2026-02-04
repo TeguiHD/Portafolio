@@ -1,8 +1,9 @@
 /**
  * Data Access Layer (DAL) - Next.js 16 Security Pattern
  * 
- * Este archivo centraliza la verificación de sesión y autorización.
- * Debe ser llamado en layouts/pages de rutas protegidas.
+ * Implementación "Zero Trust" (NIST SP 800-207):
+ * No confiamos implícitamente en el token JWT para autorización crítica.
+ * Verificamos el estado y rol del usuario contra la Base de Datos en Tiempo Real.
  * 
  * @see https://nextjs.org/docs/app/building-your-application/authentication
  */
@@ -11,6 +12,8 @@ import { auth } from '@/lib/auth'
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import type { Role } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { hashEmail } from '@/lib/security.server'
 
 // DTO seguro para datos del usuario (solo lo necesario)
 export interface SessionUser {
@@ -26,19 +29,17 @@ export interface Session {
 }
 
 /**
- * Verifica la sesión del usuario y retorna datos seguros.
- * Si no hay sesión válida, redirige al login.
- * 
- * Usar `cache()` de React para deduplicar llamadas dentro del mismo request.
+ * 1. BASIC SESSION CHECK (Low Overhead)
+ * Verifica solo la firma/encriptación del JWT.
+ * Usado para rutas públicas autenticadas donde el rol no es crítico.
  */
 export const verifySession = cache(async (): Promise<Session> => {
     const session = await auth()
 
-    if (!session?.user) {
+    if (!session?.user?.email) {
         redirect('/acceso')
     }
 
-    // Retornar solo datos seguros (DTO)
     return {
         user: {
             id: session.user.id,
@@ -51,68 +52,91 @@ export const verifySession = cache(async (): Promise<Session> => {
 })
 
 /**
- * Verificación opcional de sesión (no redirige).
- * Útil para páginas que muestran contenido diferente según auth.
+ * Helper interno para validación Zero Trust
+ * Consulta la BD para confirmar rol y estado activo.
  */
-export const getSession = cache(async (): Promise<Session | null> => {
-    const session = await auth()
+async function validateUserRoleAgainstDb(email: string, requiredRoles: Role[]): Promise<SessionUser | null> {
+    try {
+        // Hash email for lookup (privacy by design)
+        const emailHash = hashEmail(email)
 
-    if (!session?.user) {
+        const user = await prisma.user.findUnique({
+            where: { email: emailHash },
+            select: {
+                id: true,
+                role: true,
+                isActive: true,
+                name: true,
+                emailEncrypted: true,
+                avatar: true // Assuming avatar field exists or strict mapping needed
+            }
+        })
+
+        // 1. User must exist
+        if (!user) return null
+
+        // 2. User must be verified active (Kill Switch)
+        if (!user.isActive) return null
+
+        // 3. User must have required role (Privilege Escalation Protection)
+        if (!requiredRoles.includes(user.role)) return null
+
+        // Return fresh data from DB
+        return {
+            id: user.id,
+            email: email, // Keep original email from session
+            name: user.name,
+            role: user.role,
+            avatar: null // Avatar might not be in select, keeping clean
+        }
+    } catch (error) {
+        console.error('Zero Trust Validation Failed:', error)
         return null
     }
-
-    return {
-        user: {
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name ?? null,
-            role: session.user.role,
-            avatar: session.user.avatar ?? null,
-        }
-    }
-})
+}
 
 /**
- * Verifica que el usuario esté autenticado para acceder al panel.
- * El control de acceso granular se maneja por permisos específicos.
- * Redirige a login si no está autenticado.
+ * 2. ADMIN CHECK (Real-Time DB Verification)
+ * Zero Trust: Ignora el rol del JWT, valida contra DB.
  */
 export const verifyAdmin = cache(async (): Promise<Session> => {
-    const session = await verifySession()
+    const session = await verifySession() // Get basics first
 
-    // Todos los usuarios autenticados pueden acceder al panel
-    // El sidebar y las páginas individuales filtran por permisos granulares
-    return session
+    // Real-time Check
+    const dbUser = await validateUserRoleAgainstDb(session.user.email, ['ADMIN', 'SUPERADMIN'])
+
+    if (!dbUser) {
+        console.warn(`[SECURITY] Privilege Escalation Attempt or Stale Token: User ${session.user.id} tried to access ADMIN area.`)
+        redirect('/unauthorized') // Or force logout
+    }
+
+    return { user: dbUser }
 })
 
 /**
- * Verifica que el usuario sea superadmin.
- * Redirige a login si no está autenticado.
- * Redirige a unauthorized si no es superadmin.
+ * 3. SUPERADMIN CHECK (Real-Time DB Verification)
+ * Zero Trust: Ignora el rol del JWT, valida contra DB.
  */
 export const verifySuperAdmin = cache(async (): Promise<Session> => {
     const session = await verifySession()
 
-    if (session.user.role !== 'SUPERADMIN') {
-        redirect('/acceso')
+    // Real-time Check
+    const dbUser = await validateUserRoleAgainstDb(session.user.email, ['SUPERADMIN'])
+
+    if (!dbUser) {
+        console.warn(`[SECURITY] Privilege Escalation Attempt or Stale Token: User ${session.user.id} tried to access SUPERADMIN area.`)
+        redirect('/unauthorized')
     }
 
-    return session
+    return { user: dbUser }
 })
 
 /**
- * Verifica sesión y retorna 401 en lugar de redirect.
- * Útil para API routes que no deben redirigir.
- * 
- * @returns Session if valid, null if not authenticated
+ * 4. API UTILS (Non-redirecting)
  */
 export const verifySessionForApi = cache(async (): Promise<Session | null> => {
     const session = await auth()
-
-    if (!session?.user) {
-        return null
-    }
-
+    if (!session?.user) return null
     return {
         user: {
             id: session.user.id,
@@ -124,29 +148,22 @@ export const verifySessionForApi = cache(async (): Promise<Session | null> => {
     }
 })
 
-/**
- * Verifica admin para API routes (retorna null en lugar de redirect).
- */
 export const verifyAdminForApi = cache(async (): Promise<Session | null> => {
     const session = await verifySessionForApi()
+    if (!session?.user?.email) return null
 
-    const adminRoles: Role[] = ['ADMIN', 'SUPERADMIN']
-    if (!session || !adminRoles.includes(session.user.role)) {
-        return null
-    }
+    const dbUser = await validateUserRoleAgainstDb(session.user.email, ['ADMIN', 'SUPERADMIN'])
+    if (!dbUser) return null // Access denied logic here
 
-    return session
+    return { user: dbUser }
 })
 
-/**
- * Verifica superadmin para API routes (retorna null en lugar de redirect).
- */
 export const verifySuperAdminForApi = cache(async (): Promise<Session | null> => {
     const session = await verifySessionForApi()
+    if (!session?.user?.email) return null
 
-    if (!session || session.user.role !== 'SUPERADMIN') {
-        return null
-    }
+    const dbUser = await validateUserRoleAgainstDb(session.user.email, ['SUPERADMIN'])
+    if (!dbUser) return null
 
-    return session
+    return { user: dbUser }
 })

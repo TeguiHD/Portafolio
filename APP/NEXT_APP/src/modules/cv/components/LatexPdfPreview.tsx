@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import DOMPurify from "dompurify";
 
 interface LatexPdfPreviewProps {
     latexCode: string;
@@ -38,7 +39,8 @@ export function LatexPdfPreview({ latexCode, className = "" }: LatexPdfPreviewPr
 
             // Get the HTML output
             const html = doc.htmlDocument().documentElement.outerHTML;
-            setHtmlContent(html);
+            const cleanHtml = DOMPurify.sanitize(html);
+            setHtmlContent(cleanHtml);
         } catch (err) {
             console.error("LaTeX parsing error:", err);
             setError(

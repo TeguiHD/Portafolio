@@ -1,0 +1,802 @@
+
+================================================================================
+ 🎯 AUDITORÍA DE SEGURIDAD - ANÁLISIS CRÍTICO FEB 2026
+================================================================================
+ Fecha: 03 Febrero 2026
+ Documento Analizado: ARQUITECTURA DE SEGURIDAD v4
+ Clasificación: EVALUACIÓN ENTERPRISE-GRADE
+================================================================================
+
+## 📋 RESUMEN EJECUTIVO
+
+Tu documento v4 es **SÓLIDO y muestra comprensión profunda**, PERO hay **OMISIONES 
+CRÍTICAS** que deben corregirse para alcanzar el nivel "mejor de lo mejor" que buscas.
+
+**PUNTUACIÓN GLOBAL: 8.2/10** (Bueno → Excelente, faltan detalles críticos)
+
+### ✅ FORTALEZAS IDENTIFICADAS:
+
+1. **Data Access Layer (DAL)** mencionado ✓
+2. **Argon2id** con parámetros OWASP 2025 ✓
+3. **Race Conditions** documentadas ✓
+4. **Middleware modular** ✓
+5. **Honeypots** activos ✓
+
+### 🔴 GAPS CRÍTICOS ENCONTRADOS:
+
+1. **CVE-2025-55182/66478** - NO mencionado (CRÍTICO)
+2. **CVE-2025-67779** - NO mencionado (CRÍTICO - fix incompleto)
+3. **Supply Chain Attacks** - NO documentado
+4. **WebAuthn/Passkeys** - NO implementado
+5. **Password Peppering** - NO implementado
+6. **Detección de Anomalías** - NO implementado
+7. **Audit Log Inmutable** - NO implementado
+8. **Secrets Management** - Variables env básicas, sin Vault
+
+================================================================================
+ 🚨 SECCIÓN 1: VULNERABILIDADES CRÍTICAS NO DOCUMENTADAS
+================================================================================
+
+## ❌ OMISIÓN CRÍTICA #1: React2Shell (CVE-2025-55182/66478)
+
+**GRAVEDAD**: 🔴 CRÍTICO (CVSS 10.0)
+**ESTADO**: Explotado activamente en la wild desde 5 Dic 2025
+
+### ¿QUÉ FALTA EN TU DOC?
+
+Tu documento NO menciona:
+- La vulnerabilidad más crítica del ecosistema React/Next.js en 2025
+- Que cualquier app con App Router está vulnerable por defecto
+- Que permite RCE sin autenticación con un solo HTTP request
+- Que China-nexus APT groups ya están explotándola
+
+### CONTEXTO REAL (Febrero 2026):
+
+**Línea de Tiempo:**
+- 3 Dic 2025: Divulgación pública CVE-2025-55182 (React) / CVE-2025-66478 (Next.js)
+- 4 Dic 2025: PoC público disponible con 99% de confiabilidad
+- 5 Dic 2025: Explotación masiva detectada (Microsoft, Wiz, Datadog)
+- 11 Dic 2025: CVE-2025-55183 (leak source code) + CVE-2025-55184 (DoS)
+- 20 Dic 2025: CVE-2025-67779 (fix incompleto de CVE-55184)
+
+**Impacto Real:**
+- Microsoft: "Several hundred machines compromised across diverse organizations"
+- Wiz: "39% of cloud environments contain vulnerable instances"
+- Unit 42: "Near-100% exploit reliability in default configurations"
+- Coin miners, Cobalt Strike, APT groups documentados
+
+### LO QUE DEBES AGREGAR:
+
+```markdown
+================================================================================
+ 0. ACTUALIZACIONES CRÍTICAS 2025-2026 ← NUEVA SECCIÓN
+================================================================================
+
+📁 Referencia: CVE-2025-55182, CVE-2025-66478, CVE-2025-55183, 
+              CVE-2025-55184, CVE-2025-67779
+
+⚠️ ALERTA DE SEGURIDAD CRÍTICA ⚠️
+
+En diciembre 2025 se descubrió React2Shell, la vulnerabilidad más crítica 
+del ecosistema JavaScript moderno (CVSS 10.0). Permite Remote Code Execution 
+sin autenticación en aplicaciones con React Server Components.
+
+ESTADO DEL PROYECTO:
+--------------------
+
+✅ PARCHEADO: Next.js actualizado a versión 16.0.10 / 15.5.9
+✅ VERIFICADO: npx fix-react2shell-next ejecutado el [FECHA]
+✅ ROTADOS: Todos los secretos rotados post-parche
+✅ MONITOREADO: Logs auditados sin actividad sospechosa pre-parche
+
+VULNERABILIDADES RELACIONADAS:
+------------------------------
+
+1. CVE-2025-55182 (React) - RCE en RSC protocol
+   - CVSS: 10.0 (CRÍTICO)
+   - Permite ejecución de código arbitrario sin autenticación
+   - Explotado en la wild desde 5 Dic 2025
+   
+2. CVE-2025-66478 (Next.js) - Downstream de CVE-55182
+   - CVSS: 10.0 (CRÍTICO)
+   - Rechazado como duplicado (merged en CVE-55182)
+   - Afecta TODAS las apps con App Router en Next.js 15.x-16.x
+   
+3. CVE-2025-55183 (React) - Source Code Disclosure
+   - CVSS: 5.3 (MEDIUM)
+   - Server Functions pueden retornar código fuente compilado
+   - Expone lógica de negocio y secretos hardcodeados
+   
+4. CVE-2025-55184 (React) - Denial of Service
+   - CVSS: 7.5 (HIGH)
+   - Infinite loop via crafted HTTP request
+   - Fix inicial INCOMPLETO (ver CVE-67779)
+   
+5. CVE-2025-67779 (React/Next.js) - DoS Fix Completo
+   - CVSS: 7.5 (HIGH)
+   - Corrige CVE-55184 completamente
+   - Requiere actualización ADICIONAL incluso si se parchó CVE-55184
+
+VERSIONES SEGURAS (Febrero 2026):
+---------------------------------
+
+Next.js:
+  ✅ 14.2.35 (para 13.3.x, 13.4.x, 13.5.x, 14.x)
+  ✅ 15.0.7+ (para 15.0.x)
+  ✅ 15.5.9+ (para 15.5.x)
+  ✅ 16.0.10+ (para 16.0.x)
+  ✅ 16.1.0-canary.19+ (para canary)
+
+React:
+  ✅ 19.0.1+ (19.0.0 vulnerable)
+  ✅ 19.1.4+ (19.1.0-19.1.3 vulnerable)
+  ✅ 19.2.3+ (19.2.0-19.2.2 vulnerable)
+
+VERIFICACIÓN DE PARCHE:
+-----------------------
+
+Ejecutar mensualmente:
+
+```bash
+# Verificar versiones actuales
+npx next --version
+npm list react react-dom
+
+# Herramienta oficial de actualización
+npx fix-react2shell-next
+
+# Verificar que NO hay vulnerabilidades conocidas
+npm audit --audit-level=high
+
+# Si el proyecto estuvo online SIN parchear antes del 4 Dic 2025:
+# ROTAR INMEDIATAMENTE:
+# - DATABASE_URL
+# - JWT_SECRET / SESSION_SECRET
+# - API_KEYS (Stripe, SendGrid, etc.)
+# - ENCRYPTION_KEY
+# - Todos los tokens de terceros
+```
+
+RECURSOS OFICIALES:
+------------------
+- Next.js Advisory: https://nextjs.org/blog/CVE-2025-66478
+- React Advisory: https://react.dev/blog/2025/12/03/critical-security-vulnerability
+- Microsoft Analysis: https://www.microsoft.com/security/blog/.../cve-2025-55182-react2shell
+- Wiz Research: https://www.wiz.io/blog/critical-vulnerability-in-react-cve-2025-55182
+```
+
+
+## ❌ OMISIÓN CRÍTICA #2: Supply Chain Security
+
+**GRAVEDAD**: 🔴 CRÍTICO (OWASP Top 10:2025 A03 - NUEVA CATEGORÍA)
+
+### ¿QUÉ FALTA?
+
+Tu documento NO documenta defensa contra:
+- Shai-Hulud worm (500+ packages npm comprometidos Sep-Nov 2025)
+- 2.6B+ descargas semanales de paquetes comprometidos
+- Lifecycle scripts maliciosos (preinstall, postinstall)
+- Typosquatting, dependency confusion, maintainer account takeover
+
+### CONTEXTO REAL (2025):
+
+**Ataques Documentados:**
+- Septiembre 2025: 18 paquetes con 2.6B descargas/semana comprometidos
+- Noviembre 2025: Shai-Hulud 2 - worm auto-replicante en 500+ paquetes
+- Vectores: Phishing a maintainers, robo de tokens npm, scripts maliciosos
+
+**OWASP Top 10:2025 Cambios:**
+- **A03: Software Supply Chain Failures** - NUEVA categoría #3
+- 50% de comunidad votó como preocupación #1
+- Incluye dependencias comprometidas, builds inseguros, CI/CD attacks
+
+### LO QUE DEBES AGREGAR:
+
+```markdown
+================================================================================
+ 16. DEFENSA CONTRA SUPPLY CHAIN ATTACKS ← NUEVA SECCIÓN
+================================================================================
+
+📁 Archivos: .npmrc, .pnpmrc, .github/dependabot.yml, 
+            .github/workflows/security.yml
+
+¿QUÉ ES?
+--------
+Los ataques a la cadena de suministro comprometen paquetes npm legítimos
+para distribuir malware a miles de aplicaciones downstream.
+
+CONTEXTO 2025:
+-------------
+- Shai-Hulud 1 (Sep 2025): 18 paquetes, 2.6B descargas/semana
+- Shai-Hulud 2 (Nov 2025): 500+ paquetes con worm auto-replicante
+- Métodos: Phishing maintainers, robo tokens npm, lifecycle scripts
+
+MEDIDAS IMPLEMENTADAS:
+---------------------
+
+A) COOLDOWN DE INSTALACIÓN (60 días)
+   
+   Problema: Paquetes recién comprometidos se propagan instantáneamente.
+   Solución: Solo instalar paquetes con >60 días desde release.
+   
+   ```ini
+   # .npmrc
+   @before = "60 days ago"
+   
+   # Solo instalar paquetes verificados
+   ignore-scripts = true
+   
+   # Allowlist de scripts confiables
+   scripts-allow-list = @prisma/client,esbuild
+   ```
+
+B) LOCKFILE INTEGRITY
+   
+   ```bash
+   # En CI/CD siempre usar lockfile frozen
+   pnpm install --frozen-lockfile
+   npm ci  # NUNCA npm install
+   
+   # Verificar firmas de paquetes
+   pnpm audit signatures
+   
+   # Generar SBOM (Software Bill of Materials)
+   npm sbom --sbom-format=cyclonedx > sbom.json
+   ```
+
+C) MONITOREO DE LIFECYCLE SCRIPTS
+   
+   ```typescript
+   // scripts/check-lifecycle.ts
+   // Escanea node_modules y alerta sobre paquetes con:
+   // - preinstall
+   // - install  
+   // - postinstall
+   
+   // Output: Lista de paquetes para revisar manualmente
+   ```
+
+D) DEPENDABOT CON COOLDOWN
+   
+   ```yaml
+   # .github/dependabot.yml
+   version: 2
+   updates:
+     - package-ecosystem: "npm"
+       directory: "/"
+       schedule:
+         interval: "weekly"
+       # Cooldown de 7 días antes de actualizar
+       open-pull-requests-limit: 5
+       # Solo security patches automáticas
+       versioning-strategy: increase-if-necessary
+   ```
+
+E) GITHUB ACTIONS HARDENING
+   
+   ```yaml
+   # .github/workflows/security.yml
+   name: Security Checks
+   
+   on:
+     pull_request:
+     push:
+       branches: [main]
+   
+   permissions:
+     contents: read
+     security-events: write
+   
+   jobs:
+     dependency-review:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v4
+         
+         # Revisar cambios en dependencias
+         - name: Dependency Review
+           uses: actions/dependency-review-action@v4
+           with:
+             fail-on-severity: moderate
+             deny-licenses: GPL-3.0, AGPL-3.0
+         
+         # Verificar firmas
+         - name: Verify Package Signatures
+           run: pnpm audit signatures
+         
+         # Detectar secretos
+           uses: trufflesecurity/trufflehog@main
+   ```
+
+F) NPM PROVENANCE (Trusted Publishing)
+   
+   ```yaml
+   # .github/workflows/publish.yml
+   permissions:
+     contents: read
+     id-token: write  # ← Para OIDC sin tokens
+   
+   steps:
+     - run: pnpm publish --provenance --access public
+       env:
+         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+   ```
+
+ALERTAS IMPLEMENTADAS:
+---------------------
+
+- Dependabot: PRs automáticos para vulnerabilidades high/critical
+- Snyk: Escaneo diario de dependencias
+- GitHub Security Advisories: Email alerts
+- npm audit: Ejecutado en pre-commit hook
+
+EXCLUSIONES:
+-----------
+
+Paquetes en blacklist (por historial de compromiso):
+- [Lista de paquetes conocidos comprometidos]
+
+VERIFICACIÓN CONTINUA:
+---------------------
+
+```bash
+# Ejecutar semanalmente
+pnpm audit
+pnpm outdated
+npx npm-check-updates -u
+
+# Revisar SBOM
+cat sbom.json | jq '.components[] | select(.vulnerabilities)'
+```
+```
+
+
+================================================================================
+ 🟡 SECCIÓN 2: MEJORAS RECOMENDADAS NO IMPLEMENTADAS
+================================================================================
+
+## ⚠️ MEJORA #1: Password Peppering (Defensa en Profundidad)
+
+**PRIORIDAD**: 🟡 ALTA
+**ESTADO ACTUAL**: Solo Argon2 con salt (bueno pero mejorable)
+
+### ¿Por qué importa?
+
+Salt protege contra rainbow tables, pero si la DB se compromete, 
+los hashes están expuestos a cracking offline. 
+
+**Pepper** = secreto FUERA de la DB que se añade antes de hashear.
+Incluso con DB comprometida, sin pepper NO pueden crackear passwords.
+
+### Implementación:
+
+```typescript
+// lib/security.server.ts
+
+const PEPPER = process.env.PASSWORD_PEPPER!
+// ⚠️ NUNCA en DB, solo en vault/env seguro
+
+export async function hashPassword(password: string): Promise<string> {
+  if (!PEPPER) {
+    throw new Error('PASSWORD_PEPPER must be configured')
+  }
+  
+  // Combinar con pepper ANTES de hashear
+  const pepperedPassword = `${password}${PEPPER}`
+  
+  const hash = await argon2.hash(pepperedPassword, {
+    type: argon2.argon2id,
+    memoryCost: 65536,  // 64 MB
+    timeCost: 3,
+    parallelism: 1
+  })
+  
+  return hash
+}
+
+export async function verifyPassword(
+  password: string,
+  hash: string
+): Promise<boolean> {
+  const pepperedPassword = `${password}${PEPPER}`
+  return await argon2.verify(hash, pepperedPassword)
+}
+```
+
+```bash
+# Generar pepper (ejecutar UNA VEZ, guardar en vault)
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# .env
+PASSWORD_PEPPER="generado_arriba"  # 44 caracteres base64
+```
+
+### Migración Transparente:
+
+```typescript
+// Durante login exitoso, re-hashear con pepper
+async function login(email: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { email } })
+  
+  if (!user) {
+    // Timing-safe delay
+    await argon2.hash(password, ARGON2_CONFIG)
+    throw new Error('Invalid credentials')
+  }
+  
+  // Verificar (funcionará con o sin pepper si migrando)
+  const isValid = await verifyPassword(password, user.passwordHash)
+  
+  if (!isValid) {
+    await recordFailedLogin(user.id)
+    throw new Error('Invalid credentials')
+  }
+  
+  // ✅ RE-HASH con pepper en login exitoso
+  const needsRehash = !user.passwordHash.startsWith('$argon2id$v=19$m=65536')
+  
+  if (needsRehash) {
+    const newHash = await hashPassword(password)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash }
+    })
+  }
+  
+  return createSession(user)
+}
+```
+
+
+## ⚠️ MEJORA #2: WebAuthn/Passkeys (Autenticación Sin Contraseña)
+
+**PRIORIDAD**: 🟡 ALTA
+**ESTADO ACTUAL**: MFA con TOTP (bueno pero limitado)
+
+### ¿Por qué importa?
+
+- Microsoft: 99.9% de cuentas comprometidas carecían de MFA
+- WebAuthn elimina phishing (no hay secreto compartido)
+- Touch ID, Face ID, Windows Hello = UX superior
+- Resistente a credential stuffing, keyloggers, MITM
+
+### Beneficios vs TOTP:
+
+| Factor          | TOTP (actual)      | WebAuthn (recomendado) |
+|-----------------|--------------------|------------------------|
+| Phishing        | ⚠️ Vulnerable       | ✅ Imposible            |
+| Credential Leak | ⚠️ Vulnerable       | ✅ Imposible            |
+| UX              | 📱 App separada     | ✅ Biometrics nativo    |
+| Backup          | 📄 Recovery codes   | ✅ Multi-device sync    |
+| Adoption        | ~20%               | ~40% (creciendo)       |
+
+### Implementación (SimpleWebAuthn):
+
+```bash
+pnpm add @simplewebauthn/server @simplewebauthn/browser
+```
+
+```prisma
+// schema.prisma
+model User {
+  // ... campos existentes
+  
+  // WebAuthn
+  authenticators      Authenticator[]
+  currentChallenge    String?
+  challengeExpiresAt  DateTime?
+}
+
+model Authenticator {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  credentialID        String   @unique
+  credentialPublicKey String
+  counter             BigInt
+  transports          String[]
+  
+  createdAt           DateTime @default(now())
+  
+  @@index([userId])
+}
+```
+
+```typescript
+// lib/webauthn.ts (código completo en actualización anterior)
+// Incluye:
+// - generateRegistrationOptions
+// - verifyRegistration
+// - generateAuthenticationOptions
+// - verifyAuthentication
+```
+
+### Flujo de Registro:
+
+1. Usuario hace clic "Add Passkey"
+2. Servidor genera challenge
+3. Cliente llama `navigator.credentials.create()`
+4. Usuario usa Touch ID / Face ID / YubiKey
+5. Servidor verifica y guarda credentialPublicKey
+6. Usuario puede login sin contraseña
+
+
+## ⚠️ MEJORA #3: Detección de Anomalías con ML Básico
+
+**PRIORIDAD**: 🟢 MEDIA
+**ESTADO ACTUAL**: Audit logs pasivos
+
+### ¿Qué falta?
+
+Tu sistema registra eventos pero NO detecta patrones anómalos:
+- Login desde país nuevo a las 3 AM
+- Viaje imposible (España → Japón en 10 minutos)
+- Dispositivo nuevo + IP sospechosa + hora inusual
+- VPN/Tor usage
+
+### Implementación (Behavioral Analysis):
+
+```typescript
+// lib/anomaly-detection.ts
+
+interface UserBehaviorProfile {
+  userId: string
+  typicalLoginHours: number[]      // [8, 9, 10, 17, 18, 19]
+  typicalCountries: string[]       // ['CL', 'US']
+  typicalCities: string[]          // ['Santiago', 'Valparaíso']
+  avgSessionDuration: number       // minutos
+  deviceFingerprints: string[]     // hashes de User-Agent
+}
+
+interface LoginContext {
+  ipAddress: string
+  country: string
+  city: string
+  hour: number
+  deviceFingerprint: string
+  isTorNode: boolean
+  isVPN: boolean
+}
+
+export async function calculateRiskScore(
+  userId: string,
+  context: LoginContext
+): Promise<{ score: number; factors: string[]; requireStepUp: boolean }> {
+  const profile = await getUserBehaviorProfile(userId)
+  
+  let riskScore = 0
+  const riskFactors: string[] = []
+  
+  // 1. Hora inusual (+30 puntos)
+  const hourIsTypical = profile.typicalLoginHours.includes(context.hour)
+  if (!hourIsTypical) {
+    const hourDiff = Math.min(
+      ...profile.typicalLoginHours.map(h => Math.abs(h - context.hour))
+    )
+    if (hourDiff > 8) {
+      riskScore += 30
+      riskFactors.push(`Unusual hour: ${context.hour}:00`)
+    }
+  }
+  
+  // 2. País nuevo (+50 puntos)
+  if (!profile.typicalCountries.includes(context.country)) {
+    riskScore += 50
+    riskFactors.push(`New country: ${context.country}`)
+  }
+  
+  // 3. Dispositivo nuevo (+40 puntos)
+  if (!profile.deviceFingerprints.includes(context.deviceFingerprint)) {
+    riskScore += 40
+    riskFactors.push('New device')
+  }
+  
+  // 4. Tor/VPN (+60 puntos)
+  if (context.isTorNode || context.isVPN) {
+    riskScore += 60
+    riskFactors.push('Tor/VPN detected')
+  }
+  
+  // 5. IP en blacklist (+100 puntos)
+  const isBlacklisted = await checkIPBlacklist(context.ipAddress)
+  if (isBlacklisted) {
+    riskScore += 100
+    riskFactors.push('IP in blacklist')
+  }
+  
+  // 6. Viaje imposible (+80 puntos)
+  const lastLogin = await getLastLogin(userId)
+  if (lastLogin) {
+    const timeDiff = Date.now() - lastLogin.timestamp.getTime()
+    const distanceKm = getDistance(lastLogin.city, context.city)
+    const minSpeed = (distanceKm / (timeDiff / 3600000)) // km/h
+    
+    if (minSpeed > 800) {
+      riskScore += 80
+      riskFactors.push(`Impossible travel: ${lastLogin.city} → ${context.city}`)
+    }
+  }
+  
+  return {
+    score: riskScore,
+    factors: riskFactors,
+    requireStepUp: riskScore >= 80
+  }
+}
+
+// Integrar en login
+export async function login(
+  email: string,
+  password: string,
+  context: LoginContext
+) {
+  // ... verificación password existente
+  
+  const risk = await calculateRiskScore(user.id, context)
+  
+  if (risk.requireStepUp) {
+    // Requerir MFA adicional
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { requiresMfaUntil: new Date(Date.now() + 86400000) }
+    })
+    
+    // Notificar usuario
+    await sendSecurityAlert(user.email, {
+      title: 'Unusual login detected',
+      factors: risk.factors,
+      action: 'Verify this was you'
+    })
+    
+    throw new Error('Additional verification required')
+  }
+  
+  return createSession(user)
+}
+```
+
+
+## ⚠️ MEJORA #4: Audit Log Inmutable (Blockchain-like)
+
+**PRIORIDAD**: 🟢 MEDIA
+**ESTADO ACTUAL**: Audit logs editables
+
+### Problema:
+
+Si un atacante compromete la DB, puede modificar/borrar audit logs 
+para ocultar sus acciones.
+
+### Solución:
+
+Cadena de hashes tipo blockchain donde cada log incluye el hash del anterior.
+Cualquier modificación rompe la cadena.
+
+```typescript
+// lib/immutable-audit.ts
+
+interface AuditEvent {
+  action: string
+  userId: string | null
+  ipAddress: string
+  metadata: Record<string, any>
+}
+
+export async function createImmutableAuditLog(event: AuditEvent) {
+  // Obtener hash del último log
+  const lastLog = await prisma.auditLog.findFirst({
+    orderBy: { createdAt: 'desc' },
+    select: { currentHash: true }
+  })
+  
+  const previousHash = lastLog?.currentHash ?? 'GENESIS'
+  
+  // Calcular hash actual (incluye hash previo)
+  const dataToHash = JSON.stringify({
+    ...event,
+    timestamp: new Date().toISOString(),
+    previousHash
+  })
+  
+  const currentHash = crypto
+    .createHash('sha256')
+    .update(dataToHash)
+    .digest('hex')
+  
+  // Guardar
+  const log = await prisma.auditLog.create({
+    data: {
+      ...event,
+      previousHash,
+      currentHash,
+      verified: true
+    }
+  })
+  
+  // Opcional: Firmar con clave privada
+  const signature = crypto
+    .createSign('SHA256')
+    .update(currentHash)
+    .sign(getPrivateKey(), 'base64')
+  
+  await prisma.auditLog.update({
+    where: { id: log.id },
+    data: { signature }
+  })
+  
+  return log
+}
+
+// Verificar integridad
+export async function verifyAuditChainIntegrity(): Promise<{
+  valid: boolean
+  corruptedAt?: number
+  totalLogs: number
+}> {
+  const logs = await prisma.auditLog.findMany({
+    orderBy: { createdAt: 'asc' }
+  })
+  
+  for (let i = 1; i < logs.length; i++) {
+    if (logs[i].previousHash !== logs[i-1].currentHash) {
+      return { valid: false, corruptedAt: i, totalLogs: logs.length }
+    }
+    
+    // Recalcular hash
+    const recalculated = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({
+        action: logs[i].action,
+        userId: logs[i].userId,
+        ipAddress: logs[i].ipAddress,
+        metadata: logs[i].metadata,
+        timestamp: logs[i].createdAt.toISOString(),
+        previousHash: logs[i].previousHash
+      }))
+      .digest('hex')
+    
+    if (recalculated !== logs[i].currentHash) {
+      return { valid: false, corruptedAt: i, totalLogs: logs.length }
+    }
+  }
+  
+  return { valid: true, totalLogs: logs.length }
+}
+```
+
+Schema:
+
+```prisma
+model AuditLog {
+  id            String   @id @default(cuid())
+  action        String
+  userId        String?
+  ipAddress     String
+  metadata      Json
+  
+  // Immutability
+  previousHash  String
+  currentHash   String   @unique
+  signature     String?
+  verified      Boolean  @default(true)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([action, createdAt])
+  @@index([userId, createdAt])
+}
+```
+
+
+## ⚠️ MEJORA #5: Secrets Management con HashiCorp Vault
+
+**PRIORIDAD**: 🟢 BAJA (para escala enterprise)
+**ESTADO ACTUAL**: .env files (suficiente para MVP)
+
+### Cuándo implementar:
+
+- Múltiples ambientes (dev, staging, prod)
+- Múltiples desarrolladores
+
+[CONTENIDO TRUNCADO - RESTAURACIÓN PARCIAL] 
+[NOTA: El archivo original contenía más secciones que no pudieron ser recuperadas automáticamente. Por favor restaura desde backup si es posible.]

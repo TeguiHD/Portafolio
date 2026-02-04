@@ -90,6 +90,7 @@ export default async function QuotationsPage({
 
     return (
         <QuotationsView
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             clients={clients as any}
             isSuperAdmin={isSuperAdmin}
             currentUserId={session.user.id}

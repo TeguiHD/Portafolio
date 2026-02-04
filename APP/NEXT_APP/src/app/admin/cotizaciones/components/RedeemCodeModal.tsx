@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Key, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { X, Key, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -44,7 +44,7 @@ export default function RedeemCodeModal({ isOpen, onClose }: RedeemCodeModalProp
             document.body.style.overflow = 'unset';
             window.removeEventListener("keydown", handleEsc);
         };
-    }, [isOpen]);
+    }, [isOpen, onClose]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,7 +61,9 @@ export default function RedeemCodeModal({ isOpen, onClose }: RedeemCodeModalProp
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || "Código inválido o expirado");
+                // Prioritize server error message
+                const errorMessage = data?.error || "Código inválido o expirado";
+                throw new Error(errorMessage);
             }
 
             toast.success("¡Cliente vinculado con éxito!", {
@@ -71,7 +73,9 @@ export default function RedeemCodeModal({ isOpen, onClose }: RedeemCodeModalProp
             onClose();
             router.refresh(); // Refresh to show new client
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Error al vincular cliente");
+            console.error("Redeem error:", error);
+            const msg = error instanceof Error ? error.message : "Error al vincular cliente";
+            toast.error(msg);
         } finally {
             setIsSubmitting(false);
         }

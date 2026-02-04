@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, X, ShieldCheck, Ban, CheckCircle, Key, AlertTriangle, Search, ChevronLeft, ChevronRight, Filter, Shield, Eye, EyeOff, UserCog } from "lucide-react";
+import { UserPlus, X, ShieldCheck, Ban, CheckCircle, Key, AlertTriangle, Search, ChevronLeft, ChevronRight, Filter, Shield, Eye, EyeOff, UserCog, ArrowRightLeft } from "lucide-react";
 import { UserPermissionsModal } from "@/modules/admin/components/UserPermissionsModal";
 import { UserLifecycleModal } from "./user-lifecycle-modal";
+import { UserTransferModal } from "./user-transfer-modal";
 import { Select } from "@/components/ui/Select";
+import { useRouter } from "next/navigation";
 import { UsersPageSkeleton } from "@/components/ui/Skeleton";
 
 type User = {
@@ -22,7 +24,7 @@ type User = {
 };
 
 type RoleFilter = "ALL" | "SUPERADMIN" | "ADMIN" | "MODERATOR" | "USER";
-type StatusFilter = "ALL" | "ACTIVE" | "SUSPENDED";
+type StatusFilter = "ALL" | "ACTIVE" | "SUSPENDED" | "DELETED";
 
 const USERS_PER_PAGE = 10;
 
@@ -113,9 +115,14 @@ export default function UsersPageClient() {
 
         // Filter by status
         if (statusFilter !== "ALL") {
-            result = result.filter(user =>
-                statusFilter === "ACTIVE" ? user.isActive : !user.isActive
-            );
+            result = result.filter(user => {
+                const isDeleted = user.deletionStatus === "DELETED" || user.deletionStatus === "DELETION_SCHEDULED";
+
+                if (statusFilter === "DELETED") return isDeleted;
+                if (statusFilter === "SUSPENDED") return !user.isActive && !isDeleted;
+                if (statusFilter === "ACTIVE") return user.isActive && !isDeleted;
+                return true;
+            });
         }
 
         return result;
@@ -250,6 +257,16 @@ export default function UsersPageClient() {
         return <UsersPageSkeleton />;
     }
 
+    if (loading) {
+        return <UsersPageSkeleton />;
+    }
+
+    const router = useRouter();
+    const [transferModal, setTransferModal] = useState<{
+        isOpen: boolean;
+        sourceUser: User | null;
+    }>({ isOpen: false, sourceUser: null });
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -328,6 +345,7 @@ export default function UsersPageClient() {
                                     { value: "ALL", label: "Todos los estados" },
                                     { value: "ACTIVE", label: "Activos" },
                                     { value: "SUSPENDED", label: "Suspendidos" },
+                                    { value: "DELETED", label: "Eliminados" },
                                 ]}
                             />
                         </div>
@@ -456,6 +474,17 @@ export default function UsersPageClient() {
 
                                         {/* Actions */}
                                         <div className="flex items-center gap-1 ml-auto sm:ml-0">
+                                            {/* Spy Mode Button (Super Admin) */}
+                                            {isSuperAdmin && (
+                                                <button
+                                                    onClick={() => router.push(`/admin/cotizaciones?spyUserId=${user.id}`)}
+                                                    className="p-2 rounded-lg text-neutral-400 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
+                                                    title="Modo Espía: Ver cotizaciones como este usuario"
+                                                >
+                                                    <Eye size={18} />
+                                                </button>
+                                            )}
+
                                             {!isSuperAdmin && (
                                                 <>
                                                     <button
@@ -487,15 +516,25 @@ export default function UsersPageClient() {
                                                         <Key size={18} />
                                                     </button>
 
+                                                    {/* Status Toggle / Restore */}
                                                     <button
                                                         onClick={() => handleToggleStatus(user.id, user.isActive, user.name || user.email)}
                                                         className={`p-2 rounded-lg transition-all ${user.isActive
                                                             ? "text-neutral-400 hover:text-red-400 hover:bg-red-500/10"
                                                             : "text-green-400 hover:text-green-300 hover:bg-green-500/10"
                                                             }`}
-                                                        title={user.isActive ? "Suspender usuario" : "Activar usuario"}
+                                                        title={user.isActive ? "Suspender usuario" : "Activar/Restaurar usuario"}
                                                     >
                                                         {user.isActive ? <Ban size={18} /> : <CheckCircle size={18} />}
+                                                    </button>
+
+                                                    {/* Data Transfer Button */}
+                                                    <button
+                                                        onClick={() => setTransferModal({ isOpen: true, sourceUser: user })}
+                                                        className="p-2 rounded-lg text-neutral-400 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+                                                        title="Transferir datos a otro usuario"
+                                                    >
+                                                        <ArrowRightLeft size={18} />
                                                     </button>
 
                                                     <button
@@ -780,6 +819,14 @@ export default function UsersPageClient() {
                 onClose={() => setLifecycleModal({ isOpen: false, user: null })}
                 user={lifecycleModal.user}
                 onUserUpdated={fetchUsers}
+            />
+
+            {/* Transfer Modal */}
+            <UserTransferModal
+                isOpen={transferModal.isOpen}
+                onClose={() => setTransferModal({ isOpen: false, sourceUser: null })}
+                sourceUser={transferModal.sourceUser}
+                onTransferComplete={fetchUsers}
             />
         </div>
     );

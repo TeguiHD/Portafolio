@@ -1,0 +1,803 @@
+================================================================================
+ 🔐 ACTUALIZACIÓN CRÍTICA DE SEGURIDAD - FEBRERO 2026
+================================================================================
+ Versión: 2026.02.03 (ENTERPRISE EDITION)
+ Base: Análisis OWASP Top 10:2025 + CVEs Next.js Recientes
+ Clasificación: CRÍTICO - ACCIÓN INMEDIATA REQUERIDA
+================================================================================
+
+## 🚨 ALERTA DE SEGURIDAD CRÍTICA
+
+Tu portafolio tiene una arquitectura sólida, pero **eventos críticos en 2025** 
+requieren actualizaciones INMEDIATAS:
+
+### VULNERABILIDADES CRÍTICAS DETECTADAS EN TU STACK:
+
+1. **CVE-2025-66478** (Next.js RSC RCE - CVSS 10.0)
+2. **CVE-2025-55184** (React DoS - HIGH)
+3. **CVE-2025-55183** (React Source Code Exposure - MEDIUM)
+4. **CVE-2025-29927** (Next.js Middleware Bypass - CRITICAL)
+5. **Shai-Hulud npm Worm** (500+ packages comprometidos Sep-Nov 2025)
+
+================================================================================
+ 📊 OWASP TOP 10:2025 - CAMBIOS CRÍTICOS
+================================================================================
+
+El OWASP Top 10:2025 fue publicado en enero 2026 con cambios SIGNIFICATIVOS:
+
+### RANKING ACTUAL (2025):
+
+**A01:2025 - Broken Access Control** ⚠️ (era #1 en 2021)
+  - SSRF ahora integrado aquí
+  - 94% de aplicaciones afectadas
+  - **TU ESTADO**: ✅ RBAC implementado PERO necesita Data Access Layer
+
+**A02:2025 - Security Misconfiguration** 🔴 (subió de #5 → #2)
+  - 3% de apps testeadas tienen misconfiguración
+  - **TU ESTADO**: ⚠️ Headers OK, PERO CSP necesita nonces dinámicos
+
+**A03:2025 - Software Supply Chain Failures** 🆕 (NUEVA CATEGORÍA)
+  - Mayor preocupación de comunidad (50% votó #1)
+  - Incluye Shai-Hulud worm y 2.6B descargas comprometidas
+  - **TU ESTADO**: 🔴 CRÍTICO - Sin defensa contra supply chain attacks
+
+**A04:2025 - Cryptographic Failures** (bajó de #2 → #4)
+  - **TU ESTADO**: ⚠️ Argon2 OK PERO parámetros desactualizados
+
+**A05:2025 - Injection** (bajó de #3 → #5)
+  - **TU ESTADO**: ✅ BIEN con Prisma ORM + sanitización
+
+**A06:2025 - Insecure Design** (bajó de #4 → #6)
+  - **TU ESTADO**: ✅ Honeypots + threat modeling aplicado
+
+**A07:2025 - Authentication Failures** (era #7 en 2021)
+  - **TU ESTADO**: ✅ MFA + Argon2 BIEN, necesita WebAuthn
+
+**A08:2025 - Software and Data Integrity Failures** (era #8)
+  - **TU ESTADO**: ⚠️ Sin verificación de integridad de actualizaciones
+
+**A09:2025 - Security Logging and Alerting Failures** (era #9)
+  - **TU ESTADO**: ✅ Audit logs + threat scoring implementados
+
+**A10:2025 - Mishandling of Exceptional Conditions** 🆕 (NUEVA)
+  - 24 CWEs sobre error handling
+  - **TU ESTADO**: ⚠️ Necesita revisión de fail-safe patterns
+
+
+================================================================================
+ 🔥 ACTUALIZACIONES CRÍTICAS INMEDIATAS
+================================================================================
+
+## 1️⃣ CRÍTICO: ACTUALIZAR NEXT.JS Y REACT (HOY)
+
+### VULNERABILIDAD: CVE-2025-66478 + CVE-2025-55184 + CVE-2025-55183
+
+**Estado Actual**: Si estás en Next.js 15.x o 16.x SIN PARCHEAR = 🔴 VULNERABLE
+
+**Acción Inmediata**:
+
+```bash
+# Verificar versión actual
+npx next --version
+
+# ACTUALIZAR A VERSIÓN PARCHEADA (ejecutar AHORA)
+npm install next@16.0.10    # Para Next.js 16.x
+# O
+npm install next@15.5.9     # Para Next.js 15.x
+
+# Herramienta oficial de actualización automática
+npx fix-react2shell-next
+
+# Verificar que React también se actualizó
+npm list react react-dom
+```
+
+**¿Por qué es crítico?**
+- CVE-2025-66478 permite Remote Code Execution (RCE) sin autenticación
+- Un atacante puede ejecutar código arbitrario en tu servidor
+- CVSS Score: 10.0 (MÁXIMO)
+- Afecta TODAS las apps con App Router
+
+**Post-actualización**:
+```bash
+# Si tu app estaba online y sin parchear antes del 4 dic 2025
+# ROTAR TODOS LOS SECRETOS (DATABASE_URL, JWT_SECRET, API_KEYS)
+```
+
+
+## 2️⃣ CRÍTICO: IMPLEMENTAR DATA ACCESS LAYER (SEMANA 1)
+
+### NUEVA ARQUITECTURA RECOMENDADA POR NEXT.JS
+
+**Problema**: El middleware NO es suficiente para seguridad (CVE-2025-29927)
+
+**Solución**: Data Access Layer (DAL) - Patrón oficial Next.js 2026
+
+```typescript
+// ❌ VULNERABLE: Confiar solo en middleware
+// src/middleware.ts
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('AUTH_TOKEN')
+  if (!token) return NextResponse.redirect('/login')
+  // ⚠️ Un header x-middleware-subrequest puede bypasear esto
+}
+
+// ✅ SEGURO: Data Access Layer
+// src/lib/dal.ts
+import { cache } from 'react'
+import { cookies } from 'next/headers'
+import { verifyAuth } from '@/lib/auth'
+
+// Cached helper - SE EJECUTA EN CADA DATA FETCH
+export const verifySession = cache(async () => {
+  const token = cookies().get('AUTH_TOKEN')?.value
+  
+  if (!token) {
+    throw new Error('Unauthorized')
+  }
+  
+  const session = await verifyAuth(token)
+  
+  if (!session) {
+    throw new Error('Invalid session')
+  }
+  
+  // ⚠️ CRÍTICO: NO retornar campos sensibles
+  return {
+    userId: session.userId,
+    role: session.role,
+    permissions: session.permissions
+    // ❌ NO incluir: passwordHash, tokens, apiKeys, email completo
+  }
+})
+
+// Server Actions - SIEMPRE verificar
+// src/app/actions/quotations.ts
+'use server'
+
+import { verifySession } from '@/lib/dal'
+import { hasPermission } from '@/lib/permissions'
+
+export async function deleteQuotation(quotationId: string) {
+  // ✅ Verificación en CADA acción
+  const session = await verifySession()
+  
+  // ✅ Verificación de permisos
+  const canDelete = await hasPermission(
+    session.userId,
+    session.role,
+    'quotations.delete'
+  )
+  
+  if (!canDelete) {
+    throw new Error('Forbidden: Insufficient permissions')
+  }
+  
+  // ✅ Verificación de ownership
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId }
+  })
+  
+  if (quotation.userId !== session.userId && session.role !== 'ADMIN') {
+    throw new Error('Forbidden: Not your quotation')
+  }
+  
+  // Ahora sí, proceder
+  return await prisma.quotation.delete({
+    where: { id: quotationId }
+  })
+}
+
+// Data Fetching - SIEMPRE verificar
+// src/lib/data/quotations.ts
+export async function getQuotation(id: string) {
+  const session = await verifySession() // ← Cache hit si ya se llamó
+  
+  const quotation = await prisma.quotation.findUnique({
+    where: { id },
+    // ✅ Filtrar datos sensibles según rol
+    select: {
+      id: true,
+      folio: true,
+      client: session.role === 'ADMIN',
+      total: true,
+      // Solo admin ve costos
+      cost: session.role === 'ADMIN' ? true : false,
+      internalNotes: session.role === 'ADMIN' ? true : false
+    }
+  })
+  
+  if (!quotation) {
+    throw new Error('Not found')
+  }
+  
+  // Verificar ownership
+  if (quotation.userId !== session.userId && session.role !== 'ADMIN') {
+    throw new Error('Forbidden')
+  }
+  
+  return quotation
+}
+```
+
+**Implementación en 3 Fases**:
+
+**Fase 1 (Día 1-2)**: Crear DAL base
+```typescript
+// src/lib/dal.ts - Funciones básicas de verificación
+```
+
+**Fase 2 (Día 3-5)**: Migrar Server Actions
+```typescript
+// Añadir verifySession() a TODAS las server actions
+```
+
+**Fase 3 (Día 6-7)**: Migrar Data Fetching
+```typescript
+// Añadir verificación a todas las funciones de data fetching
+```
+
+
+## 3️⃣ CRÍTICO: ACTUALIZAR ARGON2 PARAMETERS (30 MINUTOS)
+
+### NUEVOS ESTÁNDARES OWASP 2025
+
+**Problema**: Parámetros desactualizados (riesgo ante GPUs modernas)
+
+**Actualización**:
+
+```typescript
+// ❌ DESACTUALIZADO (2021-2024)
+import argon2 from 'argon2'
+
+async function hashPassword(password: string) {
+  return await argon2.hash(password) // Usa defaults antiguos
+}
+
+// ✅ ACTUALIZADO (2025-2026)
+import argon2 from 'argon2'
+
+// Parámetros OWASP 2025 recomendados
+const ARGON2_CONFIG = {
+  type: argon2.argon2id,        // Híbrido (mejor defensa)
+  memoryCost: 65536,             // 64 MB (era 19 MB mínimo)
+  timeCost: 3,                   // 3 iteraciones (era 2)
+  parallelism: 1,                // 1 thread
+  hashLength: 32,                // 256 bits
+  saltLength: 16                 // 128 bits
+} as const
+
+async function hashPassword(password: string): Promise<string> {
+  // AÑADIR: Password peppering (defensa en profundidad)
+  const PEPPER = process.env.PASSWORD_PEPPER!
+  if (!PEPPER) {
+    throw new Error('PASSWORD_PEPPER must be set in environment')
+  }
+  
+  const pepperedPassword = `${password}${PEPPER}`
+  
+  const hash = await argon2.hash(pepperedPassword, ARGON2_CONFIG)
+  return hash
+}
+
+async function verifyPassword(
+  password: string,
+  hash: string
+): Promise<boolean> {
+  const PEPPER = process.env.PASSWORD_PEPPER!
+  const pepperedPassword = `${password}${PEPPER}`
+  
+  return await argon2.verify(hash, pepperedPassword)
+}
+```
+
+**Migración de Contraseñas Existentes**:
+
+```typescript
+// lib/auth.ts - Migración transparente
+
+async function login(email: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { email } })
+  
+  if (!user) {
+    // Timing-safe: delay igual que si existiera
+    await argon2.hash(password, ARGON2_CONFIG)
+    throw new Error('Invalid credentials')
+  }
+  
+  // Verificar con parámetros antiguos
+  const isValid = await argon2.verify(user.passwordHash, password)
+  
+  if (!isValid) {
+    await recordFailedLogin(user.id)
+    throw new Error('Invalid credentials')
+  }
+  
+  // ✅ RE-HASH con nuevos parámetros en login exitoso
+  const needsRehash = !user.passwordHash.startsWith('$argon2id$v=19$m=65536')
+  
+  if (needsRehash) {
+    const newHash = await hashPassword(password)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash }
+    })
+  }
+  
+  return createSession(user)
+}
+```
+
+**Añadir Pepper al .env**:
+
+```bash
+# .env
+# ⚠️ IMPORTANTE: Generar con cryptographically secure RNG
+# Este valor NUNCA debe estar en la base de datos
+PASSWORD_PEPPER="<generate_with_openssl_rand_-base64_32>"
+
+# Generar pepper:
+# node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+
+## 4️⃣ CRÍTICO: CSP CON NONCES DINÁMICOS (1 DÍA)
+
+### STRICT CSP - ESTÁNDAR 2025
+
+**Problema**: CSP estático es bypasseable
+
+**Solución**: Nonces únicos por request
+
+```typescript
+// src/middleware.ts (Next.js 16 usa proxy.ts)
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { randomBytes } from 'crypto'
+
+export function proxy(request: NextRequest) {
+  // Generar nonce único por request
+  const nonce = randomBytes(16).toString('base64')
+  
+  // CSP estricto con nonce
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https:;
+    style-src 'self' 'nonce-${nonce}';
+    img-src 'self' data: https:;
+    font-src 'self' data:;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+  `.replace(/\s{2,}/g, ' ').trim()
+  
+  // Pasar nonce a headers para que esté disponible
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', cspHeader)
+  
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders
+    }
+  })
+  
+  response.headers.set('Content-Security-Policy', cspHeader)
+  
+  return response
+}
+
+// Configuración para Next.js 16
+export const config = {
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ]
+}
+```
+
+```typescript
+// src/app/layout.tsx
+import { headers } from 'next/headers'
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const nonce = headers().get('x-nonce')
+  
+  return (
+    <html lang="es">
+      <head>
+        {/* Scripts inline DEBEN tener nonce */}
+        <script nonce={nonce} dangerouslySetInnerHTML={{
+          __html: `
+            // Analytics u otro script inline
+            window.__NONCE__ = "${nonce}";
+          `
+        }} />
+      </head>
+      <body>
+        {children}
+        
+        {/* Scripts externos también necesitan nonce */}
+        <script
+          nonce={nonce}
+          src="https://cdn.vercel-insights.com/v1/script.js"
+          defer
+        />
+      </body>
+    </html>
+  )
+}
+```
+
+
+## 5️⃣ CRÍTICO: DEFENSA CONTRA SUPPLY CHAIN ATTACKS (3 DÍAS)
+
+### IMPLEMENTAR CONTROLES MULTICAPA
+
+**Contexto**: En 2025 hubo 2 ataques masivos (Shai-Hulud 1 y 2):
+- Septiembre 2025: 18 paquetes comprometidos (2.6B descargas/semana)
+- Noviembre 2025: 500+ paquetes con worm auto-replicante
+- Métodos: Phishing a maintainers, robo de tokens npm, post-install scripts
+
+**Estrategia de Defensa en Profundidad**:
+
+### A) ACTUALIZACIÓN DE DEPENDENCIAS CON COOLDOWN
+
+```json
+// package.json
+{
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "audit": "pnpm audit --audit-level=moderate",
+    "outdated": "pnpm outdated"
+  }
+}
+```
+
+```yaml
+# .npmrc o .pnpmrc
+# Cooldown: Solo instalar paquetes con >60 días desde release
+# Protección contra paquetes recién comprometidos
+@before = "60 days ago"
+
+# Bloquear lifecycle scripts por defecto
+ignore-scripts = true
+
+# Solo permitir scripts en allowlist
+scripts-allow-list = @prisma/client,esbuild
+```
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Cooldown de 7 días antes de actualizar
+    open-pull-requests-limit: 5
+    # Solo security patches automáticas
+    versioning-strategy: increase-if-necessary
+```
+
+### B) LOCKFILE INTEGRITY
+
+```bash
+# ⚠️ CRÍTICO: SIEMPRE usar lockfile
+pnpm install --frozen-lockfile  # En CI/CD
+npm ci                          # En CI/CD (no npm install)
+
+# Verificar integridad
+pnpm audit signatures
+
+# Generar SBOM (Software Bill of Materials)
+npm sbom --sbom-format=cyclonedx > sbom.json
+```
+
+### C) MONITOREO DE LIFECYCLE SCRIPTS
+
+```typescript
+// scripts/check-lifecycle.ts
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+interface Package {
+  name: string
+  version: string
+  scripts?: {
+    preinstall?: string
+    install?: string
+    postinstall?: string
+  }
+}
+
+function checkLifecycleScripts() {
+  const packageJson: Package = JSON.parse(
+    readFileSync(join(process.cwd(), 'package.json'), 'utf-8')
+  )
+  
+  const lockfile = JSON.parse(
+    readFileSync(join(process.cwd(), 'pnpm-lock.yaml'), 'utf-8')
+  )
+  
+  const packagesWithScripts: string[] = []
+  
+  // Escanear node_modules
+  Object.keys(lockfile.packages || {}).forEach(pkg => {
+    const pkgPath = join(process.cwd(), 'node_modules', pkg, 'package.json')
+    try {
+      const pkgJson: Package = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+      
+      if (pkgJson.scripts?.preinstall || 
+          pkgJson.scripts?.install || 
+          pkgJson.scripts?.postinstall) {
+        packagesWithScripts.push(`${pkgJson.name}@${pkgJson.version}`)
+      }
+    } catch {}
+  })
+  
+  if (packagesWithScripts.length > 0) {
+    console.warn('⚠️  Packages with lifecycle scripts:')
+    packagesWithScripts.forEach(pkg => console.warn(`  - ${pkg}`))
+    console.warn('\n Review these manually before allowing in .npmrc')
+  }
+}
+
+checkLifecycleScripts()
+```
+
+### D) GITHUB ACTIONS HARDENING
+
+```yaml
+# .github/workflows/security.yml
+name: Security Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Revisar cambios en dependencias
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          deny-licenses: GPL-3.0, AGPL-3.0
+      
+      # Verificar firmas de paquetes
+      - name: Verify Package Signatures
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm audit signatures
+      
+      # Escanear con Snyk
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+      
+      # Detectar secretos
+      - name: Secret Scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+```
+
+### E) NPM TRUSTED PUBLISHING (Reemplaza Tokens)
+
+```yaml
+# .github/workflows/publish.yml
+name: Publish Package
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+  id-token: write  # ← CRÍTICO para trusted publishing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      
+      # ✅ SIN tokens - usa OIDC
+      - run: pnpm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+### F) MONITOREO ACTIVO
+
+```typescript
+// lib/supply-chain-monitor.ts
+import { execSync } from 'child_process'
+
+interface VulnerablePackage {
+  name: string
+  version: string
+  severity: 'low' | 'moderate' | 'high' | 'critical'
+  cve?: string
+}
+
+export async function monitorDependencies() {
+  // Ejecutar npm audit
+  try {
+    execSync('pnpm audit --json > audit-report.json', { stdio: 'pipe' })
+  } catch {
+    // npm audit falla si hay vulnerabilidades
+  }
+  
+  const report = JSON.parse(
+    readFileSync('audit-report.json', 'utf-8')
+  )
+  
+  const criticalVulns: VulnerablePackage[] = report.vulnerabilities
+    .filter(v => v.severity === 'critical' || v.severity === 'high')
+  
+  if (criticalVulns.length > 0) {
+    // Enviar alerta a Slack/Discord
+    await sendAlert({
+      title: '🚨 CRITICAL VULNERABILITIES DETECTED',
+      vulnerabilities: criticalVulns,
+      action: 'Review and patch immediately'
+    })
+  }
+  
+  return criticalVulns
+}
+
+// Ejecutar diariamente con cron
+```
+
+
+================================================================================
+ 🟡 MEJORAS DE ALTA PRIORIDAD (SEMANA 2-3)
+================================================================================
+
+## 6️⃣ WEBAUTHN / PASSKEYS (Autenticación Sin Contraseña)
+
+### MOTIVACIÓN
+
+Microsoft reporta que 99.9% de cuentas comprometidas carecían de MFA.
+WebAuthn elimina contraseñas completamente.
+
+**Implementación**:
+
+```bash
+pnpm add @simplewebauthn/server @simplewebauthn/browser
+```
+
+```typescript
+// lib/webauthn.ts
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from '@simplewebauthn/server'
+import type {
+  RegistrationResponseJSON,
+  AuthenticationResponseJSON,
+} from '@simplewebauthn/types'
+
+const RP_NAME = 'Tu Portafolio'
+const RP_ID = process.env.NEXT_PUBLIC_DOMAIN! // 'tudominio.com'
+const ORIGIN = process.env.NEXT_PUBLIC_URL!    // 'https://tudominio.com'
+
+// REGISTRO
+export async function generateRegistrationOptionsForUser(
+  userId: string,
+  userName: string
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { authenticators: true }
+  })
+  
+  const options = await generateRegistrationOptions({
+    rpName: RP_NAME,
+    rpID: RP_ID,
+    userID: userId,
+    userName,
+    attestationType: 'none',
+    authenticatorSelection: {
+      residentKey: 'preferred',
+      userVerification: 'preferred',
+      authenticatorAttachment: 'platform', // Touch ID, Face ID, Windows Hello
+    },
+    // Excluir authenticators ya registrados
+    excludeCredentials: user?.authenticators.map(auth => ({
+      id: Buffer.from(auth.credentialID, 'base64'),
+      type: 'public-key',
+      transports: auth.transports as AuthenticatorTransport[],
+    })) ?? [],
+  })
+  
+  // Guardar challenge temporalmente
+  await prisma.user.update({
+    where: { id: userId },
+    data: { 
+      currentChallenge: options.challenge,
+      challengeExpiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 min
+    }
+  })
+  
+  return options
+}
+
+export async function verifyRegistration(
+  userId: string,
+  response: RegistrationResponseJSON
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId }
+  })
+  
+  if (!user?.currentChallenge) {
+    throw new Error('No challenge found')
+  }
+  
+  if (user.challengeExpiresAt < new Date()) {
+    throw new Error('Challenge expired')
+  }
+  
+  const verification = await verifyRegistrationResponse({
+    response,
+    expectedChallenge: user.currentChallenge,
+    expectedOrigin: ORIGIN,
+    expectedRPID: RP_ID,
+  })
+  
+  if (!verification.verified || !verification.registrationInfo) {
+    throw new Error('Verification failed')
+  }
+  
+  const { credentialPublicKey, credentialID, counter } = verification.registrationInfo
+  
+  // Guardar authenticator
+  await prisma.authenticator.create({
+    data: {
+      userId,
+      credentialID: Buffer.from(credentialID).toString('base64'),
+      credentialPublicKey: Buffer.from(credentialPublicKey).toString('base64'),
+      counter,
+      transports: response.response.transports ?? [],
+    }
+  })
+  
+  // Limpiar challenge
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      currentChallenge: null,
+
+[CONTENIDO TRUNCADO - RESTAURACIÓN PARCIAL] 
+[NOTA: El archivo original contenía más secciones que no pudieron ser recuperadas automáticamente. Por favor restaura desde backup si es posible.]

@@ -7,17 +7,43 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync, createHash }
 
 const ARGON2_OPTIONS: argon2.Options = {
     type: argon2.argon2id,
-    memoryCost: 65536,
-    timeCost: 3,
-    parallelism: 4,
+    memoryCost: 65536,     // 64 MB
+    timeCost: 3,           // 3 iterations
+    parallelism: 1,        // 1 thread
     hashLength: 32,
 }
 
+// 🛡️ Defense in Depth: Pepper
+// A secret key stored ONLY in environment (not DB) combined with password
+const PEPPER = process.env.PASSWORD_PEPPER
+
+function getPepperedPassword(password: string): string {
+    if (!PEPPER) {
+        // Fallback for dev, or throw in prod
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('CRITICAL: PASSWORD_PEPPER is not configured.')
+        }
+        return password
+    }
+    return `${password}${PEPPER}`
+}
+
 export async function hashPassword(password: string): Promise<string> {
-    return argon2.hash(password, ARGON2_OPTIONS)
+    const peppered = getPepperedPassword(password)
+    return argon2.hash(peppered, ARGON2_OPTIONS)
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+    try {
+        const peppered = getPepperedPassword(password)
+        if (await argon2.verify(hash, peppered)) {
+            return true
+        }
+    } catch {
+        // Ignore error, proceed to fallback
+    }
+
+    // Fallback: Check without pepper (for migration / legacy hashes)
     try {
         return await argon2.verify(hash, password)
     } catch {

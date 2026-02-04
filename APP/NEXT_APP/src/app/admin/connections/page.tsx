@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Users } from "lucide-react";
-import ConnectionManager from "@/components/user/ConnectionManager";
+import CollaborationHub from "@/components/user/CollaborationHub";
 
 export const metadata = {
     title: "Conexiones | Admin Panel",
@@ -38,8 +38,8 @@ export default async function ConnectionsPage() {
                 </p>
             </div>
 
-            <ConnectionManager
-                sharingCode={user.sharingCode || "No disponible"}
+            <CollaborationHub
+                initialSharingCode={user.sharingCode || "No disponible"}
                 currentUserId={user.id}
             />
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { DollarSign, X, CreditCard, Banknote, Building2, Wallet, Bitcoin, HelpCircle, Calendar, FileText, Check } from "lucide-react";
 import { toast } from "sonner";
+import { useCallback } from "react";
 import type { PaymentMethod } from "@prisma/client";
 
 interface PaymentModalProps {
@@ -56,13 +57,7 @@ export default function PaymentModal({
     const remaining = total - totalPaid;
     const percentagePaid = total > 0 ? Math.min(100, (totalPaid / total) * 100) : 0;
 
-    useEffect(() => {
-        if (isOpen) {
-            loadPaymentHistory();
-        }
-    }, [isOpen, quotationId]);
-
-    const loadPaymentHistory = async () => {
+    const loadPaymentHistory = useCallback(async () => {
         setIsLoadingHistory(true);
         try {
             const response = await fetch(`/api/quotations/payments?quotationId=${quotationId}`);
@@ -75,7 +70,13 @@ export default function PaymentModal({
         } finally {
             setIsLoadingHistory(false);
         }
-    };
+    }, [quotationId]);
+
+    useEffect(() => {
+        if (isOpen) {
+            loadPaymentHistory();
+        }
+    }, [isOpen, loadPaymentHistory]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -257,8 +258,8 @@ export default function PaymentModal({
                                                 type="button"
                                                 onClick={() => setMethod(pm.value)}
                                                 className={`p-3 rounded-lg border text-center transition-colors ${method === pm.value
-                                                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-                                                        : "border-slate-700 text-slate-400 hover:border-slate-600"
+                                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+                                                    : "border-slate-700 text-slate-400 hover:border-slate-600"
                                                     }`}
                                             >
                                                 <PMIcon className="w-5 h-5 mx-auto mb-1" />

@@ -5,7 +5,6 @@ import { getClientsWithSearchAction, deleteClientAction } from "../../../modules
 import { Search, Trash2, User, Key, Plus, FileText, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import ClientSecurityManager from "./security-manager";
 import ContactInfoModal from "./contact-info-modal";
 import CreateClientModal from "../cotizaciones/components/CreateClientModal";
 
@@ -126,12 +125,15 @@ export default function ClientsPageClient({ currentUserId, isSuperAdmin }: Clien
                                     </div>
                                 )}
 
-                                {/* Security: Access Code Rotation */}
-                                <ClientSecurityManager clientId={client.id} clientName={client.name} />
+
                             </div>
 
                             <div className="mt-6 flex gap-2">
-                                <ContactInfoModal client={client} onUpdate={() => fetchClients(true)} />
+                                <ContactInfoModal
+                                    client={client}
+                                    onUpdate={() => fetchClients(true)}
+                                    canDelete={isSuperAdmin || client.userId === currentUserId}
+                                />
 
                                 <Link
                                     href={`/admin/cotizaciones/${client.id}`}

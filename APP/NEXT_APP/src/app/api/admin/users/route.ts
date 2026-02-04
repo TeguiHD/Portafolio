@@ -29,7 +29,9 @@ export async function GET() {
                         quotations: true,
                         sessions: true,
                     }
-                }
+                },
+                deletionStatus: true,
+                deletionScheduledAt: true,
             },
             orderBy: { createdAt: "desc" }
         });
@@ -166,7 +168,15 @@ export async function PATCH(request: Request) {
             data.role = role;
         }
 
-        if (typeof isActive === "boolean") data.isActive = isActive;
+        if (typeof isActive === "boolean") {
+            data.isActive = isActive;
+            // If reactivating, also reset deletion status
+            if (isActive) {
+                data.deletionStatus = "ACTIVE";
+                data.deletionScheduledAt = null;
+                data.deletedAt = null;
+            }
+        }
         if (password) {
             data.password = await hashPassword(password);
         }

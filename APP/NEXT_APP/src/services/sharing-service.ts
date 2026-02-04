@@ -194,7 +194,7 @@ export async function redeemShareCode(
 
         // Transaction: Create shared client record and update code usage atomically
         // Using "Prisma optimistic concurrency control" logic effectively by checking the condition in update
-        const transactionResult = await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx) => {
             // Attempt to update - will throw/return 0 results if condition fails
             // Note: Prisma updateMany returns count, update returns record but throws if not found
             // Since we need the ID, let's use check-then-act with SERIALIZABLE isolation or row locking if possible.

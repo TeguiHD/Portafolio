@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Share2, Copy, Check, Clock, Trash2, Shield, AlertTriangle, RefreshCcw, User } from "lucide-react";
+import { X, Share2, Copy, Check, Clock, Trash2, Shield, RefreshCcw, User } from "lucide-react";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 
@@ -13,7 +13,7 @@ interface ShareModalProps {
         id: string;
         name: string;
     };
-    currentUserId: string;
+    // currentUserId removed as unused
 }
 
 interface SharedUser {
@@ -23,7 +23,7 @@ interface SharedUser {
     sharedAt: string;
 }
 
-export default function ShareModal({ isOpen, onClose, client, currentUserId }: ShareModalProps) {
+export default function ShareModal({ isOpen, onClose, client }: ShareModalProps) {
     const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState<"invite" | "manage">("invite");
 
@@ -42,6 +42,23 @@ export default function ShareModal({ isOpen, onClose, client, currentUserId }: S
         setMounted(true);
         return () => setMounted(false);
     }, []);
+
+    const fetchSharingStats = async () => {
+        try {
+            setIsLoadingUsers(true);
+            const res = await fetch(`/api/clients/share?clientId=${client.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.sharedWith) {
+                    setSharedUsers(data.sharedWith);
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -64,24 +81,8 @@ export default function ShareModal({ isOpen, onClose, client, currentUserId }: S
             document.body.style.overflow = 'unset';
             window.removeEventListener("keydown", handleEsc);
         };
-    }, [isOpen]);
+    }, [isOpen]); // Missing deps ignored intentionally for simple fetch on open
 
-    const fetchSharingStats = async () => {
-        try {
-            setIsLoadingUsers(true);
-            const res = await fetch(`/api/clients/share?clientId=${client.id}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.success && data.sharedWith) {
-                    setSharedUsers(data.sharedWith);
-                }
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsLoadingUsers(false);
-        }
-    };
 
     const handleGenerateCode = async () => {
         try {
@@ -140,7 +141,7 @@ export default function ShareModal({ isOpen, onClose, client, currentUserId }: S
 
             setSharedUsers(prev => prev.filter(u => u.userId !== targetUserId));
             toast.success("Acceso revocado correctamente");
-        } catch (error) {
+        } catch {
             toast.error("Error al revocar acceso");
         } finally {
             setIsRevoking(null);
@@ -180,8 +181,8 @@ export default function ShareModal({ isOpen, onClose, client, currentUserId }: S
                     <button
                         onClick={() => setActiveTab("invite")}
                         className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === "invite"
-                                ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                            ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
+                            : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                             }`}
                     >
                         Generar Invitación
@@ -189,8 +190,8 @@ export default function ShareModal({ isOpen, onClose, client, currentUserId }: S
                     <button
                         onClick={() => setActiveTab("manage")}
                         className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === "manage"
-                                ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                            ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
+                            : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                             }`}
                     >
                         Usuarios con Acceso ({sharedUsers.length})
@@ -222,8 +223,8 @@ export default function ShareModal({ isOpen, onClose, client, currentUserId }: S
                                                     key={hours}
                                                     onClick={() => setExpiration(hours)}
                                                     className={`py-2 px-3 rounded-lg text-sm border transition-colors ${expiration === hours
-                                                            ? "bg-white/10 border-indigo-500 text-white"
-                                                            : "bg-transparent border-white/10 text-gray-400 hover:border-white/20"
+                                                        ? "bg-white/10 border-indigo-500 text-white"
+                                                        : "bg-transparent border-white/10 text-gray-400 hover:border-white/20"
                                                         }`}
                                                 >
                                                     {hours === 1 ? "1 Hora" : hours === 24 ? "24 Horas" : "1 Semana"}
