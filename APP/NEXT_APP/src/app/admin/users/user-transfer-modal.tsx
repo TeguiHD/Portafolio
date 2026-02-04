@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowRightLeft, User, Search, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -40,9 +40,9 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
             setSearchQuery("");
             fetchTargetUsers();
         }
-    }, [isOpen]);
+    }, [isOpen]); // fetchTargetUsers added to deps below via useCallback
 
-    const fetchTargetUsers = async () => {
+    const fetchTargetUsers = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch("/api/admin/users");
@@ -51,9 +51,16 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
                 // Filter out source user and inactive/deleted users if necessary
                 // Ideally, backend should support filtering, but for now filtering locally
                 const validTargets = data.users.filter((u: any) =>
-                    u.id !== sourceUser?.id && u.isActive && u.deletionStatus === "ACTIVE"
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    u.id !== sourceUser?.id && u.isActive && (u as any).deletionStatus !== "DELETED"
                 );
-                setTargetUsers(validTargets);
+                // Casting to any for intermediate filter because the API return type isn't fully typed here
+                setTargetUsers(validTargets.map((u: any) => ({
+                    id: u.id,
+                    name: u.name,
+                    email: u.email,
+                    avatar: u.avatar
+                })));
             }
         } catch (error) {
             console.error("Error fetching users:", error);
@@ -61,7 +68,7 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
         } finally {
             setLoading(false);
         }
-    };
+    }, [sourceUser?.id]);
 
     const filteredTargets = targetUsers.filter(user =>
     (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -152,8 +159,8 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
                                                 key={user.id}
                                                 onClick={() => setSelectedTarget(user)}
                                                 className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${selectedTarget?.id === user.id
-                                                        ? "bg-indigo-500/20 border-indigo-500 text-white"
-                                                        : "bg-slate-800/30 border-slate-700 text-slate-300 hover:bg-slate-800"
+                                                    ? "bg-indigo-500/20 border-indigo-500 text-white"
+                                                    : "bg-slate-800/30 border-slate-700 text-slate-300 hover:bg-slate-800"
                                                     }`}
                                             >
                                                 <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">

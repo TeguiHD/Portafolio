@@ -87,7 +87,7 @@ export default function ConnectionManager({ sharingCode, currentUserId }: { shar
 
             toast.success(status === "ACCEPTED" ? "Conexión aceptada" : "Solicitud rechazada");
             fetchConnections();
-        } catch (error) {
+        } catch {
             toast.error("Error al procesar la solicitud");
         }
     };

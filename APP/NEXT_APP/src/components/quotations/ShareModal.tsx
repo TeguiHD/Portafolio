@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Share2, Copy, Check, Clock, Trash2, Shield, RefreshCcw, User } from "lucide-react";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
@@ -43,7 +43,7 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
         return () => setMounted(false);
     }, []);
 
-    const fetchSharingStats = async () => {
+    const fetchSharingStats = useCallback(async () => {
         try {
             setIsLoadingUsers(true);
             const res = await fetch(`/api/clients/share?clientId=${client.id}`);
@@ -58,7 +58,7 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
         } finally {
             setIsLoadingUsers(false);
         }
-    };
+    }, [client.id]);
 
     useEffect(() => {
         if (isOpen) {
@@ -81,7 +81,7 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
             document.body.style.overflow = 'unset';
             window.removeEventListener("keydown", handleEsc);
         };
-    }, [isOpen]); // Missing deps ignored intentionally for simple fetch on open
+    }, [isOpen, onClose, fetchSharingStats]);
 
 
     const handleGenerateCode = async () => {

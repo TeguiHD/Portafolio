@@ -180,7 +180,7 @@ export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyM
                     isOpen={showShareModal}
                     onClose={() => setShowShareModal(false)}
                     client={client}
-                    // @ts-ignore - Prop exists in share modal but interface lagging
+                    // @ts-expect-error - Prop exists in share modal but interface lagging
                     currentUserId={currentUserId}
                 />
             )}

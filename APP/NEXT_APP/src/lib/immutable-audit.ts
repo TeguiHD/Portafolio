@@ -1,6 +1,6 @@
 
 import { prisma } from "@/lib/prisma"
-import { createHash, randomBytes, createSign } from "crypto"
+import { createHash } from "crypto"
 
 /**
  * Immutable Audit Log System
@@ -71,7 +71,8 @@ export async function createImmutableAuditLog(event: AuditEvent) {
                 targetId: event.targetId,
                 targetType: event.targetType,
                 ipAddress: event.ipAddress,
-                metadata: event.metadata as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                metadata: (event.metadata ?? {}) as any,
                 previousHash,
                 currentHash,
                 signature,

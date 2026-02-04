@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+// import { motion, AnimatePresence } from "framer-motion"; // Unused currently
 import {
     Users, Share2, ArrowRightLeft, Shield, RefreshCw, Copy,
     Check, X, Link as LinkIcon, Activity, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 
 // Types
 interface Connection {
@@ -42,11 +42,7 @@ export default function CollaborationHub({
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ active: 0, pending: 0, blocked: 0 });
 
-    useEffect(() => {
-        fetchConnections();
-    }, []);
-
-    const fetchConnections = async () => {
+    const fetchConnections = useCallback(async () => {
         try {
             const res = await fetch("/api/user/connection");
             if (res.ok) {
@@ -63,7 +59,11 @@ export default function CollaborationHub({
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentUserId]);
+
+    useEffect(() => {
+        fetchConnections();
+    }, [fetchConnections]);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">

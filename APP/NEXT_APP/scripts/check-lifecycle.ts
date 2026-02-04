@@ -58,13 +58,13 @@ function checkLifecycleScripts() {
                                 pkgJson.scripts?.postinstall) {
                                 packagesWithScripts.push(`${pkgJson.name}@${pkgJson.version}`)
                             }
-                        } catch (e) {
+                        } catch {
                             // ignore read errors
                         }
                     }
                 }
             }
-        } catch (e) {
+        } catch {
             // ignore
         }
     }

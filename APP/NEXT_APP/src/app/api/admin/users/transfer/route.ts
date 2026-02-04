@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { verifySuperAdminForApi } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
-import { createAuditLog, AuditActions } from "@/lib/audit";
+import { createAuditLog } from "@/lib/audit";
 import { z } from "zod";
 
 const transferSchema = z.object({

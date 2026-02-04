@@ -91,6 +91,13 @@ export default function UsersPageClient() {
         user: User | null;
     }>({ isOpen: false, user: null });
 
+    // Transfer Modal State
+    const router = useRouter();
+    const [transferModal, setTransferModal] = useState<{
+        isOpen: boolean;
+        sourceUser: User | null;
+    }>({ isOpen: false, sourceUser: null });
+
     useEffect(() => {
         fetchUsers();
     }, []);
@@ -260,12 +267,6 @@ export default function UsersPageClient() {
     if (loading) {
         return <UsersPageSkeleton />;
     }
-
-    const router = useRouter();
-    const [transferModal, setTransferModal] = useState<{
-        isOpen: boolean;
-        sourceUser: User | null;
-    }>({ isOpen: false, sourceUser: null });
 
     return (
         <div className="space-y-6">
