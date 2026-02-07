@@ -8,6 +8,8 @@ import { checkRateLimitAtomic } from "@/lib/rate-limit";
 const RATE_LIMIT = 5;  // requests per window
 const RATE_WINDOW_MS = 5 * 60 * 1000;  // 5 minutes
 const COOKIE_NAME = "__rl_id";
+const MAX_REGEX_LENGTH = 500;
+const VALID_REGEX_FLAGS = /^[gimsuydv]*$/;
 
 // Generate a simple hash
 function hash(input: string): string {
@@ -85,6 +87,20 @@ export async function POST(request: NextRequest) {
                 );
             }
 
+            if (regex.length > MAX_REGEX_LENGTH) {
+                return NextResponse.json(
+                    { error: `Patrón regex demasiado largo (máx ${MAX_REGEX_LENGTH} caracteres)` },
+                    { status: 400, headers: responseHeaders }
+                );
+            }
+
+            if (flags && (typeof flags !== "string" || !VALID_REGEX_FLAGS.test(flags))) {
+                return NextResponse.json(
+                    { error: "Flags regex inválidos" },
+                    { status: 400, headers: responseHeaders }
+                );
+            }
+
             const examplesResult = await generateExamplesForRegex(regex, flags || "g");
 
             // Log examples generation
@@ -129,6 +145,20 @@ export async function POST(request: NextRequest) {
             if (!regex || typeof regex !== "string") {
                 return NextResponse.json(
                     { error: "Se requiere un patrón regex válido" },
+                    { status: 400, headers: responseHeaders }
+                );
+            }
+
+            if (regex.length > MAX_REGEX_LENGTH) {
+                return NextResponse.json(
+                    { error: `Patrón regex demasiado largo (máx ${MAX_REGEX_LENGTH} caracteres)` },
+                    { status: 400, headers: responseHeaders }
+                );
+            }
+
+            if (flags && (typeof flags !== "string" || !VALID_REGEX_FLAGS.test(flags))) {
+                return NextResponse.json(
+                    { error: "Flags regex inválidos" },
                     { status: 400, headers: responseHeaders }
                 );
             }
