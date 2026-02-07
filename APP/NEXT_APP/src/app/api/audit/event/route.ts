@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createAuditLog, AuditActions, AuditCategory } from "@/lib/audit";
 
+const PUBLIC_ALLOWED_ACTIONS = new Set<string>([AuditActions.LOGIN_FAILED]);
+const MAX_METADATA_SIZE = 2_000;
+
 /**
  * POST /api/audit/event
  * Records an audit event from the client side
@@ -25,6 +28,21 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Invalid category" }, { status: 400 });
         }
 
+        // Security: prevent unauthenticated forging of privileged audit events
+        if (!session?.user?.id) {
+            if (category !== "auth" || !PUBLIC_ALLOWED_ACTIONS.has(action)) {
+                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
+        }
+
+        // Guard against oversized metadata payloads (log flooding / storage abuse)
+        if (metadata !== undefined) {
+            const metadataSize = JSON.stringify(metadata).length;
+            if (metadataSize > MAX_METADATA_SIZE) {
+                return NextResponse.json({ error: "Metadata too large" }, { status: 400 });
+            }
+        }
+
         // Get client info
         const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0] ||
             request.headers.get("x-real-ip") ||
@@ -35,7 +53,7 @@ export async function POST(request: NextRequest) {
             action,
             category,
             userId: session?.user?.id || null,
-            metadata: metadata || {},
+            metadata: (metadata && typeof metadata === "object") ? metadata : {},
             ipAddress,
             userAgent,
         });
