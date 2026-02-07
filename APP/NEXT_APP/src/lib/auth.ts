@@ -39,6 +39,10 @@ function generateTokenId(): string {
     return randomBytes(32).toString("hex");
 }
 
+const fingerprintSecret = process.env.ENCRYPTION_KEY
+    || process.env.NEXTAUTH_SECRET
+    || randomBytes(32).toString("hex")
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
         Credentials({
@@ -150,7 +154,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         ['accept-language', headersList.get('accept-language') || ''],
                         ['accept-encoding', headersList.get('accept-encoding') || '']
                     ]),
-                    process.env.ENCRYPTION_KEY || 'secret'
+                    fingerprintSecret
                 )
                 const anomalyScore = detectAnomalies(user.id, fingerprint)
 
