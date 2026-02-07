@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateRegexWithAI, generateExamplesForRegex, generateCodeForRegex } from "@/services/gemini";
 import { prisma } from "@/lib/prisma";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { checkRateLimitAtomic } from "@/lib/rate-limit";
 
 // Configuration
@@ -18,11 +18,11 @@ function hash(input: string): string {
 
 // Extract client IP
 function getClientIP(request: NextRequest): string {
-    return request.headers.get("x-forwarded-for")?.split(",")[0].trim()
+ cookieId is now derived from ip|fingerprint. Since this cookie is only used for metadata, deriving it from potentially identifying request data makes it predictable and it will change if the user's IP changes (reducing its usefulness as a stable client marker). Consider generating a random, CSPRNG-based ID for the cookie value (and keeping it independent from ip/fingerprint), while continuing to use the stable ip|fingerprint-based identifier for rate limiting.   return request.headers.get("x-forwarded-for")?.split(",")[0].trim()cookieId is now derived from ip|fingerprint. Since this cookie is only used for metadata, deriving it from potentially identifying request data makes it predictable and it will change if the user's IP changes (reducing its usefulness as a stable client marker). Consider generating a random, CSPRNG-based ID for the cookie value (and keeping it independent from ip/fingerprint), while continuing to use the stable ip|fingerprint-based identifier for rate limiting.
         || request.headers.get("x-real-ip")
         || "unknown";
 }
-
+cookieId is now derived from ip|fingerprint. Since this cookie is only used for metadata, deriving it from potentially identifying request data makes it predictable and it will change if the user's IP changes (reducing its usefulness as a stable client marker). Consider generating a random, CSPRNG-based ID for the cookie value (and keeping it independent from ip/fingerprint), while continuing to use the stable ip|fingerprint-based identifier for rate limiting.
 // Generate browser fingerprint from headers
 function getFingerprint(request: NextRequest): string {
     const parts = [
@@ -35,10 +35,16 @@ function getFingerprint(request: NextRequest): string {
     return hash(parts.join("|"));
 }
 
+
+function generateCookieId(): string {
+    return randomBytes(16).toString("hex");
+}
+
 export async function POST(request: NextRequest) {
     const ip = getClientIP(request);
     const fingerprint = getFingerprint(request);
     const existingCookieId = request.cookies.get(COOKIE_NAME)?.value;
+    const cookieId = existingCookieId || generateCookieId();
     const cookieId = existingCookieId || hash(`${ip}|${fingerprint}`);
     const isNewCookie = !existingCookieId;
 
