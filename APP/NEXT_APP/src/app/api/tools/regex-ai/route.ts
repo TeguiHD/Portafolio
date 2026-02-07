@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateRegexWithAI, generateExamplesForRegex, generateCodeForRegex } from "@/services/gemini";
 import { prisma } from "@/lib/prisma";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { checkRateLimitAtomic } from "@/lib/rate-limit";
 
 // Configuration
@@ -33,22 +33,20 @@ function getFingerprint(request: NextRequest): string {
     return hash(parts.join("|"));
 }
 
-// Get or create cookie ID
-function getCookieId(request: NextRequest): string {
-    const existing = request.cookies.get(COOKIE_NAME)?.value;
-    if (existing) return existing;
-    // Generate new ID (will be set in response)
-    return hash(Date.now().toString() + Math.random().toString());
+
+function generateCookieId(): string {
+    return randomBytes(16).toString("hex");
 }
 
 export async function POST(request: NextRequest) {
     const ip = getClientIP(request);
     const fingerprint = getFingerprint(request);
-    const cookieId = getCookieId(request);
-    const isNewCookie = !request.cookies.get(COOKIE_NAME)?.value;
+    const existingCookieId = request.cookies.get(COOKIE_NAME)?.value;
+    const cookieId = existingCookieId || generateCookieId();
+    const isNewCookie = !existingCookieId;
 
-    // SECURITY: Check rate limit with atomic operations to prevent bypass via concurrent requests
-    const identifier = hash(`${ip}|${fingerprint}|${cookieId}`);
+    // SECURITY: use stable identifiers only (IP + fingerprint) to avoid cookie-reset bypass
+    const identifier = hash(`${ip}|${fingerprint}`);
     const rateCheck = await checkRateLimitAtomic({
         limit: RATE_LIMIT,
         windowMs: RATE_WINDOW_MS,
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     // Set cookie if new
     if (isNewCookie) {
-        responseHeaders["Set-Cookie"] = `${COOKIE_NAME}=${cookieId}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000`;
+        responseHeaders["Set-Cookie"] = `${COOKIE_NAME}=${cookieId}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000`;
     }
 
     if (!rateCheck.allowed) {

@@ -3,6 +3,17 @@
 import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
+
+function sanitizeCallbackUrl(raw: string | null): string {
+    if (!raw) return "/admin";
+
+    // Allow only internal relative paths (prevent open redirect)
+    if (!raw.startsWith("/")) return "/admin";
+    if (raw.startsWith("//")) return "/admin";
+    if (raw.includes("://")) return "/admin";
+
+    return raw;
+}
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { ParticleBackground } from "@/components/ParticleBackground";
@@ -10,7 +21,7 @@ import { useToast } from "@/components/ui/Toast";
 
 function LoginForm() {
     const searchParams = useSearchParams();
-    const callbackUrl = searchParams.get("callbackUrl") || "/admin";
+    const callbackUrl = sanitizeCallbackUrl(searchParams.get("callbackUrl"));
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
