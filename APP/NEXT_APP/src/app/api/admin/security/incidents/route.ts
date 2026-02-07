@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SecuritySeverity } from "@prisma/client";
 import { hasPermission } from "@/lib/permission-check";
 import type { Role } from "@prisma/client";
+import { z } from "zod";
+
+
+const createIncidentSchema = z.object({
+    type: z.string().trim().min(1).max(100),
+    severity: z.nativeEnum(SecuritySeverity).optional(),
+    ipHash: z.string().trim().min(1).max(255),
+    path: z.string().trim().max(500).optional(),
+    userAgent: z.string().trim().max(500).optional(),
+    userId: z.string().trim().max(100).optional(),
+    details: z.unknown().optional(),
+});
+
+function safeEqual(secret: string, provided: string): boolean {
+    const secretBuffer = Buffer.from(secret);
+    const providedBuffer = Buffer.from(provided);
+
+    if (secretBuffer.length !== providedBuffer.length) {
+        return false;
+    }
+
+    return timingSafeEqual(secretBuffer, providedBuffer);
+}
 
 // GET: List security incidents with filters
 export async function GET(request: NextRequest) {
@@ -77,31 +101,42 @@ export async function GET(request: NextRequest) {
 // POST: Create a new security incident (internal use)
 export async function POST(request: NextRequest) {
     try {
-        // This endpoint is for internal use - verify with internal secret
+        // This endpoint is for internal use - prefer dedicated internal secret auth
         const authHeader = request.headers.get("x-internal-secret");
-        const internalSecret = process.env.ENCRYPTION_KEY;
+        const internalSecret = process.env.INTERNAL_API_SECRET;
+        const authenticatedWithSecret = Boolean(
+            authHeader && internalSecret && safeEqual(internalSecret, authHeader)
+        );
 
-        // Allow if internal secret matches OR if called from server context
-        if (authHeader !== internalSecret) {
-            // Check if admin session exists as fallback
+        if (!authenticatedWithSecret) {
             const session = await auth();
-            const userRole = (session?.user as { role?: string })?.role;
 
-            if (!session?.user || (userRole !== "ADMIN" && userRole !== "SUPERADMIN")) {
+            if (!session?.user?.id) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
+
+            const canCreate = await hasPermission(
+                session.user.id,
+                session.user.role as Role,
+                "security.incidents.create"
+            );
+
+            if (!canCreate) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
             }
         }
 
         const body = await request.json();
-        const { type, severity, ipHash, path, userAgent, userId, details } = body;
+        const validation = createIncidentSchema.safeParse(body);
 
-        // Validate required fields
-        if (!type || !ipHash) {
+        if (!validation.success) {
             return NextResponse.json(
-                { error: "Missing required fields: type, ipHash" },
+                { error: "Invalid incident payload", details: validation.error.issues },
                 { status: 400 }
             );
         }
+
+        const { type, severity, ipHash, path, userAgent, userId, details } = validation.data;
 
         // Create incident
         const incident = await prisma.securityIncident.create({
