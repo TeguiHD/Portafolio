@@ -332,7 +332,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
         },
     },
-    // SECURITY: Trust host for localhost development
-    // In production, NEXTAUTH_URL should be set to your domain
-    trustHost: true,
+    // SECURITY: only trust Host header in local development
+    // Prevent host-header based callback poisoning in production
+    trustHost: process.env.NODE_ENV !== "production",
 })
