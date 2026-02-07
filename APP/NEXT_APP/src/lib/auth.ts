@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { randomBytes } from "crypto"
 import { prisma } from "@/lib/prisma"
 import { verifyPassword, hashEmail, decryptEmail, checkRateLimit, resetRateLimit } from "@/lib/security.server"
 import { generateFingerprint, detectAnomalies } from "@/lib/security-hardened"
@@ -35,8 +36,12 @@ declare module "@auth/core/jwt" {
 
 // Generate a unique token ID
 function generateTokenId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    return randomBytes(32).toString("hex");
 }
+
+const fingerprintSecret = process.env.ENCRYPTION_KEY
+    || process.env.NEXTAUTH_SECRET
+    || randomBytes(32).toString("hex")
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
@@ -149,7 +154,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         ['accept-language', headersList.get('accept-language') || ''],
                         ['accept-encoding', headersList.get('accept-encoding') || '']
                     ]),
-                    process.env.ENCRYPTION_KEY || 'secret'
+                    fingerprintSecret
                 )
                 const anomalyScore = detectAnomalies(user.id, fingerprint)
 
