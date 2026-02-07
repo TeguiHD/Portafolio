@@ -18,11 +18,11 @@ function hash(input: string): string {
 
 // Extract client IP
 function getClientIP(request: NextRequest): string {
- cookieId is now derived from ip|fingerprint. Since this cookie is only used for metadata, deriving it from potentially identifying request data makes it predictable and it will change if the user's IP changes (reducing its usefulness as a stable client marker). Consider generating a random, CSPRNG-based ID for the cookie value (and keeping it independent from ip/fingerprint), while continuing to use the stable ip|fingerprint-based identifier for rate limiting.   return request.headers.get("x-forwarded-for")?.split(",")[0].trim()cookieId is now derived from ip|fingerprint. Since this cookie is only used for metadata, deriving it from potentially identifying request data makes it predictable and it will change if the user's IP changes (reducing its usefulness as a stable client marker). Consider generating a random, CSPRNG-based ID for the cookie value (and keeping it independent from ip/fingerprint), while continuing to use the stable ip|fingerprint-based identifier for rate limiting.
+    return request.headers.get("x-forwarded-for")?.split(",")[0].trim()
         || request.headers.get("x-real-ip")
         || "unknown";
 }
-cookieId is now derived from ip|fingerprint. Since this cookie is only used for metadata, deriving it from potentially identifying request data makes it predictable and it will change if the user's IP changes (reducing its usefulness as a stable client marker). Consider generating a random, CSPRNG-based ID for the cookie value (and keeping it independent from ip/fingerprint), while continuing to use the stable ip|fingerprint-based identifier for rate limiting.
+
 // Generate browser fingerprint from headers
 function getFingerprint(request: NextRequest): string {
     const parts = [
@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
     const fingerprint = getFingerprint(request);
     const existingCookieId = request.cookies.get(COOKIE_NAME)?.value;
     const cookieId = existingCookieId || generateCookieId();
-    const cookieId = existingCookieId || hash(`${ip}|${fingerprint}`);
     const isNewCookie = !existingCookieId;
 
     // SECURITY: use stable identifiers only (IP + fingerprint) to avoid cookie-reset bypass
