@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { randomBytes } from "crypto"
 import { prisma } from "@/lib/prisma"
 import { verifyPassword, hashEmail, decryptEmail, checkRateLimit, resetRateLimit } from "@/lib/security.server"
 import { generateFingerprint, detectAnomalies } from "@/lib/security-hardened"
@@ -35,7 +36,7 @@ declare module "@auth/core/jwt" {
 
 // Generate a unique token ID
 function generateTokenId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    return randomBytes(32).toString("hex");
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
