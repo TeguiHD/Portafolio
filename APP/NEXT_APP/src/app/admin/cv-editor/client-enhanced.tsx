@@ -89,12 +89,28 @@ export default function CvEditorPageClientEnhanced() {
             const res = await fetch(`/api/cv/${id}`);
             if (res.ok) {
                 const version = await res.json();
-                // Merge with initial data to ensure all fields exist
+                // Reconstruct socialNetworks from persisted personalInfo fields
+                const pi = version.data?.personalInfo;
+                const reconstructedNetworks: SocialNetwork[] = [];
+                if (pi?.linkedin) {
+                    reconstructedNetworks.push({ network: "LinkedIn", username: pi.linkedin });
+                }
+                if (pi?.github) {
+                    reconstructedNetworks.push({ network: "GitHub", username: pi.github });
+                }
+                if (pi?.website) {
+                    reconstructedNetworks.push({ network: "Website", username: pi.website });
+                }
+                // Use saved socialNetworks if available, otherwise reconstruct from persisted fields
+                const savedNetworks = version.data?.socialNetworks || version.data?.personalInfo?.socialNetworks;
+                const socialNetworks = (savedNetworks && savedNetworks.length > 0) ? savedNetworks : reconstructedNetworks;
+
                 setData({
                     ...initialData,
                     ...(version.data as ExtendedCvData),
                     certifications: version.data?.certifications || [],
                     languages: version.data?.languages || [],
+                    socialNetworks,
                 });
                 if (version.designConfig) {
                     setDesignConfig({ ...DEFAULT_DESIGN_CONFIG, ...version.designConfig });
@@ -401,10 +417,17 @@ export default function CvEditorPageClientEnhanced() {
                 </div>
             </div>
 
-            {/* Theme/Language Quick Info */}
-            <div className="flex items-center gap-4 text-sm">
+            {/* Theme/Language/Layout Quick Info */}
+            <div className="flex items-center gap-4 text-sm flex-wrap">
                 <span className="text-neutral-400">
                     Tema: <span className="text-white">{designConfig.theme}</span>
+                </span>
+                <span className="text-neutral-600">•</span>
+                <span className="text-neutral-400">
+                    Formato: <span className="text-white">{
+                        designConfig.layout === "two-column-sidebar" ? "Sidebar" :
+                            designConfig.layout === "compact-grid" ? "Grid" : "Clásico"
+                    }</span>
                 </span>
                 <span className="text-neutral-600">•</span>
                 <span className="text-neutral-400">
@@ -412,7 +435,7 @@ export default function CvEditorPageClientEnhanced() {
                 </span>
                 <span className="text-neutral-600">•</span>
                 <span className="text-neutral-400">
-                    Formato: <span className="text-white">{designConfig.page.size.toUpperCase()}</span>
+                    Página: <span className="text-white">{designConfig.page.size.toUpperCase()}</span>
                 </span>
             </div>
 
@@ -518,8 +541,16 @@ export default function CvEditorPageClientEnhanced() {
                                                 networks={data.socialNetworks || data.personalInfo.socialNetworks || []}
                                                 onChange={(networks) => {
                                                     updateData({ socialNetworks: networks });
-                                                    // Also update personalInfo for backward compatibility
-                                                    updatePersonalInfo({ socialNetworks: networks });
+                                                    // Sync back to personalInfo fields for DB persistence
+                                                    const linkedinNet = networks.find(n => n.network === "LinkedIn");
+                                                    const githubNet = networks.find(n => n.network === "GitHub");
+                                                    const websiteNet = networks.find(n => n.network === "Website");
+                                                    updatePersonalInfo({
+                                                        socialNetworks: networks,
+                                                        linkedin: linkedinNet?.username || "",
+                                                        github: githubNet?.username || "",
+                                                        website: websiteNet?.username || "",
+                                                    });
                                                 }}
                                             />
                                         </div>

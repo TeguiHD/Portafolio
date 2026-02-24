@@ -83,8 +83,11 @@ export function CertificationsSection({ certifications, onChange }: Certificatio
                                     onClick={() => setExpandedId(expandedId === cert.id ? null : cert.id)}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-sm">
-                                            {index + 1}
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${cert.type === "award" ? "bg-yellow-500/20 text-yellow-400" :
+                                                cert.type === "honor" ? "bg-blue-500/20 text-blue-400" :
+                                                    "bg-amber-500/20 text-amber-400"
+                                            }`}>
+                                            {cert.type === "award" ? "🏆" : cert.type === "honor" ? "⭐" : (index + 1)}
                                         </div>
                                         <div>
                                             <p className="font-medium text-white">
@@ -92,6 +95,12 @@ export function CertificationsSection({ certifications, onChange }: Certificatio
                                             </p>
                                             <p className="text-sm text-neutral-400">
                                                 {cert.issuer || "Emisor"} • {cert.date || "Fecha"}
+                                                {cert.type && cert.type !== "certification" && (
+                                                    <span className={`ml-2 px-1.5 py-0.5 rounded text-xs ${cert.type === "award" ? "bg-yellow-500/20 text-yellow-400" : "bg-blue-500/20 text-blue-400"
+                                                        }`}>
+                                                        {cert.type === "award" ? "Premio" : "Reconocimiento"}
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
                                     </div>
@@ -128,7 +137,33 @@ export function CertificationsSection({ certifications, onChange }: Certificatio
                                             className="overflow-hidden"
                                         >
                                             <div className="p-4 pt-0 space-y-4 border-t border-white/10">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                                                {/* Type selector */}
+                                                <div className="pt-4">
+                                                    <label className="block text-sm text-neutral-400 mb-2">
+                                                        Tipo
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        {([
+                                                            { value: "certification" as const, label: "Certificación", color: "amber" },
+                                                            { value: "award" as const, label: "Premio", color: "yellow" },
+                                                            { value: "honor" as const, label: "Reconocimiento", color: "blue" },
+                                                        ]).map(({ value, label, color }) => (
+                                                            <button
+                                                                key={value}
+                                                                type="button"
+                                                                onClick={() => updateCertification(cert.id, { type: value })}
+                                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(cert.type || "certification") === value
+                                                                    ? `bg-${color}-500/20 text-${color}-400 border border-${color}-500/40`
+                                                                    : "bg-white/5 text-neutral-400 border border-white/10 hover:text-white"
+                                                                    }`}
+                                                            >
+                                                                {value === "award" && "🏆 "}{value === "honor" && "⭐ "}{value === "certification" && "📜 "}
+                                                                {label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-sm text-neutral-400 mb-2">
                                                             Nombre de la certificación

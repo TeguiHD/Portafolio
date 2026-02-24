@@ -30,6 +30,24 @@ export const CV_THEMES = {
 
 export type ThemeId = keyof typeof CV_THEMES;
 
+// Available layout formats
+export type CvLayoutId = "single-column" | "two-column-sidebar" | "compact-grid";
+
+export const CV_LAYOUTS: Record<CvLayoutId, { name: string; description: string }> = {
+    "single-column": {
+        name: "Clásico Harvard",
+        description: "Formato tradicional de una columna, ideal para roles corporativos",
+    },
+    "two-column-sidebar": {
+        name: "Sidebar Profesional",
+        description: "Sidebar con skills e idiomas, columna principal con experiencia",
+    },
+    "compact-grid": {
+        name: "Compacto Grid",
+        description: "Bloques organizados 2×2, máxima información por página",
+    },
+};
+
 // Color configuration (following RenderCV's color system)
 export interface CvColors {
     body: string;           // Main text color
@@ -84,6 +102,7 @@ export interface CvSectionConfig {
 // Complete design configuration
 export interface CvDesignConfig {
     theme: ThemeId;
+    layout: CvLayoutId;
     colors: CvColors;
     typography: CvTypography;
     page: CvPageLayout;
@@ -236,6 +255,7 @@ export const THEME_PRESETS: Record<ThemeId, Partial<CvDesignConfig>> = {
 // Default design configuration
 export const DEFAULT_DESIGN_CONFIG: CvDesignConfig = {
     theme: "classic",
+    layout: "single-column",
     colors: THEME_PRESETS.classic.colors!,
     typography: THEME_PRESETS.classic.typography!,
     page: {
@@ -256,9 +276,10 @@ export const DEFAULT_DESIGN_CONFIG: CvDesignConfig = {
         { id: "education", label: "Educación", visible: true, order: 3 },
         { id: "skills", label: "Habilidades", visible: true, order: 4 },
         { id: "projects", label: "Proyectos", visible: true, order: 5 },
-        { id: "certifications", label: "Certificaciones", visible: false, order: 6 },
-        { id: "languages", label: "Idiomas", visible: false, order: 7 },
-        { id: "publications", label: "Publicaciones", visible: false, order: 8 },
+        { id: "certifications", label: "Certificaciones", visible: true, order: 6 },
+        { id: "awards", label: "Premios y Reconocimientos", visible: true, order: 7 },
+        { id: "languages", label: "Idiomas", visible: true, order: 8 },
+        { id: "publications", label: "Publicaciones", visible: false, order: 9 },
     ],
     showPhoto: false,
     photoPosition: "right",
@@ -286,6 +307,7 @@ export const LOCALE_STRINGS = {
             skills: "Habilidades",
             projects: "Proyectos Destacados",
             certifications: "Certificaciones",
+            awards: "Premios y Reconocimientos",
             languages: "Idiomas",
             publications: "Publicaciones",
         },
@@ -308,6 +330,7 @@ export const LOCALE_STRINGS = {
             skills: "Skills",
             projects: "Projects",
             certifications: "Certifications",
+            awards: "Awards & Honors",
             languages: "Languages",
             publications: "Publications",
         },

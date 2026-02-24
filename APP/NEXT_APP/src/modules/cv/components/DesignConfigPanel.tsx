@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     type CvDesignConfig,
     type ThemeId,
+    type CvLayoutId,
     CV_THEMES,
+    CV_LAYOUTS,
     THEME_PRESETS,
     DEFAULT_DESIGN_CONFIG,
     applyThemePreset,
@@ -156,8 +158,8 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                         key={tab.id}
                         onClick={() => setActiveSection(tab.id)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeSection === tab.id
-                                ? "bg-accent-1/20 text-accent-1"
-                                : "text-neutral-400 hover:text-white hover:bg-white/5"
+                            ? "bg-accent-1/20 text-accent-1"
+                            : "text-neutral-400 hover:text-white hover:bg-white/5"
                             }`}
                     >
                         <span>{tab.icon}</span>
@@ -194,8 +196,8 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                             whileTap={{ scale: 0.98 }}
                                             onClick={() => handleThemeChange(themeId)}
                                             className={`p-4 rounded-xl border text-left transition-all ${isSelected
-                                                    ? "border-accent-1 bg-accent-1/10"
-                                                    : "border-white/10 bg-white/5 hover:border-white/20"
+                                                ? "border-accent-1 bg-accent-1/10"
+                                                : "border-white/10 bg-white/5 hover:border-white/20"
                                                 }`}
                                         >
                                             {/* Theme preview colors */}
@@ -247,8 +249,8 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                     <button
                                         onClick={() => updateConfig({ language: "es" })}
                                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.language === "es"
-                                                ? "bg-accent-1/20 text-accent-1"
-                                                : "bg-white/5 text-neutral-400 hover:text-white"
+                                            ? "bg-accent-1/20 text-accent-1"
+                                            : "bg-white/5 text-neutral-400 hover:text-white"
                                             }`}
                                     >
                                         🇪🇸 Español
@@ -256,8 +258,8 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                     <button
                                         onClick={() => updateConfig({ language: "en" })}
                                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.language === "en"
-                                                ? "bg-accent-1/20 text-accent-1"
-                                                : "bg-white/5 text-neutral-400 hover:text-white"
+                                            ? "bg-accent-1/20 text-accent-1"
+                                            : "bg-white/5 text-neutral-400 hover:text-white"
                                             }`}
                                     >
                                         🇺🇸 English
@@ -336,8 +338,8 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                             key={align}
                                             onClick={() => updateTypography("alignment", align)}
                                             className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.typography.alignment === align
-                                                    ? "bg-accent-1/20 text-accent-1"
-                                                    : "bg-white/5 text-neutral-400 hover:text-white"
+                                                ? "bg-accent-1/20 text-accent-1"
+                                                : "bg-white/5 text-neutral-400 hover:text-white"
                                                 }`}
                                         >
                                             {align === "left" && "Izquierda"}
@@ -393,112 +395,215 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                     {/* Layout */}
                     {activeSection === "layout" && (
                         <div className="space-y-6">
-                            {/* Page Size */}
+                            {/* CV Layout Format */}
                             <div>
-                                <label className="block text-sm text-neutral-400 mb-2">
-                                    Tamaño de página
+                                <label className="block text-sm text-neutral-400 mb-3">
+                                    Formato del CV
                                 </label>
-                                <div className="flex gap-2">
-                                    {(["a4", "letter", "legal"] as const).map((size) => (
-                                        <button
-                                            key={size}
-                                            onClick={() => updatePageLayout("size", size)}
-                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.page.size === size
+                                <p className="text-xs text-neutral-500 mb-4">
+                                    Elige la estructura visual de tu CV. Todos los formatos son ATS-friendly.
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {(Object.keys(CV_LAYOUTS) as CvLayoutId[]).map((layoutId) => {
+                                        const layout = CV_LAYOUTS[layoutId];
+                                        const isSelected = config.layout === layoutId;
+
+                                        return (
+                                            <motion.button
+                                                key={layoutId}
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => updateConfig({ layout: layoutId })}
+                                                className={`p-4 rounded-xl border text-left transition-all ${isSelected
+                                                    ? "border-accent-1 bg-accent-1/10"
+                                                    : "border-white/10 bg-white/5 hover:border-white/20"
+                                                    }`}
+                                            >
+                                                {/* Layout schematic preview */}
+                                                <div className="mb-3 p-2 rounded-lg bg-white/5 border border-white/10">
+                                                    {layoutId === "single-column" && (
+                                                        <div className="space-y-1">
+                                                            <div className="h-2 bg-accent-1/40 rounded w-1/2 mx-auto" />
+                                                            <div className="h-1 bg-white/20 rounded w-3/4 mx-auto" />
+                                                            <div className="h-1 bg-white/10 rounded w-full" />
+                                                            <div className="h-1 bg-white/10 rounded w-full" />
+                                                            <div className="h-1 bg-white/10 rounded w-5/6" />
+                                                            <div className="h-1 bg-white/10 rounded w-full" />
+                                                            <div className="h-1 bg-white/10 rounded w-4/5" />
+                                                        </div>
+                                                    )}
+                                                    {layoutId === "two-column-sidebar" && (
+                                                        <div className="flex gap-1">
+                                                            <div className="w-1/3 space-y-1">
+                                                                <div className="h-1.5 bg-accent-1/40 rounded" />
+                                                                <div className="h-1 bg-white/20 rounded" />
+                                                                <div className="h-1 bg-white/20 rounded" />
+                                                                <div className="h-1.5 bg-accent-1/40 rounded mt-1" />
+                                                                <div className="h-1 bg-white/20 rounded" />
+                                                                <div className="h-1 bg-white/20 rounded" />
+                                                            </div>
+                                                            <div className="w-2/3 space-y-1">
+                                                                <div className="h-1.5 bg-accent-1/40 rounded" />
+                                                                <div className="h-1 bg-white/10 rounded" />
+                                                                <div className="h-1 bg-white/10 rounded" />
+                                                                <div className="h-1 bg-white/10 rounded w-5/6" />
+                                                                <div className="h-1.5 bg-accent-1/40 rounded mt-1" />
+                                                                <div className="h-1 bg-white/10 rounded" />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {layoutId === "compact-grid" && (
+                                                        <div className="space-y-1">
+                                                            <div className="h-2 bg-accent-1/40 rounded w-1/2 mx-auto" />
+                                                            <div className="h-1 bg-white/10 rounded w-full" />
+                                                            <div className="h-1 bg-white/10 rounded w-full" />
+                                                            <div className="flex gap-1 mt-1">
+                                                                <div className="w-1/2 space-y-0.5">
+                                                                    <div className="h-1 bg-accent-1/30 rounded" />
+                                                                    <div className="h-1 bg-white/10 rounded" />
+                                                                    <div className="h-1 bg-white/10 rounded" />
+                                                                </div>
+                                                                <div className="w-1/2 space-y-0.5">
+                                                                    <div className="h-1 bg-accent-1/30 rounded" />
+                                                                    <div className="h-1 bg-white/10 rounded" />
+                                                                    <div className="h-1 bg-white/10 rounded" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <p className="font-medium text-white text-sm">{layout.name}</p>
+                                                <p className="text-xs text-neutral-400 mt-1">
+                                                    {layout.description}
+                                                </p>
+                                                {isSelected && (
+                                                    <div className="mt-2 flex items-center gap-1 text-accent-1 text-xs">
+                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                        Seleccionado
+                                                    </div>
+                                                )}
+                                            </motion.button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="border-t border-white/10 pt-6">
+
+                                {/* Page Size */}
+                                <div>
+                                    <label className="block text-sm text-neutral-400 mb-2">
+                                        Tamaño de página
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {(["a4", "letter", "legal"] as const).map((size) => (
+                                            <button
+                                                key={size}
+                                                onClick={() => updatePageLayout("size", size)}
+                                                className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.page.size === size
                                                     ? "bg-accent-1/20 text-accent-1"
                                                     : "bg-white/5 text-neutral-400 hover:text-white"
-                                                }`}
+                                                    }`}
+                                            >
+                                                {size.toUpperCase()}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Margins */}
+                                <div className="mt-6">
+                                    <label className="block text-sm text-neutral-400 mb-2">Márgenes</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {(["top", "bottom", "left", "right"] as const).map((margin) => (
+                                            <div key={margin}>
+                                                <label className="block text-xs text-neutral-500 mb-1 capitalize">
+                                                    {margin === "top" && "Superior"}
+                                                    {margin === "bottom" && "Inferior"}
+                                                    {margin === "left" && "Izquierdo"}
+                                                    {margin === "right" && "Derecho"}
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={config.page.margins[margin]}
+                                                    onChange={(e) =>
+                                                        updatePageLayout(`margins.${margin}`, e.target.value)
+                                                    }
+                                                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Toggles */}
+                                <div className="space-y-3 mt-6">
+                                    {[
+                                        { key: "showFooter", label: "Mostrar pie de página" },
+                                        { key: "showPageNumbers", label: "Mostrar números de página" },
+                                        { key: "showLastUpdated", label: "Mostrar fecha de actualización" },
+                                    ].map(({ key, label }) => (
+                                        <label
+                                            key={key}
+                                            className="flex items-center justify-between cursor-pointer group"
                                         >
-                                            {size.toUpperCase()}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Margins */}
-                            <div>
-                                <label className="block text-sm text-neutral-400 mb-2">Márgenes</label>
-                                <div className="grid grid-cols-2 gap-4">
-                                    {(["top", "bottom", "left", "right"] as const).map((margin) => (
-                                        <div key={margin}>
-                                            <label className="block text-xs text-neutral-500 mb-1 capitalize">
-                                                {margin === "top" && "Superior"}
-                                                {margin === "bottom" && "Inferior"}
-                                                {margin === "left" && "Izquierdo"}
-                                                {margin === "right" && "Derecho"}
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={config.page.margins[margin]}
-                                                onChange={(e) =>
-                                                    updatePageLayout(`margins.${margin}`, e.target.value)
+                                            <span className="text-sm text-neutral-400 group-hover:text-white transition-colors">
+                                                {label}
+                                            </span>
+                                            <button
+                                                onClick={() =>
+                                                    updatePageLayout(
+                                                        key,
+                                                        !config.page[key as keyof typeof config.page]
+                                                    )
                                                 }
-                                                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Toggles */}
-                            <div className="space-y-3">
-                                {[
-                                    { key: "showFooter", label: "Mostrar pie de página" },
-                                    { key: "showPageNumbers", label: "Mostrar números de página" },
-                                    { key: "showLastUpdated", label: "Mostrar fecha de actualización" },
-                                ].map(({ key, label }) => (
-                                    <label
-                                        key={key}
-                                        className="flex items-center justify-between cursor-pointer group"
-                                    >
-                                        <span className="text-sm text-neutral-400 group-hover:text-white transition-colors">
-                                            {label}
-                                        </span>
-                                        <button
-                                            onClick={() =>
-                                                updatePageLayout(
-                                                    key,
-                                                    !config.page[key as keyof typeof config.page]
-                                                )
-                                            }
-                                            className={`w-12 h-6 rounded-full transition-colors ${config.page[key as keyof typeof config.page]
+                                                className={`w-12 h-6 rounded-full transition-colors ${config.page[key as keyof typeof config.page]
                                                     ? "bg-accent-1"
                                                     : "bg-white/10"
-                                                }`}
-                                        >
-                                            <div
-                                                className={`w-5 h-5 rounded-full bg-white transition-transform ${config.page[key as keyof typeof config.page]
+                                                    }`}
+                                            >
+                                                <div
+                                                    className={`w-5 h-5 rounded-full bg-white transition-transform ${config.page[key as keyof typeof config.page]
                                                         ? "translate-x-6"
                                                         : "translate-x-0.5"
-                                                    }`}
-                                            />
-                                        </button>
-                                    </label>
-                                ))}
-                            </div>
-
-                            {/* Date Format */}
-                            <div>
-                                <label className="block text-sm text-neutral-400 mb-2">
-                                    Formato de fechas
-                                </label>
-                                <div className="flex gap-2">
-                                    {[
-                                        { id: "short", label: "Ene. 2024" },
-                                        { id: "long", label: "Enero 2024" },
-                                        { id: "numeric", label: "01/2024" },
-                                    ].map(({ id, label }) => (
-                                        <button
-                                            key={id}
-                                            onClick={() => updateConfig({ dateFormat: id as "short" | "long" | "numeric" })}
-                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.dateFormat === id
-                                                    ? "bg-accent-1/20 text-accent-1"
-                                                    : "bg-white/5 text-neutral-400 hover:text-white"
-                                                }`}
-                                        >
-                                            {label}
-                                        </button>
+                                                        }`}
+                                                />
+                                            </button>
+                                        </label>
                                     ))}
                                 </div>
+
+                                {/* Date Format */}
+                                <div className="mt-6">
+                                    <label className="block text-sm text-neutral-400 mb-2">
+                                        Formato de fechas
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {[
+                                            { id: "short", label: "Ene. 2024" },
+                                            { id: "long", label: "Enero 2024" },
+                                            { id: "numeric", label: "01/2024" },
+                                        ].map(({ id, label }) => (
+                                            <button
+                                                key={id}
+                                                onClick={() => updateConfig({ dateFormat: id as "short" | "long" | "numeric" })}
+                                                className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.dateFormat === id
+                                                    ? "bg-accent-1/20 text-accent-1"
+                                                    : "bg-white/5 text-neutral-400 hover:text-white"
+                                                    }`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     )}
@@ -515,16 +620,16 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
                                     <div
                                         key={section.id}
                                         className={`flex items-center justify-between p-3 rounded-xl border transition-all ${section.visible
-                                                ? "bg-white/5 border-white/10"
-                                                : "bg-white/2 border-white/5 opacity-60"
+                                            ? "bg-white/5 border-white/10"
+                                            : "bg-white/2 border-white/5 opacity-60"
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <button
                                                 onClick={() => toggleSectionVisibility(section.id)}
                                                 className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${section.visible
-                                                        ? "bg-accent-1 text-black"
-                                                        : "bg-white/10 text-transparent"
+                                                    ? "bg-accent-1 text-black"
+                                                    : "bg-white/10 text-transparent"
                                                     }`}
                                             >
                                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">

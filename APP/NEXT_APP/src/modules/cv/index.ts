@@ -60,6 +60,7 @@ export {
 // Design System
 export {
     CV_THEMES,
+    CV_LAYOUTS,
     THEME_PRESETS,
     DEFAULT_DESIGN_CONFIG,
     LOCALE_STRINGS,
@@ -73,5 +74,6 @@ export {
     type CvPageLayout,
     type CvSectionConfig,
     type ThemeId,
+    type CvLayoutId,
     type LocaleId,
 } from "./utils/cv-design";

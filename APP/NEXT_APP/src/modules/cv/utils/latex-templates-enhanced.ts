@@ -38,6 +38,7 @@ export interface Certification {
     date: string;
     url?: string;
     credentialId?: string;
+    type?: "certification" | "award" | "honor";
 }
 
 export interface Language {
@@ -282,20 +283,24 @@ function generateHeader(ctx: TemplateContext): string {
 
     // LinkedIn
     if (personalInfo.linkedin) {
-        const linkedinUrl = personalInfo.linkedin.startsWith("http")
-            ? personalInfo.linkedin
-            : `https://linkedin.com/in/${personalInfo.linkedin}`;
-        const linkedinDisplay = personalInfo.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, "").replace(/\/$/, "");
-        socialItems.push(`\\faIcon{linkedin}\\hspace{0.3em}\\href{${linkedinUrl}}{${escapeLatex(linkedinDisplay) || "LinkedIn"}}`);
+        // Strip any existing domain prefix to get just the username/path
+        const linkedinClean = personalInfo.linkedin
+            .replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, "")
+            .replace(/^linkedin\.com\/in\//i, "")
+            .replace(/\/$/, "");
+        const linkedinUrl = `https://linkedin.com/in/${linkedinClean}`;
+        socialItems.push(`\\faIcon{linkedin}\\hspace{0.3em}\\href{${linkedinUrl}}{${escapeLatex(linkedinClean) || "LinkedIn"}}`);
     }
 
     // GitHub
     if (personalInfo.github) {
-        const githubUrl = personalInfo.github.startsWith("http")
-            ? personalInfo.github
-            : `https://github.com/${personalInfo.github}`;
-        const githubDisplay = personalInfo.github.replace(/^https?:\/\/(www\.)?github\.com\//, "").replace(/\/$/, "");
-        socialItems.push(`\\faIcon{github}\\hspace{0.3em}\\href{${githubUrl}}{${escapeLatex(githubDisplay) || "GitHub"}}`);
+        // Strip any existing domain prefix to get just the username
+        const githubClean = personalInfo.github
+            .replace(/^https?:\/\/(www\.)?github\.com\//i, "")
+            .replace(/^github\.com\//i, "")
+            .replace(/\/$/, "");
+        const githubUrl = `https://github.com/${githubClean}`;
+        socialItems.push(`\\faIcon{github}\\hspace{0.3em}\\href{${githubUrl}}{${escapeLatex(githubClean) || "GitHub"}}`);
     }
 
     // Website/Portfolio
@@ -332,6 +337,7 @@ function generateHeader(ctx: TemplateContext): string {
 
 /**
  * Generate complete LaTeX document - ATS Optimized
+ * Dispatches to layout-specific generators based on config
  */
 export function generateLatexWithDesign(
     data: CvData,
@@ -344,8 +350,27 @@ export function generateLatexWithDesign(
         currentDate: new Date(),
     };
 
+    const layout = designConfig.layout || "single-column";
+
+    switch (layout) {
+        case "two-column-sidebar":
+            return generateTwoColumnSidebarDocument(ctx);
+        case "compact-grid":
+            return generateCompactGridDocument(ctx);
+        case "single-column":
+        default:
+            return generateSingleColumnDocument(ctx);
+    }
+}
+
+/**
+ * Single-column layout (classic Harvard style)
+ */
+function generateSingleColumnDocument(ctx: TemplateContext): string {
+    const { design } = ctx;
+
     // Get visible sections in order
-    const visibleSections = designConfig.sections
+    const visibleSections = design.sections
         .filter((s) => s.visible)
         .sort((a, b) => a.order - b.order);
 
@@ -357,6 +382,7 @@ export function generateLatexWithDesign(
         skills: generateSkills,
         projects: generateProjects,
         certifications: generateCertifications,
+        awards: generateAwards,
         languages: generateLanguages,
         publications: generatePublications,
     };
@@ -373,19 +399,198 @@ export function generateLatexWithDesign(
         }
     });
 
-    // Last updated footer (like RenderCV)
-    if (designConfig.page.showLastUpdated) {
-        const lastUpdatedStr = LOCALE_STRINGS[designConfig.language].lastUpdated;
+    // Last updated footer
+    if (design.page.showLastUpdated) {
+        const lastUpdatedStr = LOCALE_STRINGS[design.language].lastUpdated;
         const dateStr = ctx.currentDate.toLocaleDateString(
-            designConfig.language === "es" ? "es-CL" : "en-US",
+            design.language === "es" ? "es-CL" : "en-US",
             { month: "long", year: "numeric" }
         );
         content += `\n\\vfill\n{\\small\\color{subtlecolor}\\textit{${lastUpdatedStr}: ${dateStr}}}\n`;
     }
 
     content += `\n\\end{document}\n`;
-
     return content;
+}
+
+/**
+ * Two-column sidebar layout
+ * Left sidebar (30%): Skills, Languages, Certifications, Awards
+ * Right main (65%): Summary, Experience, Education, Projects
+ */
+function generateTwoColumnSidebarDocument(ctx: TemplateContext): string {
+    const { design } = ctx;
+
+    const visibleSections = design.sections
+        .filter((s) => s.visible)
+        .sort((a, b) => a.order - b.order);
+
+    // Sidebar sections
+    const sidebarSectionIds = new Set(["skills", "languages", "certifications", "awards"]);
+    // Main column sections
+    const mainSectionIds = new Set(["summary", "experience", "education", "projects", "publications"]);
+
+    const sidebarSections = visibleSections.filter((s) => sidebarSectionIds.has(s.id));
+    const mainSections = visibleSections.filter((s) => mainSectionIds.has(s.id));
+
+    const sectionGenerators: Record<string, (ctx: TemplateContext) => string> = {
+        summary: generateSummary,
+        experience: generateExperience,
+        education: generateEducation,
+        skills: generateSkills,
+        projects: generateProjects,
+        certifications: generateCertifications,
+        awards: generateAwards,
+        languages: generateLanguages,
+        publications: generatePublications,
+    };
+
+    let content = generatePreamble(ctx);
+    content += generateHeader(ctx);
+
+    // Two-column layout using minipage (ATS-friendly)
+    content += `\n% === TWO-COLUMN SIDEBAR LAYOUT ===\n`;
+    content += `\\noindent\n`;
+    content += `\\begin{minipage}[t]{0.30\\textwidth}\n`;
+    content += `\\raggedright\n`;
+
+    // Sidebar content
+    sidebarSections.forEach((section) => {
+        const generator = sectionGenerators[section.id];
+        if (generator) {
+            content += generator(ctx);
+        }
+    });
+
+    content += `\\end{minipage}%\n`;
+    content += `\\hfill%\n`;
+    content += `\\begin{minipage}[t]{0.65\\textwidth}\n`;
+
+    // Main column content
+    mainSections.forEach((section) => {
+        const generator = sectionGenerators[section.id];
+        if (generator) {
+            content += generator(ctx);
+        }
+    });
+
+    content += `\\end{minipage}\n`;
+
+    // Footer
+    if (design.page.showLastUpdated) {
+        const lastUpdatedStr = LOCALE_STRINGS[design.language].lastUpdated;
+        const dateStr = ctx.currentDate.toLocaleDateString(
+            design.language === "es" ? "es-CL" : "en-US",
+            { month: "long", year: "numeric" }
+        );
+        content += `\n\\vfill\n{\\small\\color{subtlecolor}\\textit{${lastUpdatedStr}: ${dateStr}}}\n`;
+    }
+
+    content += `\n\\end{document}\n`;
+    return content;
+}
+
+/**
+ * Compact grid layout
+ * Uses side-by-side minipage blocks for compact sections
+ * Full-width for experience/projects, 2-column for smaller sections
+ */
+function generateCompactGridDocument(ctx: TemplateContext): string {
+    const { design } = ctx;
+
+    const visibleSections = design.sections
+        .filter((s) => s.visible)
+        .sort((a, b) => a.order - b.order);
+
+    // Sections that work well side-by-side
+    const pairedSectionIds = new Set(["skills", "languages", "certifications", "awards", "education"]);
+    // Sections that need full width
+    const fullWidthSectionIds = new Set(["summary", "experience", "projects", "publications"]);
+
+    const sectionGenerators: Record<string, (ctx: TemplateContext) => string> = {
+        summary: generateSummary,
+        experience: generateExperience,
+        education: generateEducation,
+        skills: generateSkills,
+        projects: generateProjects,
+        certifications: generateCertifications,
+        awards: generateAwards,
+        languages: generateLanguages,
+        publications: generatePublications,
+    };
+
+    let content = generatePreamble(ctx);
+    content += generateHeader(ctx);
+
+    content += `\n% === COMPACT GRID LAYOUT ===\n`;
+
+    // Process sections: full-width ones rendered immediately,
+    // paired ones collected and rendered in 2-column blocks
+    const pairedQueue: { id: string; content: string }[] = [];
+
+    visibleSections.forEach((section) => {
+        const generator = sectionGenerators[section.id];
+        if (!generator) return;
+
+        if (fullWidthSectionIds.has(section.id)) {
+            // Flush any queued paired sections first
+            if (pairedQueue.length > 0) {
+                content += flushPairedSections(pairedQueue);
+                pairedQueue.length = 0;
+            }
+            content += generator(ctx);
+        } else if (pairedSectionIds.has(section.id)) {
+            const sectionContent = generator(ctx);
+            if (sectionContent.trim()) {
+                pairedQueue.push({ id: section.id, content: sectionContent });
+            }
+        } else {
+            content += generator(ctx);
+        }
+    });
+
+    // Flush remaining paired sections
+    if (pairedQueue.length > 0) {
+        content += flushPairedSections(pairedQueue);
+    }
+
+    // Footer
+    if (design.page.showLastUpdated) {
+        const lastUpdatedStr = LOCALE_STRINGS[design.language].lastUpdated;
+        const dateStr = ctx.currentDate.toLocaleDateString(
+            design.language === "es" ? "es-CL" : "en-US",
+            { month: "long", year: "numeric" }
+        );
+        content += `\n\\vfill\n{\\small\\color{subtlecolor}\\textit{${lastUpdatedStr}: ${dateStr}}}\n`;
+    }
+
+    content += `\n\\end{document}\n`;
+    return content;
+}
+
+/**
+ * Helper: Flush paired sections into 2-column minipage blocks
+ */
+function flushPairedSections(queue: { id: string; content: string }[]): string {
+    let result = "";
+    for (let i = 0; i < queue.length; i += 2) {
+        if (i + 1 < queue.length) {
+            // Two sections side by side
+            result += `\n\\noindent\n`;
+            result += `\\begin{minipage}[t]{0.48\\textwidth}\n`;
+            result += queue[i].content;
+            result += `\\end{minipage}%\n`;
+            result += `\\hfill%\n`;
+            result += `\\begin{minipage}[t]{0.48\\textwidth}\n`;
+            result += queue[i + 1].content;
+            result += `\\end{minipage}\n`;
+            result += `\\vspace{0.5em}\n`;
+        } else {
+            // Single remaining section at full width
+            result += queue[i].content;
+        }
+    }
+    return result;
 }
 
 /**
@@ -595,10 +800,15 @@ function generateProjects(ctx: TemplateContext): string {
 
 /**
  * Generate certifications section - ATS Optimized
+ * Only renders items with type "certification" or no type (backward compat)
  */
 function generateCertifications(ctx: TemplateContext): string {
     const { certifications } = ctx.cv;
     if (!certifications || certifications.length === 0) return "";
+
+    // Filter to only certification type (or untyped for backward compat)
+    const certs = certifications.filter((c) => !c.type || c.type === "certification");
+    if (certs.length === 0) return "";
 
     const locale = ctx.design.language;
     const dateFormat = ctx.design.dateFormat;
@@ -606,7 +816,7 @@ function generateCertifications(ctx: TemplateContext): string {
 
     const lines: string[] = [`\\section*{${sectionTitle}}`];
 
-    certifications.forEach((cert) => {
+    certs.forEach((cert) => {
         const dateFormatted = safeFormatDate(cert.date, locale, dateFormat);
 
         lines.push("");
@@ -619,6 +829,44 @@ function generateCertifications(ctx: TemplateContext): string {
         }
         lines.push(`\\\\`);
         lines.push(`\\textit{${escapeLatex(cert.issuer || "")}}${cert.credentialId ? ` -- ID: ${escapeLatex(cert.credentialId)}` : ""}`);
+        lines.push("\\vspace{0.15em}");
+    });
+
+    lines.push("");
+    return lines.join("\n");
+}
+
+/**
+ * Generate awards & honors section - ATS Optimized
+ * Renders items with type "award" or "honor"
+ */
+function generateAwards(ctx: TemplateContext): string {
+    const { certifications } = ctx.cv;
+    if (!certifications || certifications.length === 0) return "";
+
+    // Filter to only award/honor types
+    const awards = certifications.filter((c) => c.type === "award" || c.type === "honor");
+    if (awards.length === 0) return "";
+
+    const locale = ctx.design.language;
+    const dateFormat = ctx.design.dateFormat;
+    const sectionTitle = getSectionTitle("awards", locale);
+
+    const lines: string[] = [`\\section*{${sectionTitle}}`];
+
+    awards.forEach((award) => {
+        const dateFormatted = safeFormatDate(award.date, locale, dateFormat);
+
+        lines.push("");
+
+        // Award with trophy icon
+        if (award.url) {
+            lines.push(`\\noindent\\faIcon{trophy}\\hspace{0.4em}\\textbf{\\href{${award.url}}{${escapeLatex(award.name || "")}}}\\hfill{\\color{subtlecolor}${dateFormatted}}`);
+        } else {
+            lines.push(`\\noindent\\faIcon{trophy}\\hspace{0.4em}\\textbf{${escapeLatex(award.name || "")}}\\hfill{\\color{subtlecolor}${dateFormatted}}`);
+        }
+        lines.push(`\\\\`);
+        lines.push(`\\textit{${escapeLatex(award.issuer || "")}}`);
         lines.push("\\vspace{0.15em}");
     });
 
