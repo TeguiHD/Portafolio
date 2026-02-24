@@ -20,17 +20,6 @@ model User {
   failedLoginAttempts Int                      @default(0)
   lockedUntil         DateTime?
   lastLoginAt         DateTime?
-  
-  // User lifecycle management (GDPR/Security compliance)
-  deletionStatus      UserDeletionStatus       @default(ACTIVE)
-  deletionRequestedAt DateTime?                // When user/admin requested deletion
-  deletionScheduledAt DateTime?                // When data will be permanently deleted
-  deletedAt           DateTime?                // When account was soft-deleted
-  deletedBy           String?                  // Admin who processed the deletion
-  deletionReason      String?                  // Reason for account termination
-  anonymizedAt        DateTime?                // When PII was anonymized
-  dataExportedAt      DateTime?                // GDPR: when user data was exported
-  
   auditLogs           AuditLog[]
   budgets             Budget[]
   categoryFeedbacks   CategoryFeedback[]
@@ -50,34 +39,6 @@ model User {
   categorizationRules UserCategorizationRule[]
   permissions         UserPermission[]
   userSessions        UserSession[]
-
-  // CRM: Gestión Comercial
-  deals               Deal[]
-  dealActivities      DealActivity[]
-  contracts           Contract[]
-  clientExpenses      ClientExpense[]
-  clientApprovals     ClientApproval[]
-  projectPortals      ProjectPortal[]
-
-  // Secure Sharing & Connections
-  sharingCode         String?                  @unique // Unique code for finding this user
-  sentConnections     UserConnection[]         @relation("SentConnections")
-  receivedConnections UserConnection[]         @relation("ReceivedConnections")
-  sharedClients       SharedClient[]           @relation("SharedWithUser")
-  
-  @@index([sharingCode])
-  @@index([deletionStatus])
-  @@index([deletionScheduledAt])
-}
-
-// User account lifecycle states for GDPR compliance
-enum UserDeletionStatus {
-  ACTIVE              // Normal active account
-  SUSPENDED           // Temporarily suspended (can be reactivated)
-  DELETION_REQUESTED  // User requested deletion, in grace period
-  DELETION_SCHEDULED  // Admin confirmed deletion, awaiting execution
-  ANONYMIZED          // PII removed, statistical data retained
-  DELETED             // Fully deleted (only audit trail remains)
 }
 
 model Session {
@@ -151,13 +112,6 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
-  
-  // 🛡️ Immutable Audit Log (Blockchain-like)
-  previousHash String?  // Hash of the previous log
-  currentHash  String?  @unique // Hash of this log
-  signature    String?  // Cryptographic signature
-  verified     Boolean  @default(true)
-  
   user       User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
@@ -236,54 +190,36 @@ model CtaClick {
 }
 
 model Quotation {
-  id            String                   @id @default(cuid())
-  folio         String                   @unique
+  id            String           @id @default(cuid())
+  folio         String           @unique
   clientName    String
   clientEmail   String?
   projectName   String
   items         Json
   subtotal      Float
-  discount      Float                    @default(0)
+  discount      Float            @default(0)
   total         Float
-  validDays     Int                      @default(15)
+  validDays     Int              @default(15)
   paymentTerms  String?
   timeline      String?
   notes         String?
-  status        QuotationStatus          @default(DRAFT)
-  isVisible     Boolean                  @default(true)
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
+  status        String           @default("draft")
+  isVisible     Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   userId        String
   clientId      String?
   htmlContent   String?
   accessCode    String?
-  accessMode    String                   @default("code")
+  accessMode    String           @default("code")
   codeExpiresAt DateTime?
   slug          String?
-  
-  // Payment tracking
-  totalPaid     Float                    @default(0)
-  
-  // Soft Delete
-  isDeleted     Boolean                  @default(false)
-  deletedAt     DateTime?
-
-  client        QuotationClient?         @relation(fields: [clientId], references: [id])
-  user          User                     @relation(fields: [userId], references: [id])
-  payments      QuotationPayment[]
-  statusHistory QuotationStatusHistory[]
-  
-  // CRM Relations
-  deals         Deal[]
-  contracts     Contract[]
-  approvals     ClientApproval[]
-  portals       ProjectPortal[]
-  paymentPlans  PaymentPlan[]
+  client        QuotationClient? @relation(fields: [clientId], references: [id])
+  user          User             @relation(fields: [userId], references: [id])
 
   @@unique([clientId, slug])
   @@index([slug])
   @@index([userId])
-  @@index([status])
 }
 
 model QuotationClient {
@@ -302,9 +238,6 @@ model QuotationClient {
   contactPhone    String?                         // Teléfono/WhatsApp
   contactRole     String?                         // Cargo (Gerente, Encargado, etc.)
   
-  // CRM: Tipo de trabajo
-  workType        String?                         // Desarrollo Web, Branding, Consultoría, etc.
-  
   // Legacy field (mantener para compatibilidad)
   email           String?
   
@@ -316,18 +249,6 @@ model QuotationClient {
   userId          String
   user            User        @relation(fields: [userId], references: [id])
   quotations      Quotation[]
-  
-  // Sharing
-  sharedWith      SharedClient[]
-  shareCodes      ClientShareCode[]
-
-  // CRM Relations
-  deals           Deal[]
-  contracts       Contract[]
-  expenses        ClientExpense[]
-  approvals       ClientApproval[]
-  portals         ProjectPortal[]
-  paymentPlans    PaymentPlan[]
 
   @@index([slug])
   @@index([userId])
@@ -861,56 +782,6 @@ model CategoryFeedback {
   @@index([userId, ruleCreated])
 }
 
-// Security & Sharing Models
-
-enum ConnectionStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  BLOCKED
-}
-
-enum PermissionLevel {
-  VIEW
-  COMMENT
-  EDIT
-  FULL
-}
-
-model UserConnection {
-  id              String           @id @default(cuid())
-  requesterId     String
-  addresseeId     String
-  status          ConnectionStatus @default(PENDING)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  requester       User             @relation("SentConnections", fields: [requesterId], references: [id], onDelete: Cascade)
-  addressee       User             @relation("ReceivedConnections", fields: [addresseeId], references: [id], onDelete: Cascade)
-
-  @@unique([requesterId, addresseeId])
-  @@index([requesterId])
-  @@index([addresseeId])
-  @@index([status])
-}
-
-model SharedClient {
-  id               String          @id @default(cuid())
-  clientId         String
-  sharedWithUserId String
-  permission       PermissionLevel @default(VIEW)
-  sharedByUserId   String          // Audit trail: who shared it
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-
-  client           QuotationClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  sharedWithUser   User            @relation("SharedWithUser", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
-
-  @@unique([clientId, sharedWithUserId])
-  @@index([sharedWithUserId])
-  @@index([clientId])
-}
-
 model UserCategorizationRule {
   id                 String   @id @default(cuid())
   userId             String
@@ -1027,491 +898,4 @@ enum AlertStatus {
   ACTIVE
   TRIGGERED
   DISMISSED
-}
-
-// ============================================
-// QUOTATION WORKFLOW & PAYMENT MODELS
-// ============================================
-
-// Quotation Status Workflow
-enum QuotationStatus {
-  DRAFT           // Initial state - not yet sent
-  PENDING         // Sent to client, awaiting response
-  REVISION        // Client requested changes
-  APPROVED        // Client accepted the quotation
-  REJECTED        // Client rejected the quotation
-  COMPLETED       // Fully paid and closed
-}
-
-// Payment Method Options
-enum PaymentMethod {
-  CASH
-  TRANSFER
-  CREDIT_CARD
-  DEBIT_CARD
-  CHECK
-  PAYPAL
-  CRYPTO
-  OTHER
-}
-
-// Secure client sharing codes
-model ClientShareCode {
-  id           String          @id @default(cuid())
-  code         String          @unique  // Hashed secure code
-  clientId     String
-  createdById  String
-  permission   PermissionLevel @default(VIEW)
-  expiresAt    DateTime
-  maxUses      Int             @default(1)
-  usedCount    Int             @default(0)
-  isActive     Boolean         @default(true)
-  createdAt    DateTime        @default(now())
-  
-  client       QuotationClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  
-  @@index([code])
-  @@index([expiresAt])
-  @@index([clientId])
-  @@index([createdById])
-}
-
-// Payment tracking for quotations
-model QuotationPayment {
-  id                String             @id @default(cuid())
-  quotationId       String
-  amount            Float
-  method            PaymentMethod
-  reference         String?            // Transaction reference/receipt number
-  notes             String?
-  paidAt            DateTime           @default(now())
-  registeredBy      String
-  createdAt         DateTime           @default(now())
-  
-  // Receipt/Comprobante (CRM Enhancement)
-  receiptUrl        String?            // URL/path del comprobante adjunto
-  receiptFilename   String?            // Nombre original del archivo
-  receiptMimeType   String?            // Tipo: image/jpeg, application/pdf, etc.
-  
-  // Installment tracking (CRM Enhancement)
-  installmentNumber Int?               // Nro de cuota (ej: 1)
-  totalInstallments Int?               // Total de cuotas pactadas (ej: 3)
-  isPartial         Boolean            @default(false)
-  dueDate           DateTime?          // Fecha de vencimiento de esta cuota
-  status            InstallmentStatus  @default(PAID)
-  
-  quotation         Quotation          @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  
-  @@index([quotationId])
-  @@index([paidAt])
-  @@index([status])
-}
-
-// Status change history for audit trail
-model QuotationStatusHistory {
-  id           String          @id @default(cuid())
-  quotationId  String
-  fromStatus   QuotationStatus?
-  toStatus     QuotationStatus
-  changedBy    String
-  reason       String?         // Optional reason for status change
-  metadata     Json?           // Additional context
-  createdAt    DateTime        @default(now())
-  
-  quotation    Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  
-  @@index([quotationId, createdAt])
-}
-
-// ============================================
-// CRM: GESTIÓN COMERCIAL MODELS
-// ============================================
-
-// CRM Enums
-enum DealStage {
-  PROSPECT      // Prospecto inicial
-  CONTACTED     // Ya se hizo contacto
-  PROPOSAL      // Se envió propuesta/cotización
-  NEGOTIATION   // En negociación activa
-  WON           // Deal ganado
-  LOST          // Deal perdido
-}
-
-enum DealPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-enum DealOrigin {
-  REFERRAL       // Referido por otro cliente
-  WEB            // Llegó por la web
-  SOCIAL_MEDIA   // Redes sociales
-  DIRECT         // Contacto directo
-  OTHER
-}
-
-enum ContractStatus {
-  DRAFT         // Borrador
-  ACTIVE        // Contrato activo
-  PAUSED        // En pausa
-  COMPLETED     // Completado exitosamente
-  CANCELLED     // Cancelado
-  EXPIRED       // Vencido
-}
-
-enum ContractType {
-  PROJECT       // Proyecto único
-  RETAINER      // Mensualidad/retainer
-  MAINTENANCE   // Mantenimiento
-  CONSULTING    // Consultoría
-}
-
-enum MilestoneStatus {
-  PENDING       // Pendiente
-  IN_PROGRESS   // En progreso
-  COMPLETED     // Completado
-  SKIPPED       // Omitido
-}
-
-enum MilestoneType {
-  QUOTATION
-  PAYMENT
-  CONTRACT
-  WORK
-  HOSTING
-  REVIEW
-  DELIVERY
-  CUSTOM
-}
-
-enum ApprovalStatus {
-  PENDING       // Esperando firma
-  SIGNED        // Firmado por el cliente
-  REJECTED      // Rechazado por el cliente
-  EXPIRED       // Expiró sin firma
-  REVOKED       // Revocado por admin
-}
-
-enum SignatureMethod {
-  DRAWN         // Firma dibujada con dedo/mouse
-  TYPED         // Nombre completo + RUT
-  BOTH          // Ambas
-}
-
-enum ExpenseCategory {
-  HOSTING
-  DOMAIN
-  LICENSES
-  THIRD_PARTY
-  TOOLS
-  OTHER
-}
-
-enum ExpenseFrequency {
-  ONE_TIME
-  MONTHLY
-  YEARLY
-}
-
-enum InstallmentStatus {
-  PENDING
-  PAID
-  OVERDUE
-  CANCELLED
-}
-
-enum PaymentPlanStatus {
-  ACTIVE
-  COMPLETED
-  CANCELLED
-}
-
-// ─── Deal (Pipeline CRM) ───────────────────────────────────────────
-model Deal {
-  id                String        @id @default(cuid())
-  title             String
-  description       String?
-  stage             DealStage     @default(PROSPECT)
-  priority          DealPriority  @default(MEDIUM)
-  origin            DealOrigin    @default(DIRECT)
-  estimatedValue    Float         @default(0)
-  closeProbability  Int           @default(50)     // 0-100%
-  estimatedCloseAt  DateTime?
-  notes             String?
-  
-  // Relations
-  userId            String
-  clientId          String
-  quotationId       String?       // Linked quotation (optional)
-  contractId        String?       // Linked contract (optional)
-  
-  // Soft delete
-  isDeleted         Boolean       @default(false)
-  deletedAt         DateTime?
-  
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
-  user              User             @relation(fields: [userId], references: [id])
-  client            QuotationClient  @relation(fields: [clientId], references: [id])
-  quotation         Quotation?       @relation(fields: [quotationId], references: [id])
-  contract          Contract?        @relation(fields: [contractId], references: [id])
-  activities        DealActivity[]
-  
-  @@index([userId, stage])
-  @@index([clientId])
-  @@index([stage])
-  @@index([createdAt])
-  @@index([isDeleted])
-}
-
-// ─── DealActivity (Activity Log per Deal) ──────────────────────────
-model DealActivity {
-  id          String   @id @default(cuid())
-  dealId      String
-  userId      String
-  type        String   // "note", "call", "email", "meeting", "status_change"
-  title       String
-  description String?
-  metadata    Json?    // Additional context (e.g., old/new stage)
-  createdAt   DateTime @default(now())
-  
-  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id])
-  
-  @@index([dealId, createdAt])
-  @@index([userId])
-}
-
-// ─── Contract ──────────────────────────────────────────────────────
-model Contract {
-  id                String         @id @default(cuid())
-  contractNumber    String         @unique  // Auto-generated: CON-2026-001
-  title             String
-  description       String?
-  status            ContractStatus @default(DRAFT)
-  type              ContractType   @default(PROJECT)
-  totalAmount       Float          @default(0)
-  startDate         DateTime?
-  endDate           DateTime?
-  
-  // Terms
-  terms             String?        // Cláusulas/términos (texto o markdown)
-  htmlContent       String?        // HTML/CSS/JS del contrato (similar a cotizaciones)
-  
-  // Attached files
-  documentUrl       String?        // PDF del contrato firmado
-  documentFilename  String?
-  
-  // Renewal
-  autoRenew         Boolean        @default(false)
-  renewalAlertDays  Int            @default(30)
-  
-  // Relations
-  userId            String
-  clientId          String
-  quotationId       String?        // Contrato viene de cotización aprobada
-  
-  // Soft delete
-  isDeleted         Boolean        @default(false)
-  deletedAt         DateTime?
-  
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  
-  user              User              @relation(fields: [userId], references: [id])
-  client            QuotationClient   @relation(fields: [clientId], references: [id])
-  quotation         Quotation?        @relation(fields: [quotationId], references: [id])
-  deals             Deal[]
-  expenses          ClientExpense[]
-  approvals         ClientApproval[]
-  portals           ProjectPortal[]
-  paymentPlans      PaymentPlan[]
-  milestones        ProjectMilestone[]
-  
-  @@index([userId])
-  @@index([clientId])
-  @@index([status])
-  @@index([endDate])
-  @@index([isDeleted])
-}
-
-// ─── ClientExpense (Gastos por Cliente) ────────────────────────────
-model ClientExpense {
-  id              String           @id @default(cuid())
-  userId          String
-  clientId        String
-  contractId      String?
-  category        ExpenseCategory  @default(OTHER)
-  description     String
-  amount          Float
-  isRecurring     Boolean          @default(false)
-  frequency       ExpenseFrequency @default(ONE_TIME)
-  expenseDate     DateTime         @default(now())
-  
-  // Receipt
-  receiptUrl      String?
-  receiptFilename String?
-  
-  notes           String?
-  
-  // Soft delete
-  isDeleted       Boolean          @default(false)
-  deletedAt       DateTime?
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  user            User             @relation(fields: [userId], references: [id])
-  client          QuotationClient  @relation(fields: [clientId], references: [id])
-  contract        Contract?        @relation(fields: [contractId], references: [id])
-  
-  @@index([userId, clientId])
-  @@index([clientId])
-  @@index([category])
-  @@index([expenseDate])
-  @@index([isDeleted])
-}
-
-// ─── PaymentPlan (Plan de Cuotas) ──────────────────────────────────
-model PaymentPlan {
-  id                String            @id @default(cuid())
-  quotationId       String
-  clientId          String
-  contractId        String?
-  totalAmount       Float
-  totalInstallments Int               @default(1)
-  status            PaymentPlanStatus @default(ACTIVE)
-  notes             String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
-  quotation         Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  client            QuotationClient   @relation(fields: [clientId], references: [id])
-  contract          Contract?         @relation(fields: [contractId], references: [id])
-  
-  @@index([quotationId])
-  @@index([clientId])
-  @@index([status])
-}
-
-// ─── ProjectPortal (Portal de Seguimiento del Cliente) ─────────────
-model ProjectPortal {
-  id              String    @id @default(cuid())
-  title           String
-  slug            String    @unique
-  description     String?   // Mensaje de bienvenida para el cliente
-  
-  // Access control
-  accessCode      String    // Hashed with argon2
-  accessMode      String    @default("code") // "code" | "link"
-  isActive        Boolean   @default(true)
-  expiresAt       DateTime?
-  
-  // Analytics
-  lastAccessedAt  DateTime?
-  accessCount     Int       @default(0)
-  
-  // Relations
-  userId          String
-  clientId        String
-  quotationId     String?
-  contractId      String?
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  user            User              @relation(fields: [userId], references: [id])
-  client          QuotationClient   @relation(fields: [clientId], references: [id])
-  quotation       Quotation?        @relation(fields: [quotationId], references: [id])
-  contract        Contract?         @relation(fields: [contractId], references: [id])
-  milestones      ProjectMilestone[]
-  
-  @@index([slug])
-  @@index([userId])
-  @@index([clientId])
-  @@index([isActive])
-}
-
-// ─── ProjectMilestone (Hitos del Proyecto) ─────────────────────────
-model ProjectMilestone {
-  id                  String          @id @default(cuid())
-  portalId            String
-  contractId          String?
-  title               String
-  description         String?
-  status              MilestoneStatus @default(PENDING)
-  type                MilestoneType   @default(CUSTOM)
-  icon                String?         // Emoji or icon name
-  sortOrder           Int             @default(0)
-  estimatedDate       DateTime?
-  completedAt         DateTime?
-  isVisibleToClient   Boolean         @default(true)
-  metadata            Json?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  
-  portal              ProjectPortal   @relation(fields: [portalId], references: [id], onDelete: Cascade)
-  contract            Contract?       @relation(fields: [contractId], references: [id])
-  
-  @@index([portalId, sortOrder])
-  @@index([status])
-}
-
-// ─── ClientApproval (Firma Digital / Aprobación) ───────────────────
-model ClientApproval {
-  id                  String          @id @default(cuid())
-  clientId            String
-  quotationId         String?
-  contractId          String?
-  userId              String          // Admin who sent the approval request
-  
-  // Document
-  type                String          @default("QUOTATION") // QUOTATION, CONTRACT, OTHER
-  status              ApprovalStatus  @default(PENDING)
-  documentHash        String          // SHA-256 of content at send time
-  signedDocumentHash  String?         // SHA-256 of content at sign time
-  
-  // Signer data (filled by client)
-  signerName          String?
-  signerRut           String?
-  signerEmail         String?
-  signatureImage      String?         // URL to drawn signature PNG
-  signatureMethod     SignatureMethod?
-  clientComments      String?
-  rejectionReason     String?
-  
-  // Verification / Audit trail (NIST SP 800-53 AU-3)
-  ipAddress           String?
-  userAgent           String?
-  fingerprint         String?
-  geolocation         String?         // Optional lat,lng
-  signedAt            DateTime?
-  
-  // Certificate
-  certificateUrl      String?         // PDF del certificado generado
-  certificateHash     String?         // Hash del certificado para integridad
-  
-  // Access control
-  accessToken         String          @unique // Hashed token for secure access
-  sentAt              DateTime        @default(now())
-  expiresAt           DateTime?
-  remindedAt          DateTime?
-  
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  
-  client              QuotationClient @relation(fields: [clientId], references: [id])
-  quotation           Quotation?      @relation(fields: [quotationId], references: [id])
-  contract            Contract?       @relation(fields: [contractId], references: [id])
-  user                User            @relation(fields: [userId], references: [id])
-  
-  @@index([clientId])
-  @@index([quotationId])
-  @@index([contractId])
-  @@index([status])
-  @@index([accessToken])
-  @@index([expiresAt])
 }

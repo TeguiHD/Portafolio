@@ -313,6 +313,14 @@ export const QUOTATION_SECURITY: SecurityOptions = {
     context: "quotations",
 };
 
+/** Security for CRM / commercial management */
+export const CRM_SECURITY: SecurityOptions = {
+    rateLimit: { limit: 30, window: 60 },
+    requireAuth: true,
+    validateInput: true,
+    context: "crm",
+};
+
 /** Public API with rate limiting only */
 export const PUBLIC_SECURITY: SecurityOptions = {
     rateLimit: { limit: 60, window: 60 },

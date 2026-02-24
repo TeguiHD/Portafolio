@@ -1,0 +1,698 @@
+================================================================================
+          PLAN DE NUEVA IMPLEMENTACIÓN — GESTIÓN COMERCIAL (CRM INTERNO)
+================================================================================
+Fecha: 23 de Febrero de 2026
+Versión: 1.1 — Documento de Planificación (actualizado)
+================================================================================
+
+📋 RESUMEN EJECUTIVO
+────────────────────────────────────────────────────────────────────────────────
+Transformar la actual sección de "Cotizaciones" en un sistema completo de 
+Gestión Comercial, con pipeline CRM, propuestas, contratos, control de gastos 
+por cliente, control de flujo de dinero, gestión avanzada de pagos con 
+comprobantes adjuntos, portal de seguimiento para el cliente, y sistema de 
+firma/aprobación digital.
+
+Este módulo tiene componentes INTERNOS (gestión propia) y un PORTAL PÚBLICO
+controlado (vista de progreso del cliente con acceso por código de seguridad).
+
+================================================================================
+
+🏗️ ESTADO ACTUAL DEL SISTEMA
+────────────────────────────────────────────────────────────────────────────────
+Lo que YA existe:
+
+  ✅ Modelo QuotationClient
+     - Nombre, empresa, slug, RUT, dirección
+     - Contacto: nombre, email, teléfono, cargo (contactRole)
+     - Notas internas, código de acceso
+     - Compartir clientes entre usuarios
+     
+  ✅ Modelo Quotation  
+     - Folio único, nombre cliente, email, nombre proyecto
+     - Items (JSON), subtotal, descuento, total
+     - Días de validez, términos de pago, timeline, notas
+     - Estados: DRAFT → PENDING → REVISION → APPROVED → REJECTED → COMPLETED
+     - Contenido HTML, códigos de acceso, slug
+     - totalPaid (tracking de pagos), soft delete
+     
+  ✅ Modelo QuotationPayment
+     - Monto, método de pago, referencia, notas
+     - Fecha de pago, registrado por
+     - Métodos: CASH, TRANSFER, CREDIT_CARD, DEBIT_CARD, CHECK, PAYPAL, CRYPTO
+     
+  ✅ Modelo QuotationStatusHistory
+     - Historial de cambios de estado (auditoría)
+     
+  ✅ Componentes existentes
+     - QuotationsView (vista general de clientes)
+     - QuotationWorkspace (espacio de trabajo con IA)
+     - QuotationForm + QuotationPreview
+     - PaymentModal, EditQuotationModal
+     - QuotationCard, ClientCard, ClientsSearchModal
+     - ShareClientModal, SpyModeModal, RedeemCodeModal
+     - QuotationAIChat (chat con IA para crear cotizaciones)
+
+================================================================================
+
+🎯 LO QUE SE QUIERE LOGRAR
+────────────────────────────────────────────────────────────────────────────────
+
+El objetivo es evolucionar de un "sistema de cotizaciones" a un 
+"sistema de gestión comercial completo", con las siguientes áreas:
+
+  1. Pipeline CRM (Embudo de ventas)
+  2. Propuestas / Cotizaciones (ya existe, mejorar)
+  3. Contratos
+  4. Control de Gastos por Cliente
+  5. Control de Flujo de Dinero (ingresos, proyección)
+  6. Gestión de Pagos con Comprobantes
+  7. Portal del Cliente (Seguimiento por hitos) ← NUEVO
+  8. Firma Digital / Aprobación del Cliente    ← NUEVO
+
+================================================================================
+
+📌 MÓDULO 1: PIPELINE CRM (Embudo de Ventas)
+────────────────────────────────────────────────────────────────────────────────
+
+  Descripción:
+    Visualización tipo kanban del flujo comercial de cada oportunidad/deal.
+
+  Etapas del Pipeline:
+    ┌────────────┐   ┌────────────┐   ┌────────────┐   ┌────────────┐
+    │ PROSPECTO  │ → │ CONTACTADO │ → │ PROPUESTA  │ → │ NEGOCIACIÓN│
+    └────────────┘   └────────────┘   └────────────┘   └────────────┘
+           │                                                  │
+           ▼                                                  ▼
+    ┌────────────┐                                     ┌────────────┐
+    │  PERDIDO   │                                     │   GANADO   │
+    └────────────┘                                     └────────────┘
+
+  Nuevo modelo: Deal (Oportunidad)
+    - id, título, descripción
+    - clientId → QuotationClient
+    - etapa (PROSPECTO, CONTACTADO, PROPUESTA, NEGOCIACIÓN, GANADO, PERDIDO)
+    - valor estimado (monto)
+    - probabilidad de cierre (%)
+    - fecha estimada de cierre
+    - quotationId → vincularlo a cotización existente
+    - contractId → vincularlo a contrato
+    - prioridad (BAJA, MEDIA, ALTA, URGENTE)
+    - origen (REFERIDO, WEB, REDES_SOCIALES, DIRECTO, OTRO)
+    - notas, actividades/seguimiento
+    - asignado a (userId)
+    - createdAt, updatedAt
+
+  Vista:
+    - Board Kanban (drag & drop entre columnas)
+    - Vista de lista alternativa
+    - Filtros por cliente, fecha, valor, prioridad
+    - Métricas: valor total del pipeline, tasa de conversión
+    - Timeline de actividades por deal
+
+================================================================================
+
+📌 MÓDULO 2: PROPUESTAS / COTIZACIONES (Mejoras)
+────────────────────────────────────────────────────────────────────────────────
+
+  Ya existe bastante, pero mejoras sugeridas:
+
+  - Vincular cotización a un Deal del pipeline
+  - Agregar campo "tipo de trabajo" al cliente
+    (ej: Desarrollo Web, Branding, Consultoría, Mantenimiento, etc.)
+  - Mejorar vista de listado con:
+    → Filtros por estado, fecha, monto, tipo de trabajo
+    → Búsqueda global
+    → Vista de resumen con totales
+  - Templates de cotización por tipo de trabajo
+  - Versionado de cotizaciones (v1, v2, v3...)
+  - Convertir cotización aprobada en contrato automáticamente
+
+================================================================================
+
+📌 MÓDULO 3: CONTRATOS
+────────────────────────────────────────────────────────────────────────────────
+
+  Descripción:
+    Gestión de contratos vinculados a cotizaciones aprobadas.
+
+  Nuevo modelo: Contract
+    - id, número de contrato (auto-generado)
+    - clientId → QuotationClient
+    - quotationId → Quotation (opcional, si viene de cotización)
+    - dealId → Deal (opcional)
+    - título, descripción
+    - monto total
+    - fecha inicio, fecha fin
+    - estado: BORRADOR, ACTIVO, EN_PAUSA, COMPLETADO, CANCELADO, VENCIDO
+    - tipo: PROYECTO, RETAINER (mensual), MANTENIMIENTO, CONSULTORÍA
+    - archivo adjunto (PDF del contrato firmado)
+    - cláusulas/términos (JSON o texto)
+    - renovación automática (boolean)
+    - alertas de vencimiento
+    - createdAt, updatedAt
+
+  Vista:
+    - Lista de contratos con estados
+    - Detalle del contrato con timeline
+    - Alertas de vencimiento próximo
+    - Vinculación a cotización y pagos
+
+================================================================================
+
+📌 MÓDULO 4: CONTROL DE GASTOS POR CLIENTE
+────────────────────────────────────────────────────────────────────────────────
+
+  Descripción:
+    Tracking de gastos/costos asociados a cada cliente y proyecto.
+
+  Nuevo modelo: ClientExpense
+    - id
+    - clientId → QuotationClient
+    - dealId → Deal (opcional)
+    - contractId → Contract (opcional)
+    - categoría (HOSTING, DOMINIO, LICENCIAS, TERCEROS, HERRAMIENTAS, OTRO)
+    - descripción
+    - monto
+    - es recurrente (boolean)
+    - frecuencia (MENSUAL, ANUAL, ÚNICO)
+    - fecha de gasto
+    - comprobante adjunto (imagen/PDF)
+    - notas
+    - createdAt, updatedAt
+
+  Información por cliente (vista de ficha):
+    ┌────────────────────────────────────────────────────────────┐
+    │  FICHA DE CLIENTE                                          │
+    ├────────────────────────────────────────────────────────────┤
+    │  Nombre Cliente: Juan Pérez                                │
+    │  Empresa: Empresa XYZ S.A.                                 │
+    │  Cargo: Gerente de Marketing                               │
+    │  Tipo de Trabajo: Desarrollo Web + Mantenimiento           │
+    │                                                            │
+    │  📊 Resumen Financiero:                                    │
+    │    - Ingresos totales del cliente: $5.000.000              │
+    │    - Gastos totales en el cliente: $800.000                │
+    │    - Margen: $4.200.000 (84%)                              │
+    │                                                            │
+    │  📋 Cotizaciones: 3 (2 aprobadas, 1 pendiente)            │
+    │  📄 Contratos: 2 activos                                  │
+    │  💰 Pagos: 8 registrados                                  │
+    │  📎 Comprobantes: 8 adjuntos                              │
+    └────────────────────────────────────────────────────────────┘
+
+================================================================================
+
+📌 MÓDULO 5: CONTROL DE FLUJO DE DINERO
+────────────────────────────────────────────────────────────────────────────────
+
+  Descripción:
+    Dashboard financiero con métricas de negocio.
+
+  Dashboard principal:
+    ┌─────────────────────────────────────────────────────────────┐
+    │                   PANEL FINANCIERO                          │
+    ├───────────────┬───────────────┬─────────────────────────────┤
+    │  Ingresos     │  Gastos       │  Margen Neto               │
+    │  Totales      │  Totales      │                             │
+    │  $12.500.000  │  $3.200.000   │  $9.300.000 (74.4%)        │
+    ├───────────────┴───────────────┴─────────────────────────────┤
+    │                                                             │
+    │  📈 PROYECCIÓN A 3 MESES                                   │
+    │  ─────────────────────────────────────────                  │
+    │  Basado en: contratos activos + deals pipeline              │
+    │                                                             │
+    │  Mes 1 (Marzo):  $2.800.000  (2 contratos + 1 deal 90%)   │
+    │  Mes 2 (Abril):  $2.100.000  (2 contratos retainer)       │
+    │  Mes 3 (Mayo):   $3.500.000  (2 contratos + 2 deals 70%) │
+    │                                                             │
+    ├─────────────────────────────────────────────────────────────┤
+    │                                                             │
+    │  💰 CUENTAS POR COBRAR                                     │
+    │  ─────────────────────────────────────────                  │
+    │  Cliente A — Cotización #45 — Debe: $1.200.000 (2 cuotas) │
+    │  Cliente B — Contrato #12  — Debe: $800.000 (1 cuota)     │
+    │                                                             │
+    ├─────────────────────────────────────────────────────────────┤
+    │                                                             │
+    │  📊 TOP 5 CLIENTES POR INGRESO                             │
+    │  1. Empresa A — $3.200.000                                 │
+    │  2. Empresa B — $2.800.000                                 │
+    │  3. Empresa C — $1.500.000                                 │
+    │  ...                                                       │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+
+  Métricas:
+    - Ingresos totales (por período: mes, trimestre, año)
+    - Gastos totales (por período)
+    - Margen neto
+    - Proyección a 3 meses (basado en contratos + pipeline)
+    - Cuentas por cobrar (pagos pendientes)
+    - Ingreso promedio por cliente
+    - Top clientes por ingreso  
+    - Gráficos: línea temporal de ingresos vs gastos
+
+================================================================================
+
+📌 MÓDULO 6: GESTIÓN DE PAGOS CON COMPROBANTES
+────────────────────────────────────────────────────────────────────────────────
+
+  Descripción:
+    Sistema de pagos completo con soporte para cuotas, pagos parciales,
+    y adjunto de comprobantes con visor popup responsive.
+
+  Mejoras al modelo QuotationPayment existente:
+    - Agregar: receiptUrl (URL del comprobante adjunto)
+    - Agregar: receiptFilename (nombre original del archivo)
+    - Agregar: receiptMimeType (tipo de archivo)
+    - Agregar: installmentNumber (nro de cuota, ej: 1 de 3)
+    - Agregar: totalInstallments (total de cuotas pactadas)
+    - Agregar: isPartial (boolean, es pago parcial)
+    - Agregar: dueDate (fecha de vencimiento de la cuota)
+    - Agregar: status (PENDIENTE, PAGADO, VENCIDO, ANULADO)
+
+  Flujo de pagos:
+    1. Al aprobar cotización → definir plan de pagos
+       - ¿En cuántas cuotas? (1, 2, 3, N)
+       - Montos por cuota (pueden ser desiguales: 50%-50%, 30%-30%-40%, etc.)
+       - Fechas de vencimiento por cuota
+    2. Registrar cada pago cuando se realice
+       - Monto, fecha, método
+       - Adjuntar comprobante (imagen o PDF)
+       - Referencia/número de transferencia
+    3. Ver estado de pagos por cotización
+       - Cuota 1/3: ✅ Pagado — $500.000 — 15/Feb — [Ver comprobante]
+       - Cuota 2/3: ⏳ Pendiente — $500.000 — Vence 15/Mar
+       - Cuota 3/3: ⏳ Pendiente — $500.000 — Vence 15/Abr
+
+  Visor de Comprobantes (Popup Responsive):
+    ┌────────────────────────────────────────────────────┐
+    │  ╔════════════════════════════════════════════════╗ │
+    │  ║          COMPROBANTE DE PAGO                   ║ │
+    │  ║  ┌──────────────────────────────────────────┐  ║ │
+    │  ║  │                                          │  ║ │
+    │  ║  │         [IMAGEN DEL COMPROBANTE]          │  ║ │
+    │  ║  │         con zoom y pan                    │  ║ │
+    │  ║  │                                          │  ║ │
+    │  ║  └──────────────────────────────────────────┘  ║ │
+    │  ║                                                ║ │
+    │  ║  📋 Detalles:                                  ║ │
+    │  ║  Cuota: 1 de 3                                ║ │
+    │  ║  Monto: $500.000                              ║ │
+    │  ║  Fecha: 15/Feb/2026                           ║ │
+    │  ║  Método: Transferencia                        ║ │
+    │  ║  Ref: TRF-2026021500123                       ║ │
+    │  ║                                                ║ │
+    │  ║  [Descargar]  [Cerrar]                        ║ │
+    │  ╚════════════════════════════════════════════════╝ │
+    └────────────────────────────────────────────────────┘
+    
+    Características del popup:
+      - Modal full-screen en móvil, centrado en desktop
+      - Zoom con pinch (mobile) y scroll (desktop)
+      - Soporte para imágenes (JPG, PNG, WebP) y PDF
+      - Navegación entre comprobantes del mismo cliente
+      - Botón de descarga directa
+      - Animación de apertura/cierre suave
+      - Overlay con blur de fondo
+      - Gesture: swipe para cerrar en móvil
+
+================================================================================
+
+📌 MÓDULO 7: PORTAL DEL CLIENTE (Seguimiento por Hitos)
+────────────────────────────────────────────────────────────────────────────────
+
+  Descripción:
+    Vista PÚBLICA (pero protegida) donde el cliente puede ver en qué etapa
+    va su proyecto. Una barra de progreso con hitos, accesible mediante un
+    código de seguridad único.
+
+  Acceso del cliente:
+    URL: /proyecto/[clientSlug]/[projectSlug]
+    → Pide código de seguridad (como ya existe con las cotizaciones)
+    → Al ingresar, ve el estado de su proyecto
+
+  Flujo visual que ve el cliente:
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                                                                     │
+    │  ✅ Cotización     ✅ Aprobado     ✅ Pago 1/3     🔄 En Trabajo  │
+    │  ●────────────────●───────────────●───────────────●                │
+    │  15/Ene           20/Ene          25/Ene          Ahora           │
+    │                                                                     │
+    │  ○ Compra Hosting    ○ Revisión    ○ Entrega Final                 │
+    │  ──────────────────────────────────●                                │
+    │  Pendiente           Pendiente     Estimado: 15/Mar               │
+    │                                                                     │
+    └─────────────────────────────────────────────────────────────────────┘
+
+  Nuevo modelo: ProjectMilestone (Hito del Proyecto)
+    - id
+    - contractId → Contract (o quotationId → Quotation)
+    - clientId → QuotationClient
+    - título (ej: "Cotización enviada", "Pago recibido", "Hosting configurado")
+    - descripción (detalle opcional)
+    - orden (sortOrder, para el orden en la barra)
+    - estado: PENDIENTE, EN_PROGRESO, COMPLETADO, OMITIDO
+    - fechaEstimada (cuándo se espera completar)
+    - fechaCompletada (cuándo se completó realmente)
+    - esVisibleParaCliente (boolean) — algunos hitos internos no se muestran
+    - icono (emoji o nombre de ícono)
+    - tipo: COTIZACIÓN, PAGO, CONTRATO, TRABAJO, HOSTING, REVISIÓN, ENTREGA, CUSTOM
+    - metadata (JSON, datos opcionales)
+    - createdAt, updatedAt
+
+  Nuevo modelo: ProjectPortal (Portal del Proyecto)
+    - id
+    - clientId → QuotationClient
+    - quotationId → Quotation (opcional)
+    - contractId → Contract (opcional)
+    - título del proyecto
+    - slug (URL amigable)
+    - accessCode (código de seguridad, hasheado)
+    - accessMode: "code" | "link" (código o link directo temporal)
+    - isActive (boolean)
+    - descripción (mensaje de bienvenida para el cliente)
+    - milestones → ProjectMilestone[]
+    - lastAccessedAt (última vez que el cliente entró)
+    - accessCount (cuántas veces ha ingresado)
+    - expiresAt (opcional, fecha de expiración del portal)
+    - createdAt, updatedAt
+
+  Hitos predefinidos por tipo de proyecto (templates):
+
+    Desarrollo Web:
+      1. ✉️  Cotización enviada
+      2. ✅  Cotización aprobada / Firma
+      3. 💰  Pago inicial recibido
+      4. 🌐  Compra de hosting y dominio
+      5. 🎨  Diseño aprobado
+      6. 💻  Desarrollo en progreso
+      7. 👀  Revisión del cliente
+      8. 🔧  Ajustes finales
+      9. 💰  Pago final
+      10. 🚀  Entrega y puesta en línea
+
+    Branding:
+      1. ✉️  Propuesta enviada
+      2. ✅  Propuesta aprobada / Firma
+      3. 💰  Pago inicial
+      4. 🎨  Conceptos de diseño
+      5. 👀  Revisión del cliente
+      6. 🔧  Refinamiento
+      7. 💰  Pago final
+      8. 📦  Entrega de archivos
+
+  Vista del admin (gestión de hitos):
+    - Crear portal para un proyecto
+    - Usar template de hitos o crear manualmente
+    - Marcar hitos como completados (con fecha)
+    - Agregar/quitar hitos en cualquier momento
+    - Ver log de accesos del cliente (cuándo entró)
+    - Enviar notificación al cliente cuando un hito avanza
+
+  Control de acceso:
+    - Código de seguridad único por portal
+    - Rate limiting por IP (prevenir fuerza bruta)
+    - Log de accesos (IP, fecha, user-agent)
+    - Posibilidad de desactivar portal (isActive = false)
+    - Link temporal compartible (expira en X horas)
+    - Reutilizar sistema existente de QuotationAccessLog
+
+================================================================================
+
+📌 MÓDULO 8: FIRMA DIGITAL / APROBACIÓN DEL CLIENTE
+────────────────────────────────────────────────────────────────────────────────
+
+  Descripción:
+    Sistema para que el cliente apruebe cotizaciones/contratos de forma
+    digital, dejando un respaldo firmado con datos de verificación.
+    NO es una firma electrónica avanzada (FEA), sino un sistema de
+    consentimiento digital con validez probatoria interna.
+
+  Flujo de firma:
+    1. Admin envía cotización/contrato al cliente
+    2. Cliente accede por link seguro (código de acceso)
+    3. Cliente revisa el documento completo
+    4. Cliente firma:
+       ─ Opción A: Firma con dedo/mouse (canvas de dibujo)
+       ─ Opción B: Escribir nombre completo + RUT + checkbox de aceptación
+       ─ Opción C: Ambas (firma dibujada + datos personales)
+    5. Sistema captura y guarda:
+       ─ Imagen de la firma (PNG)
+       ─ Hash del documento en el momento de la firma
+       ─ Datos del firmante (nombre, RUT, email)
+       ─ IP, user-agent, timestamp exacto
+       ─ Huella digital del navegador (fingerprint)
+    6. Se genera un "Certificado de Aprobación" PDF descargable
+
+  Nuevo modelo: ClientApproval
+    - id
+    - quotationId → Quotation (opcional)
+    - contractId → Contract (opcional)
+    - clientId → QuotationClient
+    - tipo: COTIZACIÓN, CONTRATO, OTRO
+    - estado: PENDIENTE, FIRMADO, RECHAZADO, EXPIRADO, REVOCADO
+    - documentHash (SHA-256 del contenido al momento de enviar)
+    - signedDocumentHash (SHA-256 del contenido al momento de firmar)
+    
+    // Datos de la firma
+    - signerName (nombre completo ingresado por el cliente)
+    - signerRut (RUT ingresado)
+    - signerEmail (email ingresado)
+    - signatureImage (URL de la imagen de la firma dibujada)
+    - signatureMethod: "DRAWN" | "TYPED" | "BOTH"
+    
+    // Datos de verificación/auditoría
+    - ipAddress
+    - userAgent
+    - fingerprint
+    - geolocation (opcional, si el cliente lo permite)
+    - signedAt (timestamp exacto de la firma)
+    
+    // Certificado
+    - certificateUrl (PDF del certificado de aprobación)
+    - certificateHash (hash del certificado)
+    
+    // Comentarios
+    - clientComments (comentarios opcionales del cliente al firmar)
+    - rejectionReason (si rechazó, por qué)
+    
+    // Metadatos
+    - sentAt (cuándo se envió la solicitud de firma)
+    - expiresAt (fecha límite para firmar)
+    - remindedAt (última vez que se envió recordatorio)
+    - createdAt, updatedAt
+
+  Certificado de Aprobación (PDF autogenerado):
+    ┌────────────────────────────────────────────────────────┐
+    │                                                        │
+    │  ╔════════════════════════════════════════════════════╗│
+    │  ║       CERTIFICADO DE APROBACIÓN DIGITAL           ║│
+    │  ║                                                    ║│
+    │  ║  Documento: Cotización FOL-2026-0045              ║│
+    │  ║  Proyecto: Sitio Web Empresa XYZ                  ║│
+    │  ║  Monto: $2.500.000 CLP                            ║│
+    │  ║                                                    ║│
+    │  ║  ─────── FIRMADO POR ───────                      ║│
+    │  ║  Nombre: Juan Andrés Pérez López                  ║│
+    │  ║  RUT: 12.345.678-9                                ║│
+    │  ║  Email: juan@empresa.cl                           ║│
+    │  ║                                                    ║│
+    │  ║  Firma:  [imagen de la firma dibujada]            ║│
+    │  ║                                                    ║│
+    │  ║  ─────── DATOS DE VERIFICACIÓN ───────            ║│
+    │  ║  Fecha y hora: 23/Feb/2026 16:45:32 -03:00       ║│
+    │  ║  IP: 190.xxx.xxx.xxx                              ║│
+    │  ║  Hash documento: a3f8c2...                         ║│
+    │  ║  Hash certificado: b7d1e5...                       ║│
+    │  ║                                                    ║│
+    │  ║  "Acepto los términos y condiciones descritos     ║│
+    │  ║   en la cotización FOL-2026-0045"                  ║│
+    │  ║                                                    ║│
+    │  ╚════════════════════════════════════════════════════╝│
+    │                                                        │
+    └────────────────────────────────────────────────────────┘
+
+  Vista del admin:
+    - Ver estado de todas las aprobaciones pendientes
+    - Reenviar solicitud de firma
+    - Ver certificado firmado
+    - Descargar certificado PDF
+    - Historial de intentos (accesos sin firmar)
+    - Revocar aprobación si es necesario
+
+  Vista del cliente (página pública protegida):
+    - Ver documento completo (cotización o contrato)
+    - Zona de firma (canvas responsive para dibujar)
+    - Campos obligatorios: nombre completo, RUT, email
+    - Checkbox: "He leído y acepto los términos..."
+    - Botón "Firmar y Aprobar"
+    - Confirmación con resumen antes de enviar
+    - Descarga inmediata del certificado tras firmar
+
+  Seguridad:
+    - El hash del documento se calcula al enviar la solicitud
+    - Al firmar se verifica que el hash actual coincida
+      (si alguien modifica el doc después de enviarlo, no coincide)
+    - Verificación de integridad del certificado
+    - Rate limiting en la página de firma
+    - Log completo de auditoría
+
+================================================================================
+
+🗂️ ESTRUCTURA DE NAVEGACIÓN PROPUESTA
+────────────────────────────────────────────────────────────────────────────────
+
+  RUTAS ADMIN (internas):
+  /admin/gestion-comercial/               ← Dashboard principal (métricas)
+  /admin/gestion-comercial/pipeline/      ← Pipeline CRM (kanban)
+  /admin/gestion-comercial/clientes/      ← Lista de clientes (fichas)
+  /admin/gestion-comercial/clientes/[id]  ← Detalle del cliente
+  /admin/gestion-comercial/propuestas/    ← Cotizaciones (actual mejorado)
+  /admin/gestion-comercial/contratos/     ← Contratos
+  /admin/gestion-comercial/pagos/         ← Pagos y comprobantes
+  /admin/gestion-comercial/gastos/        ← Control de gastos
+  /admin/gestion-comercial/portales/      ← Gestión de portales de cliente
+  /admin/gestion-comercial/aprobaciones/  ← Estado de firmas/aprobaciones
+
+  RUTAS PÚBLICAS (cliente, protegidas con código):
+  /proyecto/[clientSlug]/[projectSlug]    ← Portal de seguimiento del cliente
+  /aprobar/[token]                        ← Página de firma/aprobación
+
+  Sidebar/Tabs dentro de la sección:
+  ┌──────────────────────────────────────┐
+  │  📊 Dashboard                        │
+  │  🔄 Pipeline                        │
+  │  👥 Clientes                        │
+  │  📝 Propuestas                      │
+  │  📄 Contratos                       │
+  │  💰 Pagos                           │
+  │  💸 Gastos                          │
+  │  🔗 Portales                        │
+  │  ✍️  Aprobaciones                    │
+  └──────────────────────────────────────┘
+
+================================================================================
+
+🗄️ NUEVOS MODELOS DE BASE DE DATOS (Resumen)
+────────────────────────────────────────────────────────────────────────────────
+
+  NUEVOS:
+    1. Deal              — Oportunidades del pipeline
+    2. DealActivity      — Actividades/notas por deal  
+    3. Contract          — Contratos
+    4. ClientExpense     — Gastos por cliente
+    5. PaymentPlan       — Plan de cuotas por cotización
+    6. ProjectPortal     — Portal de seguimiento del cliente
+    7. ProjectMilestone  — Hitos del proyecto (barra de progreso)
+    8. ClientApproval    — Firma digital / aprobación del cliente
+
+  MODIFICAR:
+    1. QuotationClient  — Agregar campo "workType" (tipo de trabajo)
+    2. QuotationPayment — Agregar campos para comprobantes y cuotas
+
+================================================================================
+
+🔄 ORDEN DE IMPLEMENTACIÓN SUGERIDO (Fases)
+────────────────────────────────────────────────────────────────────────────────
+
+  FASE 1 — Fundamentos (Primero)
+  ────────────────────────────────
+    ✦ Reestructurar rutas: /admin/cotizaciones → /admin/gestion-comercial
+    ✦ Mejorar QuotationClient con workType
+    ✦ Crear ficha completa del cliente
+    ✦ Mejorar pagos: comprobantes, cuotas, plan de pagos
+    ✦ Visor de comprobantes responsive
+
+  FASE 2 — Pipeline CRM
+  ────────────────────────────────
+    ✦ Modelo Deal + DealActivity
+    ✦ Vista Kanban con drag & drop
+    ✦ Vincular deals con cotizaciones
+    ✦ Filtros y métricas del pipeline
+
+  FASE 3 — Contratos
+  ────────────────────────────────
+    ✦ Modelo Contract
+    ✦ Crear contrato desde cotización aprobada
+    ✦ Estados y alertas de vencimiento
+    ✦ Adjuntar PDF de contrato firmado
+
+  FASE 4 — Control de Gastos
+  ────────────────────────────────
+    ✦ Modelo ClientExpense
+    ✦ Registrar gastos por cliente/proyecto
+    ✦ Comprobantes de gastos
+    ✦ Reportes de margen por cliente
+
+  FASE 5 — Dashboard Financiero  
+  ────────────────────────────────
+    ✦ Panel con métricas consolidadas
+    ✦ Proyección a 3 meses
+    ✦ Cuentas por cobrar
+    ✦ Gráficos (ingresos vs gastos, timeline)
+    ✦ Top clientes por ingreso
+
+  FASE 6 — Portal del Cliente + Firma Digital
+  ────────────────────────────────
+    ✦ Modelo ProjectPortal + ProjectMilestone
+    ✦ Templates de hitos por tipo de proyecto
+    ✦ Vista pública de progreso (barra de hitos)
+    ✦ Control de acceso con código de seguridad
+    ✦ Modelo ClientApproval
+    ✦ Canvas de firma dibujada (responsive)
+    ✦ Formulario de aprobación (nombre, RUT, email)
+    ✦ Generación de certificado PDF
+    ✦ Verificación de integridad con hash
+    ✦ Página admin para gestionar portales y aprobaciones
+
+================================================================================
+
+❓ PREGUNTAS Y DECISIONES PENDIENTES
+────────────────────────────────────────────────────────────────────────────────
+
+  1. ¿Los comprobantes de pago se suben al server local o usar servicio 
+     externo (S3, Cloudinary)?
+
+  2. ¿Quieres que los contratos tengan un editor o solo se adjunta PDF?
+
+  3. ¿El pipeline es un solo pipeline o quieres poder tener múltiples 
+     pipelines (ej: uno para desarrollo, otro para diseño)?
+
+  4. ¿Quieres notificaciones automáticas?
+     - Cuota próxima a vencer
+     - Contrato próximo a expirar  
+     - Deal sin actividad hace X días
+
+  5. ¿Qué tipos de trabajo son los más frecuentes? 
+     Para precargar las opciones de "workType":
+     Ej: Desarrollo Web, Branding, Consultoría, Mantenimiento, Marketing, etc.
+
+  6. ¿Quieres exportar reportes (PDF/Excel)?
+
+  7. ¿La moneda es siempre CLP (pesos chilenos) o necesitas multi-moneda?
+     (ya existe soporte de Currency en el schema)
+
+  8. ¿Los demás usuarios del sistema pueden ver esta gestión o es solo 
+     para admin/superadmin?
+
+================================================================================
+
+📝 NOTAS ADICIONALES
+────────────────────────────────────────────────────────────────────────────────
+
+  - El sistema actual de cotizaciones NO se elimina, se EVOLUCIONA
+  - Se mantiene 100% compatibilidad con las cotizaciones existentes
+  - Los datos actuales de pagos se migran al nuevo formato
+  - El chat con IA se mantiene y se puede expandir para contratos
+  - Módulos 1-6 son GESTIÓN INTERNA (solo admin)
+  - Módulos 7-8 tienen componentes PÚBLICOS pero protegidos con código
+  - La firma digital NO reemplaza una FEA (Firma Electrónica Avanzada)
+    pero sí sirve como respaldo probatorio con toda la metadata
+  - Se reutiliza el sistema de acceso por código que ya existe
+    (QuotationAccessLog) tanto para portales como para firmas
+
+================================================================================
+                     FIN DEL DOCUMENTO DE PLANIFICACIÓN
+================================================================================

@@ -85,6 +85,31 @@ const icons = {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
     ),
+    briefcase: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+    ),
+    pipeline: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+        </svg>
+    ),
+    contract: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+    ),
+    expense: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+        </svg>
+    ),
+    services: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+    ),
 };
 
 // Menu structure with groups
@@ -130,16 +155,41 @@ const menuStructure: {
                     requiredPermission: "cv.own.view",
                 },
                 {
-                    name: "Cotizaciones",
+                    name: "Finanzas",
+                    href: "/admin/finance",
+                    icon: icons.finance,
+                    requiredPermission: "finance.view",
+                },
+            ],
+        },
+        {
+            id: "commercial",
+            name: "Gestión Comercial",
+            icon: icons.briefcase,
+            items: [
+                {
+                    name: "Pipeline CRM",
+                    href: "/admin/gestion-comercial/pipeline",
+                    icon: icons.pipeline,
+                    requiredPermission: "crm.pipeline.view",
+                },
+                {
+                    name: "Propuestas",
                     href: "/admin/cotizaciones",
                     icon: icons.quotations,
                     requiredPermission: "quotations.view",
                 },
                 {
-                    name: "Finanzas",
-                    href: "/admin/finance",
-                    icon: icons.finance,
-                    requiredPermission: "finance.view",
+                    name: "Servicios",
+                    href: "/admin/gestion-comercial/servicios",
+                    icon: icons.services,
+                    requiredPermission: "crm.contracts.view",
+                },
+                {
+                    name: "Control de Gastos",
+                    href: "/admin/gestion-comercial/gastos",
+                    icon: icons.expense,
+                    requiredPermission: "crm.expenses.view",
                 },
             ],
         },
