@@ -5,7 +5,7 @@
  * Renders CV data as styled HTML matching the LaTeX output
  */
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import type { CvData } from "../utils/latex-templates-enhanced";
 import {
