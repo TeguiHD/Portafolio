@@ -69,9 +69,30 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
     };
 
     const handleOpenOverleaf = () => {
-        // Open in Overleaf with base64 encoded content
-        const overleafUrl = `https://www.overleaf.com/docs?snip_uri=data:text/x-tex;base64,${btoa(unescape(encodeURIComponent(latexContent)))}`;
-        window.open(overleafUrl, "_blank");
+        // Use a hidden form POST to avoid URI length limits (414 error)
+        // Overleaf accepts the LaTeX content as a POST body field "snip"
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = "https://www.overleaf.com/docs";
+        form.target = "_blank";
+        form.style.display = "none";
+
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "snip";
+        input.value = latexContent;
+        form.appendChild(input);
+
+        // Engine preference (pdflatex is most compatible)
+        const engineInput = document.createElement("input");
+        engineInput.type = "hidden";
+        engineInput.name = "engine";
+        engineInput.value = "pdflatex";
+        form.appendChild(engineInput);
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
         success("Abriendo en Overleaf...");
     };
 
@@ -175,8 +196,8 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
                         <button
                             onClick={() => setActiveView("latex")}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeView === "latex"
-                                    ? "bg-accent-1/20 text-accent-1"
-                                    : "text-neutral-400 hover:text-white"
+                                ? "bg-accent-1/20 text-accent-1"
+                                : "text-neutral-400 hover:text-white"
                                 }`}
                         >
                             Código LaTeX
@@ -184,8 +205,8 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
                         <button
                             onClick={() => setActiveView("info")}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeView === "info"
-                                    ? "bg-accent-1/20 text-accent-1"
-                                    : "text-neutral-400 hover:text-white"
+                                ? "bg-accent-1/20 text-accent-1"
+                                : "text-neutral-400 hover:text-white"
                                 }`}
                         >
                             Información
