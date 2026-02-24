@@ -71,29 +71,39 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
     const handleOpenOverleaf = () => {
         // Use a hidden form POST to avoid URI length limits (414 error)
         // Overleaf accepts the LaTeX content as a POST body field "snip"
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = "https://www.overleaf.com/docs";
-        form.target = "_blank";
-        form.style.display = "none";
+        try {
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "https://www.overleaf.com/docs";
+            form.target = "_blank";
+            form.style.display = "none";
 
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "snip";
-        input.value = latexContent;
-        form.appendChild(input);
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "snip";
+            input.value = latexContent;
+            form.appendChild(input);
 
-        // Engine preference (pdflatex is most compatible)
-        const engineInput = document.createElement("input");
-        engineInput.type = "hidden";
-        engineInput.name = "engine";
-        engineInput.value = "pdflatex";
-        form.appendChild(engineInput);
+            // Engine preference (pdflatex is most compatible)
+            const engineInput = document.createElement("input");
+            engineInput.type = "hidden";
+            engineInput.name = "engine";
+            engineInput.value = "pdflatex";
+            form.appendChild(engineInput);
 
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-        success("Abriendo en Overleaf...");
+            document.body.appendChild(form);
+            form.submit();
+            // Defer form removal to avoid runtime errors
+            setTimeout(() => {
+                try { document.body.removeChild(form); } catch { /* already removed */ }
+            }, 100);
+            success("Abriendo en Overleaf...");
+        } catch (err) {
+            // Fallback: download the .tex file instead
+            console.error("Overleaf POST failed, falling back to download:", err);
+            handleDownload();
+            error("No se pudo abrir Overleaf. Se descargó el archivo .tex");
+        }
     };
 
     return (

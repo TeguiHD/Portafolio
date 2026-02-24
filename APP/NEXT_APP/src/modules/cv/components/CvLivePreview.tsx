@@ -214,158 +214,263 @@ export function CvLivePreview({ data, designConfig, className = "" }: CvLivePrev
                             )}
                         </header>
 
-                        {/* Sections */}
-                        {visibleSections.map((section) => (
-                            <section key={section.id}>
-                                {section.id === "summary" && data.personalInfo.summary && (
-                                    <>
-                                        <h2 style={styles.sectionTitle}>
-                                            {getSectionTitle("summary", designConfig.language)}
-                                        </h2>
-                                        <p className="text-justify">{data.personalInfo.summary}</p>
-                                    </>
-                                )}
+                        {/* Sections - Layout aware rendering */}
+                        {(() => {
+                            const layout = designConfig.layout || "single-column";
 
-                                {section.id === "experience" && data.experience.length > 0 && (
-                                    <>
-                                        <h2 style={styles.sectionTitle}>
-                                            {getSectionTitle("experience", designConfig.language)}
-                                        </h2>
-                                        {data.experience.map((exp, i) => (
-                                            <div key={i} className="mb-4">
-                                                <div className="flex justify-between items-baseline">
-                                                    <strong style={{ color: designConfig.colors.accent }}>
-                                                        {exp.position}
-                                                    </strong>
-                                                    <span style={styles.subtle}>
-                                                        {formatDateRange(exp.startDate, exp.endDate, exp.current)}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between items-baseline">
-                                                    <span>{exp.company}</span>
-                                                </div>
-                                                {exp.achievements && exp.achievements.length > 0 && (
-                                                    <ul className="list-disc list-inside mt-2 text-sm space-y-1">
-                                                        {exp.achievements.map((h: string, j: number) => (
-                                                            <li key={j}>{h}</li>
-                                                        ))}
-                                                    </ul>
-                                                )}
+                            // Section renderer
+                            const renderSection = (section: typeof visibleSections[0]) => {
+                                switch (section.id) {
+                                    case "summary":
+                                        return data.personalInfo.summary ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("summary", designConfig.language)}
+                                                </h2>
+                                                <p className="text-justify">{data.personalInfo.summary}</p>
                                             </div>
-                                        ))}
-                                    </>
-                                )}
+                                        ) : null;
 
-                                {section.id === "education" && data.education.length > 0 && (
-                                    <>
-                                        <h2 style={styles.sectionTitle}>
-                                            {getSectionTitle("education", designConfig.language)}
-                                        </h2>
-                                        {data.education.map((edu, i) => (
-                                            <div key={i} className="mb-3">
-                                                <div className="flex justify-between items-baseline">
-                                                    <strong>{edu.degree} - {edu.field}</strong>
-                                                    <span style={styles.subtle}>
-                                                        {formatDateRange(edu.startDate, edu.endDate)}
-                                                    </span>
-                                                </div>
-                                                <div>{edu.institution}</div>
-                                            </div>
-                                        ))}
-                                    </>
-                                )}
-
-                                {section.id === "skills" && data.skills.length > 0 && (
-                                    <>
-                                        <h2 style={styles.sectionTitle}>
-                                            {getSectionTitle("skills", designConfig.language)}
-                                        </h2>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {data.skills.map((cat, i) => (
-                                                <div key={i}>
-                                                    <strong style={{ color: designConfig.colors.accent }}>
-                                                        {cat.category}:
-                                                    </strong>{" "}
-                                                    <span>{cat.items.join(", ")}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-
-                                {section.id === "projects" && data.projects.length > 0 && (
-                                    <>
-                                        <h2 style={styles.sectionTitle}>
-                                            {getSectionTitle("projects", designConfig.language)}
-                                        </h2>
-                                        {data.projects.map((proj, i) => (
-                                            <div key={i} className="mb-3">
-                                                <div className="flex justify-between items-baseline">
-                                                    <strong style={{ color: designConfig.colors.accent }}>
-                                                        {proj.name}
-                                                    </strong>
-                                                    {proj.url && (
-                                                        <a href={proj.url} style={styles.link} className="text-sm">
-                                                            {proj.url}
-                                                        </a>
-                                                    )}
-                                                </div>
-                                                <p className="text-sm mt-1">{proj.description}</p>
-                                                {proj.technologies && proj.technologies.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-2">
-                                                        {proj.technologies.map((tech, j) => (
-                                                            <span
-                                                                key={j}
-                                                                className="px-1.5 py-0.5 text-xs rounded"
-                                                                style={{
-                                                                    backgroundColor: `${designConfig.colors.accent}20`,
-                                                                    color: designConfig.colors.accent,
-                                                                }}
-                                                            >
-                                                                {tech}
+                                    case "experience":
+                                        return data.experience.length > 0 ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("experience", designConfig.language)}
+                                                </h2>
+                                                {data.experience.map((exp, i) => (
+                                                    <div key={i} className="mb-4">
+                                                        <div className="flex justify-between items-baseline">
+                                                            <strong style={{ color: designConfig.colors.accent }}>
+                                                                {exp.position}
+                                                            </strong>
+                                                            <span style={styles.subtle}>
+                                                                {formatDateRange(exp.startDate, exp.endDate, exp.current)}
                                                             </span>
-                                                        ))}
+                                                        </div>
+                                                        <div className="flex justify-between items-baseline">
+                                                            <span>{exp.company}</span>
+                                                        </div>
+                                                        {exp.achievements && exp.achievements.length > 0 && (
+                                                            <ul className="list-disc list-inside mt-2 text-sm space-y-1">
+                                                                {exp.achievements.map((h: string, j: number) => (
+                                                                    <li key={j}>{h}</li>
+                                                                ))}
+                                                            </ul>
+                                                        )}
                                                     </div>
-                                                )}
+                                                ))}
                                             </div>
-                                        ))}
-                                    </>
-                                )}
+                                        ) : null;
 
-                                {section.id === "certifications" && data.certifications && data.certifications.length > 0 && (
-                                    <>
-                                        <h2 style={styles.sectionTitle}>
-                                            {getSectionTitle("certifications", designConfig.language)}
-                                        </h2>
-                                        {data.certifications.map((cert, i) => (
-                                            <div key={i} className="mb-2">
-                                                <div className="flex justify-between items-baseline">
-                                                    <strong>{cert.name}</strong>
-                                                    <span style={styles.subtle}>{cert.date}</span>
-                                                </div>
-                                                <div style={styles.subtle}>{cert.issuer}</div>
+                                    case "education":
+                                        return data.education.length > 0 ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("education", designConfig.language)}
+                                                </h2>
+                                                {data.education.map((edu, i) => (
+                                                    <div key={i} className="mb-3">
+                                                        <div className="flex justify-between items-baseline">
+                                                            <strong>{edu.degree} - {edu.field}</strong>
+                                                            <span style={styles.subtle}>
+                                                                {formatDateRange(edu.startDate, edu.endDate)}
+                                                            </span>
+                                                        </div>
+                                                        <div>{edu.institution}</div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </>
-                                )}
+                                        ) : null;
 
-                                {section.id === "languages" && data.languages && data.languages.length > 0 && (
-                                    <>
-                                        <h2 style={styles.sectionTitle}>
-                                            {getSectionTitle("languages", designConfig.language)}
-                                        </h2>
-                                        <div className="flex flex-wrap gap-4">
-                                            {data.languages.map((lang: { name: string; level?: string }, i: number) => (
-                                                <div key={i}>
-                                                    <strong>{lang.name}</strong>
-                                                    {lang.level && <span style={styles.subtle}> - {lang.level}</span>}
+                                    case "skills":
+                                        return data.skills.length > 0 ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("skills", designConfig.language)}
+                                                </h2>
+                                                <div className={layout === "two-column-sidebar" ? "space-y-1" : "grid grid-cols-2 gap-2"}>
+                                                    {data.skills.map((cat, i) => (
+                                                        <div key={i}>
+                                                            <strong style={{ color: designConfig.colors.accent }}>
+                                                                {cat.category}:
+                                                            </strong>{" "}
+                                                            <span>{cat.items.join(", ")}</span>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            ))}
+                                            </div>
+                                        ) : null;
+
+                                    case "projects":
+                                        return data.projects.length > 0 ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("projects", designConfig.language)}
+                                                </h2>
+                                                {data.projects.map((proj, i) => (
+                                                    <div key={i} className="mb-3">
+                                                        <div className="flex justify-between items-baseline">
+                                                            <strong style={{ color: designConfig.colors.accent }}>
+                                                                {proj.name}
+                                                            </strong>
+                                                            {proj.url && (
+                                                                <a href={proj.url} style={styles.link} className="text-sm">
+                                                                    {proj.url}
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm mt-1">{proj.description}</p>
+                                                        {proj.technologies && proj.technologies.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                                {proj.technologies.map((tech, j) => (
+                                                                    <span
+                                                                        key={j}
+                                                                        className="px-1.5 py-0.5 text-xs rounded"
+                                                                        style={{
+                                                                            backgroundColor: `${designConfig.colors.accent}20`,
+                                                                            color: designConfig.colors.accent,
+                                                                        }}
+                                                                    >
+                                                                        {tech}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null;
+
+                                    case "certifications": {
+                                        const certs = (data.certifications || []).filter(c => !c.type || c.type === "certification");
+                                        return certs.length > 0 ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("certifications", designConfig.language)}
+                                                </h2>
+                                                {certs.map((cert, i) => (
+                                                    <div key={i} className="mb-2">
+                                                        <div className="flex justify-between items-baseline">
+                                                            <strong>{cert.name}</strong>
+                                                            <span style={styles.subtle}>{cert.date}</span>
+                                                        </div>
+                                                        <div style={styles.subtle}>{cert.issuer}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null;
+                                    }
+
+                                    case "awards": {
+                                        const awards = (data.certifications || []).filter(c => c.type === "award" || c.type === "honor");
+                                        return awards.length > 0 ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("awards", designConfig.language)}
+                                                </h2>
+                                                {awards.map((award, i) => (
+                                                    <div key={i} className="mb-2">
+                                                        <div className="flex justify-between items-baseline">
+                                                            <strong>🏆 {award.name}</strong>
+                                                            <span style={styles.subtle}>{award.date}</span>
+                                                        </div>
+                                                        <div style={styles.subtle}>{award.issuer}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null;
+                                    }
+
+                                    case "languages":
+                                        return data.languages && data.languages.length > 0 ? (
+                                            <div key={section.id}>
+                                                <h2 style={styles.sectionTitle}>
+                                                    {getSectionTitle("languages", designConfig.language)}
+                                                </h2>
+                                                <div className="flex flex-wrap gap-4">
+                                                    {data.languages.map((lang: { name: string; level?: string }, i: number) => (
+                                                        <div key={i}>
+                                                            <strong>{lang.name}</strong>
+                                                            {lang.level && <span style={styles.subtle}> - {lang.level}</span>}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null;
+
+                                    default:
+                                        return null;
+                                }
+                            };
+
+                            // === LAYOUT: SINGLE COLUMN ===
+                            if (layout === "single-column") {
+                                return visibleSections.map(renderSection);
+                            }
+
+                            // === LAYOUT: TWO-COLUMN SIDEBAR ===
+                            if (layout === "two-column-sidebar") {
+                                const sidebarIds = new Set(["skills", "languages", "certifications", "awards"]);
+                                const mainIds = new Set(["summary", "experience", "education", "projects", "publications"]);
+                                const sidebarSections = visibleSections.filter(s => sidebarIds.has(s.id));
+                                const mainSections = visibleSections.filter(s => mainIds.has(s.id));
+
+                                return (
+                                    <div style={{ display: "flex", gap: "16px" }}>
+                                        {/* Sidebar */}
+                                        <div style={{ width: "30%", flexShrink: 0 }}>
+                                            {sidebarSections.map(renderSection)}
                                         </div>
-                                    </>
-                                )}
-                            </section>
-                        ))}
+                                        {/* Main column */}
+                                        <div style={{ width: "65%", flexGrow: 1 }}>
+                                            {mainSections.map(renderSection)}
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // === LAYOUT: COMPACT GRID ===
+                            if (layout === "compact-grid") {
+                                const pairedIds = new Set(["skills", "languages", "certifications", "awards", "education"]);
+                                const fullWidthIds = new Set(["summary", "experience", "projects", "publications"]);
+
+                                const elements: React.ReactNode[] = [];
+                                const pairedQueue: typeof visibleSections = [];
+
+                                const flushPaired = () => {
+                                    if (pairedQueue.length === 0) return;
+                                    for (let i = 0; i < pairedQueue.length; i += 2) {
+                                        if (i + 1 < pairedQueue.length) {
+                                            elements.push(
+                                                <div key={`pair-${pairedQueue[i].id}-${pairedQueue[i + 1].id}`} style={{ display: "flex", gap: "16px", marginBottom: "8px" }}>
+                                                    <div style={{ width: "48%" }}>{renderSection(pairedQueue[i])}</div>
+                                                    <div style={{ width: "48%" }}>{renderSection(pairedQueue[i + 1])}</div>
+                                                </div>
+                                            );
+                                        } else {
+                                            elements.push(renderSection(pairedQueue[i]));
+                                        }
+                                    }
+                                    pairedQueue.length = 0;
+                                };
+
+                                visibleSections.forEach(section => {
+                                    if (fullWidthIds.has(section.id)) {
+                                        flushPaired();
+                                        elements.push(renderSection(section));
+                                    } else if (pairedIds.has(section.id)) {
+                                        pairedQueue.push(section);
+                                    } else {
+                                        elements.push(renderSection(section));
+                                    }
+                                });
+                                flushPaired();
+
+                                return <>{elements}</>;
+                            }
+
+                            return visibleSections.map(renderSection);
+                        })()}
 
                         {/* Footer */}
                         {designConfig.page.showFooter && (
