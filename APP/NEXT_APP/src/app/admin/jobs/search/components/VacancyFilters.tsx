@@ -1,139 +1,166 @@
 "use client";
 
-import { Search, SlidersHorizontal, X, Check } from "lucide-react";
-import { SOURCE_LABELS } from "../../types";
+import { X, SlidersHorizontal, Briefcase, MapPin, BrainCircuit, Check } from "lucide-react";
+import { SOURCE_LABELS, WORK_MODE_LABELS } from "../../types";
+import type { WorkMode } from "../../types";
 
-export function VacancyFilters({
-    search,
-    sources,
-    minMatch,
-    availableSources,
-    onSearchChange,
-    onSourcesChange,
-    onMinMatchChange,
-}: {
+const WORK_MODES: WorkMode[] = ["REMOTE", "HYBRID", "ONSITE"];
+
+const WORK_MODE_ACTIVE: Record<WorkMode, string> = {
+    REMOTE:      "bg-emerald-500/20 border-emerald-500/50 text-emerald-300",
+    HYBRID:      "bg-amber-500/20  border-amber-500/50  text-amber-300",
+    ONSITE:      "bg-sky-500/20    border-sky-500/50    text-sky-300",
+    UNSPECIFIED: "bg-white/10 border-white/20 text-white",
+};
+
+export type VacancyFiltersState = {
     search: string;
     sources: string[];
+    workModes: WorkMode[];
     minMatch: number;
+};
+
+interface Props {
+    isOpen: boolean;
+    onClose: () => void;
+    filters: VacancyFiltersState;
     availableSources: string[];
-    onSearchChange: (value: string) => void;
-    onSourcesChange: (sources: string[]) => void;
-    onMinMatchChange: (value: number) => void;
-}) {
-    const activeFilterCount = sources.length + (minMatch > 0 ? 1 : 0);
+    onFiltersChange: (f: VacancyFiltersState) => void;
+}
+
+export function AdvancedFiltersModal({ isOpen, onClose, filters, availableSources, onFiltersChange }: Props) {
+    if (!isOpen) return null;
 
     function toggleSource(src: string) {
-        if (sources.includes(src)) {
-            onSourcesChange(sources.filter((s) => s !== src));
-        } else {
-            onSourcesChange([...sources, src]);
-        }
+        const next = filters.sources.includes(src)
+            ? filters.sources.filter((s) => s !== src)
+            : [...filters.sources, src];
+        onFiltersChange({ ...filters, sources: next });
     }
 
-    function clearFilters() {
-        onSourcesChange([]);
-        onMinMatchChange(0);
+    function toggleWorkMode(mode: WorkMode) {
+        const next = filters.workModes.includes(mode)
+            ? filters.workModes.filter((m) => m !== mode)
+            : [...filters.workModes, mode];
+        onFiltersChange({ ...filters, workModes: next });
+    }
+
+    function clearAll() {
+        onFiltersChange({ ...filters, sources: [], workModes: [], minMatch: 0 });
     }
 
     return (
-        <div className="space-y-3">
-            {/* Top bar: search + filter toggle */}
-            <div className="flex gap-3">
-                <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        placeholder="Buscar título, empresa, ubicación..."
-                        className="w-full rounded-xl bg-[#0f172a] border border-white/10 pl-9 pr-3 py-2.5 text-sm text-white placeholder-neutral-600 focus:border-accent-1/40 focus:outline-none transition-colors"
-                    />
-                </div>
-            </div>
-
-            {/* Inline advanced filters */}
-            <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-4 space-y-4">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            onClick={onClose}
+        >
+            <div
+                className="bg-[#05080f] border border-white/10 rounded-2xl w-full max-w-2xl shadow-[0_0_60px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <SlidersHorizontal className="w-4 h-4 text-neutral-400" />
-                        <span className="text-sm font-semibold text-neutral-200">Filtros avanzados</span>
-                        {activeFilterCount > 0 && (
-                            <span className="w-5 h-5 flex items-center justify-center rounded-full bg-accent-1 text-[10px] font-bold text-white">
-                                {activeFilterCount}
-                            </span>
-                        )}
-                    </div>
-                    {activeFilterCount > 0 && (
-                        <button
-                            onClick={clearFilters}
-                            className="text-xs text-neutral-500 hover:text-white flex items-center gap-1 transition-colors"
-                        >
-                            <X className="w-3 h-3" /> Limpiar
-                        </button>
-                    )}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/[0.03]">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <SlidersHorizontal className="w-5 h-5 text-cyan-400" />
+                        Filtros Avanzados
+                    </h3>
+                    <button
+                        onClick={onClose}
+                        className="text-neutral-400 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
                 </div>
 
-                {/* Source chips */}
-                {availableSources.length > 0 && (
-                    <div className="space-y-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                            Plataforma
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                            {availableSources.map((src) => {
-                                const active = sources.includes(src);
-                                return (
-                                    <button
-                                        key={src}
-                                        onClick={() => toggleSource(src)}
-                                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
-                                            active
-                                                ? "bg-accent-1/15 border-accent-1/40 text-accent-1 shadow-sm"
-                                                : "bg-white/[0.03] border-white/10 text-neutral-400 hover:bg-white/[0.07] hover:text-neutral-200 hover:border-white/20"
-                                        }`}
-                                    >
-                                        {active && <Check className="w-3 h-3" />}
-                                        {SOURCE_LABELS[src] || src}
-                                    </button>
-                                );
-                            })}
+                {/* Body */}
+                <div className="p-6 space-y-7 overflow-y-auto max-h-[60vh]">
+
+                    {/* Sources */}
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                            <Briefcase className="w-4 h-4 text-indigo-400" />
+                            Plataforma de Origen
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {availableSources.map((src) => (
+                                <button
+                                    key={src}
+                                    onClick={() => toggleSource(src)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                        filters.sources.includes(src)
+                                            ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.2)]"
+                                            : "bg-white/[0.04] border-white/10 text-neutral-400 hover:bg-white/10 hover:text-slate-200"
+                                    }`}
+                                >
+                                    {SOURCE_LABELS[src] || src}
+                                </button>
+                            ))}
                         </div>
                     </div>
-                )}
 
-                {/* Match score slider */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">
-                            Match mínimo
-                        </p>
-                        <span
-                            className={`text-sm font-bold tabular-nums ${
-                                minMatch >= 70
-                                    ? "text-emerald-400"
-                                    : minMatch >= 40
-                                    ? "text-amber-400"
-                                    : "text-neutral-400"
-                            }`}
-                        >
-                            {minMatch > 0 ? `${minMatch}%` : "Cualquiera"}
-                        </span>
+                    {/* Work mode */}
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                            <MapPin className="w-4 h-4 text-emerald-400" />
+                            Modalidad de Trabajo
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {WORK_MODES.map((mode) => (
+                                <button
+                                    key={mode}
+                                    onClick={() => toggleWorkMode(mode)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                                        filters.workModes.includes(mode)
+                                            ? WORK_MODE_ACTIVE[mode]
+                                            : "bg-white/[0.04] border-white/10 text-neutral-400 hover:bg-white/10 hover:text-slate-200"
+                                    }`}
+                                >
+                                    {WORK_MODE_LABELS[mode]}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={5}
-                        value={minMatch}
-                        onChange={(e) => onMinMatchChange(Number(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-accent-1 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-neutral-600 font-medium">
-                        <span>0%</span>
-                        <span>50%</span>
-                        <span>100%</span>
+
+                    {/* Score slider */}
+                    <div className="space-y-3 bg-white/[0.03] p-5 rounded-xl border border-white/[0.06]">
+                        <div className="flex justify-between items-center">
+                            <label className="flex items-center gap-2 text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                                <BrainCircuit className="w-4 h-4 text-purple-400" />
+                                Match Score Mínimo
+                            </label>
+                            <span className="text-lg font-bold text-purple-400">{filters.minMatch}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={filters.minMatch}
+                            onChange={(e) => onFiltersChange({ ...filters, minMatch: parseInt(e.target.value) })}
+                            className="w-full h-2 bg-[#0a0f1c] rounded-lg appearance-none cursor-pointer accent-purple-500"
+                        />
+                        <div className="flex justify-between text-[10px] text-neutral-600 font-medium px-0.5">
+                            <span>0% (Todas)</span>
+                            <span>50% (Media)</span>
+                            <span>100% (Perfectas)</span>
+                        </div>
                     </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-white/10 bg-[#05080f] flex justify-between items-center">
+                    <button
+                        onClick={clearAll}
+                        className="px-4 py-2 text-sm font-medium text-neutral-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors"
+                    >
+                        Limpiar filtros
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-cyan-950 text-sm font-bold rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all flex items-center gap-2"
+                    >
+                        Ver Resultados <Check className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
         </div>

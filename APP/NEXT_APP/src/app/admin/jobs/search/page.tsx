@@ -49,6 +49,7 @@ export default async function JobsSearchPage() {
         title: v.title,
         company: v.company,
         location: v.location,
+        workMode: (v.workMode as VacancyItem["workMode"]) ?? "UNSPECIFIED",
         isActive: v.isActive,
         updatedAt: v.updatedAt.toISOString(),
         analyses: v.analyses.map((a) => ({

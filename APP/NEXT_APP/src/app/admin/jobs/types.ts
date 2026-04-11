@@ -5,6 +5,15 @@ export type CvVersionOption = {
     updatedAt: string;
 };
 
+export type WorkMode = "ONSITE" | "HYBRID" | "REMOTE" | "UNSPECIFIED";
+
+export const WORK_MODE_LABELS: Record<WorkMode, string> = {
+    REMOTE: "Remoto",
+    HYBRID: "Híbrido",
+    ONSITE: "Presencial",
+    UNSPECIFIED: "No especificado",
+};
+
 export type VacancyItem = {
     id: string;
     source: string;
@@ -12,6 +21,7 @@ export type VacancyItem = {
     title: string;
     company: string;
     location: string | null;
+    workMode: WorkMode;
     isActive: boolean;
     updatedAt: string;
     analyses: Array<{

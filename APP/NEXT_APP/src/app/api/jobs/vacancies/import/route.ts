@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
                 company: scraped.company,
                 location: scraped.location,
                 description: scraped.description,
+                workMode: scraped.workMode as import("@/generated/prisma/client").VacancyWorkMode,
                 normalizedText: normalizeForSearch([
                     scraped.title,
                     scraped.company,
