@@ -1,6 +1,6 @@
 import { verifyAdmin } from "@/lib/auth/dal";
 import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PipelineBoard } from "./pipeline-board";
@@ -44,12 +44,23 @@ export default async function PipelinePage() {
         }),
     ]);
 
-    // Serialize dates for client component
+    // Serialize dates for client component — only pass fields the client needs
     const serializedDeals = deals.map(d => ({
-        ...d,
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        stage: d.stage,
+        priority: d.priority,
+        origin: d.origin,
+        estimatedValue: d.estimatedValue,
+        closeProbability: d.closeProbability,
+        estimatedCloseAt: d.estimatedCloseAt?.toISOString() ?? null,
+        notes: d.notes,
         createdAt: d.createdAt.toISOString(),
         updatedAt: d.updatedAt.toISOString(),
-        estimatedCloseAt: d.estimatedCloseAt?.toISOString() || null,
+        client: d.client,
+        quotation: d.quotation,
+        _count: d._count,
     }));
 
     return <PipelineBoard initialDeals={serializedDeals} clients={clients} />;

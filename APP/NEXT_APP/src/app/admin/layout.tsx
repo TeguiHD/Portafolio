@@ -1,4 +1,4 @@
-import { verifyAdmin } from "@/lib/auth/dal";
+import { verifyAnyRole } from "@/lib/auth/dal";
 import { AdminLayoutClient } from "@/modules/admin/components/AdminLayoutClient";
 import { getUserEffectivePermissions } from "@/lib/permission-check";
 
@@ -11,7 +11,7 @@ export default async function AdminLayout({
     children: React.ReactNode;
 }) {
     // DAL pattern: Auth verification happens close to data access
-    const session = await verifyAdmin();
+    const session = await verifyAnyRole();
 
     // Load user's effective permissions server-side for secure UI filtering
     const userPermissions = await getUserEffectivePermissions(
