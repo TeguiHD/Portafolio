@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "JobSource" ADD VALUE 'TRABAJA_ESTADO';
+ALTER TYPE "JobSource" ADD VALUE 'BNE';

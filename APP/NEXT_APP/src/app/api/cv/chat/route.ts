@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { secureApiEndpoint, secureJsonResponse, secureErrorResponse } from "@/lib/api-security";
 import { SecurityLogger } from "@/lib/security-logger";
 import { generateCvSuggestion, checkInputSecurity, sanitizeAIOutput } from "@/services/cv-ai";
+import { tryAcquireCvProcessingSlot } from "@/lib/cv-load-balancer";
 
 // Input constraints
 const MAX_MESSAGE_LENGTH = 2000;
@@ -87,18 +88,57 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        const loadLease = await tryAcquireCvProcessingSlot(userId);
+        if (!loadLease.acquired) {
+            SecurityLogger.apiAbuse({
+                ipAddress: context.ipAddress,
+                userAgent: context.userAgent,
+                userId,
+                endpoint: "/api/cv/chat",
+                abuseType: "CV_LOAD_SHED",
+                details: {
+                    activeUsers: loadLease.snapshot.activeUsers,
+                    inFlight: loadLease.snapshot.inFlight,
+                    maxConcurrent: loadLease.snapshot.maxConcurrent,
+                },
+            });
+
+            return secureJsonResponse(
+                {
+                    success: false,
+                    action: "error",
+                    message: "La seccion CV esta con alta demanda. Intenta en unos segundos.",
+                    error: "cv_load_high",
+                    retryAfterMs: loadLease.retryAfterMs,
+                    load: loadLease.snapshot,
+                },
+                429,
+                {
+                    "Retry-After": String(Math.max(1, Math.ceil(loadLease.retryAfterMs / 1000))),
+                    "X-CV-Active-Users": String(loadLease.snapshot.activeUsers),
+                    "X-CV-Load-Utilization": String(loadLease.snapshot.utilization),
+                }
+            );
+        }
+
         // ===== 5. GENERATE AI RESPONSE =====
-        const result = await generateCvSuggestion({
-            userMessage: message,
-            conversationHistory,
-            currentContext: typedBody.context as {
-                hasExperience: boolean;
-                hasSkills: boolean;
-                hasProjects: boolean;
-                skillCategories: string[];
-                activeSection?: "experience" | "projects";
-            },
-        });
+        const result = await (async () => {
+            try {
+                return await generateCvSuggestion({
+                    userMessage: message,
+                    conversationHistory,
+                    currentContext: typedBody.context as {
+                        hasExperience: boolean;
+                        hasSkills: boolean;
+                        hasProjects: boolean;
+                        skillCategories: string[];
+                        activeSection?: "experience" | "projects";
+                    },
+                });
+            } finally {
+                await loadLease.release();
+            }
+        })();
 
         // ===== 6. SANITIZE AI OUTPUT =====
         const sanitizedResult = sanitizeAIOutput(result);

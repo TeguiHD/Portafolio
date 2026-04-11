@@ -7,7 +7,7 @@ import {
     devLog,
 } from "@/lib/security";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma } from '@/generated/prisma/client';
 
 // Zod Schemas for Validation
 const cvExperienceSchema = z.object({
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
         const validation = createCvVersionSchema.safeParse(body);
         if (!validation.success) {
             return NextResponse.json(
-                { error: "Datos inválidos", details: validation.error.flatten() },
+                { error: "Datos inválidos" },
                 { status: 400 }
             );
         }

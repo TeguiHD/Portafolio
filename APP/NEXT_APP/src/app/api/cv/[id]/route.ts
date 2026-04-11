@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { devLog } from "@/lib/security";
 
-import { Prisma } from "@prisma/client";
+import { Prisma } from '@/generated/prisma/client';
 
 // Define the full payload type including relations
 type CvVersionWithRelations = Prisma.CvVersionGetPayload<{

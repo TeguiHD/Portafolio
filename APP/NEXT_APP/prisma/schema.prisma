@@ -1,4 +1,9 @@
 generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+generator client_js {
   provider = "prisma-client-js"
 }
 
@@ -31,10 +36,21 @@ model User {
   anonymizedAt        DateTime?                // When PII was anonymized
   dataExportedAt      DateTime?                // GDPR: when user data was exported
   
+  // MFA Fields (NIST SP 800-63B)
+  mfaEnabled          Boolean                  @default(false)
+  mfaSecret           String?                  // Encrypted TOTP secret
+  mfaRecoveryCodes    String[]                 @default([]) // Hashed recovery codes
+  mfaVerifiedAt       DateTime?                // Last MFA verification
+  mfaBackupEmail      String?                  // Backup email for recovery
+  
   auditLogs           AuditLog[]
   budgets             Budget[]
   categoryFeedbacks   CategoryFeedback[]
   cvVersions          CvVersion[]
+  jobVacancies        JobVacancy[]
+  vacancyAnalyses     VacancyAnalysis[]
+  jobApplications     JobApplication[]
+  jobApplicationEvents JobApplicationEvent[]
   financeAccounts     FinanceAccount[]
   financeAuditLogs    FinanceAuditLog[]
   financeCategories   FinanceCategory[]
@@ -331,6 +347,10 @@ model QuotationClient {
 
   @@index([slug])
   @@index([userId])
+  @@index([name])
+  @@index([email])
+  @@index([rut])
+  @@index([contactEmail])
 }
 
 // Security: Access log for quotation sharing
@@ -377,6 +397,10 @@ model CvVersion {
   projects       CvProject[]
   skills         CvSkillCategory[]
   user           User              @relation(fields: [userId], references: [id])
+  vacancyAnalyses VacancyAnalysis[]
+  baseVacancyAdaptations CvVacancyAdaptation[] @relation("BaseCvVersion")
+  adaptedVacancyVersions CvVacancyAdaptation[] @relation("AdaptedCvVersion")
+  jobApplications JobApplication[]
 }
 
 model CvExperience {
@@ -457,6 +481,130 @@ model CvLanguage {
   cvVersion   CvVersion @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
 
   @@index([cvVersionId])
+}
+
+model JobVacancy {
+  id               String               @id @default(cuid())
+  userId           String
+  source           JobSource            @default(MANUAL)
+  sourceExternalId String?
+  sourceUrl        String?
+  title            String
+  company          String
+  location         String?
+  employmentType   VacancyEmploymentType @default(OTHER)
+  workMode         VacancyWorkMode      @default(UNSPECIFIED)
+  salaryRange      String?
+  postedAt         DateTime?
+  expiresAt        DateTime?
+  description      String
+  normalizedText   String?
+  metadata         Json?
+  isActive         Boolean              @default(true)
+  lastSyncedAt     DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses         VacancyAnalysis[]
+  adaptations      CvVacancyAdaptation[]
+  applications     JobApplication[]
+
+  @@unique([userId, source, sourceExternalId])
+  @@index([userId, createdAt])
+  @@index([userId, isActive])
+}
+
+model VacancyAnalysis {
+  id                String      @id @default(cuid())
+  userId            String
+  vacancyId         String
+  cvVersionId       String
+  matchScore        Int
+  matchedSkills     String[]
+  missingSkills     String[]
+  recommendedSkills String[]
+  extractedKeywords String[]
+  summary           String?
+  recommendations   Json?
+  learningPlan      String[]
+  createdAt         DateTime    @default(now())
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vacancy           JobVacancy  @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  cvVersion         CvVersion   @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  applications      JobApplication[]
+
+  @@index([userId, createdAt])
+  @@index([vacancyId, createdAt])
+  @@index([cvVersionId])
+}
+
+model CvVacancyAdaptation {
+  id                String           @id @default(cuid())
+  vacancyId         String
+  baseCvVersionId   String
+  adaptedCvVersionId String?
+  mode              CvAdaptationMode @default(ASSISTED)
+  appliedChanges    Json?
+  notes             String?
+  createdAt         DateTime         @default(now())
+
+  vacancy           JobVacancy       @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  baseCvVersion     CvVersion        @relation("BaseCvVersion", fields: [baseCvVersionId], references: [id], onDelete: Cascade)
+  adaptedCvVersion  CvVersion?       @relation("AdaptedCvVersion", fields: [adaptedCvVersionId], references: [id], onDelete: SetNull)
+  applications      JobApplication[]
+
+  @@index([vacancyId, createdAt])
+  @@index([baseCvVersionId])
+  @@index([adaptedCvVersionId])
+}
+
+model JobApplication {
+  id               String               @id @default(cuid())
+  userId           String
+  vacancyId        String
+  analysisId       String?
+  adaptationId     String?
+  cvVersionId      String?
+  status           JobApplicationStatus @default(PENDING)
+  company          String?
+  roleTitle        String?
+  sourceUrl        String?
+  notes            String?
+  appliedAt        DateTime?
+  lastStatusAt     DateTime             @default(now())
+  closureReason    String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vacancy          JobVacancy           @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  analysis         VacancyAnalysis?     @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  adaptation       CvVacancyAdaptation? @relation(fields: [adaptationId], references: [id], onDelete: SetNull)
+  cvVersion        CvVersion?           @relation(fields: [cvVersionId], references: [id], onDelete: SetNull)
+  events           JobApplicationEvent[]
+
+  @@index([userId, status])
+  @@index([vacancyId])
+  @@index([lastStatusAt])
+}
+
+model JobApplicationEvent {
+  id            String               @id @default(cuid())
+  userId        String
+  applicationId String
+  fromStatus    JobApplicationStatus?
+  toStatus      JobApplicationStatus
+  note          String?
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application   JobApplication       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Setting {
@@ -1027,6 +1175,57 @@ enum AlertStatus {
   ACTIVE
   TRIGGERED
   DISMISSED
+}
+
+enum JobSource {
+  MANUAL
+  LINKEDIN
+  COMPUTRABAJO
+  LABORUM
+  FIRSTJOB
+  CHILE_EMPLEOS
+  INDEED
+  GETONBOARD
+  TRABAJANDO
+  CHILETRABAJOS
+  HIRELINE
+  TORRE
+  WORKANA
+  TRABAJA_ESTADO
+  BNE
+  OTHER
+}
+
+enum VacancyEmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  FREELANCE
+  TEMPORARY
+  OTHER
+}
+
+enum VacancyWorkMode {
+  ONSITE
+  HYBRID
+  REMOTE
+  UNSPECIFIED
+}
+
+enum CvAdaptationMode {
+  ASSISTED
+  AUTO
+}
+
+enum JobApplicationStatus {
+  PENDING
+  CV_ADAPTED
+  CV_SENT
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+  CLOSED
 }
 
 // ============================================
