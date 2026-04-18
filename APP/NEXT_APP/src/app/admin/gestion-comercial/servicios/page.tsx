@@ -1,6 +1,6 @@
 import { verifyAdmin } from "@/lib/auth/dal";
 import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -76,9 +76,9 @@ export default async function ServiciosPage() {
         }),
     ]);
 
-    const activeContracts = contracts.filter((c: any) => c.status === "ACTIVE");
-    const totalContractValue = contracts.reduce((s: number, c: any) => s + c.totalAmount, 0);
-    const totalPayments = recentPayments.reduce((s: number, p: any) => s + p.amount, 0);
+    const activeContracts = contracts.filter((c) => c.status === "ACTIVE");
+    const totalContractValue = contracts.reduce((s, c) => s + c.totalAmount, 0);
+    const totalPayments = recentPayments.reduce((s, p) => s + p.amount, 0);
 
     return (
         <div className="space-y-8">
@@ -141,7 +141,7 @@ export default async function ServiciosPage() {
                         </div>
                     ) : (
                         <div className="grid gap-3">
-                            {contracts.slice(0, 8).map((contract: any) => (
+                            {contracts.slice(0, 8).map((contract) => (
                                 <Link key={contract.id} href="/admin/gestion-comercial/contratos"
                                     className="group p-5 rounded-2xl bg-[#111827]/60 border border-white/5 hover:bg-[#1f2937]/80 hover:border-white/20 transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
@@ -203,7 +203,7 @@ export default async function ServiciosPage() {
                         </div>
                     ) : (
                         <div className="grid gap-3">
-                            {clients.slice(0, 8).map((client: any) => (
+                            {clients.slice(0, 8).map((client) => (
                                 <Link key={client.id} href={`/admin/gestion-comercial/clientes`}
                                     className="group p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300 flex items-center justify-between gap-4 cursor-pointer">
                                     <div className="flex items-center gap-4 min-w-0">
@@ -254,7 +254,7 @@ export default async function ServiciosPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {recentPayments.map((p: any) => (
+                        {recentPayments.map((p) => (
                             <Link key={p.id} href="/admin/gestion-comercial/pagos"
                                 className="group p-4 rounded-2xl bg-[#0a0f1c]/80 border border-white/5 hover:border-emerald-500/30 transition-all duration-300 shadow-sm hover:shadow-lg flex flex-col justify-between gap-3 h-full relative overflow-hidden cursor-pointer"
                             >

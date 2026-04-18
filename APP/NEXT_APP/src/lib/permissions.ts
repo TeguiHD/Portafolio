@@ -8,7 +8,7 @@
  * - defaultRoles: roles that have this permission by default
  */
 
-import { Role } from "@prisma/client";
+import { Role } from '@/generated/prisma/client';
 
 export interface PermissionDefinition {
     code: string;
@@ -283,6 +283,43 @@ export const DEFAULT_PERMISSIONS: PermissionDefinition[] = [
         description: "Ver CVs de otros usuarios (solo lectura)",
         category: "cv",
         defaultRoles: ["SUPERADMIN"],
+    },
+
+    // ============= JOBS (Vacantes & Postulaciones) =============
+    {
+        code: "jobs.vacancies.view",
+        name: "Ver Vacantes",
+        description: "Ver vacantes guardadas y resultados de matching",
+        category: "jobs",
+        defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"],
+    },
+    {
+        code: "jobs.vacancies.manage",
+        name: "Gestionar Vacantes",
+        description: "Crear, editar, archivar e importar vacantes",
+        category: "jobs",
+        defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"],
+    },
+    {
+        code: "jobs.matching.run",
+        name: "Ejecutar Matching",
+        description: "Analizar vacantes y generar adaptación de CV con IA",
+        category: "jobs",
+        defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"],
+    },
+    {
+        code: "jobs.applications.view",
+        name: "Ver Postulaciones",
+        description: "Ver tablero y detalle de CV enviados",
+        category: "jobs",
+        defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"],
+    },
+    {
+        code: "jobs.applications.manage",
+        name: "Gestionar Postulaciones",
+        description: "Crear postulaciones y cambiar estados de seguimiento",
+        category: "jobs",
+        defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"],
     },
 
     // ============= NOTIFICATIONS =============

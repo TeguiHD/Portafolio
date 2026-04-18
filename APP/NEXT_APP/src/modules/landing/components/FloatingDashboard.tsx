@@ -94,7 +94,7 @@ export function FloatingDashboard() {
                             <span className="text-sm font-mono text-blue-400">{currentCpu}% CPU</span>
                         </div>
                         <div className="h-16 w-full" style={{ minWidth: 200, minHeight: 64 }}>
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                                 <LineChart data={healthData}>
                                     <Line
                                         type="monotone"

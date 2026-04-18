@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserPlus, X, ShieldCheck, Ban, CheckCircle, Key, AlertTriangle, Search, ChevronLeft, ChevronRight, Filter, Shield, Eye, EyeOff, UserCog, ArrowRightLeft } from "lucide-react";
 import { UserPermissionsModal } from "@/modules/admin/components/UserPermissionsModal";
@@ -237,7 +238,7 @@ export default function UsersPageClient() {
             if (!res.ok) throw new Error();
             setPasswordModal({ isOpen: false, userId: null, userName: "" });
             setNewPassword("");
-            alert("Contraseña actualizada correctamente");
+            toast.success("Contraseña actualizada correctamente");
         } catch {
             setError("Error al actualizar contraseña");
         }
@@ -259,10 +260,6 @@ export default function UsersPageClient() {
             setError("Error al crear usuario");
         }
     };
-
-    if (loading) {
-        return <UsersPageSkeleton />;
-    }
 
     if (loading) {
         return <UsersPageSkeleton />;

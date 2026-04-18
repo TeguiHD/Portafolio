@@ -4,9 +4,18 @@
  * SECURITY: Implements prompt injection prevention & jailbreak detection
  */
 
+import {
+    getBalancedCvProviderOrder,
+    markCvProviderFailure,
+    markCvProviderSuccess,
+    reserveCvProvider,
+    type CvAiProviderName,
+} from "@/lib/cv-load-balancer";
+
 // ============= AI PROVIDER CONFIGURATION =============
 interface AIProvider {
-    name: string;
+    name: CvAiProviderName;
+    displayName: string;
     url: string;
     model: string;
     getApiKey: () => string | null;
@@ -15,7 +24,8 @@ interface AIProvider {
 
 const PROVIDERS: AIProvider[] = [
     {
-        name: "Groq",
+        name: "GROQ",
+        displayName: "Groq",
         url: "https://api.groq.com/openai/v1/chat/completions",
         model: "llama-3.1-8b-instant",
         getApiKey: () => process.env.GROQ_API_KEY || null,
@@ -25,10 +35,11 @@ const PROVIDERS: AIProvider[] = [
         }),
     },
     {
-        name: "OpenRouter",
+        name: "OPENROUTER",
+        displayName: "OpenRouter",
         url: "https://openrouter.ai/api/v1/chat/completions",
         model: "google/gemini-2.0-flash-exp:free",
-        getApiKey: () => process.env.DEEPSEEK_OPENROUTER_API_KEY || null,
+        getApiKey: () => process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_OPENROUTER_API_KEY || null,
         headers: (apiKey) => ({
             "Content-Type": "application/json",
             "Authorization": `Bearer ${apiKey}`,
@@ -327,15 +338,25 @@ export async function generateCvSuggestion(
         // Try each provider with fallback
         let content: string | null = null;
         let usedProvider: string | null = null;
+        const providerByName = new Map(PROVIDERS.map((provider) => [provider.name, provider]));
+        const providerOrder = await getBalancedCvProviderOrder("AUTO", PROVIDERS.map((provider) => provider.name));
 
-        for (const provider of PROVIDERS) {
+        for (const providerName of providerOrder) {
+            const provider = providerByName.get(providerName);
+            if (!provider) {
+                continue;
+            }
+
             const apiKey = provider.getApiKey();
-            if (!apiKey) continue;
+            if (!apiKey) {
+                continue;
+            }
+
+            const releaseProvider = await reserveCvProvider(provider.name);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
                 const response = await fetch(provider.url, {
                     method: "POST",
                     headers: provider.headers(apiKey),
@@ -348,19 +369,26 @@ export async function generateCvSuggestion(
                     signal: controller.signal,
                 });
 
-                clearTimeout(timeoutId);
-
                 if (response.ok) {
-                    const data = await response.json();
+                    const data = await response.json() as {
+                        choices?: Array<{ message?: { content?: string } }>;
+                    };
                     const responseContent = data.choices?.[0]?.message?.content;
                     if (responseContent) {
                         content = responseContent;
-                        usedProvider = provider.name;
+                        usedProvider = provider.displayName;
+                        await markCvProviderSuccess(provider.name);
                         break;
                     }
                 }
+
+                await markCvProviderFailure(provider.name);
             } catch (err) {
-                console.error(`[CV-AI] ${provider.name} error:`, err);
+                await markCvProviderFailure(provider.name);
+                console.error(`[CV-AI] ${provider.displayName} error:`, err);
+            } finally {
+                clearTimeout(timeoutId);
+                await releaseProvider();
             }
         }
 

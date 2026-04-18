@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, encryptEmail, decryptEmail } from "@/lib/security.server";
 import { NotificationHelpers } from "@/lib/notificationService";
 import { createAuditLog, AuditActions } from "@/lib/audit";
-import { Prisma } from "@prisma/client";
+import { Prisma } from '@/generated/prisma/client';
 
 export async function GET() {
     // DAL pattern: Verify admin access close to data access
@@ -22,6 +22,7 @@ export async function GET() {
                 emailEncrypted: true,
                 role: true,
                 isActive: true,
+                mfaEnabled: true,
                 avatar: true,
                 createdAt: true,
                 _count: {
@@ -33,7 +34,8 @@ export async function GET() {
                 deletionStatus: true,
                 deletionScheduledAt: true,
             },
-            orderBy: { createdAt: "desc" }
+            orderBy: { createdAt: "desc" },
+            take: 200,
         });
 
         const safeUsers = users.map(user => ({
@@ -91,9 +93,11 @@ export async function POST(request: Request) {
                 emailEncrypted: encrypted,
                 password: hashedPassword,
                 role: requestedRole,
-                isActive: true
+                isActive: true,
+                mfaEnabled: false,
+                mfaRecoveryCodes: [],
             },
-            select: { id: true, name: true, role: true, isActive: true }
+            select: { id: true, name: true, role: true, isActive: true, mfaEnabled: true }
         });
 
         // Create notification for user creation

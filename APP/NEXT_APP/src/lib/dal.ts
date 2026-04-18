@@ -3,7 +3,7 @@ import { cache } from 'react'
 // import { cookies } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { Role } from '@prisma/client'
+import { Role } from '@/generated/prisma/client'
 
 /**
  * Data Access Layer (DAL)

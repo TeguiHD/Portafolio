@@ -29,31 +29,57 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
 # Copy built assets
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-# Copy Prisma client (generated in node_modules)
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+# Copy Prisma generated client
+COPY --from=builder /app/src/generated ./src/generated
+COPY --from=builder /app/src/lib/prisma.ts ./src/lib/prisma.ts
+COPY --from=builder /app/src/services/client-service.ts ./src/services/client-service.ts
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+
+# Never bake local .env files into the production image.
+RUN rm -f .env .env.local .env.production .env.production.local
 
 # Copy Prisma schema for migrations
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+
+# Copy migration scripts (excluded from Next.js build via tsconfig.json exclude)
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/node_modules/tsx ./node_modules/tsx
+COPY --from=builder /app/node_modules/esbuild ./node_modules/esbuild
+COPY --from=builder /app/node_modules/@esbuild ./node_modules/@esbuild
+COPY --from=builder /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
+COPY --from=builder /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
+COPY --from=builder /app/node_modules/@prisma/adapter-pg ./node_modules/@prisma/adapter-pg
+COPY --from=builder /app/node_modules/pg ./node_modules/pg
+COPY --from=builder /app/node_modules/pg-connection-string ./node_modules/pg-connection-string
+COPY --from=builder /app/node_modules/pg-pool ./node_modules/pg-pool
+COPY --from=builder /app/node_modules/pg-protocol ./node_modules/pg-protocol
+COPY --from=builder /app/node_modules/pg-types ./node_modules/pg-types
+COPY --from=builder /app/node_modules/pgpass ./node_modules/pgpass
+COPY --from=builder /app/node_modules/pg-int8 ./node_modules/pg-int8
+COPY --from=builder /app/node_modules/postgres-array ./node_modules/postgres-array
+COPY --from=builder /app/node_modules/postgres-bytea ./node_modules/postgres-bytea
+COPY --from=builder /app/node_modules/postgres-date ./node_modules/postgres-date
+COPY --from=builder /app/node_modules/postgres-interval ./node_modules/postgres-interval
+COPY --from=builder /app/node_modules/split2 ./node_modules/split2
+COPY --from=builder /app/node_modules/xtend ./node_modules/xtend
 
 # Create uploads directory for finance module receipts
-# Directory is owned by nextjs user and files cannot be executed
 RUN mkdir -p /app/uploads && \
-    chown -R nextjs:nodejs /app/uploads && \
+    chown -R node:node /app/uploads && \
     chmod 755 /app/uploads
 
-# Set correct permissions
-RUN chown -R nextjs:nodejs /app
+# Align runtime user with Docker secret ownership to keep secret files at 0600.
+RUN chown -R node:node /app
 
-USER nextjs
+USER node
 
 EXPOSE 3000
 

@@ -1,4 +1,4 @@
-﻿## Editor and OS
+## Editor and OS
 .vscode/
 .idea/
 .DS_Store
@@ -61,3 +61,38 @@ portfolio_web.tar
 auto_deploy.sh
 APP/NEXT_APP/.pnpm-store/
 APP/NEXT_APP/package-lock.json
+
+# Docker Secrets (NIST SC-28: Protection of Information at Rest)
+DOCKER/secrets/
+
+# Security notes (private — must never be committed)
+SEGURIDAD*.txt
+SEGURIDAD*.TXT
+NuevaImplementación.txt
+build_full.txt
+
+# Build archives
+*.tar.gz
+*.tar
+deploy.tar.gz
+
+# LaTeX work notes (local only)
+LaTex.txt
+
+# Personal / CV / samples (not for public repo)
+Empleos&cv.jsx
+Nicoholas Lopetegui - CV.pdf
+blog.html
+cotizaciónEjemplo.html
+cotizacionEjemplo.html
+
+# Deploy script (contains VPS host/user references)
+deploy.sh
+
+# Deploy staging directory (generated artifact with node_modules, prisma etc.)
+deploy_package/
+
+# Test scratch files
+APP/NEXT_APP/test-latex.js
+APP/NEXT_APP/test-regex.js
+APP/NEXT_APP/test-strip.js

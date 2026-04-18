@@ -16,7 +16,8 @@
  */
 
 import 'server-only'
-import { createHmac, randomBytes, createCipheriv, createDecipheriv, scryptSync } from 'crypto'
+import { createHmac, randomBytes, createCipheriv, createDecipheriv, scryptSync, timingSafeEqual } from 'crypto'
+import { readSecret } from '@/lib/read-secret'
 
 // ============= CONFIGURACIÓN =============
 
@@ -159,17 +160,27 @@ export function verifyRecoveryCode(
 
 // ============= ENCRYPTED STORAGE =============
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || ''
+let _mfaEncryptionKey: string | null = null
+
+function getMfaEncryptionKey(): string {
+    if (_mfaEncryptionKey) {
+        return _mfaEncryptionKey
+    }
+
+    const key = readSecret('encryption-key', 'ENCRYPTION_KEY')
+    if (!key || key.length < 32) {
+        throw new Error('ENCRYPTION_KEY must be at least 32 characters')
+    }
+
+    _mfaEncryptionKey = key
+    return key
+}
 
 /**
  * Encrypt MFA secret for database storage
  */
 export function encryptMFASecret(secret: string): string {
-    if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
-        throw new Error('ENCRYPTION_KEY must be at least 32 characters')
-    }
-
-    const key = scryptSync(ENCRYPTION_KEY, 'mfa-salt', 32)
+    const key = scryptSync(getMfaEncryptionKey(), 'mfa-salt', 32)
     const iv = randomBytes(16)
     const cipher = createCipheriv('aes-256-gcm', key, iv)
 
@@ -185,13 +196,9 @@ export function encryptMFASecret(secret: string): string {
  * Decrypt MFA secret from database
  */
 export function decryptMFASecret(encryptedSecret: string): string {
-    if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
-        throw new Error('ENCRYPTION_KEY must be at least 32 characters')
-    }
-
     const [ivBase64, authTagBase64, encrypted] = encryptedSecret.split(':')
 
-    const key = scryptSync(ENCRYPTION_KEY, 'mfa-salt', 32)
+    const key = scryptSync(getMfaEncryptionKey(), 'mfa-salt', 32)
     const iv = Buffer.from(ivBase64, 'base64')
     const authTag = Buffer.from(authTagBase64, 'base64')
 
@@ -255,29 +262,22 @@ function base32Decode(encoded: string): Buffer {
 // ============= TIMING-SAFE COMPARISON =============
 
 function timingSafeCompare(a: string, b: string): boolean {
-    if (a.length !== b.length) {
-        // Still do comparison to maintain constant time (prevent timing attacks)
-        const dummy = a
-        let _unused = 0
-        for (let i = 0; i < dummy.length; i++) {
-            _unused |= dummy.charCodeAt(i) ^ dummy.charCodeAt(i)
-        }
-        void _unused  // Ensure the variable is "used"
+    const bufA = Buffer.from(a)
+    const bufB = Buffer.from(b)
+    if (bufA.length !== bufB.length) {
+        // Compare against self to maintain constant time, then return false
+        timingSafeEqual(bufA, bufA)
         return false
     }
-
-    let result = 0
-    for (let i = 0; i < a.length; i++) {
-        result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-    }
-    return result === 0
+    return timingSafeEqual(bufA, bufB)
 }
 
 // ============= MFA SETUP FLOW =============
 
 export interface MFASetupResult {
-    secret: string           // Encrypted secret for DB
-    qrCodeURI: string        // URI for QR code generation
+    encryptedSecret: string  // Encrypted secret for DB
+    qrCodeURI: string        // otpauth:// URI for local QR rendering
+    manualEntryKey: string   // Base32 secret for manual authenticator setup
     recoveryCodes: string[]  // Plain codes to show user ONCE
     recoveryHashes: string[] // Hashed codes for DB storage
 }
@@ -291,13 +291,33 @@ export function initializeMFASetup(userEmail: string): MFASetupResult {
     const recoveryCodes = generateRecoveryCodes()
 
     return {
-        secret: encryptMFASecret(secret),
+        encryptedSecret: encryptMFASecret(secret),
         qrCodeURI: generateOTPAuthURI(secret, userEmail),
+        manualEntryKey: secret,
         recoveryCodes: recoveryCodes,
         recoveryHashes: recoveryCodes.map(code =>
-            hashRecoveryCode(code, ENCRYPTION_KEY)
+            hashRecoveryCode(code, getMfaEncryptionKey())
         ),
     }
+}
+
+function looksLikeEncryptedSecret(value: string): boolean {
+    return value.split(':').length === 3
+}
+
+function decryptStoredMFASecret(encryptedSecret: string): string {
+    const firstPass = decryptMFASecret(encryptedSecret)
+
+    // Backward compatibility for secrets that were accidentally stored double-encrypted.
+    if (looksLikeEncryptedSecret(firstPass)) {
+        try {
+            return decryptMFASecret(firstPass)
+        } catch {
+            return firstPass
+        }
+    }
+
+    return firstPass
 }
 
 /**
@@ -307,8 +327,12 @@ export function verifyMFA(
     encryptedSecret: string,
     token: string
 ): boolean {
-    const secret = decryptMFASecret(encryptedSecret)
-    return verifyTOTP(secret, token)
+    try {
+        const secret = decryptStoredMFASecret(encryptedSecret)
+        return verifyTOTP(secret, token)
+    } catch {
+        return false
+    }
 }
 
 /**
@@ -318,7 +342,7 @@ export function useRecoveryCode(
     code: string,
     hashedCodes: string[]
 ): { valid: boolean; remainingCodes: string[] } {
-    const result = verifyRecoveryCode(code, hashedCodes, ENCRYPTION_KEY)
+    const result = verifyRecoveryCode(code, hashedCodes, getMfaEncryptionKey())
 
     if (result.valid) {
         // Remove used code

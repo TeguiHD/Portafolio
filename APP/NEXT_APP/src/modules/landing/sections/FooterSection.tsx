@@ -1,11 +1,16 @@
 "use client";
 
+import { useCallback } from "react";
 import { ThrottledLink } from "@/components/ui/ThrottledLink";
 import { ExternalLink } from "@/components/ui/ExternalLink";
 
 export function FooterSection() {
+  const handleEmailClick = useCallback(() => {
+    window.location.href = "mailto:contact@nicoholas.dev";
+  }, []);
+
   return (
-    <footer className="border-t border-white/5 py-16 px-4 sm:px-6 bg-black">
+    <footer aria-label="Pie de página" className="border-t border-white/5 py-16 px-4 sm:px-6 bg-black">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
 
         <div className="space-y-4">
@@ -17,7 +22,7 @@ export function FooterSection() {
           </p>
         </div>
 
-        <div>
+        <nav aria-label="Mapa del sitio">
           <h3 className="font-bold text-white mb-4 text-sm tracking-wider">SITEMAP</h3>
           <ul className="space-y-2 text-sm text-gray-500">
             <li><ThrottledLink href="/#hero" className="hover:text-white transition-colors">Inicio</ThrottledLink></li>
@@ -25,24 +30,32 @@ export function FooterSection() {
             <li><ThrottledLink href="/#tools-belt" className="hover:text-white transition-colors">Herramientas</ThrottledLink></li>
             <li><ThrottledLink href="/#vault" className="hover:text-white transition-colors">Admin</ThrottledLink></li>
           </ul>
-        </div>
+        </nav>
 
-        <div>
+        <nav aria-label="Enlaces legales">
           <h3 className="font-bold text-white mb-4 text-sm tracking-wider">LEGAL</h3>
           <ul className="space-y-2 text-sm text-gray-500">
             <li><ThrottledLink href="/privacy" className="hover:text-white transition-colors">Privacidad</ThrottledLink></li>
             <li><ThrottledLink href="/terms" className="hover:text-white transition-colors">Términos</ThrottledLink></li>
           </ul>
-        </div>
+        </nav>
 
-        <div>
+        <nav aria-label="Redes sociales">
           <h3 className="font-bold text-white mb-4 text-sm tracking-wider">SOCIAL</h3>
           <ul className="space-y-2 text-sm text-gray-500">
             <li><ExternalLink href="https://github.com/TeguiHD" className="hover:text-white transition-colors">GitHub</ExternalLink></li>
             <li><ExternalLink href="https://linkedin.com/in/nicoholas-lopetegui" className="hover:text-white transition-colors">LinkedIn</ExternalLink></li>
-            <li><ExternalLink href="mailto:contact@nicoholas.dev" className="hover:text-white transition-colors">Email</ExternalLink></li>
+            <li>
+              <button
+                type="button"
+                onClick={handleEmailClick}
+                className="hover:text-white transition-colors"
+              >
+                Email
+              </button>
+            </li>
           </ul>
-        </div>
+        </nav>
 
       </div>
       <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/5 text-center text-xs text-gray-600">

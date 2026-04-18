@@ -1,12 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import { ClientService } from "@/services/client-service";
 import fs from "fs";
+import path from "path";
 import { createHash } from "crypto";
+
+function readSecret(secretName: string, envFallbackKey?: string): string {
+    const secretPath = `/run/secrets/${secretName}`;
+
+    try {
+        if (fs.existsSync(secretPath)) {
+            return fs.readFileSync(secretPath, "utf8").trim();
+        }
+    } catch {
+        // Ignore and continue with env fallback.
+    }
+
+    const envKey = envFallbackKey || secretName.toUpperCase().replace(/-/g, "_");
+    return process.env[envKey] || "";
+}
 
 // Helper to match main app's email hashing (from seed.ts)
 function hashEmail(email: string): string {
     const normalizedEmail = email.toLowerCase().trim();
-    const key = process.env.ENCRYPTION_KEY;
+    const key = readSecret("encryption-key", "ENCRYPTION_KEY");
     if (!key) throw new Error("ENCRYPTION_KEY missing");
     return createHash('sha256').update(normalizedEmail + key).digest('hex');
 }
@@ -16,7 +32,7 @@ async function main() {
 
     // 1. Create Superadmin User if not exists (Ensure user for relation)
     // We look up by HASH because that's what is stored in the email field
-    const adminEmail = "superadmin1@nicoholas.dev";
+    const adminEmail = readSecret("admin-email", "ADMIN_EMAIL") || "superadmin1@nicoholas.dev";
     const emailHash = hashEmail(adminEmail);
 
     console.log(`🔎 Looking for admin: ${adminEmail} (Hash: ${emailHash.substring(0, 10)}...)`);
@@ -54,13 +70,21 @@ async function main() {
     }
 
     // 3. Load HTML Content
-    const htmlPath = "/home/nicoholas/Documentos/Paginas/Portafolio/cotizaciónEjemplo.html";
+    const htmlPathCandidates = [
+        path.resolve(process.cwd(), "cotizaciónEjemplo.html"),
+        path.resolve(process.cwd(), "cotizacionEjemplo.html"),
+    ];
+    const htmlPath = htmlPathCandidates.find((candidate) => fs.existsSync(candidate));
     let htmlContent = "";
 
     try {
+        if (!htmlPath) {
+            throw new Error("quotation_template_not_found");
+        }
+
         htmlContent = fs.readFileSync(htmlPath, "utf-8");
     } catch {
-        console.error("❌ Could not read HTML file at: " + htmlPath);
+        console.error("❌ Could not read quotation HTML template from app root.");
         // Fallback or exit
         return;
     }

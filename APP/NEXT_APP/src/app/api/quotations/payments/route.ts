@@ -6,7 +6,7 @@ import {
 } from "@/services/payment-service";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
-import type { Role, PaymentMethod } from "@prisma/client";
+import type { Role, PaymentMethod } from '@/generated/prisma/client';
 
 /**
  * POST /api/quotations/payments - Register a payment

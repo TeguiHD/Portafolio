@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
-import { Role } from "@prisma/client";
+import { Role } from '@/generated/prisma/client';
 import { analyzeFinancesWithAI, askFinanceQuestion, FinancialData } from "@/services/finance-ai";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 // POST /api/finance/ai/analyze - Get AI analysis of financial data
 export async function POST(request: NextRequest) {
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
             const validation = questionSchema.safeParse(body);
             if (!validation.success) {
                 return NextResponse.json(
-                    { error: "Pregunta inválida", details: validation.error.issues },
+                    { error: "Pregunta inválida" },
                     { status: 400 }
                 );
             }
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
             data: financialData,
         });
     } catch (error) {
-        console.error("[AI Analysis] Error:", error);
+        logger.error("[AI Analysis] Error", error);
         return NextResponse.json({ error: "Error al analizar" }, { status: 500 });
     }
 }

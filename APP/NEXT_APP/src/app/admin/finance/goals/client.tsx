@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { GoalList } from "@/modules/finance/components/GoalList";
 import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
 import { formatCurrency } from "@/lib/currency";
@@ -76,9 +77,9 @@ export default function GoalsPageClient() {
         if (contributeMeta?.achievedMilestones?.length > 0) {
             const milestone = contributeMeta.achievedMilestones[contributeMeta.achievedMilestones.length - 1];
             if (milestone === 100) {
-                alert("🎉 ¡Felicidades! ¡Has completado tu meta!");
+                toast.success("¡Has completado tu meta!");
             } else {
-                alert(`🎯 ¡Genial! Has alcanzado el ${milestone}% de tu meta.`);
+                toast.success(`¡Has alcanzado el ${milestone}% de tu meta!`);
             }
         }
 

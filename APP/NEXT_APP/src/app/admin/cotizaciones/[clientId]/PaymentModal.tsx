@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { DollarSign, X, CreditCard, Banknote, Building2, Wallet, Bitcoin, HelpCircle, Calendar, FileText, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useCallback } from "react";
-import type { PaymentMethod } from "@prisma/client";
+import type { PaymentMethod } from '@/generated/prisma/client';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -215,14 +215,16 @@ export default function PaymentModal({
                                 <div className="relative">
                                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">$</span>
                                     <input
-                                        type="number"
-                                        value={amount}
-                                        onChange={(e) => setAmount(e.target.value)}
-                                        placeholder={remaining.toString()}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={amount ? Number(amount).toLocaleString("es-CL") : ""}
+                                        onChange={(e) => {
+                                            // Extraer solo dígitos para el valor interno
+                                            const raw = e.target.value.replace(/\D/g, "");
+                                            setAmount(raw);
+                                        }}
+                                        placeholder={remaining.toLocaleString("es-CL")}
                                         className="w-full pl-8 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
-                                        min="1"
-                                        max={remaining}
-                                        step="any"
                                         required
                                     />
                                 </div>
@@ -232,11 +234,11 @@ export default function PaymentModal({
                                         onClick={() => setAmount(remaining.toString())}
                                         className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
                                     >
-                                        Pagar todo
+                                        Pagar todo ({remaining.toLocaleString("es-CL")})
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setAmount((remaining / 2).toString())}
+                                        onClick={() => setAmount(Math.floor(remaining / 2).toString())}
                                         className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
                                     >
                                         50%

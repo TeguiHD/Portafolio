@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { hasPermission } from "@/lib/permission-check";
 import { FinanceProvider } from "@/modules/finance";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 export const metadata: Metadata = {
     title: "Finanzas | Admin Panel",

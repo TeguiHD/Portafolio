@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 // Only SUPERADMIN can access contact messages
 const REQUIRED_PERMISSION = "contact.manage";
@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
             ];
         }
 
-        // 5. Fetch messages with pagination
-        const [messages, total] = await Promise.all([
+        // 5. Fetch messages + counts en paralelo (3 → 1 ronda de I/O)
+        const [messages, total, unreadCount] = await Promise.all([
             prisma.contactMessage.findMany({
                 where,
                 orderBy: { createdAt: "desc" },
@@ -75,12 +75,8 @@ export async function GET(request: NextRequest) {
                 },
             }),
             prisma.contactMessage.count({ where }),
+            prisma.contactMessage.count({ where: { status: "UNREAD", isSpam: false } }),
         ]);
-
-        // 6. Get unread count
-        const unreadCount = await prisma.contactMessage.count({
-            where: { status: "UNREAD", isSpam: false },
-        });
 
         return NextResponse.json({
             messages,

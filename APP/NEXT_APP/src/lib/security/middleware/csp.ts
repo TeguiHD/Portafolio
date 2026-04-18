@@ -8,12 +8,15 @@
  */
 
 export function generateCsp(nonce: string): string {
+    const isDev = process.env.NODE_ENV !== 'production'
+
     // Define allowed domains strictly
     const trusted = {
         scripts: [
             "'self'",
             "'unsafe-inline'", // Required for Next.js hydration (protected by nonce in strict mode, but fallback needed)
-            "'unsafe-eval'",   // Sometimes required for dev mode / specific libs (review for prod)
+            // OWASP 2025 A04: unsafe-eval REMOVED in production (MITRE T1059 mitigation)
+            ...(isDev ? ["'unsafe-eval'"] : []),
             "https://cdn.discordapp.com",
             "https://lh3.googleusercontent.com",
             "https://avatars.githubusercontent.com"

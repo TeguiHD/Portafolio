@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 import { logFinanceEvent, AuditActions } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
             if (process.env.NODE_ENV !== 'production') {
                 console.error("[Finance Accounts] Zod validation error:", JSON.stringify(error.issues, null, 2));
             }
-            return NextResponse.json({ error: "Datos inválidos", details: error.issues }, { status: 400 });
+            return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
         }
         return NextResponse.json({ error: "Error al crear cuenta" }, { status: 500 });
     }

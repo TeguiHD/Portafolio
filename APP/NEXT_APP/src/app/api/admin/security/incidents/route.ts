@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { SecuritySeverity } from "@prisma/client";
+import { SecuritySeverity } from '@/generated/prisma/client';
 import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 // GET: List security incidents with filters
 export async function GET(request: NextRequest) {
@@ -77,9 +77,10 @@ export async function GET(request: NextRequest) {
 // POST: Create a new security incident (internal use)
 export async function POST(request: NextRequest) {
     try {
-        // This endpoint is for internal use - verify with internal secret
+        // This endpoint is for internal use - verify with INTERNAL_API_SECRET.
+        // SECURITY: Never reuse ENCRYPTION_KEY as an API auth token (NIST SP 800-57).
         const authHeader = request.headers.get("x-internal-secret");
-        const internalSecret = process.env.ENCRYPTION_KEY;
+        const internalSecret = process.env.INTERNAL_API_SECRET;
 
         // Allow if internal secret matches OR if called from server context
         if (authHeader !== internalSecret) {

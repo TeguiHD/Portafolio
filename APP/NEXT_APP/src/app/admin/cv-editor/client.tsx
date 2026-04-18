@@ -24,22 +24,18 @@ interface CvVersion {
 
 const initialData: CvData = {
     personalInfo: {
-        name: "Nicoholas Lopetegui",
-        title: "Full Stack Developer & Consultant",
-        email: "tu-email@dominio.com",
-        phone: "+56 9 XXXX XXXX",
-        location: "Chile",
-        linkedin: "linkedin.com/in/nlopetegui",
-        github: "github.com/nlopetegui",
-        summary: "Desarrollador Full Stack con 5+ años de experiencia en proyectos de alto impacto. Especializado en Next.js, TypeScript, PostgreSQL y automatizaciones con n8n.",
+        name: "",
+        title: "",
+        email: "",
+        phone: "",
+        location: "",
+        linkedin: "",
+        github: "",
+        summary: "",
     },
     experience: [],
     education: [],
-    skills: [
-        { category: "Frontend", items: ["React", "Next.js", "TypeScript", "Tailwind CSS"] },
-        { category: "Backend", items: ["Node.js", "PHP", "Laravel", "PostgreSQL"] },
-        { category: "DevOps", items: ["Docker", "Git", "Linux", "CI/CD"] },
-    ],
+    skills: [],
     projects: [],
 };
 
@@ -73,30 +69,25 @@ export default function CvEditorPageClient() {
     useEffect(() => {
         const loadVersions = async () => {
             try {
-                console.log("[CV Editor] Loading versions...");
                 const res = await fetch("/api/cv");
-                console.log("[CV Editor] Versions response status:", res.status);
                 if (res.ok) {
                     const data = await res.json();
-                    console.log("[CV Editor] Versions loaded:", data);
                     setVersions(data);
-                    // Load default version if exists, otherwise load most recent
                     const defaultVersion = data.find((v: CvVersion) => v.isDefault);
-                    const versionToLoad = defaultVersion || data[0]; // data is ordered by updatedAt desc
-                    console.log("[CV Editor] Version to load:", versionToLoad);
+                    const versionToLoad = defaultVersion || data[0];
                     if (versionToLoad) {
                         await loadVersion(versionToLoad.id);
                     }
-                } else {
-                    console.error("[CV Editor] Failed to fetch versions:", res.status);
                 }
             } catch (error) {
+                toast.error("Error al cargar versiones del CV");
                 console.error("[CV Editor] Failed to load CV versions:", error);
             } finally {
                 setIsLoading(false);
             }
         };
         loadVersions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadVersion]);
 
     const saveVersion = async (name?: string) => {
@@ -104,11 +95,8 @@ export default function CvEditorPageClient() {
         try {
             const latexCode = generateLatex(data);
 
-            console.log("[CV Editor] Saving... currentVersionId:", currentVersionId);
-
             if (currentVersionId) {
                 // Update existing
-                console.log("[CV Editor] Using PUT to update version:", currentVersionId);
                 const res = await fetch(`/api/cv/${currentVersionId}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Users, FileText, Plus, Search, Eye, Grid, List, Key } from "lucide-react";
 import UnifiedQuotationCreation from "./components/UnifiedQuotationCreation";
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export default function QuotationsView({ clients, isSuperAdmin, currentUserId }: Props) {
+    const router = useRouter();
     const [showWizard, setShowWizard] = useState(false);
     const [showSearchModal, setShowSearchModal] = useState(false);
     const [showRedeemModal, setShowRedeemModal] = useState(false);
@@ -54,11 +56,7 @@ export default function QuotationsView({ clients, isSuperAdmin, currentUserId }:
     const handleSpyUserSelect = (userId: string, userName: string) => {
         setSpyUserId(userId || null);
         setSpyUserName(userName);
-        if (userId) {
-            window.location.href = `/admin/cotizaciones?spyUserId=${userId}`;
-        } else {
-            window.location.href = "/admin/cotizaciones";
-        }
+        router.push(userId ? `/admin/cotizaciones?spyUserId=${userId}` : "/admin/cotizaciones");
     };
 
     return (

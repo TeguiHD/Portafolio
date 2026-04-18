@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { getDefaultToolBySlug } from "@/lib/tool-registry";
 
 export type ToolAccessType = "public" | "admin_only" | "private" | "loading" | "error" | "blocked";
 
@@ -19,12 +20,23 @@ const MIN_SECURITY_DELAY_MS = 100;
 const MAX_RETRIES = 3;
 
 export function useToolAccess(slug: string): ToolAccessResult {
+    const fallbackTool = getDefaultToolBySlug(slug);
+    const hasPublicFallback = Boolean(fallbackTool?.isPublic && fallbackTool.isActive);
+
     // SECURITY: Default to NOT authorized - fail-closed approach
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [accessType, setAccessType] = useState<ToolAccessType>("loading");
     const [toolName, setToolName] = useState<string | undefined>();
     const [retryCount, setRetryCount] = useState(0);
+
+    const allowPublicFallback = useCallback(() => {
+        if (!fallbackTool) return;
+        setToolName(fallbackTool.name);
+        setAccessType("public");
+        setIsAuthorized(true);
+        setIsLoading(false);
+    }, [fallbackTool]);
 
     const checkAccess = useCallback(async () => {
         // SECURITY: Too many retries = permanent block
@@ -78,8 +90,17 @@ export function useToolAccess(slug: string): ToolAccessResult {
                 return;
             }
 
+            if (res.status === 429 && hasPublicFallback) {
+                allowPublicFallback();
+                return;
+            }
+
             if (!res.ok) {
-                // SECURITY: Any non-OK response = block access
+                if (hasPublicFallback) {
+                    allowPublicFallback();
+                    return;
+                }
+
                 setAccessType("error");
                 setIsAuthorized(false);
                 setIsLoading(false);
@@ -99,24 +120,32 @@ export function useToolAccess(slug: string): ToolAccessResult {
 
             // SECURITY: Check for explicit allowed flag
             if (data.allowed === true || (data.tool && data.tool.isActive !== false)) {
-                setToolName(data.tool?.name);
-                setAccessType("public");
+                setToolName(data.tool?.name || fallbackTool?.name);
+                setAccessType(data.accessLevel === "admin" ? "admin_only" : "public");
                 setIsAuthorized(true);
             } else {
-                // Not explicitly allowed = block
+                if (hasPublicFallback) {
+                    allowPublicFallback();
+                    return;
+                }
+
                 setAccessType("blocked");
                 setIsAuthorized(false);
             }
         } catch (error) {
             console.error("Security check failed:", error);
-            // SECURITY CRITICAL: On ANY error, block access (fail-closed)
+            if (hasPublicFallback) {
+                allowPublicFallback();
+                return;
+            }
+
             setAccessType("error");
             setIsAuthorized(false);
             setRetryCount(prev => prev + 1);
         } finally {
             setIsLoading(false);
         }
-    }, [slug, retryCount]);
+    }, [allowPublicFallback, fallbackTool?.name, hasPublicFallback, retryCount, slug]);
 
     useEffect(() => {
         checkAccess();

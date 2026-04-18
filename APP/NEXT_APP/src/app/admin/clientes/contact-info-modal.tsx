@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { UserCog, Building2, User, Mail, Phone, MapPin, Briefcase, FileText, Loader2, Save, X, Trash2 } from "lucide-react";
 import { updateClientContactAction, deleteClientAction, UpdateClientContactData } from "../../../modules/admin/clients/actions";
+import { formatRut, getRutError } from "@/lib/rut";
 import { toast } from "sonner";
 
 interface Client {
@@ -27,6 +28,13 @@ interface Props {
     canDelete?: boolean;
 }
 
+interface FormErrors {
+    name?: string;
+    rut?: string;
+    email?: string;
+    contactEmail?: string;
+}
+
 export default function ContactInfoModal({ client, onUpdate, canDelete }: Props) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -40,8 +48,45 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
         contactEmail: client.contactEmail || "",
         contactPhone: client.contactPhone || "",
         contactRole: client.contactRole || "",
-        email: client.email || "", // Legacy/System email
+        email: client.email || "",
     });
+    const [errors, setErrors] = useState<FormErrors>({});
+
+    const validate = (): boolean => {
+        const newErrors: FormErrors = {};
+
+        if (!formData.name?.trim()) {
+            newErrors.name = "El nombre es requerido";
+        }
+
+        const rutError = getRutError(formData.rut || "");
+        if (rutError) newErrors.rut = rutError;
+
+        if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            newErrors.email = "Email inválido";
+        }
+
+        if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
+            newErrors.contactEmail = "Email inválido";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleRutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatRut(e.target.value);
+        setFormData(prev => ({ ...prev, rut: formatted }));
+        if (errors.rut) setErrors(prev => ({ ...prev, rut: undefined }));
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name as keyof FormErrors]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
+    };
 
     const handleDelete = async () => {
         if (!confirm("¿Estás seguro de que deseas eliminar este cliente? Se eliminarán lógicamente sus cotizaciones asociadas. Esta acción no se puede deshacer.")) return;
@@ -66,7 +111,6 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
 
     const modalRef = useRef<HTMLDivElement>(null);
 
-    // Close on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
@@ -76,7 +120,7 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
 
         if (open) {
             document.addEventListener("mousedown", handleClickOutside);
-            document.body.style.overflow = "hidden"; // Prevent scrolling
+            document.body.style.overflow = "hidden";
         }
 
         return () => {
@@ -85,7 +129,6 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
         };
     }, [open]);
 
-    // Handle ESC key
     useEffect(() => {
         const handleEsc = (event: KeyboardEvent) => {
             if (event.key === "Escape") setOpen(false);
@@ -94,15 +137,11 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
         return () => window.removeEventListener("keydown", handleEsc);
     }, [open]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
+        if (!validate()) return;
 
+        setLoading(true);
         try {
             const res = await updateClientContactAction(client.id, formData);
             if (res.success) {
@@ -119,11 +158,8 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
         }
     };
 
-    // Portal needs to be mounted on client only
     const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    useEffect(() => { setMounted(true); }, []);
 
     if (!open) {
         return (
@@ -140,7 +176,11 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
 
     if (!mounted) return null;
 
-    // Use Portal to escape overflow:hidden of parent containers
+    const fieldClass = (error?: string) =>
+        `w-full bg-slate-800 border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 outline-none text-white placeholder:text-slate-600 transition-colors ${
+            error ? "border-red-500 focus:ring-red-500" : "border-slate-700 focus:ring-indigo-500"
+        }`;
+
     return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div
@@ -168,20 +208,26 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                         </h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Nombre */}
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Nombre (Sistema)</label>
+                                <label className="text-xs text-slate-400 font-medium">
+                                    Nombre (Sistema) <span className="text-red-400">*</span>
+                                </label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
                                     <input
                                         name="name"
                                         value={formData.name}
                                         onChange={handleChange}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={100}
+                                        className={fieldClass(errors.name)}
                                         required
                                     />
                                 </div>
+                                {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
                             </div>
 
+                            {/* Razón Social */}
                             <div className="space-y-1">
                                 <label className="text-xs text-slate-400 font-medium">Razón Social</label>
                                 <div className="relative">
@@ -191,11 +237,13 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                         value={formData.company}
                                         onChange={handleChange}
                                         placeholder="Ej: Servicios SpA"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={100}
+                                        className={fieldClass()}
                                     />
                                 </div>
                             </div>
 
+                            {/* RUT con auto-formato */}
                             <div className="space-y-1">
                                 <label className="text-xs text-slate-400 font-medium">RUT</label>
                                 <div className="relative">
@@ -203,27 +251,34 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                     <input
                                         name="rut"
                                         value={formData.rut}
-                                        onChange={handleChange}
-                                        placeholder="76.xxx.xxx-k"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        onChange={handleRutChange}
+                                        placeholder="12.345.678-9"
+                                        maxLength={12}
+                                        className={`${fieldClass(errors.rut)} font-mono tracking-wide`}
                                     />
                                 </div>
+                                {errors.rut && <p className="text-xs text-red-400">{errors.rut}</p>}
                             </div>
 
+                            {/* Email Sistema */}
                             <div className="space-y-1">
                                 <label className="text-xs text-slate-400 font-medium">Email Sistema (Notificaciones)</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
                                     <input
+                                        type="email"
                                         name="email"
                                         value={formData.email}
                                         onChange={handleChange}
                                         placeholder="contacto@empresa.com"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={254}
+                                        className={fieldClass(errors.email)}
                                     />
                                 </div>
+                                {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
                             </div>
 
+                            {/* Dirección */}
                             <div className="space-y-1 md:col-span-2">
                                 <label className="text-xs text-slate-400 font-medium">Dirección</label>
                                 <div className="relative">
@@ -233,7 +288,8 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                         value={formData.address}
                                         onChange={handleChange}
                                         placeholder="Av. Providencia 1234, Of. 505"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={200}
+                                        className={fieldClass()}
                                     />
                                 </div>
                             </div>
@@ -256,7 +312,8 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                         value={formData.contactName}
                                         onChange={handleChange}
                                         placeholder="Juan Pérez"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={100}
+                                        className={fieldClass()}
                                     />
                                 </div>
                             </div>
@@ -270,7 +327,8 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                         value={formData.contactRole}
                                         onChange={handleChange}
                                         placeholder="Gerente General"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={100}
+                                        className={fieldClass()}
                                     />
                                 </div>
                             </div>
@@ -280,13 +338,16 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
                                     <input
+                                        type="email"
                                         name="contactEmail"
                                         value={formData.contactEmail}
                                         onChange={handleChange}
                                         placeholder="juan@empresa.com"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={254}
+                                        className={fieldClass(errors.contactEmail)}
                                     />
                                 </div>
+                                {errors.contactEmail && <p className="text-xs text-red-400">{errors.contactEmail}</p>}
                             </div>
 
                             <div className="space-y-1">
@@ -294,11 +355,13 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
                                     <input
+                                        type="tel"
                                         name="contactPhone"
                                         value={formData.contactPhone}
                                         onChange={handleChange}
                                         placeholder="+56 9 1234 5678"
-                                        className="w-full bg-slate-800 border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder:text-slate-600"
+                                        maxLength={20}
+                                        className={fieldClass()}
                                     />
                                 </div>
                             </div>
@@ -319,7 +382,8 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                                 <button
                                     type="button"
                                     onClick={handleDelete}
-                                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/20 rounded-lg text-xs font-medium transition-all"
+                                    disabled={loading}
+                                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/20 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
                                 >
                                     Eliminar
                                 </button>
@@ -338,7 +402,7 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
                             {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                             Guardar Cambios

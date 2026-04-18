@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { NotificationType, NotificationPriority, Role, Prisma } from "@prisma/client";
+import { NotificationType, NotificationPriority, Role, Prisma } from '@/generated/prisma/client';
 
 interface CreateNotificationParams {
     type: NotificationType;

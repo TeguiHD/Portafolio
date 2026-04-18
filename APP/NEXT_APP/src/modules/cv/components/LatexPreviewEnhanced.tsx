@@ -69,8 +69,8 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
     };
 
     const handleOpenOverleaf = () => {
-        // Use a hidden form POST to avoid URI length limits (414 error)
-        // Overleaf accepts the LaTeX content as a POST body field "snip"
+        // Submit LaTeX to Overleaf via a hidden form in the current page.
+        // We create a temporary form, submit it to _blank, then remove it.
         try {
             const form = document.createElement("form");
             form.method = "POST";
@@ -78,13 +78,12 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
             form.target = "_blank";
             form.style.display = "none";
 
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = "snip";
-            input.value = latexContent;
-            form.appendChild(input);
+            const snipInput = document.createElement("input");
+            snipInput.type = "hidden";
+            snipInput.name = "snip";
+            snipInput.value = latexContent;
+            form.appendChild(snipInput);
 
-            // Engine preference (pdflatex is most compatible)
             const engineInput = document.createElement("input");
             engineInput.type = "hidden";
             engineInput.name = "engine";
@@ -93,14 +92,11 @@ export function LatexPreviewEnhanced({ data, designConfig }: LatexPreviewEnhance
 
             document.body.appendChild(form);
             form.submit();
-            // Defer form removal to avoid runtime errors
-            setTimeout(() => {
-                try { document.body.removeChild(form); } catch { /* already removed */ }
-            }, 100);
+            // Clean up the form after submission
+            setTimeout(() => document.body.removeChild(form), 1000);
             success("Abriendo en Overleaf...");
         } catch (err) {
-            // Fallback: download the .tex file instead
-            console.error("Overleaf POST failed, falling back to download:", err);
+            console.error("Overleaf open failed, falling back to download:", err);
             handleDownload();
             error("No se pudo abrir Overleaf. Se descargó el archivo .tex");
         }

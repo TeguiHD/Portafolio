@@ -2,22 +2,58 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hashIdentifier } from "@/lib/security.server";
+import { checkRateLimit } from "@/lib/redis";
+import { logger } from "@/lib/logger";
 
-// Track page views and CTA clicks (public)
+// Track page views and CTA clicks (public endpoint, rate-limited)
 export async function POST(request: NextRequest) {
     try {
+        const ipRaw = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+            || request.headers.get("x-real-ip")
+            || "unknown";
+
+        // Rate limiting: 30 events/minute per IP (OWASP A04 — unrestricted resource consumption)
+        const rateLimit = await checkRateLimit(`analytics:${ipRaw}`, 30, 60);
+        if (!rateLimit.allowed) {
+            return NextResponse.json({ success: true }); // Silent — don't expose rate limit info
+        }
+
         const body = await request.json();
         const { type, action, path, label, metadata } = body;
 
+        // Validate event type (whitelist)
+        if (type !== "pageview" && type !== "cta") {
+            return NextResponse.json({ success: true }); // Silent ignore
+        }
+
         const userAgent = request.headers.get("user-agent") || undefined;
-        const ipRaw = request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || undefined;
-        const ip = ipRaw ? hashIdentifier(ipRaw) : undefined;
+        const ip = ipRaw !== "unknown" ? hashIdentifier(ipRaw) : undefined;
         const referrer = request.headers.get("referer") || undefined;
+
+        // Sanitize scalar string inputs — prevent large payload DB writes
+        const safePath = typeof path === "string" ? path.slice(0, 500) : "/";
+        const safeAction = typeof action === "string"
+            ? action.replace(/[^a-zA-Z0-9_\- ]/g, "").slice(0, 100)
+            : "unknown";
+        const safeLabel = typeof label === "string" ? label.slice(0, 200) : undefined;
+
+        // Sanitize metadata: only scalar values, max 10 keys, no nested objects
+        // Prevents prototype pollution and oversized DB writes
+        let safeMetadata: Record<string, string | number | boolean> | undefined;
+        if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+            safeMetadata = {};
+            const entries = Object.entries(metadata as Record<string, unknown>).slice(0, 10);
+            for (const [k, v] of entries) {
+                const safeKey = String(k).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 50);
+                if (typeof v === "string") safeMetadata[safeKey] = v.slice(0, 200);
+                else if (typeof v === "number" || typeof v === "boolean") safeMetadata[safeKey] = v;
+            }
+        }
 
         if (type === "pageview") {
             await prisma.pageView.create({
                 data: {
-                    path: path || "/",
+                    path: safePath,
                     referrer,
                     userAgent,
                     ip,
@@ -26,9 +62,9 @@ export async function POST(request: NextRequest) {
         } else if (type === "cta") {
             await prisma.ctaClick.create({
                 data: {
-                    action: action || "unknown",
-                    label,
-                    metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
+                    action: safeAction,
+                    label: safeLabel,
+                    metadata: safeMetadata,
                     referrer,
                     userAgent,
                 },
@@ -37,23 +73,29 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error("Analytics tracking error:", error);
+        logger.error("Analytics tracking error", error);
         return NextResponse.json({ error: "Failed to track event" }, { status: 500 });
     }
 }
 
-// Get analytics data (auth required)
+// Get analytics data — admin only (OWASP A01: Broken Access Control)
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
 
         if (!session?.user?.id) {
-            console.log("[Analytics] No session or user ID found");
-            return NextResponse.json({ error: "Unauthorized", details: "No valid session" }, { status: 401 });
+            logger.warn("[Analytics] Unauthorized access attempt");
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        // Analytics is site-wide data — restrict to ADMIN and SUPERADMIN roles
+        const userRole = (session.user as { role?: string }).role;
+        if (userRole !== "ADMIN" && userRole !== "SUPERADMIN") {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const { searchParams } = new URL(request.url);
-        const days = parseInt(searchParams.get("days") || "7", 10);
+        const days = Math.min(parseInt(searchParams.get("days") || "7", 10), 90); // cap at 90 days
         const startDate = new Date();
         startDate.setHours(0, 0, 0, 0);
         startDate.setDate(startDate.getDate() - days + 1);
@@ -63,7 +105,7 @@ export async function GET(request: NextRequest) {
             prisma.pageView.findMany({
                 where: { createdAt: { gte: startDate } },
                 orderBy: { createdAt: "asc" },
-                select: { createdAt: true, ip: true },
+                select: { createdAt: true, ip: true, path: true, referrer: true },
             }),
             prisma.ctaClick.findMany({
                 where: { createdAt: { gte: startDate } },
@@ -134,18 +176,28 @@ export async function GET(request: NextRequest) {
             visits: ref._count,
         }));
 
-        // Top pages by visits
         const topPages = topPagesRaw.map((page) => ({
             path: page.path || "/",
             visits: page._count,
         }));
 
         const recentEvents = [
-            ...pageViewsRaw.slice(-5).map((p) => ({
-                type: "page_view" as const,
-                message: `Nueva visita (${p.ip || "IP desconocida"})`,
-                createdAt: p.createdAt,
-            })),
+            ...pageViewsRaw.slice(-5).map((p) => {
+                const pageName = p.path === "/" ? "Inicio"
+                    : p.path?.startsWith("/herramientas") ? "Herramientas"
+                    : p.path?.startsWith("/blog") ? "Blog"
+                    : p.path?.startsWith("/privacidad") ? "Privacidad"
+                    : p.path?.startsWith("/terminos") ? "Términos"
+                    : p.path || "Página";
+                const source = p.referrer
+                    ? (() => { try { return new URL(p.referrer).hostname; } catch { return "enlace externo"; } })()
+                    : null;
+                return {
+                    type: "page_view" as const,
+                    message: `Nueva visita en ${pageName}${source ? ` desde ${source}` : ""}`,
+                    createdAt: p.createdAt,
+                };
+            }),
             ...ctaRaw.slice(-5).map((c) => ({
                 type: "cta" as const,
                 message: `CTA: ${c.action}${c.label ? ` (${c.label})` : ""}`,

@@ -25,7 +25,7 @@ import {
 } from '@/lib/security-hardened'
 import { SecurityLogger, getThreatScore, shouldBlockIp } from '@/lib/security-logger'
 import { hasPermission } from '@/lib/permission-check'
-import type { Role } from '@prisma/client'
+import type { Role } from '@/generated/prisma/client'
 import type { Session } from 'next-auth'
 
 // ============= TYPES =============

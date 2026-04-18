@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
                 ]
             },
             include: {
-                client: true,
+                client: { select: { id: true, name: true, slug: true } },
                 user: { select: { name: true, email: true } }
             },
             take: 5,

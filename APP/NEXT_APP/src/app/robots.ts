@@ -9,6 +9,9 @@ export default function robots(): MetadataRoute.Robots {
                 disallow: ['/admin/', '/api/', '/acceso'],
             },
         ],
-        sitemap: 'https://nicoholas.dev/sitemap.xml',
+        sitemap: [
+            'https://nicoholas.dev/sitemap.xml',
+            'https://nicoholas.dev/sitemap_index.xml',
+        ],
     }
 }

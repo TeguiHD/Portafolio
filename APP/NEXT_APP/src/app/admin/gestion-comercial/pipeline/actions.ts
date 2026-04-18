@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { hasPermission } from "@/lib/permission-check";
-import type { Role, DealStage, DealPriority, DealOrigin } from "@prisma/client";
+import type { Role, DealStage, DealPriority, DealOrigin } from '@/generated/prisma/client';
 
 // ============================================================================
 // TYPES

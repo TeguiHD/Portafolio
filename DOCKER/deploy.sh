@@ -70,11 +70,24 @@ REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
 # ============================================
 NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=$(openssl rand -base64 32)
+AUTH_TRUST_HOST=true
+
+# ============================================
+# VPS Control - SuperAdmin SSH access
+# ============================================
+VPS_HOST=your-server-ip-or-hostname
+VPS_SSH_PORT=22
+VPS_USER=your-ssh-user
+VPS_SSH_PASS=
+VPS_SSH_KEY=
 
 # ============================================
 # Security - Encryption
 # ============================================
 ENCRYPTION_KEY=$(openssl rand -base64 48)
+PASSWORD_PEPPER=$(openssl rand -hex 32)
+AUDIT_SIGNING_KEY=$(openssl rand -hex 32)
+INTERNAL_API_SECRET=$(openssl rand -base64 32)
 
 # ============================================
 # AI Services - OpenRouter (Gemini 2.0, Mistral, etc.)
@@ -90,13 +103,32 @@ OUTERBASE_DATABASE_URL=postgresql://portfolio_user:\${POSTGRES_PASSWORD}@db:5432
 EOF
     echo -e "${GREEN}.env file created with random secrets!${NC}"
     echo -e "${YELLOW}⚠️  Don't forget to update NEXTAUTH_URL with your domain!${NC}"
+    echo -e "${YELLOW}⚠️  Configure VPS_HOST/VPS_USER and either VPS_SSH_PASS or VPS_SSH_KEY for VPS Control!${NC}"
     echo -e "${YELLOW}⚠️  Add your OPENROUTER_API_KEY for AI features!${NC}"
+fi
+
+# Backfill missing security keys for existing .env files.
+if ! grep -q '^PASSWORD_PEPPER=' "$DEPLOY_DIR/DOCKER/.env"; then
+    echo "PASSWORD_PEPPER=$(openssl rand -hex 32)" >> "$DEPLOY_DIR/DOCKER/.env"
+fi
+
+if ! grep -q '^AUDIT_SIGNING_KEY=' "$DEPLOY_DIR/DOCKER/.env"; then
+    echo "AUDIT_SIGNING_KEY=$(openssl rand -hex 32)" >> "$DEPLOY_DIR/DOCKER/.env"
+fi
+
+if ! grep -q '^INTERNAL_API_SECRET=' "$DEPLOY_DIR/DOCKER/.env"; then
+    echo "INTERNAL_API_SECRET=$(openssl rand -base64 32)" >> "$DEPLOY_DIR/DOCKER/.env"
 fi
 
 # Create uploads directory for finance module
 echo -e "${YELLOW}Creating uploads directory...${NC}"
 mkdir -p $DEPLOY_DIR/DOCKER/volumes/uploads
 chmod 755 $DEPLOY_DIR/DOCKER/volumes/uploads
+
+# Sync Docker secrets files from .env
+echo -e "${YELLOW}Syncing Docker secrets...${NC}"
+chmod +x $DEPLOY_DIR/DOCKER/sync-secrets.sh $DEPLOY_DIR/DOCKER/reseed-admin.sh
+$DEPLOY_DIR/DOCKER/sync-secrets.sh $DEPLOY_DIR/DOCKER/.env $DEPLOY_DIR/DOCKER/secrets
 
 # Start services
 echo -e "${YELLOW}Starting services...${NC}"
@@ -109,7 +141,12 @@ sleep 10
 
 # Run Prisma migrations
 echo -e "${YELLOW}Running database migrations...${NC}"
-docker compose exec web npx prisma db push
+docker compose exec web sh -lc 'if [ -x node_modules/.bin/prisma ]; then node_modules/.bin/prisma db push; elif [ -f node_modules/prisma/build/index.js ]; then node node_modules/prisma/build/index.js db push; else echo "Prisma CLI not found inside container" >&2; exit 127; fi' || \
+    echo -e "${YELLOW}⚠️  Migration skipped: Prisma CLI dependencies missing in runtime image. Continuing deploy.${NC}"
+
+# Re-seed admin credentials and admin-linked quotation fixtures
+echo -e "${YELLOW}Syncing admin seed with current secrets...${NC}"
+$DEPLOY_DIR/DOCKER/reseed-admin.sh $DEPLOY_DIR/DOCKER $DEPLOY_DIR/DOCKER/.env
 
 echo ""
 echo -e "${GREEN}✅ Deployment complete!${NC}"

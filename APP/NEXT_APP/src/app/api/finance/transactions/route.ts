@@ -4,8 +4,9 @@ import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { convertCurrency, type SupportedCurrency } from "@/services/exchange-rate";
 import { z } from "zod";
-import { Prisma, type Role } from "@prisma/client";
+import { Prisma, type Role } from '@/generated/prisma/client';
 import { logFinanceEvent, AuditActions } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -119,9 +120,9 @@ export async function GET(request: Request) {
             },
         });
     } catch (error) {
-        console.error("Error fetching transactions:", error);
+        logger.error("Error fetching transactions", error);
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: "Parámetros inválidos", details: error.issues }, { status: 400 });
+            return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
         }
         return NextResponse.json({ error: "Error al obtener transacciones" }, { status: 500 });
     }
@@ -291,9 +292,9 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ data: transaction }, { status: 201 });
     } catch (error) {
-        console.error("Error creating transaction:", error);
+        logger.error("Error creating transaction", error);
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: "Datos inválidos", details: error.issues }, { status: 400 });
+            return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
         }
         return NextResponse.json({ error: "Error al crear transacción" }, { status: 500 });
     }

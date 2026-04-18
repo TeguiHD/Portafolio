@@ -1,6 +1,6 @@
 import { verifyAdmin } from "@/lib/auth/dal";
 import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ExpensesList } from "./expenses-list";

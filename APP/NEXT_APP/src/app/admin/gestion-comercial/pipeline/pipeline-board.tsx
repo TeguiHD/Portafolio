@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition, useCallback, useRef, useEffect } from "react";
+import { useState, useTransition, useCallback, useRef, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import type { DealStage, DealPriority, DealOrigin } from "@prisma/client";
+import { useConfirm } from "@/components/ui/ConfirmModal";
+import type { DealStage, DealPriority, DealOrigin } from '@/generated/prisma/client';
 import {
     createDealAction,
     moveDealStageAction,
@@ -694,11 +696,12 @@ export function PipelineBoard({ initialDeals, clients }: PipelineBoardProps) {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [activityDealId, setActivityDealId] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
+    const router = useRouter();
+    const { confirm, ConfirmDialog } = useConfirm();
 
     const refreshDeals = useCallback(() => {
-        // Force a full page refresh to get updated data from server
-        window.location.reload();
-    }, []);
+        router.refresh();
+    }, [router]);
 
     const handleMoveDeal = useCallback((dealId: string, newStage: DealStage) => {
         // Optimistic update
@@ -709,14 +712,19 @@ export function PipelineBoard({ initialDeals, clients }: PipelineBoardProps) {
         startTransition(async () => {
             const result = await moveDealStageAction(dealId, newStage);
             if (!result.success) {
-                // Revert on failure
                 setDeals(initialDeals);
             }
         });
     }, [initialDeals, startTransition]);
 
-    const handleDeleteDeal = useCallback((dealId: string) => {
-        if (!confirm("¿Eliminar esta oportunidad?")) return;
+    const handleDeleteDeal = useCallback(async (dealId: string) => {
+        const ok = await confirm({
+            title: "Eliminar oportunidad",
+            message: "¿Estás seguro? Esta acción no se puede deshacer.",
+            confirmLabel: "Eliminar",
+            variant: "destructive",
+        });
+        if (!ok) return;
 
         // Optimistic remove
         setDeals(prev => prev.filter(d => d.id !== dealId));
@@ -727,21 +735,27 @@ export function PipelineBoard({ initialDeals, clients }: PipelineBoardProps) {
                 setDeals(initialDeals);
             }
         });
-    }, [initialDeals, startTransition]);
+    }, [initialDeals, startTransition, confirm]);
 
-    // Group deals by stage
-    const dealsByStage = STAGES.reduce<Record<DealStage, Deal[]>>((acc, stage) => {
-        acc[stage.key] = deals.filter(d => d.stage === stage.key);
-        return acc;
-    }, {} as Record<DealStage, Deal[]>);
+    // Single-pass: group + metrics — O(n) con useMemo
+    const { dealsByStage, totalValue, weightedValue, activeDeals } = useMemo(() => {
+        const grouped = {} as Record<DealStage, Deal[]>;
+        let total = 0, weighted = 0, active = 0;
 
-    // Pipeline metrics
-    const totalValue = deals.reduce((sum, d) => sum + d.estimatedValue, 0);
-    const weightedValue = deals.reduce((sum, d) => sum + (d.estimatedValue * d.closeProbability / 100), 0);
-    const activeDeals = deals.filter(d => !["WON", "LOST"].includes(d.stage)).length;
+        for (const deal of deals) {
+            if (!grouped[deal.stage]) grouped[deal.stage] = [];
+            grouped[deal.stage].push(deal);
+            total += deal.estimatedValue;
+            weighted += (deal.estimatedValue * deal.closeProbability) / 100;
+            if (deal.stage !== "WON" && deal.stage !== "LOST") active++;
+        }
+
+        return { dealsByStage: grouped, totalValue: total, weightedValue: weighted, activeDeals: active };
+    }, [deals]);
 
     return (
         <div className="space-y-8">
+            {ConfirmDialog}
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
                 <div>

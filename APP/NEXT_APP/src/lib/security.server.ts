@@ -2,6 +2,7 @@
 import 'server-only'
 import argon2 from 'argon2'
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync, createHash } from 'crypto'
+import { readSecret } from '@/lib/read-secret'
 
 // ============= ARGON2ID PASSWORD HASHING =============
 
@@ -14,18 +15,14 @@ const ARGON2_OPTIONS: argon2.Options = {
 }
 
 // 🛡️ Defense in Depth: Pepper
-// A secret key stored ONLY in environment (not DB) combined with password
-const PEPPER = process.env.PASSWORD_PEPPER
-
+// Read from Docker Secret (/run/secrets/password-pepper) with env var fallback.
+// NIST SP 800-132: secrets must never be hardcoded.
 function getPepperedPassword(password: string): string {
-    if (!PEPPER) {
-        // Fallback for dev, or throw in prod
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('CRITICAL: PASSWORD_PEPPER is not configured.')
-        }
+    const pepper = readSecret('password-pepper', 'PASSWORD_PEPPER')
+    if (!pepper) {
         return password
     }
-    return `${password}${PEPPER}`
+    return `${password}${pepper}`
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -56,23 +53,55 @@ export async function needsRehash(hash: string): Promise<boolean> {
 }
 
 // ============= AES-256-GCM ENCRYPTION =============
+// NIST SP 800-132: Salt must be at least 128 bits for key derivation
+// OWASP 2025 A04: Cryptographic Failures — fixed salt → derived salt
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
 const ALGORITHM = 'aes-256-gcm'
 
+/** Cache resolved encryption key (immutable during process lifetime) */
+let _resolvedEncryptionKey: string | null = null
+
 function requireEncryptionKey(): string {
-    if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
+    if (_resolvedEncryptionKey) return _resolvedEncryptionKey
+
+    // Read from Docker Secret first (/run/secrets/encryption-key), then env var.
+    // NIST SP 800-57: encryption keys must be stored separate from application data.
+    const key = readSecret('encryption-key', 'ENCRYPTION_KEY')
+    if (!key || key.length < 32) {
         throw new Error('ENCRYPTION_KEY is missing or too short (min 32 chars)')
     }
-    return ENCRYPTION_KEY
+    _resolvedEncryptionKey = key
+    return key
 }
 
-function getKey(): Buffer {
+/**
+ * Derive encryption key with a proper salt (NIST SP 800-132).
+ * The salt is derived from the ENCRYPTION_KEY itself, making it
+ * unique per installation but deterministic (required for AES-GCM).
+ */
+function getDerivedKey(): Buffer {
+    const derivedSalt = createHash('sha256')
+        .update(`portfolio-kdf-v2-${requireEncryptionKey()}`)
+        .digest()
+        .subarray(0, 16) // 128-bit salt per NIST SP 800-132
+    return scryptSync(requireEncryptionKey(), derivedSalt, 32)
+}
+
+/**
+ * Legacy key derivation (hardcoded salt 'salt').
+ * Used ONLY for decrypting data encrypted before the migration.
+ * @deprecated Will be removed after full data migration.
+ */
+function getLegacyKey(): Buffer {
     return scryptSync(requireEncryptionKey(), 'salt', 32)
 }
 
+/**
+ * Encrypt data using AES-256-GCM with derived salt.
+ * All NEW encryptions use the secure derived key.
+ */
 export function encryptData(plaintext: string): string {
-    const key = getKey()
+    const key = getDerivedKey()
     const iv = randomBytes(16)
     const cipher = createCipheriv(ALGORITHM, key, iv)
 
@@ -80,31 +109,54 @@ export function encryptData(plaintext: string): string {
     encrypted += cipher.final('base64')
 
     const authTag = cipher.getAuthTag()
-    return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`
+    // Prefix 'v2:' to identify new-format ciphertexts
+    return `v2:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`
 }
 
+/**
+ * Decrypt data with automatic version detection.
+ * - 'v2:...' → new derived salt
+ * - Legacy format → try derived key first, fallback to legacy key
+ * 
+ * This ensures backward compatibility with existing production data
+ * while all new writes use the secure key derivation.
+ */
 export function decryptData(encryptedString: string): string {
-    try {
-        const [ivBase64, authTagBase64, encryptedData] = encryptedString.split(':')
+    const isV2 = encryptedString.startsWith('v2:')
+    const payload = isV2 ? encryptedString.slice(3) : encryptedString
 
-        if (!ivBase64 || !authTagBase64 || !encryptedData) {
-            throw new Error('Invalid encrypted string format')
-        }
-
-        const key = getKey()
-        const iv = Buffer.from(ivBase64, 'base64')
-        const authTag = Buffer.from(authTagBase64, 'base64')
-
-        const decipher = createDecipheriv(ALGORITHM, key, iv)
-        decipher.setAuthTag(authTag)
-
-        let decrypted = decipher.update(encryptedData, 'base64', 'utf8')
-        decrypted += decipher.final('utf8')
-
-        return decrypted
-    } catch {
-        throw new Error('Failed to decrypt data')
+    const parts = payload.split(':')
+    if (parts.length < 3) {
+        throw new Error('Invalid encrypted string format')
     }
+
+    const [ivBase64, authTagBase64, ...encryptedParts] = parts
+    const encryptedData = encryptedParts.join(':')
+    const iv = Buffer.from(ivBase64!, 'base64')
+    const authTag = Buffer.from(authTagBase64!, 'base64')
+
+    // V2: only use derived key
+    if (isV2) {
+        return decryptWithKey(getDerivedKey(), iv, authTag, encryptedData)
+    }
+
+    // Legacy: try derived key first (in case data was re-encrypted), then legacy
+    try {
+        return decryptWithKey(getDerivedKey(), iv, authTag, encryptedData)
+    } catch {
+        // Fallback to legacy key for pre-migration data
+        return decryptWithKey(getLegacyKey(), iv, authTag, encryptedData)
+    }
+}
+
+function decryptWithKey(key: Buffer, iv: Buffer, authTag: Buffer, encryptedData: string): string {
+    const decipher = createDecipheriv(ALGORITHM, key, iv)
+    decipher.setAuthTag(authTag)
+
+    let decrypted = decipher.update(encryptedData, 'base64', 'utf8')
+    decrypted += decipher.final('utf8')
+
+    return decrypted
 }
 
 // ============= EMAIL ENCRYPTION =============

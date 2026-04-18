@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import type { PaymentMethod, QuotationStatus } from "@prisma/client";
+import type { PaymentMethod, QuotationStatus } from '@/generated/prisma/client';
 
 /**
  * Enterprise-grade Payment Tracking Service

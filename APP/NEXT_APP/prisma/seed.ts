@@ -1,12 +1,11 @@
 import 'dotenv/config'
-import { PrismaClient, Role } from '@prisma/client'
+import { PrismaClient, Role } from '../src/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import argon2 from 'argon2'
 import { createHash, createCipheriv, randomBytes, scryptSync } from 'crypto'
+import { existsSync, readFileSync } from 'fs'
 
-const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!
-})
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
 const ARGON2_OPTIONS: argon2.Options = {
@@ -17,7 +16,23 @@ const ARGON2_OPTIONS: argon2.Options = {
     hashLength: 32,
 }
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+function readSecret(secretName: string, envFallbackKey?: string): string {
+    const secretPath = `/run/secrets/${secretName}`
+
+    try {
+        if (existsSync(secretPath)) {
+            return readFileSync(secretPath, 'utf8').trim()
+        }
+    } catch {
+        // Ignore and continue with env fallback.
+    }
+
+    const envKey = envFallbackKey || secretName.toUpperCase().replace(/-/g, '_')
+    return process.env[envKey] || ''
+}
+
+const ENCRYPTION_KEY = readSecret('encryption-key', 'ENCRYPTION_KEY')
+const PASSWORD_PEPPER = readSecret('password-pepper', 'PASSWORD_PEPPER')
 
 function requireEncryptionKey(): string {
     if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
@@ -38,6 +53,14 @@ function hashEmail(email: string): string {
     return createHash('sha256').update(normalizedEmail + requireEncryptionKey()).digest('hex')
 }
 
+function getPepperedPassword(password: string): string {
+    if (!PASSWORD_PEPPER) {
+        return password
+    }
+
+    return `${password}${PASSWORD_PEPPER}`
+}
+
 // Encrypt email for secure storage
 function encryptEmail(email: string): string {
     const key = getKey()
@@ -54,9 +77,9 @@ function encryptEmail(email: string): string {
 async function main() {
     console.log('🌱 Starting seed...')
 
-    // Security: Read credentials from environment variables - NO FALLBACKS
-    const adminEmail = process.env.ADMIN_EMAIL
-    const adminPassword = process.env.ADMIN_PASSWORD
+    // Support Docker Secrets for credentials while keeping env fallback.
+    const adminEmail = readSecret('admin-email', 'ADMIN_EMAIL')
+    const adminPassword = readSecret('admin-password', 'ADMIN_PASSWORD')
 
     if (!adminEmail) {
         console.error('❌ ADMIN_EMAIL environment variable is required!')
@@ -81,7 +104,7 @@ async function main() {
     // Generate email hash for lookup and encrypted email for storage
     const emailHash = hashEmail(adminEmail)
     const emailEncrypted = encryptEmail(adminEmail)
-    const hashedPassword = await argon2.hash(adminPassword, ARGON2_OPTIONS)
+    const hashedPassword = await argon2.hash(getPepperedPassword(adminPassword), ARGON2_OPTIONS)
 
     // Check if admin already exists (by email hash)
     const existingAdmin = await prisma.user.findUnique({
@@ -148,6 +171,12 @@ async function main() {
         // CV
         { code: "cv.own.view", name: "Ver CV Propio", description: "Ver y editar tu propio CV", category: "cv", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"] },
         { code: "cv.others.view", name: "Ver CVs de Otros", description: "Ver CVs de otros usuarios", category: "cv", defaultRoles: ["SUPERADMIN"] },
+        // Jobs
+        { code: "jobs.vacancies.view", name: "Ver Vacantes", description: "Ver vacantes guardadas y matching", category: "jobs", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"] },
+        { code: "jobs.vacancies.manage", name: "Gestionar Vacantes", description: "Crear, editar, archivar e importar vacantes", category: "jobs", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"] },
+        { code: "jobs.matching.run", name: "Ejecutar Matching", description: "Analizar vacantes y adaptar CV", category: "jobs", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"] },
+        { code: "jobs.applications.view", name: "Ver Postulaciones", description: "Ver panel y detalle de CV enviados", category: "jobs", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"] },
+        { code: "jobs.applications.manage", name: "Gestionar Postulaciones", description: "Crear y actualizar estados de postulaciones", category: "jobs", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"] },
         // Notifications
         { code: "notifications.view", name: "Ver Notificaciones", description: "Ver notificaciones del sistema", category: "notifications", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR"] },
         { code: "notifications.create", name: "Crear Notificaciones", description: "Enviar notificaciones a usuarios", category: "notifications", defaultRoles: ["SUPERADMIN", "ADMIN"] },
@@ -174,6 +203,98 @@ async function main() {
     console.log('🛠️  Seeding tools...')
 
     const tools = [
+        // ====== IMAGE TOOLS ======
+        {
+            slug: "convertir-imagen",
+            name: "Conversor de Imágenes",
+            description: "Convierte imágenes entre formatos: PNG, JPG, WebP, BMP. Optimizado para web.",
+            icon: "convertir-imagen",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 1
+        },
+        {
+            slug: "recortar-imagen",
+            name: "Recortador de Imágenes",
+            description: "Recorta imágenes con un editor visual intuitivo. Presets para redes sociales.",
+            icon: "recortar-imagen",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 2
+        },
+        {
+            slug: "quitar-fondo",
+            name: "Quitar Fondo",
+            description: "Elimina el fondo de cualquier imagen con IA. Sin registro ni marcas de agua.",
+            icon: "quitar-fondo",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 3
+        },
+        {
+            slug: "convertir-ico",
+            name: "Conversor a ICO",
+            description: "Convierte PNG, JPG o WebP a formato .ico para favicons y aplicaciones.",
+            icon: "convertir-ico",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 4
+        },
+        {
+            slug: "comprimir-imagen",
+            name: "Compresor de Imágenes",
+            description: "Reduce el peso de tus imágenes sin perder calidad visible. Ideal para SEO.",
+            icon: "comprimir-imagen",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 5
+        },
+        {
+            slug: "redimensionar",
+            name: "Redimensionar Imágenes",
+            description: "Cambia el tamaño de imágenes con presets para YouTube, Instagram y más.",
+            icon: "redimensionar",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 6
+        },
+        {
+            slug: "paleta-colores",
+            name: "Extractor de Paleta",
+            description: "Extrae los colores principales de cualquier imagen en HEX, RGB y HSL.",
+            icon: "paleta-colores",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 7
+        },
+        {
+            slug: "marca-agua",
+            name: "Marca de Agua",
+            description: "Añade texto o logos como marca de agua a tus imágenes. Control total de opacidad.",
+            icon: "marca-agua",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 8
+        },
+        {
+            slug: "favicon",
+            name: "Generador de Favicons",
+            description: "Genera todos los tamaños de favicon necesarios para tu web. Descarga ZIP.",
+            icon: "favicon",
+            category: "images",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 9
+        },
+        // ====== GENERATION TOOLS ======
         {
             slug: "qr",
             name: "Generador de QR",
@@ -182,7 +303,7 @@ async function main() {
             category: "utility",
             isPublic: true,
             isActive: true,
-            sortOrder: 1
+            sortOrder: 10
         },
         {
             slug: "claves",
@@ -192,37 +313,7 @@ async function main() {
             category: "security",
             isPublic: true,
             isActive: true,
-            sortOrder: 2
-        },
-        {
-            slug: "unidades",
-            name: "Conversor de Unidades",
-            description: "Convierte entre diferentes unidades de medida: longitud, peso, temperatura, datos y más.",
-            icon: "scale",
-            category: "utility",
-            isPublic: true,
-            isActive: true,
-            sortOrder: 3
-        },
-        {
-            slug: "regex",
-            name: "Regex Tester",
-            description: "Prueba y depura tus expresiones regulares en tiempo real con resaltado de coincidencias.",
-            icon: "code",
-            category: "dev",
-            isPublic: true,
-            isActive: true,
-            sortOrder: 4
-        },
-        {
-            slug: "base64",
-            name: "Conversor Base64",
-            description: "Convierte imágenes a Base64 y codifica/decodifica texto para uso en desarrollo web.",
-            icon: "image",
-            category: "dev",
-            isPublic: true,
-            isActive: true,
-            sortOrder: 5
+            sortOrder: 11
         },
         {
             slug: "ascii",
@@ -232,47 +323,181 @@ async function main() {
             category: "utility",
             isPublic: true,
             isActive: true,
-            sortOrder: 6
-        },
-        {
-            slug: "binario",
-            name: "Traductor Binario",
-            description: "Convierte texto a binario y viceversa. Útil para aprender y trabajar con codificación binaria.",
-            icon: "binary",
-            category: "dev",
-            isPublic: true,
-            isActive: true,
-            sortOrder: 7
+            sortOrder: 12
         },
         {
             slug: "enlaces",
-            name: "Generador de Enlaces",
-            description: "Crea enlaces cortos personalizados y genera códigos QR para compartir fácilmente.",
+            name: "Generador de Links",
+            description: "Crea enlaces rápidos para WhatsApp, correo electrónico y eventos de calendario.",
             icon: "link",
             category: "utility",
             isPublic: true,
             isActive: true,
-            sortOrder: 8
+            sortOrder: 13
         },
         {
             slug: "aleatorio",
-            name: "Selector Aleatorio",
-            description: "Elige elementos al azar de una lista. Perfecto para sorteos, decisiones y juegos.",
+            name: "Sorteos y Ruleta",
+            description: "Elige ganadores al azar con una ruleta animada o genera grupos aleatorios.",
             icon: "dice",
             category: "utility",
             isPublic: true,
             isActive: true,
-            sortOrder: 9
+            sortOrder: 14
+        },
+        // ====== CONVERSION TOOLS ======
+        {
+            slug: "unidades",
+            name: "Conversor de Unidades",
+            description: "Convierte unidades con explicación visual: longitud, velocidad, luz, millas náuticas y más.",
+            icon: "scale",
+            category: "utility",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 15
+        },
+        {
+            slug: "base64",
+            name: "Conversor Base64",
+            description: "Convierte imágenes a Base64 y codifica/decodifica texto para uso en desarrollo web.",
+            icon: "image",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 16
+        },
+        {
+            slug: "binario",
+            name: "Traductor Binario",
+            description: "Convierte texto a código binario y viceversa. Perfecto para curiosos y aprendizaje.",
+            icon: "binary",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 17
         },
         {
             slug: "impuestos",
-            name: "Calculadora de Impuestos",
-            description: "Calcula IVA, retenciones y otros impuestos chilenos de forma rápida y precisa.",
+            name: "Calculadora de IVA",
+            description: "Calcula el IVA: agrega o quita impuestos del monto, con tasas personalizables.",
             icon: "calculator",
             category: "finance",
             isPublic: true,
             isActive: true,
-            sortOrder: 10
+            sortOrder: 18
+        },
+        // ====== PRODUCTIVITY/DEVELOPER TOOLS ======
+        {
+            slug: "regex",
+            name: "Regex Tester",
+            description: "Prueba y depura tus expresiones regulares en tiempo real con resaltado de coincidencias.",
+            icon: "code",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 19
+        },
+        {
+            slug: "jwt",
+            name: "Decodificador JWT",
+            description: "Decodifica tokens JWT y visualiza header, payload y firma. Sin envío a servidores.",
+            icon: "jwt",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 20
+        },
+        {
+            slug: "json",
+            name: "Formateador JSON",
+            description: "Formatea, valida y embellece JSON con colores y detección de errores de sintaxis.",
+            icon: "json",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 21
+        },
+        {
+            slug: "dns",
+            name: "Verificador DNS",
+            description: "Comprueba la propagación DNS de tu dominio en servidores de todo el mundo.",
+            icon: "dns",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 22
+        },
+        {
+            slug: "nginx",
+            name: "Generador Nginx",
+            description: "Genera configuraciones de Nginx y .htaccess: redirecciones, HTTPS, seguridad.",
+            icon: "nginx",
+            category: "dev",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 23
+        },
+        // ====== SECURITY TOOLS ======
+        {
+            slug: "esteganografia",
+            name: "Esteganografía Emoji",
+            description: "Oculta mensajes secretos dentro de emojis usando caracteres invisibles. Codifica y decodifica.",
+            icon: "esteganografia",
+            category: "security",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 24
+        },
+        {
+            slug: "esteganografia-imagen",
+            name: "Esteganografía en Imágenes",
+            description: "Oculta mensajes dentro de los píxeles de una imagen PNG usando la técnica LSB (bit menos significativo).",
+            icon: "esteganografia-imagen",
+            category: "security",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 25
+        },
+        {
+            slug: "metadatos",
+            name: "Extractor de Metadatos EXIF",
+            description: "Analiza metadatos ocultos en fotos: GPS, cámara, fecha. Limpia imágenes para privacidad total.",
+            icon: "metadatos",
+            category: "security",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 26
+        },
+        {
+            slug: "reverse-shell",
+            name: "Generador de Reverse Shells",
+            description: "Genera payloads de shell reversa para pentesting en Bash, Python, PHP, PowerShell y más.",
+            icon: "reverse-shell",
+            category: "security",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 27
+        },
+        // ====== NETWORKING TOOLS ======
+        {
+            slug: "banner-ascii",
+            name: "Generador de Banners ASCII",
+            description: "Crea banners ASCII para terminal, MOTD de servidores y banners SSH. Exporta como .sh o config.",
+            icon: "banner-ascii",
+            category: "networking",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 28
+        },
+        {
+            slug: "subredes",
+            name: "Calculadora de Subredes",
+            description: "Calcula subredes IPv4/IPv6: máscara, red, broadcast, rango utilizable y representación binaria.",
+            icon: "subredes",
+            category: "networking",
+            isPublic: true,
+            isActive: true,
+            sortOrder: 29
         }
     ];
 

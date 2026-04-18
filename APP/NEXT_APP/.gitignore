@@ -22,3 +22,6 @@ lint_report.txt
 
 # Security notes (private)
 SEGURIDAD.txt
+SEGURIDAD*.txt
+SEGURIDAD*.TXT
+NuevaImplementación.txt

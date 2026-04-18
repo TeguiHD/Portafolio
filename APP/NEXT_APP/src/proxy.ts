@@ -107,7 +107,9 @@ function logSecurityIncidentAsync(
     extraDetails?: Record<string, unknown>
 ): void {
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const encryptionKey = process.env.ENCRYPTION_KEY
+    // SECURITY: Use dedicated INTERNAL_API_SECRET, never reuse ENCRYPTION_KEY.
+    // NIST SP 800-57: one key must serve one purpose only.
+    const internalSecret = process.env.INTERNAL_API_SECRET
 
     // Extract geo and request context
     const geoInfo = extractGeoFromHeaders(request)
@@ -155,15 +157,15 @@ function logSecurityIncidentAsync(
     // Log to console with summary
     console.log(`[Security] ${severity} incident: ${type} | ${geoInfo.country || 'Unknown'} | ${actionTaken}`)
 
-    if (!encryptionKey) {
-        console.warn('[Security] ENCRYPTION_KEY not set, incident logging may fail')
+    if (!internalSecret) {
+        console.warn('[Security] INTERNAL_API_SECRET not set, incident logging may fail')
     }
 
     fetch(`${baseUrl}/api/admin/security/incidents`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'x-internal-secret': encryptionKey || '',
+            'x-internal-secret': internalSecret || '',
         },
         body: JSON.stringify({
             type,
@@ -292,9 +294,14 @@ function buildCSP(): string {
         "default-src 'none'",
 
         // Scripts: 'self' for static chunks, 'unsafe-inline' for Next.js inline scripts
-        // 'unsafe-eval' needed for React/Next.js features like fast refresh
+        // SECURITY: 'unsafe-eval' REMOVED — not required by Next.js 16 / React 19 in production
         // https://static.cloudflareinsights.com is Cloudflare's official RUM/Analytics CDN
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://cdn.tailwindcss.com${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
+        // OWASP 2025 A04 / MITRE T1059: Prevent eval()-based XSS execution
+        `script-src 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com https://cdn.tailwindcss.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
+
+        // Explicit script element/attribute directives reduce browser fallback ambiguity.
+        `script-src-elem 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com https://cdn.tailwindcss.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
+        "script-src-attr 'unsafe-inline'",
 
         // Styles: Allow unsafe-inline for React/Framer Motion dynamic styles
         `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com`,
@@ -309,10 +316,11 @@ function buildCSP(): string {
 
         // Connections: explicit whitelist (+ localhost for dev)
         // https://cloudflareinsights.com is for Cloudflare RUM beacon data
-        `connect-src 'self' https://api.openrouter.ai https://api.frankfurter.app https://cloudflareinsights.com${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
+        // https://staticimgly.com hosts the background-removal model assets used by the local image editor
+        `connect-src 'self' blob: https://api.openrouter.ai https://api.frankfurter.app https://cloudflareinsights.com https://*.cloudflareinsights.com https://staticimgly.com${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
 
-        // Forms: only submit to self
-        "form-action 'self'",
+        // Forms: self + Overleaf (LaTeX editor "open in Overleaf" POST)
+        "form-action 'self' https://www.overleaf.com",
 
         // Base URI: prevent base tag hijacking
         "base-uri 'self'",
@@ -416,18 +424,45 @@ const staticSecurityHeaders = {
     // Download options for IE
     'X-Download-Options': 'noopen',
 
-    // Cache control for security-sensitive pages
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
+    // NOTE: Cache-Control is now applied conditionally per route type
+    // Sensitive paths (/admin, /api) → no-cache; public pages → allow caching
+    // See the proxy() function for implementation
+}
+
+function normalizeOrigin(origin: string): string | null {
+    try {
+        const parsed = new URL(origin)
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return null
+        }
+
+        return `${parsed.protocol}//${parsed.host}`
+    } catch {
+        return null
+    }
+}
+
+function resolveAllowedCorsOrigins(): Set<string> {
+    const defaults = new Set<string>([
+        'https://nicoholas.dev',
+        'https://www.nicoholas.dev',
+    ])
+
+    if (process.env.NODE_ENV !== 'production') {
+        defaults.add('http://localhost:3000')
+    }
+
+    const envOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((entry) => normalizeOrigin(entry.trim()))
+        .filter((entry): entry is string => Boolean(entry))
+
+    envOrigins.forEach((origin) => defaults.add(origin))
+    return defaults
 }
 
 // Allowed origins for CORS (strict whitelist)
-const allowedOrigins = new Set([
-    'http://localhost:3000',
-    'https://nicoholas.dev',
-    'https://www.nicoholas.dev',
-])
+const allowedOrigins = resolveAllowedCorsOrigins()
 
 // ============= RATE LIMITING (ENHANCED) =============
 // Sliding window with exponential backoff for repeat offenders
@@ -550,7 +585,14 @@ export async function proxy(request: NextRequest) {
     }
 
     // Check for blocked URL patterns (path traversal, injections)
-    if (isBlockedUrl(pathname) || isBlockedUrl(decodeURIComponent(pathname))) {
+    let decodedPathname = pathname
+    try {
+        decodedPathname = decodeURIComponent(pathname)
+    } catch {
+        decodedPathname = pathname
+    }
+
+    if (isBlockedUrl(pathname) || isBlockedUrl(decodedPathname)) {
         console.warn(`[SECURITY] Blocked malicious URL attempt: ${pathname} from ${clientIp}`)
         logSecurityIncidentAsync(request, 'blocked_url', 'HIGH', clientIp, pathname, 'blocked')
         return new NextResponse(
@@ -568,6 +610,33 @@ export async function proxy(request: NextRequest) {
             JSON.stringify({ status: 'ok' }),
             { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
+    }
+
+    // SECURITY: Validate Content-Type for API mutations (OWASP A01 anti-tampering)
+    // Prevents Burp Suite / proxy content-type manipulation attacks
+    if (pathname.startsWith('/api/') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+        const contentType = request.headers.get('content-type')
+        // Allow: application/json, multipart/form-data, no content-type (for DELETE with no body)
+        if (contentType && !contentType.includes('application/json') && !contentType.includes('multipart/form-data') && !contentType.includes('application/x-www-form-urlencoded')) {
+            logSecurityIncidentAsync(request, 'blocked_request', 'MEDIUM', clientIp, pathname, 'blocked',
+                { reason: 'invalid_content_type', contentType: contentType.slice(0, 100) })
+            return new NextResponse(
+                JSON.stringify({ error: 'Unsupported Media Type' }),
+                { status: 415, headers: { 'Content-Type': 'application/json' } }
+            )
+        }
+
+        // SECURITY: Block oversized payloads (DoS protection / OWASP A02)
+        const contentLength = parseInt(request.headers.get('content-length') || '0')
+        const MAX_BODY = pathname.startsWith('/api/finance/ocr') ? 10 * 1024 * 1024 : 1024 * 1024 // 10MB for OCR, 1MB otherwise
+        if (contentLength > MAX_BODY) {
+            logSecurityIncidentAsync(request, 'blocked_request', 'MEDIUM', clientIp, pathname, 'blocked',
+                { reason: 'payload_too_large', size: contentLength, limit: MAX_BODY })
+            return new NextResponse(
+                JSON.stringify({ error: 'Payload too large' }),
+                { status: 413, headers: { 'Content-Type': 'application/json' } }
+            )
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -605,6 +674,18 @@ export async function proxy(request: NextRequest) {
     response.headers.set('x-security-version', SECURITY_VERSION)
 
     // ═══════════════════════════════════════════════════════════
+    // 2b. Conditional Cache-Control (OWASP A02)
+    // Sensitive routes: no-cache | Public pages: allow caching
+    // ═══════════════════════════════════════════════════════════
+    if (pathname.startsWith('/admin') || pathname.startsWith('/api/')) {
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+        response.headers.set('Pragma', 'no-cache')
+        response.headers.set('Expires', '0')
+    } else {
+        response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=86400')
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // 3. Rate Limiting for API Routes (Enhanced)
     // ═══════════════════════════════════════════════════════════
     if (pathname.startsWith('/api/')) {
@@ -619,6 +700,9 @@ export async function proxy(request: NextRequest) {
             if (pathname.includes('/signout') || pathname.includes('/csrf') || pathname.includes('/session')) {
                 limit = 30      // 30 requests per minute for logout/session
                 window = 60000
+            } else if (pathname.includes('/password-reset/request')) {
+                limit = 3       // 3 password reset requests per hour
+                window = 60 * 60 * 1000
             } else {
                 limit = 10      // 10 requests per minute for login attempts
                 window = 60000
@@ -658,14 +742,37 @@ export async function proxy(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     if (pathname.startsWith('/api/')) {
         const origin = request.headers.get('origin')
+        const normalizedOrigin = origin ? normalizeOrigin(origin) : null
+
+        if (origin && (!normalizedOrigin || !allowedOrigins.has(normalizedOrigin))) {
+            logSecurityIncidentAsync(
+                request,
+                'blocked_request',
+                'MEDIUM',
+                clientIp,
+                pathname,
+                'blocked',
+                { reason: 'cors_origin_blocked', origin }
+            )
+            return new NextResponse(
+                JSON.stringify({ error: 'Origin not allowed' }),
+                {
+                    status: 403,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...staticSecurityHeaders,
+                    },
+                }
+            )
+        }
 
         // Only allow whitelisted origins
-        if (origin && allowedOrigins.has(origin)) {
-            response.headers.set('Access-Control-Allow-Origin', origin)
+        if (normalizedOrigin && allowedOrigins.has(normalizedOrigin)) {
+            response.headers.set('Access-Control-Allow-Origin', normalizedOrigin)
             response.headers.set('Vary', 'Origin')
         }
 
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-ID')
         response.headers.set('Access-Control-Max-Age', '86400')
         response.headers.set('Access-Control-Allow-Credentials', 'true')

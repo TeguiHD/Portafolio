@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { updateQuotationStatus, getStatusHistory } from "@/services/payment-service";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
-import type { Role, QuotationStatus } from "@prisma/client";
+import type { Role, QuotationStatus } from '@/generated/prisma/client';
 
 /**
  * PUT /api/quotations/status - Update quotation status

@@ -185,6 +185,8 @@ NODE_ENV="development"
 NEXTAUTH_SECRET="tu-secret-32-chars..."
 ENCRYPTION_KEY="tu-clave-cifrado-32-chars..."
 DB_ENCRYPTION_KEY="tu-clave-db-32-chars..."
+CORS_ALLOWED_ORIGINS="https://floresdyd.cl,https://www.floresdyd.cl"
+REDIRECT_ALLOWLIST="/,/admin,/acceso,/cotizacion,/herramientas"
 
 # ═══════════ ADMIN INICIAL ═══════════
 ADMIN_EMAIL="admin@tudominio.com"

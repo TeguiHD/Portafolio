@@ -1,8 +1,9 @@
 import { verifyAdmin } from "@/lib/auth/dal";
 import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -58,8 +59,9 @@ export default async function ClientesPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {clients.map((client) => (
-                        <div
+                        <Link
                             key={client.id}
+                            href={`/admin/gestion-comercial/clientes/${client.id}`}
                             className="group p-6 rounded-3xl bg-[#0c1224]/80 border border-white/5 hover:border-accent-1/30 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 backdrop-blur-md relative overflow-hidden flex flex-col justify-between h-full gap-5"
                         >
                             <div className="absolute top-0 right-0 w-32 h-32 bg-accent-1 opacity-0 group-hover:opacity-10 blur-3xl rounded-full transition-opacity pointer-events-none duration-500" />
@@ -96,7 +98,7 @@ export default async function ClientesPage() {
                                     <span className="block text-[9px] uppercase tracking-widest font-bold text-neutral-500">Contratos</span>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             )}

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 export const dynamic = "force-dynamic";
 
@@ -136,7 +136,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     } catch (error) {
         console.error("Error updating recurring payment:", error);
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: "Datos inválidos", details: error.issues }, { status: 400 });
+            return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
         }
         return NextResponse.json({ error: "Error al actualizar pago recurrente" }, { status: 500 });
     }

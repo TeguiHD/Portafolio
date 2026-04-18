@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { ExpenseCategory, ExpenseFrequency } from "@prisma/client";
+import type { ExpenseCategory, ExpenseFrequency } from '@/generated/prisma/client';
 import { createExpenseAction, deleteExpenseAction } from "./actions";
 
 // ============================================================================

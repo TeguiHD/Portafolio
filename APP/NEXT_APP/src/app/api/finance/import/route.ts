@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
-import { Role, TransactionType, AccountType, BudgetPeriod } from "@prisma/client";
+import { Role, TransactionType, AccountType, BudgetPeriod } from '@/generated/prisma/client';
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const importTransactionSchema = z.object({
     date: z.string(),
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
         const validation = importSchema.safeParse(data);
         if (!validation.success) {
             return NextResponse.json(
-                { error: "Datos inválidos", details: validation.error.issues },
+                { error: "Datos inválidos" },
                 { status: 400 }
             );
         }
@@ -348,7 +349,7 @@ export async function POST(request: NextRequest) {
             },
         });
     } catch (error) {
-        console.error("[Import POST] Error:", error);
+        logger.error("[Import POST] Error", error);
         return NextResponse.json({ error: "Error al importar datos" }, { status: 500 });
     }
 }

@@ -19,7 +19,8 @@ export default function QuotationViewer({ quotation, htmlContent }: QuotationVie
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     const handlePrint = () => {
-        iframeRef.current?.contentWindow?.postMessage("print", "*");
+        iframeRef.current?.contentWindow?.focus();
+        iframeRef.current?.contentWindow?.print();
     };
 
     const copyToClipboard = async () => {
@@ -32,18 +33,6 @@ export default function QuotationViewer({ quotation, htmlContent }: QuotationVie
     const shareText = `Hola, revisa esta cotización: ${quotation.projectName} - ${shareUrl}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
     const emailUrl = `mailto:?subject=Cotización: ${encodeURIComponent(quotation.projectName)}&body=${encodeURIComponent(shareText)}`;
-
-    // Inject print helper
-    const enhancedContent = htmlContent.includes("</body>")
-        ? htmlContent.replace(
-            "</body>",
-            `<script>
-                window.addEventListener('message', function(e) {
-                    if (e.data === 'print') window.print();
-                });
-            </script></body>`
-        )
-        : htmlContent + `<script>window.addEventListener('message', function(e) { if (e.data === 'print') window.print(); });</script>`;
 
     return (
         <div className="min-h-screen bg-slate-100">
@@ -130,7 +119,7 @@ export default function QuotationViewer({ quotation, htmlContent }: QuotationVie
             <div className="pt-20 pb-8 print:p-0">
                 <iframe
                     ref={iframeRef}
-                    srcDoc={enhancedContent}
+                    srcDoc={htmlContent}
                     className="w-full border-0 bg-white mx-auto shadow-2xl print:shadow-none"
                     style={{
                         minHeight: "100vh",
@@ -138,7 +127,7 @@ export default function QuotationViewer({ quotation, htmlContent }: QuotationVie
                         display: "block"
                     }}
                     title={quotation.projectName}
-                    sandbox="allow-same-origin allow-scripts"
+                    sandbox="allow-same-origin allow-modals"
                     onLoad={(e) => {
                         const iframe = e.target as HTMLIFrameElement;
                         try {

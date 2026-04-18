@@ -1,15 +1,13 @@
 import 'dotenv/config'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../src/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!
-})
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-    const cvVersionId = 'cmk3aefsj000v74r1r2aopjcs'
-    
+    const cvVersionId = 'cml77ae1f000zpuijrhnyomn2'
+
     const cv = await prisma.cvVersion.findUnique({
         where: { id: cvVersionId },
         include: {

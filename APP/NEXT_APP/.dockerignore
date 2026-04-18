@@ -17,10 +17,13 @@ node_modules
 .gitlab-ci.yml
 
 # Build output
-# .next  # Needed for production build
+.next
 out
 build
 dist
+
+# Standalone production server (separate deployment artifact)
+express-server/
 
 # Debug logs
 npm-debug.log*
@@ -57,7 +60,6 @@ jest.config.ts
 # Prisma migrations (keep schema, exclude migrations if managed externally)
 # prisma/migrations
 
-# Tools & Scripts
-scripts
+# Tools (scripts/ kept in context for post-deploy migrations, excluded from Next.js via tsconfig)
 prepare-deploy.ps1
 README.md

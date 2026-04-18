@@ -99,6 +99,10 @@ export default [
       "*.config.mjs",
       "prisma/migrations/**",
       ".pnpm-store/**",
+      "express-server/**",
+      "test-*.js",
+      "scripts/**/*.cjs",
+      "tests/**",
     ],
   },
 ];

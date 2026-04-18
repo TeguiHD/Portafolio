@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
 import { sanitizeInput } from "@/lib/security";
 import { createAuditLog } from "@/lib/audit";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 const REQUIRED_PERMISSION = "contact.manage";
 

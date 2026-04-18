@@ -8,21 +8,54 @@ services:
     build:
       context: ../APP/NEXT_APP
       dockerfile: ../../DOCKER/Dockerfile.web
+    image: portfolio_web:latest
     container_name: portfolio_web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+    secrets:
+      - source: db_password
+        target: db-password
+      - source: nextauth_secret
+        target: nextauth-secret
+      - source: encryption_key
+        target: encryption-key
+      - source: password_pepper
+        target: password-pepper
+      - source: audit_signing_key
+        target: audit-signing-key
+      - source: redis_password
+        target: redis-password
+      - source: internal_api_secret
+        target: internal-api-secret
     environment:
       - NODE_ENV=production
       # Database
       - DATABASE_URL=${DATABASE_URL}
       # Authentication
       - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - AUTH_TRUST_HOST=true
+      - AUTH_URL=${NEXTAUTH_URL}
+      # NextAuth reads secret from env var (cannot read Docker Secret files directly)
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      # Security
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - AUTH_SECRET=${NEXTAUTH_SECRET}
+      # Security is now handled via Docker Secrets (see secrets block above)
+      # Internal service-to-service auth (separate from ENCRYPTION_KEY per NIST SP 800-57)
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
       # Redis Cache
       - REDIS_URL=${REDIS_URL}
+      # Digital Pulse Web Push
+      - PULSE_PUSH_BOOT=${PULSE_PUSH_BOOT}
+      - PULSE_PUSH_POLL_MS=${PULSE_PUSH_POLL_MS}
+      - WEB_PUSH_CONTACT_EMAIL=${WEB_PUSH_CONTACT_EMAIL}
+      - WEB_PUSH_VAPID_PUBLIC_KEY=${WEB_PUSH_VAPID_PUBLIC_KEY}
+      - WEB_PUSH_VAPID_PRIVATE_KEY=${WEB_PUSH_VAPID_PRIVATE_KEY}
+      # VPS Control (set either VPS_SSH_PASS or VPS_SSH_KEY)
+      - VPS_HOST=${VPS_HOST}
+      - VPS_SSH_PORT=${VPS_SSH_PORT}
+      - VPS_USER=${VPS_USER}
+      - VPS_SSH_PASS=${VPS_SSH_PASS}
+      - VPS_SSH_KEY=${VPS_SSH_KEY}
       # AI Services (OpenRouter - Gemini 2.0, Mistral, etc.)
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # Finance Module - Uploads path
@@ -50,10 +83,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
@@ -73,7 +106,7 @@ services:
     command: >
       redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly no --save ""
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
@@ -92,7 +125,7 @@ services:
     container_name: portfolio_outerbase
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       - OUTERBASE_DATABASE_URL=${OUTERBASE_DATABASE_URL}
     depends_on:
@@ -105,8 +138,7 @@ services:
 
   # ============================================
   # Nginx Reverse Proxy
-  # ONLY for production with SSL
-  # Run with: docker compose --profile production up -d
+  # HTTP — Cloudflare handles HTTPS termination
   # ============================================
   nginx:
     image: nginx:alpine
@@ -116,14 +148,12 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx-http.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - web
     networks:
       - portfolio_network
-    profiles:
-      - production
 
 # ============================================
 # Volumes
@@ -147,3 +177,22 @@ volumes:
 networks:
   portfolio_network:
     driver: bridge
+
+# ============================================
+# Secrets
+# ============================================
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  nextauth_secret:
+    file: ./secrets/nextauth_secret.txt
+  encryption_key:
+    file: ./secrets/encryption_key.txt
+  password_pepper:
+    file: ./secrets/password_pepper.txt
+  audit_signing_key:
+    file: ./secrets/audit_signing_key.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  internal_api_secret:
+    file: ./secrets/internal_api_secret.txt

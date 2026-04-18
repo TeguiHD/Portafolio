@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
-import { Role } from "@prisma/client";
+import { Role } from '@/generated/prisma/client';
 
 // GET /api/finance/export - Export user's financial data
 export async function GET(request: NextRequest) {

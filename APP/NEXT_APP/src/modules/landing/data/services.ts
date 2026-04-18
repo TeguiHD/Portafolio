@@ -41,7 +41,7 @@ export const services: Service[] = [
     timeline: "4-6 semanas",
     price: "$8k - $15k",
     roi: "ROI: Validación de mercado",
-    caseStudy: "E-commerce Dracamila",
+    caseStudy: "Flores D&D",
   },
   {
     id: "automation",
@@ -53,7 +53,7 @@ export const services: Service[] = [
     timeline: "3-5 semanas",
     price: "$4k - $9k",
     roi: "ROI: 300-500% en 6 meses",
-    caseStudy: "Automatizaciones n8n",
+    caseStudy: "Yo Estoy Aquí",
   },
   {
     id: "data-bi",

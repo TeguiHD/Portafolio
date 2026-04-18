@@ -7,7 +7,7 @@ import { Kanban, Search, CheckCircle2, Clock, XCircle, Inbox } from "lucide-reac
 import { ApplicationCard } from "./components/ApplicationCard";
 import { ApplicationDetailModal } from "./components/ApplicationDetailModal";
 import { matchSearch } from "../utils";
-import { STATUS_LABELS, STATUS_NEXT, STATUS_TERMINAL } from "../types";
+import { STATUS_LABELS, STATUS_NEXT } from "../types";
 import type { ApplicationItem, ApplicationStatus } from "../types";
 import { moveApplicationStatusAction, deleteApplicationAction } from "./actions";
 

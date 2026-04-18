@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { hash, verify } from "argon2";
-import type { PermissionLevel } from "@prisma/client";
+import type { PermissionLevel } from '@/generated/prisma/client';
 
 /**
  * Enterprise-grade Client Sharing Service

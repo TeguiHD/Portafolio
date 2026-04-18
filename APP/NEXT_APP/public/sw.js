@@ -1,15 +1,19 @@
 /// <reference lib="webworker" />
 
-// Finance PWA Service Worker
+// Portfolio PWA Service Worker
 // Handles offline functionality and caching
 
-const CACHE_NAME = "finance-pwa-v1";
-const STATIC_CACHE = "finance-static-v1";
-const DYNAMIC_CACHE = "finance-dynamic-v1";
+const CACHE_NAME = "portfolio-pwa-v3";
+const STATIC_CACHE = "portfolio-static-v3";
+const DYNAMIC_CACHE = "portfolio-dynamic-v3";
 
 // Resources to cache immediately
 const STATIC_ASSETS = [
-    "/",
+    "/herramientas",
+    "/manifest.json",
+    "/icon-192.png",
+    "/icon-512.png",
+    "/badge-72.png",
     "/admin/finance",
     "/admin/finance/transactions",
     "/admin/finance/categories",
@@ -19,6 +23,10 @@ const STATIC_ASSETS = [
 
 // API routes to cache with network-first strategy
 const API_CACHE_PATTERNS = [
+    "/api/pulse/news",
+    "/api/pulse/finance",
+    "/api/pulse/dev",
+    "/api/pulse/context",
     "/api/finance/accounts",
     "/api/finance/categories",
     "/api/finance/transactions/summary",
@@ -114,8 +122,8 @@ async function cacheFirst(request) {
             cache.put(request, response.clone());
         }
         return response;
-    } catch (error) {
-        console.error("[SW] Cache first fetch failed:", error);
+    } catch {
+        console.error("[SW] Cache first fetch failed");
         return new Response("Offline", { status: 503 });
     }
 }
@@ -131,7 +139,7 @@ async function networkFirst(request) {
         }
 
         return response;
-    } catch (error) {
+    } catch {
         console.log("[SW] Network first failed, trying cache:", request.url);
         const cached = await caches.match(request);
         if (cached) {
@@ -154,24 +162,11 @@ async function networkFirst(request) {
 
 async function networkFirstWithOffline(request) {
     try {
-        const response = await fetch(request);
-
-        // Cache HTML pages
-        if (response.ok) {
-            const cache = await caches.open(DYNAMIC_CACHE);
-            cache.put(request, response.clone());
-        }
-
-        return response;
-    } catch (error) {
+        return await fetch(request);
+    } catch {
         console.log("[SW] Network failed for HTML, trying cache");
 
-        const cached = await caches.match(request);
-        if (cached) {
-            return cached;
-        }
-
-        // Return offline page
+        // Return offline page only; avoid serving stale HTML with outdated headers.
         return caches.match("/offline.html");
     }
 }
@@ -293,11 +288,14 @@ self.addEventListener("push", (event) => {
 
     const options = {
         body: data.body || "Tienes una nueva notificación",
-        icon: "/icons/finance-192.png",
-        badge: "/icons/badge-72.png",
+        icon: data.icon || "/icon-192.png",
+        badge: data.badge || "/badge-72.png",
+        image: data.image || "/icon-512.png",
+        tag: data.tag || "digital-pulse-news",
+        renotify: true,
         vibrate: [100, 50, 100],
         data: {
-            url: data.url || "/admin/finance",
+            url: data.url || "/blog",
         },
         actions: [
             { action: "open", title: "Ver" },
@@ -306,7 +304,7 @@ self.addEventListener("push", (event) => {
     };
 
     event.waitUntil(
-        self.registration.showNotification(data.title || "Finanzas", options)
+        self.registration.showNotification(data.title || "Digital Pulse", options)
     );
 });
 
@@ -319,13 +317,13 @@ self.addEventListener("notificationclick", (event) => {
         return;
     }
 
-    const urlToOpen = event.notification.data?.url || "/admin/finance";
+    const urlToOpen = event.notification.data?.url || "/blog";
 
     event.waitUntil(
         self.clients.matchAll({ type: "window" }).then((clients) => {
             // Focus existing window if available
             for (const client of clients) {
-                if (client.url.includes("/admin/finance") && "focus" in client) {
+                if (client.url === urlToOpen && "focus" in client) {
                     return client.focus();
                 }
             }

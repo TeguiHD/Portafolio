@@ -8,9 +8,12 @@ RUN pnpm install
 
 COPY . .
 
-RUN npm run build
+RUN npm run build \
+	&& mkdir -p .next/standalone/.next \
+	&& cp -R .next/static .next/standalone/.next/static \
+	&& cp -R public .next/standalone/public
 
 EXPOSE 3000
 
-CMD ["pnpm", "run", "start"]
+CMD ["node", ".next/standalone/server.js"]
 

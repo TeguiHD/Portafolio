@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { mergePublicToolCatalog } from "@/lib/tool-registry";
 
 // GET: List all public active tools
 export async function GET() {
     try {
-        const tools = await prisma.tool.findMany({
+        const dbTools = await prisma.tool.findMany({
             where: {
                 isPublic: true,
                 isActive: true,
@@ -19,15 +20,23 @@ export async function GET() {
                 description: true,
                 icon: true,
                 category: true,
+                sortOrder: true,
             },
         });
 
-        return NextResponse.json({ tools });
+        return NextResponse.json({
+            tools: mergePublicToolCatalog(dbTools),
+            source: "database",
+            degradedPublicAccess: false,
+        });
     } catch (error) {
         console.error("Error fetching public tools:", error);
-        return NextResponse.json(
-            { error: "Error fetching tools" },
-            { status: 500 }
-        );
+
+        return NextResponse.json({
+            tools: mergePublicToolCatalog(),
+            source: "registry-fallback",
+            degradedPublicAccess: true,
+            degradedReason: "database_unavailable",
+        });
     }
 }

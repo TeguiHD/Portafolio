@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { Role } from "@prisma/client";
+import { Role } from '@/generated/prisma/client';
 
 // GET /api/admin/finance/metrics
 // Returns aggregated metrics for finance module admin dashboard

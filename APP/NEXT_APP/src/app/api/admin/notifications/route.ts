@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionForApi, verifySuperAdminForApi } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
-import { Role, Prisma } from "@prisma/client";
+import { Role, Prisma } from '@/generated/prisma/client';
 import { getRoleHierarchy } from "@/lib/notificationService";
 
 /**

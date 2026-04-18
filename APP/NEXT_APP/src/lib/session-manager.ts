@@ -6,16 +6,57 @@
 import { prisma } from "@/lib/prisma";
 import { createAuditLog, AuditActions } from "@/lib/audit";
 import { createNotification } from "@/lib/notificationService";
+import { lookupIP } from "@/lib/vps/geo-ip";
+
+const MAX_ACTIVE_SESSIONS_PER_USER = 5;
+
+interface ActiveSessionSnapshot {
+    id: string;
+    tokenId: string;
+    ipAddress: string | null;
+    browser: string | null;
+    device: string | null;
+    os: string | null;
+    lastActivity: Date;
+    createdAt: Date;
+}
+
+function buildSessionFingerprint(session: {
+    ipAddress?: string | null;
+    browser?: string | null;
+    device?: string | null;
+    os?: string | null;
+}): string {
+    return [
+        session.ipAddress || "unknown-ip",
+        session.browser || "unknown-browser",
+        session.device || "unknown-device",
+        session.os || "unknown-os",
+    ].join("|");
+}
+
+function countUniqueSessions(sessions: ActiveSessionSnapshot[]): number {
+    return new Set(sessions.map((session) => buildSessionFingerprint(session))).size;
+}
+
+function normalizeIpAddress(ipAddress?: string | null): string | null {
+    if (!ipAddress) return null;
+
+    const trimmed = ipAddress.trim();
+    if (!trimmed || trimmed === "unknown") return null;
+
+    return trimmed.startsWith("::ffff:") ? trimmed.slice(7) : trimmed;
+}
 
 // Helper to extract browser name from user agent
 export function getBrowserFromUserAgent(userAgent: string | null): string {
     if (!userAgent) return "Unknown";
 
     if (userAgent.includes("Edg/")) return "Edge";
+    if (userAgent.includes("Opera/") || userAgent.includes("OPR/")) return "Opera";
     if (userAgent.includes("Chrome/")) return "Chrome";
     if (userAgent.includes("Firefox/")) return "Firefox";
     if (userAgent.includes("Safari/") && !userAgent.includes("Chrome")) return "Safari";
-    if (userAgent.includes("Opera/") || userAgent.includes("OPR/")) return "Opera";
     if (userAgent.includes("MSIE") || userAgent.includes("Trident/")) return "Internet Explorer";
 
     return "Other";
@@ -26,8 +67,8 @@ export function getDeviceFromUserAgent(userAgent: string | null): string {
     if (!userAgent) return "Unknown";
 
     const ua = userAgent.toLowerCase();
-    if (ua.includes("mobile") || ua.includes("android") || ua.includes("iphone")) return "mobile";
     if (ua.includes("tablet") || ua.includes("ipad")) return "tablet";
+    if (ua.includes("mobile") || ua.includes("android") || ua.includes("iphone")) return "mobile";
 
     return "desktop";
 }
@@ -36,11 +77,11 @@ export function getDeviceFromUserAgent(userAgent: string | null): string {
 export function getOSFromUserAgent(userAgent: string | null): string {
     if (!userAgent) return "Unknown";
 
+    if (userAgent.includes("iPhone") || userAgent.includes("iPad")) return "iOS";
+    if (userAgent.includes("Android")) return "Android";
     if (userAgent.includes("Windows")) return "Windows";
     if (userAgent.includes("Mac OS")) return "macOS";
     if (userAgent.includes("Linux")) return "Linux";
-    if (userAgent.includes("Android")) return "Android";
-    if (userAgent.includes("iPhone") || userAgent.includes("iPad")) return "iOS";
 
     return "Other";
 }
@@ -62,10 +103,30 @@ export async function createUserSession(params: CreateSessionParams): Promise<{
     isNewLocation: boolean;
 }> {
     const { userId, tokenId, ipAddress, userAgent, expiresAt } = params;
+    const normalizedIpAddress = normalizeIpAddress(ipAddress);
 
     const browser = getBrowserFromUserAgent(userAgent || null);
     const device = getDeviceFromUserAgent(userAgent || null);
     const os = getOSFromUserAgent(userAgent || null);
+    const currentFingerprint = buildSessionFingerprint({ ipAddress: normalizedIpAddress, browser, device, os });
+
+    const geoData = normalizedIpAddress ? await lookupIP(normalizedIpAddress) : null;
+    const city = geoData?.city && geoData.city !== "Unknown" ? geoData.city : null;
+    const country = geoData?.country && geoData.country !== "Unknown" ? geoData.country : null;
+    const countryCode = geoData?.countryCode || null;
+
+    await prisma.userSession.updateMany({
+        where: {
+            userId,
+            isActive: true,
+            expiresAt: { lte: new Date() },
+        },
+        data: {
+            isActive: false,
+            revokedAt: new Date(),
+            revokeReason: "expired",
+        },
+    });
 
     // Get existing active sessions for concurrent detection
     const existingSessions = await prisma.userSession.findMany({
@@ -76,48 +137,105 @@ export async function createUserSession(params: CreateSessionParams): Promise<{
         },
         select: {
             id: true,
+            tokenId: true,
             ipAddress: true,
             browser: true,
             device: true,
+            os: true,
+            lastActivity: true,
+            createdAt: true,
         },
     });
 
+    const equivalentSessions = existingSessions.filter(
+        (session) => buildSessionFingerprint(session) === currentFingerprint
+    );
+
+    if (equivalentSessions.length > 0) {
+        await prisma.userSession.updateMany({
+            where: {
+                id: { in: equivalentSessions.map((session) => session.id) },
+                isActive: true,
+            },
+            data: {
+                isActive: false,
+                revokedAt: new Date(),
+                revokeReason: "replaced_by_new_login",
+            },
+        });
+    }
+
+    let remainingSessions: ActiveSessionSnapshot[] = existingSessions.filter(
+        (session) => !equivalentSessions.some((equivalent) => equivalent.id === session.id)
+    );
+
+    const overflowCount = Math.max(0, remainingSessions.length - (MAX_ACTIVE_SESSIONS_PER_USER - 1));
+    if (overflowCount > 0) {
+        const oldestSessions = [...remainingSessions]
+            .sort((left, right) => left.lastActivity.getTime() - right.lastActivity.getTime())
+            .slice(0, overflowCount);
+
+        await prisma.userSession.updateMany({
+            where: {
+                id: { in: oldestSessions.map((session) => session.id) },
+                isActive: true,
+            },
+            data: {
+                isActive: false,
+                revokedAt: new Date(),
+                revokeReason: "session_limit_enforced",
+            },
+        });
+
+        remainingSessions = remainingSessions.filter(
+            (session) => !oldestSessions.some((oldest) => oldest.id === session.id)
+        );
+    }
+
     // Check if this is a new location (different IP)
     const isNewLocation = existingSessions.length > 0 &&
-        !existingSessions.some(s => s.ipAddress === ipAddress);
+        !existingSessions.some(s => s.ipAddress === normalizedIpAddress);
 
     // Check for concurrent sessions from different devices/browsers
-    const differentDeviceSessions = existingSessions.filter(
-        s => s.ipAddress !== ipAddress || s.browser !== browser
+    const differentDeviceSessions = remainingSessions.filter(
+        (session) => buildSessionFingerprint(session) !== currentFingerprint
     );
+    const concurrentSessionCount = countUniqueSessions(differentDeviceSessions);
 
     // Create the new session
     const session = await prisma.userSession.create({
         data: {
             userId,
             tokenId,
-            ipAddress: ipAddress || null,
+            ipAddress: normalizedIpAddress,
             userAgent: userAgent || null,
             browser,
             device,
             os,
+            city,
+            country,
+            countryCode,
             expiresAt,
         },
         select: { id: true },
     });
 
     // If there are concurrent sessions from different locations, create notification
-    if (differentDeviceSessions.length > 0) {
+    if (concurrentSessionCount > 0) {
         await createNotification({
             type: "CONCURRENT_SESSION_DETECTED",
             priority: "HIGH",
             title: "Sesión detectada en otro dispositivo",
-            message: `Se inició sesión desde ${browser} en ${os} (${device}). Ya tienes ${differentDeviceSessions.length} sesión(es) activa(s) en otros dispositivos.`,
+            message: `Se inició sesión desde ${browser} en ${os} (${device}). Ya tienes ${concurrentSessionCount} sesión(es) activa(s) adicional(es) en otros dispositivos o ubicaciones.`,
             metadata: {
                 newIP: ipAddress,
+                country,
+                countryCode,
                 newBrowser: browser,
                 newDevice: device,
-                existingSessions: differentDeviceSessions.length,
+                existingSessions: concurrentSessionCount,
+                enforcedSessionLimit: MAX_ACTIVE_SESSIONS_PER_USER,
+                replacedSessions: equivalentSessions.length + overflowCount,
             },
             targetUserId: userId,
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
@@ -130,11 +248,12 @@ export async function createUserSession(params: CreateSessionParams): Promise<{
             userId,
             metadata: {
                 newIP: ipAddress?.substring(0, 10) + "...",
-                existingSessions: differentDeviceSessions.length,
+                country,
+                existingSessions: concurrentSessionCount,
                 browser,
                 device,
             },
-            ipAddress: ipAddress || undefined,
+            ipAddress: normalizedIpAddress || undefined,
             userAgent: userAgent || undefined,
         });
     }
@@ -148,6 +267,8 @@ export async function createUserSession(params: CreateSessionParams): Promise<{
             message: `Se inició sesión desde una nueva ubicación IP. Navegador: ${browser}, Dispositivo: ${device}.`,
             metadata: {
                 ip: ipAddress,
+                country,
+                countryCode,
                 browser,
                 device,
                 os,
@@ -159,7 +280,7 @@ export async function createUserSession(params: CreateSessionParams): Promise<{
 
     return {
         session,
-        concurrentSessions: differentDeviceSessions.length,
+        concurrentSessions: concurrentSessionCount,
         isNewLocation,
     };
 }
@@ -184,6 +305,7 @@ export async function getUserSessions(userId: string) {
             os: true,
             city: true,
             country: true,
+            countryCode: true,
             lastActivity: true,
             createdAt: true,
             expiresAt: true,

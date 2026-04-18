@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getClientsWithSearchAction, deleteClientAction } from "../../../modules/admin/clients/actions";
 import { Search, Trash2, User, Key, Plus, FileText, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
+import type { Route } from "next";
 import { toast } from "sonner";
 import ContactInfoModal from "./contact-info-modal";
 import CreateClientModal from "../cotizaciones/components/CreateClientModal";
@@ -136,7 +137,7 @@ export default function ClientsPageClient({ currentUserId, isSuperAdmin }: Clien
                                 />
 
                                 <Link
-                                    href={`/admin/cotizaciones/${client.id}`}
+                                    href={`/admin/cotizaciones/${client.id}` as Route}
                                     className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-center py-2 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
                                     title="Ver Cotizaciones"
                                 >

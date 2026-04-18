@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createClientAction } from "@/modules/admin/clients/actions";
+import { hasPermission } from "@/lib/permission-check";
+import { logger } from "@/lib/logger";
+import type { Role } from '@/generated/prisma/client';
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +19,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: "No autorizado" },
                 { status: 401 }
+            );
+        }
+
+        const canCreateClient = await hasPermission(
+            session.user.id,
+            session.user.role as Role,
+            "quotations.create"
+        );
+
+        if (!canCreateClient) {
+            return NextResponse.json(
+                { error: "Sin permisos para crear clientes" },
+                { status: 403 }
             );
         }
 
@@ -39,7 +55,6 @@ export async function POST(request: NextRequest) {
             contactEmail: contactEmail,
             contactRole: contactRole,
             email,
-            userId: session.user.id,
         });
 
         if (!result.success) {
@@ -54,7 +69,7 @@ export async function POST(request: NextRequest) {
             accessCode: result.accessCode,
         });
     } catch (error) {
-        console.error("Error in clients API:", error);
+        logger.error("Error in clients API", error);
         return NextResponse.json(
             { error: "Error interno del servidor" },
             { status: 500 }

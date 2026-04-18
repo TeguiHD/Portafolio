@@ -7,7 +7,7 @@ import { hash } from "argon2";
 import { randomBytes } from "crypto";
 import { sanitizeQuotationHtml } from "@/lib/quotation-sanitizer";
 import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 // Generate readable secure code
 function generateSecureCode(): string {
@@ -134,6 +134,13 @@ export async function createQuotationAction(formData: FormData) {
         };
     } catch (error) {
         console.error("Error creating quotation:", error);
+        if (
+            error instanceof Error &&
+            "code" in error &&
+            (error as { code: string }).code === "P2002"
+        ) {
+            return { success: false, error: "El folio ya existe. Usa un folio diferente (ej: WEB-2026-IND02)." };
+        }
         return { success: false, error: "Error al crear cotización" };
     }
 }

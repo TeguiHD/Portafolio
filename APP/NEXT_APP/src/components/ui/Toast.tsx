@@ -1,7 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react'
 
 // Toast types
@@ -13,6 +12,11 @@ interface Toast {
     title: string
     message?: string
     duration?: number
+}
+
+// Internal state for animation tracking
+interface ToastInternal extends Toast {
+    exiting?: boolean
 }
 
 interface ToastContextType {
@@ -64,22 +68,32 @@ const toastConfig: Record<ToastType, { icon: typeof CheckCircle; bgColor: string
     },
 }
 
-// Individual Toast component
-function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) {
+// Individual Toast component — pure CSS animations, no framer-motion
+function ToastItem({ toast, onRemove, exiting }: { toast: Toast; onRemove: () => void; exiting?: boolean }) {
     const config = toastConfig[toast.type]
     const Icon = config.icon
+    const progressRef = useRef<HTMLDivElement>(null)
+
+    // Trigger the progress bar shrink after mount
+    useEffect(() => {
+        const el = progressRef.current
+        if (!el) return
+        // Force reflow so the transition kicks in
+        el.getBoundingClientRect()
+        el.style.transform = 'scaleX(0)'
+    }, [])
 
     return (
-        <motion.div
-            layout
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 100, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        <div
             className={`
                 relative flex items-start gap-3 p-4 pr-10 rounded-xl 
                 backdrop-blur-xl border shadow-2xl
                 ${config.bgColor} ${config.borderColor}
+                transition-all duration-300 ease-out
+                ${exiting
+                    ? 'opacity-0 translate-x-24 scale-95'
+                    : 'animate-[toast-in_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]'
+                }
             `}
         >
             {/* Icon */}
@@ -101,23 +115,32 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
                 <X className="w-4 h-4" />
             </button>
 
-            {/* Progress bar */}
-            <motion.div
-                initial={{ scaleX: 1 }}
-                animate={{ scaleX: 0 }}
-                transition={{ duration: (toast.duration || 5000) / 1000, ease: 'linear' }}
+            {/* Progress bar — CSS transition instead of motion.div */}
+            <div
+                ref={progressRef}
+                style={{
+                    transform: 'scaleX(1)',
+                    transitionProperty: 'transform',
+                    transitionDuration: `${(toast.duration || 5000)}ms`,
+                    transitionTimingFunction: 'linear',
+                }}
                 className={`absolute bottom-0 left-0 right-0 h-1 origin-left rounded-b-xl ${config.iconColor.replace('text-', 'bg-')}`}
             />
-        </motion.div>
+        </div>
     )
 }
 
 // Toast Provider
 export function ToastProvider({ children }: { children: ReactNode }) {
-    const [toasts, setToasts] = useState<Toast[]>([])
+    const [toasts, setToasts] = useState<ToastInternal[]>([])
 
     const removeToast = useCallback((id: string) => {
-        setToasts(prev => prev.filter(t => t.id !== id))
+        // Mark as exiting first for animation
+        setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t))
+        // Remove from DOM after exit animation completes
+        setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id))
+        }, 300)
     }, [])
 
     const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
@@ -154,13 +177,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
             {/* Toast container - highest z-index */}
             <div className="fixed top-4 right-4 z-[99999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
-                <AnimatePresence mode="popLayout">
-                    {toasts.map(toast => (
-                        <div key={toast.id} className="pointer-events-auto">
-                            <ToastItem toast={toast} onRemove={() => removeToast(toast.id)} />
-                        </div>
-                    ))}
-                </AnimatePresence>
+                {toasts.map(toast => (
+                    <div key={toast.id} className="pointer-events-auto">
+                        <ToastItem toast={toast} onRemove={() => removeToast(toast.id)} exiting={toast.exiting} />
+                    </div>
+                ))}
             </div>
         </ToastContext.Provider>
     )

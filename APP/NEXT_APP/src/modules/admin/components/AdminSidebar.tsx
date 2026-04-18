@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useCallback } from "react";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 import { useAdminLayout } from "@/modules/admin/context/AdminLayoutContext";
 
 interface AdminSidebarProps {
@@ -13,6 +13,7 @@ interface AdminSidebarProps {
         name: string | null;
         email: string;
         role: Role;
+        mfaEnabled?: boolean;
     };
     permissions: string[];
 }
@@ -118,6 +119,7 @@ interface MenuItem {
     href: string;
     icon: React.ReactNode;
     requiredPermission: string;
+    requiredRoles?: Role[];
 }
 
 interface MenuGroup {
@@ -155,6 +157,12 @@ const menuStructure: {
                     requiredPermission: "cv.own.view",
                 },
                 {
+                    name: "Empleos & CV",
+                    href: "/admin/jobs",
+                    icon: icons.briefcase,
+                    requiredPermission: "jobs.vacancies.view",
+                },
+                {
                     name: "Finanzas",
                     href: "/admin/finance",
                     icon: icons.finance,
@@ -172,6 +180,12 @@ const menuStructure: {
                     href: "/admin/gestion-comercial/pipeline",
                     icon: icons.pipeline,
                     requiredPermission: "crm.pipeline.view",
+                },
+                {
+                    name: "Clientes",
+                    href: "/admin/clientes",
+                    icon: icons.users,
+                    requiredPermission: "quotations.view",
                 },
                 {
                     name: "Propuestas",
@@ -247,6 +261,13 @@ const menuStructure: {
                     icon: icons.messages,
                     requiredPermission: "contact.manage",
                 },
+                {
+                    name: "VPS Control",
+                    href: "/admin/superadmin",
+                    icon: icons.system,
+                    requiredPermission: "security.view",
+                    requiredRoles: ["SUPERADMIN"],
+                },
             ],
         },
         {
@@ -269,6 +290,8 @@ const menuStructure: {
 function MenuGroupComponent({
     group,
     permissions,
+    userRole,
+    mfaLocked,
     pathname,
     closeSidebar,
     isExpanded,
@@ -278,6 +301,8 @@ function MenuGroupComponent({
 }: {
     group: MenuGroup;
     permissions: string[];
+    userRole: Role;
+    mfaLocked: boolean;
     pathname: string;
     closeSidebar: () => void;
     isExpanded: boolean;
@@ -287,6 +312,7 @@ function MenuGroupComponent({
 }) {
     const filteredItems = group.items.filter((item) =>
         permissions.includes(item.requiredPermission)
+        && (!item.requiredRoles || item.requiredRoles.includes(userRole))
     );
 
     // Don't render if no items are accessible
@@ -335,6 +361,25 @@ function MenuGroupComponent({
                                 const isActive =
                                     pathname === item.href ||
                                     (item.href !== "/admin" && pathname.startsWith(item.href));
+                                const isLocked = mfaLocked;
+
+                                if (isLocked) {
+                                    return (
+                                        <div
+                                            key={item.href}
+                                            className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-neutral-600"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span className="scale-90 opacity-60">{item.icon}</span>
+                                                <span>{item.name}</span>
+                                            </div>
+                                            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
+                                                2FA
+                                            </span>
+                                        </div>
+                                    );
+                                }
+
                                 return (
                                     <Link
                                         key={item.href}
@@ -370,6 +415,7 @@ function MenuGroupComponent({
 export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
     const pathname = usePathname();
     const { isSidebarOpen, closeSidebar } = useAdminLayout();
+    const mfaLocked = user.mfaEnabled !== true;
 
     // Track expanded groups - all open by default
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
@@ -408,6 +454,7 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
     // Filter standalone items
     const filteredStandalone = menuStructure.standalone.filter((item) =>
         permissions.includes(item.requiredPermission)
+        && (!item.requiredRoles || item.requiredRoles.includes(user.role))
     );
 
     const sidebarContent = (
@@ -432,11 +479,39 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
 
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+                {mfaLocked && (
+                    <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+                        <p className="text-sm font-semibold text-amber-300">2FA obligatorio pendiente</p>
+                        <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
+                            Completa la configuracion en Perfil &gt; Seguridad para desbloquear Usuarios, Finanzas, CRM y el resto del panel.
+                        </p>
+                    </div>
+                )}
+
                 {/* Standalone items (Dashboard, Notifications) */}
                 {filteredStandalone.map((item) => {
                     const isActive =
                         pathname === item.href ||
                         (item.href !== "/admin" && pathname.startsWith(item.href));
+                    const isLocked = mfaLocked;
+
+                    if (isLocked) {
+                        return (
+                            <div
+                                key={item.href}
+                                className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-neutral-600"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span>{item.icon}</span>
+                                    <span className="font-medium">{item.name}</span>
+                                </div>
+                                <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
+                                    2FA
+                                </span>
+                            </div>
+                        );
+                    }
+
                     return (
                         <Link
                             key={item.href}
@@ -473,6 +548,8 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
                         key={group.id}
                         group={group}
                         permissions={permissions}
+                        userRole={user.role}
+                        mfaLocked={mfaLocked}
                         pathname={pathname}
                         closeSidebar={closeSidebar}
                         isExpanded={expandedGroups.has(group.id)}
@@ -485,17 +562,26 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
 
             {/* User info */}
             <div className="p-4 border-t border-accent-1/10">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5">
+                <Link
+                    href={"/admin/profile" as never}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-colors group cursor-pointer ${mfaLocked
+                        ? "bg-accent-1/10 ring-1 ring-accent-1/20"
+                        : "bg-white/5 hover:bg-white/10"
+                        }`}
+                    onClick={(e) => handleNavClick(e, closeSidebar)}
+                >
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-1 to-accent-2 flex items-center justify-center text-black font-semibold shrink-0">
                         {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
+                        <p className="text-sm font-medium text-white truncate group-hover:text-accent-1 transition-colors">
                             {user.name || user.email}
                         </p>
-                        <p className="text-xs text-accent-1">{user.role}</p>
+                        <p className="text-xs text-accent-1">
+                            {mfaLocked ? "Completar 2FA en Perfil" : user.role}
+                        </p>
                     </div>
-                </div>
+                </Link>
             </div>
         </>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/Toast";
 import { CvEditorPageSkeleton } from "@/components/ui/Skeleton";
@@ -439,6 +439,11 @@ export default function CvEditorPageClientEnhanced() {
                 </span>
             </div>
 
+            {/* Jobs integration panel */}
+            {currentVersionId && (
+                <CvJobsIntegrationPanel cvVersionId={currentVersionId} />
+            )}
+
             {/* Main content area - split view when preview is enabled */}
             <div className={`flex gap-6 ${showPreview ? 'flex-col xl:flex-row' : ''}`}>
                 {/* Editor section */}
@@ -669,6 +674,81 @@ export default function CvEditorPageClientEnhanced() {
                     onAddProject={handleAddProject}
                 />
             )}
+        </div>
+    );
+}
+
+// ─── Jobs Integration Panel ───────────────────────────────────────────────────
+
+type JobsSummary = {
+    analysisCount: number;
+    adaptationCount: number;
+    avgMatchScore: number | null;
+    latestAnalysisVacancy: string | null;
+};
+
+function CvJobsIntegrationPanel({ cvVersionId }: { cvVersionId: string }) {
+    const [summary, setSummary] = useState<JobsSummary | null>(null);
+    const [loading, setLoading] = useState(true);
+    const prevId = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (prevId.current === cvVersionId) return;
+        prevId.current = cvVersionId;
+        setLoading(true);
+        fetch(`/api/cv/${cvVersionId}/jobs-summary`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => setSummary(data))
+            .catch(() => setSummary(null))
+            .finally(() => setLoading(false));
+    }, [cvVersionId]);
+
+    if (loading) {
+        return (
+            <div className="h-14 rounded-2xl border border-white/5 bg-white/[0.02] animate-pulse" />
+        );
+    }
+
+    const hasActivity = summary && (summary.analysisCount > 0 || summary.adaptationCount > 0);
+
+    return (
+        <div className="rounded-2xl border border-white/8 bg-[#0a0f1c]/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+            {/* Stats */}
+            <div className="flex items-center gap-4 flex-1 flex-wrap">
+                <div className="flex items-center gap-2 text-xs">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                    <span className="text-neutral-400">Análisis:</span>
+                    <span className="font-semibold text-white">{summary?.analysisCount ?? 0}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="text-neutral-400">Adaptaciones:</span>
+                    <span className="font-semibold text-white">{summary?.adaptationCount ?? 0}</span>
+                </div>
+                {summary?.avgMatchScore != null && (
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className="w-2 h-2 rounded-full bg-amber-400" />
+                        <span className="text-neutral-400">Match prom.:</span>
+                        <span className="font-semibold text-white">{Math.round(summary.avgMatchScore)}%</span>
+                    </div>
+                )}
+                {hasActivity && summary?.latestAnalysisVacancy && (
+                    <span className="text-[11px] text-neutral-500 truncate max-w-[200px]">
+                        Última: {summary.latestAnalysisVacancy}
+                    </span>
+                )}
+            </div>
+
+            {/* CTA */}
+            <a
+                href="/admin/jobs/analysis"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-1 hover:text-accent-1/80 whitespace-nowrap"
+            >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Analizar vacante con este CV
+            </a>
         </div>
     );
 }

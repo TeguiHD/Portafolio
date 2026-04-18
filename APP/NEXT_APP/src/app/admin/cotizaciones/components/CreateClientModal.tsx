@@ -1,18 +1,25 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X, Plus, Loader2, Building2, User, Mail, Phone } from "lucide-react";
+import { X, Plus, Loader2, Building2, User, Mail, Phone, FileText, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { formatRut, getRutError } from "@/lib/rut";
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: (clientId: string) => void;
-    autoOpen?: boolean; // Keep for compatibility if used elsewhere
-    initialProjectName?: string; // Keep for compatibility
-    clientId?: string; // Keep for compatibility
-    clientSlug?: string; // Keep for compatibility
-    clientName?: string; // Keep for compatibility
+    autoOpen?: boolean;
+    initialProjectName?: string;
+    clientId?: string;
+    clientSlug?: string;
+    clientName?: string;
+}
+
+interface FormErrors {
+    name?: string;
+    email?: string;
+    rut?: string;
 }
 
 export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props) {
@@ -23,24 +30,46 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
         representative: "",
         email: "",
         phone: "",
+        rut: "",
+        address: "",
     });
+    const [errors, setErrors] = useState<FormErrors>({});
 
-    // Reset form when opening
-    // useEffect(() => { ... }, [isOpen]); // Optional, depends on UX preference
+    const validate = (): boolean => {
+        const newErrors: FormErrors = {};
 
+        if (!formData.name.trim()) {
+            newErrors.name = "El nombre es requerido";
+        }
 
+        if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            newErrors.email = "Email inválido";
+        }
 
-    // ...
-    // To avoid breaking the existing logic without checking api/admin/clients/route.ts,
-    // I will optimize the UI but keep the logic mostly similar, just cleaner.
+        const rutError = getRutError(formData.rut);
+        if (rutError) newErrors.rut = rutError;
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleRutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatRut(e.target.value);
+        setFormData(prev => ({ ...prev, rut: formatted }));
+        // Limpiar error al escribir
+        if (errors.rut) setErrors(prev => ({ ...prev, rut: undefined }));
+    };
+
+    const handleChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, [field]: e.target.value }));
+        if (errors[field as keyof FormErrors]) {
+            setErrors(prev => ({ ...prev, [field]: undefined }));
+        }
+    };
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!formData.name.trim()) {
-            toast.error("El nombre es requerido");
-            return;
-        }
+        if (!validate()) return;
 
         startTransition(async () => {
             try {
@@ -50,6 +79,8 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
                     body: JSON.stringify({
                         name: formData.name,
                         company: formData.company,
+                        rut: formData.rut,
+                        address: formData.address,
                         contactName: formData.representative,
                         contactEmail: formData.email,
                         contactPhone: formData.phone,
@@ -65,21 +96,15 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
                 } else {
                     toast.error(data.error || "Error al crear cliente");
                 }
-            } catch (error) {
-                console.error("Error creating client:", error);
+            } catch {
                 toast.error("Error al crear cliente");
             }
         });
     };
 
     const handleClose = () => {
-        setFormData({
-            name: "",
-            company: "",
-            representative: "",
-            email: "",
-            phone: "",
-        });
+        setFormData({ name: "", company: "", representative: "", email: "", phone: "", rut: "", address: "" });
+        setErrors({});
         onClose();
     };
 
@@ -108,58 +133,89 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleFormSubmit} className="p-6 space-y-5">
-                    {/* Name - Required */}
+                <form onSubmit={handleFormSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+                    {/* Nombre - Requerido */}
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Nombre del Cliente *
+                            Nombre del Cliente <span className="text-red-400">*</span>
                         </label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="text"
                                 value={formData.name}
-                                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                onChange={handleChange("name")}
                                 placeholder="Nombre completo o razón social"
-                                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                                maxLength={100}
+                                className={`w-full bg-slate-800/50 border rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:ring-1 outline-none transition-colors ${
+                                    errors.name
+                                        ? "border-red-500 focus:ring-red-500"
+                                        : "border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                                }`}
                                 autoFocus
-                                required
                             />
+                        </div>
+                        {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+                    </div>
+
+                    {/* Empresa + RUT */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                Empresa
+                            </label>
+                            <div className="relative">
+                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                                <input
+                                    type="text"
+                                    value={formData.company}
+                                    onChange={handleChange("company")}
+                                    placeholder="Empresa S.A."
+                                    maxLength={100}
+                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                RUT
+                            </label>
+                            <div className="relative">
+                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                                <input
+                                    type="text"
+                                    value={formData.rut}
+                                    onChange={handleRutChange}
+                                    placeholder="12.345.678-9"
+                                    maxLength={12}
+                                    className={`w-full bg-slate-800/50 border rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:ring-1 outline-none transition-colors font-mono tracking-wide ${
+                                        errors.rut
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                                    }`}
+                                />
+                            </div>
+                            {errors.rut && <p className="text-xs text-red-400 mt-1">{errors.rut}</p>}
                         </div>
                     </div>
 
-                    {/* Company */}
+                    {/* Representante */}
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Nombre de la Empresa
-                        </label>
-                        <div className="relative">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                            <input
-                                type="text"
-                                value={formData.company}
-                                onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
-                                placeholder="Empresa S.A."
-                                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Representative */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Representante
+                            Representante / Contacto
                         </label>
                         <input
                             type="text"
                             value={formData.representative}
-                            onChange={(e) => setFormData(prev => ({ ...prev, representative: e.target.value }))}
+                            onChange={handleChange("representative")}
                             placeholder="Nombre del contacto principal"
+                            maxLength={100}
                             className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
                         />
                     </div>
 
-                    {/* Email & Phone Row */}
+                    {/* Email & Teléfono */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -170,11 +226,17 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
                                 <input
                                     type="email"
                                     value={formData.email}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                    onChange={handleChange("email")}
                                     placeholder="correo@ejemplo.cl"
-                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                                    maxLength={254}
+                                    className={`w-full bg-slate-800/50 border rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:ring-1 outline-none transition-colors ${
+                                        errors.email
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                                    }`}
                                 />
                             </div>
+                            {errors.email && <p className="text-xs text-red-400 mt-1">{errors.email}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -185,11 +247,30 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
                                 <input
                                     type="tel"
                                     value={formData.phone}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                    onChange={handleChange("phone")}
                                     placeholder="+56 9 1234 5678"
+                                    maxLength={20}
                                     className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
                                 />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Dirección */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Dirección
+                        </label>
+                        <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                            <input
+                                type="text"
+                                value={formData.address}
+                                onChange={handleChange("address")}
+                                placeholder="Av. Providencia 1234, Of. 505"
+                                maxLength={200}
+                                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                            />
                         </div>
                     </div>
 

@@ -2,19 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
-import { Role } from "@prisma/client";
+import { Role } from '@/generated/prisma/client';
 import { processReceiptOCR } from "@/services/ocr-service";
 import { z } from "zod";
 import { validateBase64Image, sanitizeObject } from "@/lib/security-hardened";
 import { SecurityLogger } from "@/lib/security-logger";
+import { checkRateLimit } from "@/lib/redis";
 import { headers } from "next/headers";
+import { logger } from "@/lib/logger";
 
 const ocrSchema = z.object({
     image: z.string().min(100), // Base64 image
 });
 
-// Rate limiting: Track OCR requests per user
-const ocrRateLimit = new Map<string, { count: number; resetAt: number }>();
 const MAX_OCR_PER_HOUR = 15;
 
 // POST /api/finance/ocr - Process receipt image
@@ -51,36 +51,25 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
         }
 
-        // Rate limiting check
+        // Rate limiting check (Redis-backed, persistent across restarts)
         const userId = session.user.id;
-        const now = Date.now();
-        const userLimit = ocrRateLimit.get(userId);
-
-        if (userLimit) {
-            if (now < userLimit.resetAt) {
-                if (userLimit.count >= MAX_OCR_PER_HOUR) {
-                    SecurityLogger.rateLimited({
-                        ipAddress,
-                        userAgent,
-                        endpoint: '/api/finance/ocr',
-                        limit: MAX_OCR_PER_HOUR,
-                        window: 3600000
-                    });
-                    return NextResponse.json(
-                        {
-                            error: "Límite de escaneos alcanzado",
-                            message: `Máximo ${MAX_OCR_PER_HOUR} escaneos por hora`,
-                            retryAfter: Math.ceil((userLimit.resetAt - now) / 1000),
-                        },
-                        { status: 429 }
-                    );
-                }
-                userLimit.count++;
-            } else {
-                ocrRateLimit.set(userId, { count: 1, resetAt: now + 3600000 });
-            }
-        } else {
-            ocrRateLimit.set(userId, { count: 1, resetAt: now + 3600000 });
+        const rateLimit = await checkRateLimit(`ocr:${userId}`, MAX_OCR_PER_HOUR, 3600);
+        if (!rateLimit.allowed) {
+            SecurityLogger.rateLimited({
+                ipAddress,
+                userAgent,
+                endpoint: '/api/finance/ocr',
+                limit: MAX_OCR_PER_HOUR,
+                window: 3600000
+            });
+            return NextResponse.json(
+                {
+                    error: "Límite de escaneos alcanzado",
+                    message: `Máximo ${MAX_OCR_PER_HOUR} escaneos por hora`,
+                    retryAfter: rateLimit.resetIn,
+                },
+                { status: 429 }
+            );
         }
 
         const body = await request.json();
@@ -90,7 +79,7 @@ export async function POST(request: NextRequest) {
 
         if (!validation.success) {
             return NextResponse.json(
-                { error: "Imagen requerida", details: validation.error.issues },
+                { error: "Imagen requerida" },
                 { status: 400 }
             );
         }
@@ -327,9 +316,9 @@ export async function POST(request: NextRequest) {
             totalTime: Date.now() - startTime,
         });
     } catch (error) {
-        console.error("[OCR POST] Error:", error);
+        logger.error("[OCR POST] Error", error);
         return NextResponse.json(
-            { error: "Error al procesar imagen", details: (error as Error).message },
+            { error: "Error al procesar imagen" },
             { status: 500 }
         );
     }

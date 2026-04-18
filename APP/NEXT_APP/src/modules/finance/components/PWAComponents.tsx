@@ -82,10 +82,19 @@ export function usePWA() {
 
 export function PWARegister() {
     useEffect(() => {
-        if ("serviceWorker" in navigator) {
-            // Register service worker
+        if (!("serviceWorker" in navigator)) return;
+
+        type IdleWindow = Window & {
+            requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+            cancelIdleCallback?: (handle: number) => void;
+        };
+
+        const swVersion = "v3";
+        const idleWindow = window as IdleWindow;
+
+        const registerServiceWorker = () => {
             navigator.serviceWorker
-                .register("/sw.js")
+                .register(`/sw.js?${swVersion}`)
                 .then((registration) => {
                     console.log("SW registered:", registration.scope);
 
@@ -105,7 +114,47 @@ export function PWARegister() {
                 .catch((error) => {
                     console.error("SW registration failed:", error);
                 });
+        };
+
+        let idleHandle: number | null = null;
+        let fallbackTimeout: number | null = null;
+        let loadListenerAttached = false;
+
+        const scheduleRegistration = () => {
+            if (typeof idleWindow.requestIdleCallback === "function") {
+                idleHandle = idleWindow.requestIdleCallback(
+                    () => registerServiceWorker(),
+                    { timeout: 3000 }
+                );
+                return;
+            }
+
+            fallbackTimeout = window.setTimeout(() => registerServiceWorker(), 1200);
+        };
+
+        if (document.readyState === "complete") {
+            scheduleRegistration();
+        } else {
+            window.addEventListener("load", scheduleRegistration, { once: true });
+            loadListenerAttached = true;
         }
+
+        return () => {
+            if (
+                idleHandle !== null &&
+                typeof idleWindow.cancelIdleCallback === "function"
+            ) {
+                idleWindow.cancelIdleCallback(idleHandle);
+            }
+
+            if (fallbackTimeout !== null) {
+                window.clearTimeout(fallbackTimeout);
+            }
+
+            if (loadListenerAttached) {
+                window.removeEventListener("load", scheduleRegistration);
+            }
+        };
     }, []);
 
     return null;

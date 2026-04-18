@@ -55,6 +55,9 @@ const typeIcons: Record<string, typeof Bell> = {
     TOOL_USAGE_SPIKE: TrendingUp,
     SYSTEM_ERROR: AlertTriangle,
     SYSTEM_MAINTENANCE: Server,
+    CONCURRENT_SESSION_DETECTED: Shield,
+    SESSION_FROM_NEW_LOCATION: Shield,
+    SESSION_REVOKED: Key,
 };
 
 // Priority colors
@@ -93,15 +96,35 @@ function timeAgo(dateStr: string): string {
     });
 }
 
+// Type to action URL mapping
+const typeActionUrls: Record<string, string> = {
+    CONCURRENT_SESSION_DETECTED: "/admin/profile?tab=sessions",
+    SESSION_FROM_NEW_LOCATION: "/admin/profile?tab=sessions",
+    SESSION_REVOKED: "/admin/profile?tab=sessions",
+    PASSWORD_CHANGED: "/admin/profile?tab=security",
+    USER_ROLE_CHANGED: "/admin/profile?tab=permissions",
+};
+
 // Notification Item Component
 function NotificationItem({
     notification,
     onMarkRead,
+    onClose,
 }: {
     notification: Notification;
     onMarkRead: (id: string) => void;
+    onClose: () => void;
 }) {
     const Icon = typeIcons[notification.type] || Bell;
+    const actionUrl = typeActionUrls[notification.type];
+
+    const handleClick = () => {
+        if (!notification.isRead) onMarkRead(notification.id);
+        if (actionUrl) {
+            onClose();
+            window.location.href = actionUrl;
+        }
+    };
 
     return (
         <motion.div
@@ -117,7 +140,7 @@ function NotificationItem({
                 }
                 hover:bg-white/5
             `}
-            onClick={() => !notification.isRead && onMarkRead(notification.id)}
+            onClick={handleClick}
         >
             {/* Icon */}
             <div className={`
@@ -140,6 +163,12 @@ function NotificationItem({
                 <p className="text-xs text-neutral-400 mt-1 line-clamp-2">
                     {notification.message}
                 </p>
+                {actionUrl && (
+                    <p className="text-xs text-accent-1 mt-1.5 flex items-center gap-1 font-medium">
+                        Ver en mi perfil
+                        <ArrowRight size={12} />
+                    </p>
+                )}
                 {notification.actorName && (
                     <p className="text-xs text-neutral-500 mt-1">
                         por {notification.actorName}
@@ -313,6 +342,7 @@ export function NotificationPanel({ isOpen, onClose, onUnreadCountChange }: Noti
                                             key={notification.id}
                                             notification={notification}
                                             onMarkRead={handleMarkRead}
+                                            onClose={onClose}
                                         />
                                     ))}
                                 </AnimatePresence>

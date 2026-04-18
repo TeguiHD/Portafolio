@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Bell,
+    ArrowRight,
     Check,
     CheckCheck,
     CheckCircle,
@@ -25,6 +27,7 @@ import {
     Clock,
     Circle,
     Inbox,
+    Monitor,
     Sparkles,
     Loader2,
 } from "lucide-react";
@@ -57,6 +60,9 @@ const typeIcons: Record<string, typeof Bell> = {
     USER_DELETED: UserMinus,
     PASSWORD_CHANGED: Key,
     LOGIN_RATE_LIMITED: Shield,
+    CONCURRENT_SESSION_DETECTED: Monitor,
+    SESSION_FROM_NEW_LOCATION: Shield,
+    SESSION_REVOKED: CheckCircle,
     QUOTATION_CREATED: FileText,
     QUOTATION_STATUS_CHANGED: FileText,
     TOOL_STATUS_CHANGED: Wrench,
@@ -102,6 +108,9 @@ const typeCategories: Record<string, TypeFilter> = {
     USER_DELETED: "USER",
     PASSWORD_CHANGED: "SECURITY",
     LOGIN_RATE_LIMITED: "SECURITY",
+    CONCURRENT_SESSION_DETECTED: "SECURITY",
+    SESSION_FROM_NEW_LOCATION: "SECURITY",
+    SESSION_REVOKED: "SECURITY",
     QUOTATION_CREATED: "QUOTATION",
     QUOTATION_STATUS_CHANGED: "QUOTATION",
     TOOL_STATUS_CHANGED: "TOOL",
@@ -145,17 +154,230 @@ function formatFullDate(dateStr: string): string {
     });
 }
 
+function humanizeMetadataKey(key: string): string {
+    const labels: Record<string, string> = {
+        newIP: "IP detectada",
+        ip: "IP",
+        newBrowser: "Navegador",
+        browser: "Navegador",
+        newDevice: "Dispositivo",
+        device: "Dispositivo",
+        existingSessions: "Sesiones adicionales",
+        userId: "Usuario afectado",
+        toolId: "Herramienta",
+        quotationId: "Cotización",
+        oldRole: "Rol anterior",
+        newRole: "Rol nuevo",
+        oldStatus: "Estado anterior",
+        newStatus: "Estado nuevo",
+        folio: "Folio",
+        usageCount: "Usos",
+        attempts: "Intentos",
+        identifier: "Identificador",
+        scheduledAt: "Programado para",
+    };
+
+    return labels[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (value) => value.toUpperCase());
+}
+
+function formatMetadataValue(key: string, value: unknown): string {
+    if (value == null) return "—";
+
+    if (typeof value === "string") {
+        if (key.toLowerCase().includes("ip")) {
+            if (value.length <= 6) return value;
+            return `${value.slice(0, 6)}•••`;
+        }
+
+        const parsedDate = new Date(value);
+        if (!Number.isNaN(parsedDate.getTime()) && value.includes("T")) {
+            return formatFullDate(parsedDate.toISOString());
+        }
+
+        return value;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((entry) => formatMetadataValue(key, entry)).join(", ");
+    }
+
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return "Dato no disponible";
+    }
+}
+
+function resolveNotificationAction(notification: Notification): { label: string; href: string } | null {
+    const metadata = notification.metadata || {};
+    const toolId = typeof metadata.toolId === "string" ? metadata.toolId : null;
+
+    if (
+        notification.type === "CONCURRENT_SESSION_DETECTED" ||
+        notification.type === "SESSION_FROM_NEW_LOCATION" ||
+        notification.type === "SESSION_REVOKED"
+    ) {
+        return { label: "Ver sesiones activas", href: "/admin/profile?tab=sessions" };
+    }
+
+    if (toolId) {
+        return { label: "Ver herramienta", href: `/admin/herramientas/${toolId}` };
+    }
+
+    if (typeCategories[notification.type] === "USER") {
+        return { label: "Abrir usuarios", href: "/admin/users" };
+    }
+
+    if (typeCategories[notification.type] === "QUOTATION") {
+        return { label: "Abrir propuestas", href: "/admin/cotizaciones" };
+    }
+
+    if (typeCategories[notification.type] === "TOOL") {
+        return { label: "Abrir herramientas", href: "/admin/herramientas" };
+    }
+
+    if (typeCategories[notification.type] === "SECURITY" || typeCategories[notification.type] === "SYSTEM") {
+        return { label: "Ir al centro de seguridad", href: "/admin/security" };
+    }
+
+    return null;
+}
+
+function NotificationDetailsModal({
+    notification,
+    onClose,
+    onMarkRead,
+    onNavigate,
+}: {
+    notification: Notification;
+    onClose: () => void;
+    onMarkRead: (id: string) => Promise<void>;
+    onNavigate: (href: string) => void;
+}) {
+    const Icon = typeIcons[notification.type] || Bell;
+    const priority = priorityStyles[notification.priority];
+    const action = resolveNotificationAction(notification);
+    const metadataEntries = Object.entries(notification.metadata || {}).filter(([, value]) => value !== null && value !== undefined);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 18, scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#0B1220]/95 shadow-2xl shadow-black/50"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="flex items-start justify-between gap-4 p-5 sm:p-6 border-b border-white/10">
+                    <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${notification.isRead ? "bg-white/5" : "bg-white/10"}`}>
+                            <Icon className={`w-5 h-5 ${notification.isRead ? "text-neutral-500" : "text-accent-1"}`} />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="text-lg sm:text-xl font-semibold text-white">{notification.title}</h2>
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${priority.badge}`}>
+                                    {priority.text}
+                                </span>
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${notification.isRead ? "bg-white/10 text-neutral-400" : "bg-accent-1/15 text-accent-1"}`}>
+                                    {notification.isRead ? "Leída" : "Sin leer"}
+                                </span>
+                            </div>
+                            <p className="text-sm text-neutral-400 mt-1">{formatFullDate(notification.createdAt)}</p>
+                            {notification.actorName && (
+                                <p className="text-xs text-neutral-500 mt-1">Acción registrada por {notification.actorName}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-xl text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
+                        aria-label="Cerrar detalle"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-5 sm:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-sm leading-6 text-neutral-200">{notification.message}</p>
+                    </div>
+
+                    {metadataEntries.length > 0 && (
+                        <div className="space-y-3">
+                            <h3 className="text-sm font-semibold text-white">Contexto del evento</h3>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {metadataEntries.map(([key, value]) => (
+                                    <div key={key} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                        <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 mb-1.5">
+                                            {humanizeMetadataKey(key)}
+                                        </p>
+                                        <p className="text-sm text-white break-words">{formatMetadataValue(key, value)}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 p-5 sm:p-6 border-t border-white/10 bg-white/[0.02] rounded-b-3xl">
+                    <div className="flex items-center gap-2 text-xs text-neutral-500">
+                        <Shield size={13} className="text-accent-1" />
+                        Revisa este evento y responde según el riesgo asociado.
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                        {!notification.isRead && (
+                            <button
+                                onClick={() => onMarkRead(notification.id)}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-neutral-200 hover:bg-white/10 transition-colors text-sm"
+                            >
+                                <Check size={15} />
+                                Marcar como leída
+                            </button>
+                        )}
+
+                        {action && (
+                            <button
+                                onClick={() => onNavigate(action.href)}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-accent-1 text-black hover:bg-accent-1/90 transition-colors text-sm font-semibold"
+                            >
+                                {action.label}
+                                <ArrowRight size={15} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+}
+
 // Notification Card Component
 function NotificationCard({
     notification,
     isSelected,
     onSelect,
+    onOpen,
     onMarkRead,
     compact = false,
 }: {
     notification: Notification;
     isSelected: boolean;
     onSelect: (id: string) => void;
+    onOpen: (notification: Notification) => void;
     onMarkRead: (id: string) => void;
     compact?: boolean;
 }) {
@@ -176,7 +398,7 @@ function NotificationCard({
                     ${notification.isRead ? "bg-white/[0.01]" : priority.bg}
                     ${isSelected ? "ring-1 ring-accent-1/50" : ""}
                 `}
-                onClick={() => !notification.isRead && onMarkRead(notification.id)}
+                    onClick={() => onOpen(notification)}
             >
                 <div className="flex items-start gap-3">
                     <div className={`
@@ -217,7 +439,7 @@ function NotificationCard({
                 ${notification.isRead ? "bg-white/[0.02]" : priority.bg}
                 ${isSelected ? "ring-2 ring-accent-1/50 bg-accent-1/5" : "hover:bg-white/[0.04]"}
             `}
-            onClick={() => onSelect(notification.id)}
+            onClick={() => onOpen(notification)}
         >
             <div className="flex gap-3 sm:gap-4">
                 {/* Selection Checkbox - Hidden on mobile */}
@@ -339,6 +561,7 @@ function StatsPill({ icon: Icon, value, label, color, active, onClick }: {
 }
 
 export default function NotificationsPageClient() {
+    const router = useRouter();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
@@ -354,6 +577,7 @@ export default function NotificationsPageClient() {
     // Selection
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isMarkingRead, setIsMarkingRead] = useState(false);
+    const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
 
     // Fetch notifications
     const fetchNotifications = useCallback(async () => {
@@ -455,11 +679,20 @@ export default function NotificationsPageClient() {
             setNotifications(prev =>
                 prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
             );
+            setActiveNotification(prev => prev && prev.id === notificationId ? { ...prev, isRead: true } : prev);
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (error) {
             console.error("Error marking as read:", error);
         }
     };
+
+    const openNotificationDetails = useCallback(async (notification: Notification) => {
+        setActiveNotification(notification);
+
+        if (!notification.isRead) {
+            await markAsRead(notification.id);
+        }
+    }, []);
 
     const markSelectedAsRead = async () => {
         setIsMarkingRead(true);
@@ -723,6 +956,7 @@ export default function NotificationsPageClient() {
                                     notification={notification}
                                     isSelected={selectedIds.has(notification.id)}
                                     onSelect={toggleSelect}
+                                    onOpen={openNotificationDetails}
                                     onMarkRead={markAsRead}
                                     compact={isMobile}
                                 />
@@ -864,6 +1098,20 @@ export default function NotificationsPageClient() {
                         </motion.div>
                     );
                 })()}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {activeNotification && (
+                    <NotificationDetailsModal
+                        notification={activeNotification}
+                        onClose={() => setActiveNotification(null)}
+                        onMarkRead={markAsRead}
+                        onNavigate={(href) => {
+                            setActiveNotification(null);
+                            router.push(href);
+                        }}
+                    />
+                )}
             </AnimatePresence>
         </div>
     );

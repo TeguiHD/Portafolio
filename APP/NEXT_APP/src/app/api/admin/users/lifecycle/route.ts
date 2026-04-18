@@ -24,7 +24,7 @@ import {
     processScheduledDeletions
 } from "@/lib/user-lifecycle";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 // Rate limiting for sensitive operations
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute

@@ -1,0 +1,3 @@
+# ads.txt - Authorized Digital Sellers
+# This site does not participate in programmatic advertising.
+# https://iabtechlab.com/ads-txt/

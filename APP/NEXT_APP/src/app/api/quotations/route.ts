@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
         if (security.error) return security.error;
         const session = security.session!;
 
+        const url = new URL(request.url);
+        const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+        const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10)));
+
         const quotations = await prisma.quotation.findMany({
             where: {
                 OR: [
@@ -43,6 +47,8 @@ export async function GET(request: NextRequest) {
                 ]
             },
             orderBy: { createdAt: "desc" },
+            skip: (page - 1) * limit,
+            take: limit,
             include: {
                 client: {
                     select: {

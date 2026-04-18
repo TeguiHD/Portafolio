@@ -84,9 +84,9 @@ export function ContactSection() {
         animate={{ scale: 1, opacity: 1 }}
         className="w-20 h-20 rounded-full bg-gradient-to-b from-white/10 to-transparent border border-white/10 flex items-center justify-center mb-6"
       >
-        <CheckCircle2 className="w-10 h-10 text-white" />
+        <CheckCircle2 className="w-10 h-10 text-white" aria-hidden="true" />
       </motion.div>
-      <h3 className="text-2xl font-bold text-white mb-3">Mensaje Enviado</h3>
+      <h3 className="text-2xl font-bold text-white mb-3" role="status" aria-live="polite">Mensaje Enviado</h3>
       <p className="text-gray-400 mb-8 max-w-[280px] leading-relaxed">
         He recibido tu mensaje correctamente. Te contactaré en breve.
       </p>
@@ -110,11 +110,13 @@ export function ContactSection() {
         tabIndex={-1}
         className="sr-only"
         autoComplete="off"
+        aria-hidden="true"
       />
 
       <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Tu Nombre</label>
+        <label htmlFor="contact-name" className="text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Tu Nombre</label>
         <input
+          id="contact-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -125,8 +127,9 @@ export function ContactSection() {
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Correo Electrónico</label>
+        <label htmlFor="contact-email" className="text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Correo Electrónico</label>
         <input
+          id="contact-email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -138,8 +141,9 @@ export function ContactSection() {
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Describe tu proyecto</label>
+        <label htmlFor="contact-message" className="text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Describe tu proyecto</label>
         <textarea
+          id="contact-message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           required
@@ -151,8 +155,8 @@ export function ContactSection() {
       </div>
 
       {status === "error" && (
-        <div className="flex items-center gap-3 p-4 bg-red-500/5 border border-red-500/10 rounded-xl text-red-300 text-sm">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div role="alert" aria-live="assertive" className="flex items-center gap-3 p-4 bg-red-500/5 border border-red-500/10 rounded-xl text-red-300 text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
           {errorMessage}
         </div>
       )}
@@ -222,7 +226,7 @@ export function ContactSection() {
               <div className="glass-panel rounded-2xl border border-accent-1/20 bg-white/5 p-5">
                 <div className="flex gap-4 items-start">
                   <div className="w-11 h-11 rounded-2xl bg-accent-1/10 border border-accent-1/20 flex items-center justify-center shrink-0">
-                    <Zap className="w-5 h-5 text-accent-1" />
+                    <Zap className="w-5 h-5 text-accent-1" aria-hidden="true" />
                   </div>
                   <div>
                     <h4 className="text-white font-semibold text-base">Velocidad de ejecución</h4>
@@ -236,7 +240,7 @@ export function ContactSection() {
               <div className="glass-panel rounded-2xl border border-accent-2/20 bg-white/5 p-5">
                 <div className="flex gap-4 items-start">
                   <div className="w-11 h-11 rounded-2xl bg-accent-2/10 border border-accent-2/20 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-5 h-5 text-accent-2" />
+                    <ShieldCheck className="w-5 h-5 text-accent-2" aria-hidden="true" />
                   </div>
                   <div>
                     <h4 className="text-white font-semibold text-base">Calidad industrial</h4>

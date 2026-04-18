@@ -4,7 +4,7 @@ import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 import { useAdminLayout } from "@/modules/admin/context/AdminLayoutContext";
 import { NotificationButton } from "@/modules/admin/components/NotificationPanel";
 
@@ -23,8 +23,25 @@ const routeNames: Record<string, string> = {
     "/admin/analytics": "Analytics",
     "/admin/cotizaciones": "Cotizaciones",
     "/admin/cv-editor": "Editor CV",
+    "/admin/jobs": "Empleos y CV",
     "/admin/users": "Usuarios",
     "/admin/herramientas": "Herramientas",
+    "/admin/clientes": "Clientes",
+    "/admin/connections": "Conexiones",
+    "/admin/profile": "Mi Perfil",
+    "/admin/finance": "Finanzas",
+    "/admin/gestion-comercial": "Gestión Comercial",
+    "/admin/gestion-comercial/servicios": "Servicios",
+    "/admin/gestion-comercial/pipeline": "Pipeline CRM",
+    "/admin/gestion-comercial/clientes": "Clientes CRM",
+    "/admin/gestion-comercial/propuestas": "Propuestas",
+    "/admin/gestion-comercial/contratos": "Contratos",
+    "/admin/gestion-comercial/gastos": "Gastos",
+    "/admin/gestion-comercial/pagos": "Pagos",
+    "/admin/audit": "Auditoría",
+    "/admin/security": "Seguridad",
+    "/admin/contact": "Mensajes",
+    "/admin/notifications": "Notificaciones",
 };
 
 function getBreadcrumbs(pathname: string): { name: string; href: string }[] {
@@ -34,7 +51,9 @@ function getBreadcrumbs(pathname: string): { name: string; href: string }[] {
     let currentPath = "";
     for (const segment of segments) {
         currentPath += `/${segment}`;
-        const name = routeNames[currentPath] || segment.charAt(0).toUpperCase() + segment.slice(1);
+        // Detect CUID-like segments (e.g., clmy1abc...) and label as "Detalle"
+        const isId = /^[a-z0-9]{20,}$/i.test(segment);
+        const name = routeNames[currentPath] || (isId ? "Detalle" : segment.charAt(0).toUpperCase() + segment.slice(1));
         breadcrumbs.push({ name, href: currentPath });
     }
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sanitizeInput } from "@/lib/security";
 import { checkRateLimit } from "@/lib/redis";
 import { SecurityLogger } from "@/lib/security-logger";
+import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
 // Rate limit: 3 messages per hour per IP
@@ -241,7 +242,7 @@ export async function POST(request: NextRequest) {
         });
 
         // 9. Log successful submission
-        console.log(`[Contact] New message from ${sanitizedEmail} (spam: ${isSpam}, score: ${spamScore})`);
+        logger.info("[Contact] Message received", { ipHash, isSpam, spamScore });
 
         return NextResponse.json({
             success: true,
@@ -250,7 +251,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error("[Contact] Error:", error);
+        logger.error("[Contact] Error", error);
 
         return NextResponse.json(
             { error: "Error al enviar el mensaje. Intenta de nuevo." },

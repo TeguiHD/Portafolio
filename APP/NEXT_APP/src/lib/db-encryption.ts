@@ -290,14 +290,67 @@ export const ENCRYPTED_FIELDS: FieldEncryptionConfig[] = [
 ]
 
 /**
- * Prisma middleware for automatic encryption/decryption
+ * Prisma Client Extension for automatic encryption/decryption
+ * (Prisma v7 — replaces deprecated $use middleware)
  * 
  * Usage in prisma.ts:
  * ```
- * import { createEncryptionMiddleware } from '@/lib/db-encryption'
+ * import { createEncryptionExtension } from '@/lib/db-encryption'
  * 
- * prisma.$use(createEncryptionMiddleware())
+ * const prisma = new PrismaClient({ adapter }).$extends(createEncryptionExtension())
  * ```
+ */
+export function createEncryptionExtension() {
+    return {
+        query: {
+            $allModels: {
+                async $allOperations({ model, operation, args, query }: {
+                    model: string
+                    operation: string
+                    args: Record<string, unknown>
+                    query: (args: Record<string, unknown>) => Promise<unknown>
+                }) {
+                    const config = ENCRYPTED_FIELDS.find(c => c.model === model)
+
+                    if (!config) {
+                        return query(args)
+                    }
+
+                    // Encrypt on create/update
+                    if (['create', 'update', 'upsert'].includes(operation)) {
+                        const data = (args as Record<string, Record<string, unknown>>).data
+                        if (data) {
+                            for (const field of config.fields) {
+                                if (typeof data[field] === 'string') {
+                                    data[field] = encryptField(data[field], `${model}.${field}`)
+                                }
+                            }
+                        }
+                    }
+
+                    const result = await query(args)
+
+                    // Decrypt on read
+                    if (['findUnique', 'findFirst', 'findMany'].includes(operation)) {
+                        if (Array.isArray(result)) {
+                            for (const record of result) {
+                                decryptRecord(record as Record<string, unknown>, config.fields, model)
+                            }
+                        } else if (result) {
+                            decryptRecord(result as Record<string, unknown>, config.fields, model)
+                        }
+                    }
+
+                    return result
+                },
+            },
+        },
+    }
+}
+
+/**
+ * @deprecated Use createEncryptionExtension() with $extends instead.
+ * The $use middleware API was removed in Prisma v7.
  */
 export function createEncryptionMiddleware() {
     return async (params: {

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { ContractStatus, ContractType } from "@prisma/client";
+import type { ContractStatus, ContractType } from '@/generated/prisma/client';
 import { createContractAction, updateContractAction, deleteContractAction } from "./actions";
 
 // ============================================================================

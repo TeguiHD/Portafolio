@@ -1,32 +1,30 @@
 import 'dotenv/config'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../src/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!
-})
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
 async function updateCv() {
-    const cvVersionId = 'cmk3aefsj000v74r1r2aopjcs'
-    const _userId = 'cmk3aeete000074r15dwaqni5'
+    const cvVersionId = 'cml77ae1f000zpuijrhnyomn2'
+    const _userId = 'cml77adv30000puijk93ulir4'
 
     console.log('🔄 Actualizando CV para usuario superadmin1@nicoholas.dev...\n')
 
-    // Actualizar información personal con datos del PDF
+    // Actualizar información personal
     await prisma.cvVersion.update({
         where: { id: cvVersionId },
         data: {
             fullName: 'Nicoholas Jesús Lopetegui Salazar',
-            title: 'Estudiante de Ingeniería en Informática | Desarrollador Web Full Stack',
+            title: 'Ingeniero en Informática | Desarrollador Web Full Stack',
             email: 'nikoholas.lopetegui@gmail.com',
             phone: '+56 9 5896 2507',
             location: 'Santiago, Chile',
             orcid: '0009-0006-7721-8907',
             linkedin: 'linkedin.com/in/nicoholas-lopetegui',
-            github: 'github.com/nikoholas',
+            github: 'github.com/TeguiHD',
             website: 'nicoholas.dev',
-            summary: 'Estudiante de Ingeniería en Informática con experiencia en desarrollo web, análisis de datos, machine learning, redes y ciberseguridad. Cuento con habilidades en desarrollo de soluciones tecnológicas eficientes, implementación de plataformas digitales y automatización de procesos. Apasionado por crear soluciones innovadoras que generen impacto real.',
+            summary: 'Ingeniero en Informática con experiencia en desarrollo web full stack, automatización de procesos, análisis de datos, machine learning, redes y ciberseguridad. Especializado en integración de plataformas digitales, desarrollo de soluciones eficientes para la gestión operativa, y automatización de flujos de trabajo. Experiencia práctica en IoT y electrónica aplicada (ESP32, Arduino, Raspberry Pi, sensores industriales) para captura y procesamiento de datos del entorno físico. Apasionado por la innovación tecnológica aplicada a procesos operativos y la transición digital en sectores estratégicos.',
         }
     })
     console.log('✅ Información personal actualizada')
@@ -34,17 +32,16 @@ async function updateCv() {
     // Eliminar experiencias existentes y crear nuevas
     await prisma.cvExperience.deleteMany({ where: { cvVersionId } })
 
-    // Crear experiencias basadas en el PDF
     await prisma.cvExperience.createMany({
         data: [
             {
                 cvVersionId,
                 company: 'Servicio Local de Educación Pública Santa Rosa',
                 position: 'Práctica Profesional',
-                startDate: '2025',
-                endDate: null,
-                isCurrent: true,
-                description: 'Desarrollo web y automatización de procesos internos para el SLEP.',
+                startDate: 'Enero 2025',
+                endDate: 'Junio 2025',
+                isCurrent: false,
+                description: 'Desarrollo web y automatización de procesos internos para el SLEP (6 meses).',
                 achievements: [
                     'Desarrollo web y automatización: Creación de plataformas digitales para facilitar la gestión de directivos y docentes, optimizando el acceso a información relevante',
                     'Automatización de la recolección de datos en formularios y encuestas',
@@ -56,18 +53,38 @@ async function updateCv() {
             },
             {
                 cvVersionId,
-                company: 'Dracamila.cl',
+                company: 'floresdyd.cl',
                 position: 'Desarrollador Web Freelance',
-                startDate: '2024',
-                endDate: '2024',
+                startDate: 'Febrero 2026',
+                endDate: 'Febrero 2026',
                 isCurrent: false,
-                description: 'Lideré el diseño y desarrollo de una plataforma web para el emprendimiento.',
+                description: 'Diseño y desarrollo integral de plataforma e-commerce para florería familiar con más de 30 años de trayectoria en Santiago. Catálogo de +50 productos con aumento de ventas y presencia online del 245%.',
                 achievements: [
-                    'Lideré el diseño y desarrollo de una plataforma web con HTML, CSS, JavaScript y MySQL, implementando funcionalidades dinámicas con PHP',
-                    'Implementación de sistema de gestión de contenido personalizado',
-                    'Optimización SEO y rendimiento web'
+                    'Desarrollo completo de plataforma e-commerce con Laravel (PHP), implementando catálogo de +50 productos, carrito de compras, sistema de pagos y gestión de pedidos',
+                    'Incremento de ventas y presencia online en un 245% mediante estrategia integral de posicionamiento digital',
+                    'Implementación de sistema de gestión de contenido (CMS) personalizado para administración autónoma de productos, categorías y promociones',
+                    'Estrategia SEO (optimización on-page, meta tags, sitemap), AEO (contenido estructurado para respuestas directas en buscadores) y GEO (geolocalización para captar clientes en Santiago)',
+                    'Integración de canal de ventas vía WhatsApp Business para atención directa al cliente',
+                    'Diseño responsive y optimización de rendimiento web para mejorar la conversión de ventas online'
                 ],
                 sortOrder: 1,
+            },
+            {
+                cvVersionId,
+                company: 'yoestoyaqui.cl',
+                position: 'Desarrollador Web Freelance',
+                startDate: 'Diciembre 2025',
+                endDate: 'Diciembre 2025',
+                isCurrent: false,
+                description: 'Desarrollo de plataforma web y landing page para ecosistema digital que conecta usuarios con PYMEs y emprendedores verificados. +10 descargas de app y 5 negocios registrados en fase inicial.',
+                achievements: [
+                    'Desarrollo de landing page y plataforma web en stack LAMP (Linux, Apache, MySQL, PHP) para promoción y descarga de aplicación móvil',
+                    'Plataforma en fase de crecimiento: +10 descargas de la aplicación móvil y 5 negocios verificados registrados',
+                    'Implementación de secciones informativas corporativas (misión, visión, propuesta de valor) orientadas a la conversión de usuarios y socios comerciales',
+                    'Diseño de interfaz con foco en UX para maximizar descargas desde Google Play y App Store',
+                    'Configuración de servidor y despliegue en entorno de producción'
+                ],
+                sortOrder: 2,
             },
         ]
     })
@@ -81,11 +98,11 @@ async function updateCv() {
             {
                 cvVersionId,
                 institution: 'Universidad Bernardo O\'Higgins',
-                degree: 'Ingeniería en Informática',
-                field: 'Informática y Sistemas',
+                degree: 'Ingeniero en Informática (Titulado)',
+                field: 'Facultad de Ingeniería, Ciencia y Tecnología',
                 startDate: '2021',
-                endDate: null,
-                isCurrent: true,
+                endDate: 'Diciembre 2025',
+                isCurrent: false,
                 sortOrder: 0,
             },
         ]
@@ -100,7 +117,7 @@ async function updateCv() {
             {
                 cvVersionId,
                 category: 'Desarrollo Web',
-                items: ['HTML', 'CSS', 'PHP', 'JavaScript', 'React', 'TypeScript', 'MySQL', 'Next.js', 'Tailwind CSS', 'Node.js'],
+                items: ['HTML', 'CSS', 'PHP', 'Laravel', 'JavaScript', 'React', 'TypeScript', 'MySQL', 'Next.js', 'Tailwind CSS', 'Node.js'],
                 sortOrder: 0,
             },
             {
@@ -118,20 +135,26 @@ async function updateCv() {
             {
                 cvVersionId,
                 category: 'Ciberseguridad',
-                items: ['Análisis de amenazas', 'Configuración de redes seguras', 'Seguridad web', 'OWASP'],
+                items: ['Análisis de amenazas', 'Configuración de redes seguras', 'Seguridad web', 'OWASP', 'NIST', 'MITRE ATT&CK'],
                 sortOrder: 3,
             },
             {
                 cvVersionId,
                 category: 'Bases de Datos',
-                items: ['PostgreSQL', 'MySQL', 'Diseño', 'Administración', 'Optimización', 'Prisma ORM'],
+                items: ['PostgreSQL', 'MySQL', 'Diseño', 'Administración', 'Optimización', 'Prisma ORM', 'SQL'],
                 sortOrder: 4,
             },
             {
                 cvVersionId,
                 category: 'Data Science & ML',
-                items: ['Python', 'Scikit-learn', 'Pandas', 'NumPy', 'Análisis de datos', 'Machine Learning', 'R'],
+                items: ['Python', 'Scikit-learn', 'Pandas', 'NumPy', 'Análisis de datos', 'Machine Learning', 'R', 'Google Cloud Computing (GCP)', 'Power BI', 'Google Looker Studio'],
                 sortOrder: 5,
+            },
+            {
+                cvVersionId,
+                category: 'Automatización e IoT',
+                items: ['n8n', 'ESP32', 'Arduino', 'Raspberry Pi', 'Sensores (ultrasonido, humo, temperatura, humedad, nivel, RFID)', 'Prototipado de soluciones IoT'],
+                sortOrder: 6,
             },
         ]
     })
@@ -171,12 +194,30 @@ async function updateCv() {
             },
             {
                 cvVersionId,
-                name: 'Plataforma Dracamila.cl',
-                description: 'Diseño y desarrollo completo de plataforma web para emprendimiento. Implementación de funcionalidades dinámicas y sistema de gestión de contenido.',
-                technologies: ['HTML', 'CSS', 'JavaScript', 'PHP', 'MySQL'],
-                url: 'dracamila.cl',
-                year: '2024',
+                name: 'Plataforma E-commerce floresdyd.cl',
+                description: 'Diseño y desarrollo integral de plataforma e-commerce para florería familiar. Implementación de catálogo, carrito de compras, sistema de pagos y CMS personalizado. Estrategia completa de posicionamiento digital con SEO, AEO y GEO.',
+                technologies: ['Laravel', 'PHP', 'MySQL', 'HTML', 'CSS', 'JavaScript', 'SEO', 'AEO', 'GEO'],
+                url: 'floresdyd.cl',
+                year: '2024-2025',
                 sortOrder: 3,
+            },
+            {
+                cvVersionId,
+                name: 'Plataforma yoestoyaqui.cl',
+                description: 'Desarrollo de landing page y plataforma web para ecosistema digital que conecta usuarios con PYMEs verificadas. Implementación en stack LAMP con foco en conversión y descarga de aplicación móvil.',
+                technologies: ['PHP', 'MySQL', 'Linux', 'Apache', 'HTML', 'CSS', 'JavaScript'],
+                url: 'yoestoyaqui.cl',
+                year: '2024',
+                sortOrder: 4,
+            },
+            {
+                cvVersionId,
+                name: 'IA Aplicada a la Educación - Summit Educación UC',
+                description: 'Co-presentación en el Summit Educación UC "Inteligencia Artificial en la Educación" en la Pontificia Universidad Católica de Chile. Desarrollo de herramienta que cruza en tiempo real respuestas de estudiantes (escala Likert) con variables contextuales (tema, asignatura, día, horario, tipo de contenido) para detectar patrones de aprendizaje invisibles en el aula. Solución escalable a capacitaciones corporativas.',
+                technologies: ['Python', 'Data Analysis', 'Machine Learning', 'Real-time Processing', 'Learning Analytics'],
+                url: '',
+                year: '2026',
+                sortOrder: 5,
             },
         ]
     })
@@ -189,11 +230,19 @@ async function updateCv() {
         data: [
             {
                 cvVersionId,
+                name: 'Alumni Destacado - Ingeniería en Informática',
+                issuer: 'Universidad Bernardo O\'Higgins',
+                year: '2026',
+                url: '',
+                sortOrder: 0,
+            },
+            {
+                cvVersionId,
                 name: 'Cisco Cyber Threat Management',
                 issuer: 'Cisco',
                 year: '2023',
                 url: '',
-                sortOrder: 0,
+                sortOrder: 1,
             },
             {
                 cvVersionId,
@@ -201,7 +250,7 @@ async function updateCv() {
                 issuer: 'Coursera / Universidad',
                 year: '2024',
                 url: '',
-                sortOrder: 1,
+                sortOrder: 2,
             },
             {
                 cvVersionId,
@@ -209,7 +258,7 @@ async function updateCv() {
                 issuer: 'SDG Academy / UN SDSN',
                 year: '2024',
                 url: '',
-                sortOrder: 2,
+                sortOrder: 3,
             },
             {
                 cvVersionId,
@@ -217,7 +266,7 @@ async function updateCv() {
                 issuer: 'Chile',
                 year: 'Vigente',
                 url: '',
-                sortOrder: 3,
+                sortOrder: 4,
             },
         ]
     })

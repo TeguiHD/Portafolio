@@ -28,6 +28,24 @@ interface UserProfile {
     avatar: string | null;
 }
 
+interface SharedClientData {
+    id: string;
+    name: string;
+    company: string | null;
+    quotationCount: number;
+    permission: string;
+    sharedByName: string;
+}
+
+interface SharedQuotationData {
+    id: string;
+    folio: string;
+    projectName: string;
+    clientName: string;
+    status: string;
+    total: number;
+}
+
 
 
 export default function CollaborationHub({
@@ -132,7 +150,7 @@ export default function CollaborationHub({
                             <Share2 size={20} className="text-indigo-400" />
                             Recursos Compartidos Contigo
                         </h2>
-                        <SharedResourceBrowser />
+                        <SharedResourceBrowser currentUserId={currentUserId} />
                     </div>
                 </div>
 
@@ -154,8 +172,29 @@ export default function CollaborationHub({
 
 // Sub-components
 
-function SharedResourceBrowser() {
+function SharedResourceBrowser({ currentUserId: _currentUserId }: { currentUserId: string }) {
     const [activeTab, setActiveTab] = useState<"clients" | "quotations">("clients");
+    const [sharedClients, setSharedClients] = useState<SharedClientData[]>([]);
+    const [sharedQuotations, setSharedQuotations] = useState<SharedQuotationData[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const res = await fetch("/api/user/connection/shared-resources");
+                if (res.ok) {
+                    const data = await res.json();
+                    setSharedClients(data.clients || []);
+                    setSharedQuotations(data.quotations || []);
+                }
+            } catch (error) {
+                console.error("Failed to load shared resources", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, []);
 
     return (
         <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-6">
@@ -166,33 +205,119 @@ function SharedResourceBrowser() {
                         }`}
                 >
                     Clientes Compartidos
+                    {sharedClients.length > 0 && (
+                        <span className="ml-2 text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{sharedClients.length}</span>
+                    )}
                 </button>
                 <button
                     onClick={() => setActiveTab("quotations")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "quotations" ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
                         }`}
                 >
-                    Cotizaciones (Pronto)
+                    Cotizaciones
+                    {sharedQuotations.length > 0 && (
+                        <span className="ml-2 text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{sharedQuotations.length}</span>
+                    )}
                 </button>
             </div>
 
-            {activeTab === "clients" ? (
-                <div className="text-center py-8">
-                    <Users className="mx-auto text-slate-700 mb-4" size={32} />
-                    <p className="text-slate-400 mb-4">
-                        Puedes ver y gestionar los clientes que te han compartido en el módulo de Clientes.
-                    </p>
-                    <a
-                        href="/admin/clientes"
-                        className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 transition-colors"
-                    >
-                        Ir a Clientes <ExternalLink size={14} />
-                    </a>
+            {loading ? (
+                <div className="grid gap-3">
+                    {[1, 2].map(i => <div key={i} className="h-16 bg-slate-900/50 rounded-xl animate-pulse" />)}
                 </div>
+            ) : activeTab === "clients" ? (
+                sharedClients.length === 0 ? (
+                    <div className="text-center py-8">
+                        <Users className="mx-auto text-slate-700 mb-4" size={32} />
+                        <p className="text-slate-400 mb-2">No tienes clientes compartidos aún.</p>
+                        <p className="text-sm text-slate-500">
+                            Cuando un contacto comparta clientes contigo, aparecerán aquí.
+                        </p>
+                        <a
+                            href="/admin/clientes"
+                            className="inline-flex items-center gap-2 mt-4 text-indigo-400 hover:text-indigo-300 transition-colors"
+                        >
+                            Ir a Clientes <ExternalLink size={14} />
+                        </a>
+                    </div>
+                ) : (
+                    <div className="grid gap-3">
+                        {sharedClients.map((client) => (
+                            <div
+                                key={client.id}
+                                className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800/50 rounded-xl hover:border-slate-700 transition-all"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
+                                        <span className="text-sm font-bold text-white">{client.name.charAt(0)}</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-white">{client.name}</p>
+                                        <p className="text-xs text-slate-500">
+                                            {client.company || "Independiente"} · {client.quotationCount} cotización{client.quotationCount !== 1 ? "es" : ""}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-[10px] uppercase font-bold tracking-wide px-2 py-1 rounded-full ${
+                                        client.permission === "VIEW" ? "bg-blue-500/10 text-blue-400" :
+                                        client.permission === "EDIT" ? "bg-amber-500/10 text-amber-400" :
+                                        "bg-emerald-500/10 text-emerald-400"
+                                    }`}>
+                                        {client.permission === "VIEW" ? "Solo ver" : client.permission === "EDIT" ? "Editar" : client.permission}
+                                    </span>
+                                    <span className="text-[10px] text-slate-600">
+                                        por {client.sharedByName}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
             ) : (
-                <div className="text-center py-8">
-                    <p className="text-slate-500 italic">Próximamente: Vista directa de cotizaciones compartidas.</p>
-                </div>
+                sharedQuotations.length === 0 ? (
+                    <div className="text-center py-8">
+                        <Share2 className="mx-auto text-slate-700 mb-4" size={32} />
+                        <p className="text-slate-400 mb-2">No tienes cotizaciones compartidas.</p>
+                        <p className="text-sm text-slate-500">
+                            Las cotizaciones de los clientes compartidos contigo aparecerán aquí.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid gap-3">
+                        {sharedQuotations.map((q) => (
+                            <div
+                                key={q.id}
+                                className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800/50 rounded-xl hover:border-slate-700 transition-all"
+                            >
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl bg-accent-1/10 flex items-center justify-center shrink-0">
+                                        <span className="text-sm">📄</span>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium text-white truncate">{q.projectName}</p>
+                                        <p className="text-xs text-slate-500">
+                                            {q.clientName} · {q.folio}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <span className={`text-[10px] uppercase font-bold tracking-wide px-2 py-1 rounded-full ${
+                                        q.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-400" :
+                                        q.status === "SENT" ? "bg-blue-500/10 text-blue-400" :
+                                        q.status === "DRAFT" ? "bg-neutral-500/10 text-neutral-400" :
+                                        "bg-amber-500/10 text-amber-400"
+                                    }`}>
+                                        {q.status}
+                                    </span>
+                                    <span className="text-sm font-bold text-emerald-400">
+                                        {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(q.total)}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
             )}
         </div>
     );

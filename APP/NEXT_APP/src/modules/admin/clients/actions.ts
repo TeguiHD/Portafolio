@@ -2,17 +2,36 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
+import { hasPermission } from "@/lib/permission-check";
+import { logger } from "@/lib/logger";
+import type { Role } from '@/generated/prisma/client';
+import { validateRut, cleanRut } from "@/lib/rut";
+
+function isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export async function getClientsWithSearchAction(query: string = "") {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+
     const clients = await prisma.quotationClient.findMany({
         where: {
-            OR: [
-                { name: { contains: query, mode: "insensitive" } },
-                { slug: { contains: query, mode: "insensitive" } },
-                { email: { contains: query, mode: "insensitive" } }
-            ]
+            userId: session.user.id,
+            ...(query.trim()
+                ? {
+                      OR: [
+                          { name: { contains: query, mode: "insensitive" } },
+                          { slug: { contains: query, mode: "insensitive" } },
+                          { email: { contains: query, mode: "insensitive" } },
+                          { company: { contains: query, mode: "insensitive" } },
+                      ],
+                  }
+                : {}),
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updatedAt: "desc" },
+        take: 100,
         include: {
             _count: {
                 select: { quotations: true }
@@ -42,10 +61,7 @@ export async function deleteClientAction(id: string) {
     });
 
     // Get session for permission check and audit logging
-    const { auth } = await import("@/lib/auth");
     const session = await auth();
-
-
 
     if (activeQuotationsCount > 0) {
         // [SECURITY] Strict check: Only SUPERADMIN can delete clients with data
@@ -70,7 +86,7 @@ export async function deleteClientAction(id: string) {
                 data: { isDeleted: true, deletedAt: new Date() }
             });
         } catch (error) {
-            console.error("Error cleaning up client quotations:", error);
+            logger.error("Error cleaning up client quotations", error);
             return { success: false, error: "Error al limpiar datos asociados del cliente" };
         }
     }
@@ -102,7 +118,7 @@ export async function deleteClientAction(id: string) {
         revalidatePath("/admin/clientes");
         return { success: true };
     } catch (error) {
-        console.error('[Client Action] Delete failed:', error instanceof Error ? error.message : error);
+        logger.error("[Client Action] Delete failed", error);
         return { success: false, error: "Error al eliminar cliente" };
     }
 }
@@ -126,7 +142,7 @@ export async function rotateClientCodeAction(id: string, newCode: string) {
         revalidatePath("/admin/clientes");
         return { success: true };
     } catch (e) {
-        console.error("Error rotating code:", e);
+        logger.error("Error rotating code", e);
         return { success: false, error: "Error al actualizar código" };
     }
 }
@@ -160,7 +176,6 @@ interface CreateClientData {
     contactPhone?: string;
     contactRole?: string;
     email?: string;
-    userId: string;
 }
 
 export async function createClientAction(data: CreateClientData) {
@@ -168,8 +183,31 @@ export async function createClientAction(data: CreateClientData) {
         return { success: false, error: "El nombre es requerido" };
     }
 
-    if (!data.userId) {
+    if (data.rut && !validateRut(data.rut)) {
+        return { success: false, error: "El RUT ingresado no es válido" };
+    }
+
+    if (data.email && !isValidEmail(data.email)) {
+        return { success: false, error: "El email del sistema no es válido" };
+    }
+
+    if (data.contactEmail && !isValidEmail(data.contactEmail)) {
+        return { success: false, error: "El email de contacto no es válido" };
+    }
+
+    const session = await auth();
+    if (!session?.user?.id) {
         return { success: false, error: "Usuario no autorizado" };
+    }
+
+    const canCreateClient = await hasPermission(
+        session.user.id,
+        session.user.role as Role,
+        "quotations.create"
+    );
+
+    if (!canCreateClient) {
+        return { success: false, error: "No tienes permisos para crear clientes" };
     }
 
     const { hash } = await import("argon2");
@@ -195,14 +233,15 @@ export async function createClientAction(data: CreateClientData) {
                 slug,
                 email: data.email?.trim() || null,
                 company: data.company?.trim(),
-                rut: data.rut?.trim(),
+                // Normalizar RUT: guardar siempre en formato limpio con guión (sin puntos)
+                rut: data.rut ? cleanRut(data.rut).replace(/^(.+)(.)$/, "$1-$2") : undefined,
                 address: data.address?.trim(),
                 contactName: data.contactName?.trim(),
                 contactEmail: data.contactEmail?.trim(),
                 contactPhone: data.contactPhone?.trim(),
                 contactRole: data.contactRole?.trim(),
                 accessCode: hashedCode,
-                userId: data.userId,
+                userId: session.user.id,
             },
         });
 
@@ -215,7 +254,7 @@ export async function createClientAction(data: CreateClientData) {
             accessCode, // Return plain code for display
         };
     } catch (e) {
-        console.error("Error creating client:", e);
+        logger.error("Error creating client", e);
         return { success: false, error: "Error al crear cliente" };
     }
 }
@@ -236,13 +275,25 @@ export async function updateClientContactAction(id: string, data: UpdateClientCo
     if (!id) return { success: false, error: "ID required" };
     if (!data.name?.trim()) return { success: false, error: "El nombre es requerido" };
 
+    if (data.rut && !validateRut(data.rut)) {
+        return { success: false, error: "El RUT ingresado no es válido" };
+    }
+
+    if (data.email && !isValidEmail(data.email)) {
+        return { success: false, error: "El email del sistema no es válido" };
+    }
+
+    if (data.contactEmail && !isValidEmail(data.contactEmail)) {
+        return { success: false, error: "El email de contacto no es válido" };
+    }
+
     try {
         await prisma.quotationClient.update({
             where: { id },
             data: {
                 name: data.name.trim(),
                 company: data.company?.trim() || null,
-                rut: data.rut?.trim() || null,
+                rut: data.rut ? cleanRut(data.rut).replace(/^(.+)(.)$/, "$1-$2") : null,
                 address: data.address?.trim() || null,
                 contactName: data.contactName?.trim() || null,
                 contactEmail: data.contactEmail?.trim() || null,
@@ -255,7 +306,7 @@ export async function updateClientContactAction(id: string, data: UpdateClientCo
         revalidatePath("/admin/clientes");
         return { success: true };
     } catch (e) {
-        console.error("Error updating client contact:", e);
+        logger.error("Error updating client contact", e);
         return { success: false, error: "Error al actualizar información de contacto" };
     }
 }

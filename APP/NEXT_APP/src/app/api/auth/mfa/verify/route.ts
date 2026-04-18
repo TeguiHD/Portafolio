@@ -1,11 +1,16 @@
 /**
  * MFA Verification API Endpoint
  * 
- * POST /api/auth/mfa/verify - Verify TOTP code during login
+ * POST /api/auth/mfa/verify - Verify TOTP code (setup confirmation or login)
+ * 
+ * Security: NIST SP 800-63B, OWASP MFA Guidelines
+ * Rate limiting: 5 attempts per 15 minutes per user
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { verifyMFA, useRecoveryCode } from '@/lib/mfa'
 import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
@@ -14,10 +19,10 @@ const getClientIP = (request: NextRequest): string => {
         '127.0.0.1'
 }
 
-// Rate limiting for MFA attempts
+// Rate limiting for MFA attempts (in-memory, per-process)
 const mfaAttempts = new Map<string, { count: number; lastAttempt: number }>()
 const MAX_ATTEMPTS = 5
-const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 minutos
+const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 minutes
 
 function checkRateLimit(userId: string): { allowed: boolean; remainingAttempts: number } {
     const now = Date.now()
@@ -43,7 +48,7 @@ function checkRateLimit(userId: string): { allowed: boolean; remainingAttempts: 
     return { allowed: true, remainingAttempts: MAX_ATTEMPTS - attempts.count }
 }
 
-function _resetRateLimit(userId: string): void {
+function resetRateLimit(userId: string): void {
     mfaAttempts.delete(userId)
 }
 
@@ -92,43 +97,29 @@ export async function POST(request: NextRequest) {
         // Sanitize code
         const sanitizedCode = code.replace(/[^0-9A-Za-z-]/g, '').slice(0, 20)
 
-        // TODO: Obtener datos MFA del usuario cuando existan los campos
-        // const user = await prisma.user.findUnique({
-        //     where: { id: session.user.id },
-        //     select: {
-        //         mfaSecret: true,
-        //         mfaRecoveryCodes: true,
-        //         mfaEnabled: true,
-        //     }
-        // })
-
-        // if (!user?.mfaEnabled || !user.mfaSecret) {
-        //     return NextResponse.json(
-        //         { error: 'MFA no está habilitado' },
-        //         { status: 400 }
-        //     )
-        // }
-
-        // Respuesta temporal mientras no existen los campos
-        return NextResponse.json({
-            success: false,
-            message: 'MFA no está habilitado aún. Agrega los campos MFA al schema.prisma',
-            remainingAttempts: rateLimit.remainingAttempts,
-            _dev: {
-                note: 'Código que verificaría:',
-                isRecoveryCode,
-                codeLength: sanitizedCode.length,
+        // Get user MFA data
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: {
+                mfaSecret: true,
+                mfaRecoveryCodes: true,
+                mfaEnabled: true,
             }
         })
 
-        // TODO: Descomentar cuando existan los campos
-        /*
+        if (!user?.mfaSecret) {
+            return NextResponse.json(
+                { error: 'MFA no está configurado. Inicia la configuración primero.' },
+                { status: 400 }
+            )
+        }
+
         let verified = false
 
         if (isRecoveryCode) {
             // Verify recovery code
             const result = useRecoveryCode(sanitizedCode, user.mfaRecoveryCodes)
-            
+
             if (result.valid) {
                 // Update remaining codes
                 await prisma.user.update({
@@ -136,46 +127,64 @@ export async function POST(request: NextRequest) {
                     data: {
                         mfaRecoveryCodes: result.remainingCodes,
                         mfaVerifiedAt: new Date(),
+                        mfaEnabled: true,
                     }
                 })
                 verified = true
-                
-                SecurityLogger.auth('mfa_recovery_code_used', session.user.id, clientIP, true, {
-                    remainingCodes: result.remainingCodes.length
+
+                SecurityLogger.auth({
+                    success: true,
+                    userId: session.user.id,
+                    ipAddress: clientIP,
+                    method: 'mfa_recovery_code_used',
                 })
             }
         } else {
             // Verify TOTP code
             verified = verifyMFA(user.mfaSecret, sanitizedCode)
-            
+
             if (verified) {
                 await prisma.user.update({
                     where: { id: session.user.id },
-                    data: { mfaVerifiedAt: new Date() }
+                    data: {
+                        mfaVerifiedAt: new Date(),
+                        // Enable MFA on first successful verification (setup confirmation)
+                        mfaEnabled: true,
+                    }
+                })
+
+                SecurityLogger.auth({
+                    success: true,
+                    userId: session.user.id,
+                    ipAddress: clientIP,
+                    method: 'mfa_verified',
                 })
             }
         }
 
         if (verified) {
             resetRateLimit(session.user.id)
-            SecurityLogger.auth('mfa_verified', session.user.id, clientIP, true)
-            
+
             return NextResponse.json({
                 success: true,
-                message: 'Verificación exitosa'
+                message: user.mfaEnabled
+                    ? 'Verificación exitosa'
+                    : '¡MFA activado exitosamente! Tu cuenta está ahora protegida con autenticación de dos factores.',
             })
         } else {
-            SecurityLogger.auth('mfa_failed', session.user.id, clientIP, false, {
-                remainingAttempts: rateLimit.remainingAttempts
+            SecurityLogger.auth({
+                success: false,
+                userId: session.user.id,
+                ipAddress: clientIP,
+                reason: 'mfa_code_invalid',
             })
-            
+
             return NextResponse.json({
                 success: false,
                 error: 'Código inválido',
-                remainingAttempts: rateLimit.remainingAttempts
+                remainingAttempts: rateLimit.remainingAttempts,
             }, { status: 401 })
         }
-        */
 
     } catch (error) {
         console.error('Error verifying MFA:', error)

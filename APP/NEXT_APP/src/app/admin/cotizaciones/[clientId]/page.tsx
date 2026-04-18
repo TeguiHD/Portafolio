@@ -7,7 +7,7 @@ import Link from "next/link";
 import { ArrowLeft, FileText, Eye, ChevronRight } from "lucide-react";
 import CreateQuotationModal from "./create-modal";
 import QuotationsList from "./quotations-list";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 // Type for quotations to pass to client component
 interface Quotation {

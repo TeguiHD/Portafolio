@@ -3,6 +3,7 @@ import { getUserEffectivePermissions } from "@/lib/permission-check";
 import { DashboardStats } from "@/modules/admin/components/DashboardStats";
 import { RecentActivity } from "@/modules/admin/components/RecentActivity";
 import { QuickActions } from "@/modules/admin/components/QuickActions";
+import { VpsControlSummary } from "@/modules/admin/components/VpsControlSummary";
 
 // Force dynamic rendering - this page requires authentication
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,8 @@ export default async function AdminDashboard() {
 
       {/* Stats Grid */}
       <DashboardStats />
+
+      {session.user.role === "SUPERADMIN" && <VpsControlSummary />}
 
       {/* Quick Actions - filtered by permissions */}
       <QuickActions permissions={permissions} />

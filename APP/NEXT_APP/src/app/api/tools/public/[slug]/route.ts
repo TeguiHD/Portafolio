@@ -4,6 +4,47 @@ import { headers } from "next/headers";
 import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/redis";
+import { getDefaultToolBySlug } from "@/lib/tool-registry";
+
+function buildToolPayload(tool: {
+    id?: string;
+    slug: string;
+    name: string;
+    description?: string | null;
+    icon?: string | null;
+    category?: string | null;
+    config?: unknown;
+    isPublic: boolean;
+    isActive: boolean;
+}) {
+    const fallbackTool = getDefaultToolBySlug(tool.slug);
+
+    return {
+        id: tool.id || tool.slug,
+        slug: tool.slug,
+        name: tool.name,
+        description: tool.description ?? fallbackTool?.description ?? "",
+        icon: tool.icon ?? fallbackTool?.icon ?? "default",
+        category: tool.category ?? fallbackTool?.category ?? "utility",
+        config: tool.config ?? null,
+        isPublic: tool.isPublic,
+        isActive: tool.isActive,
+    };
+}
+
+function buildPublicResponse(
+    tool: Parameters<typeof buildToolPayload>[0],
+    options?: { source?: string; degradedReason?: string | null }
+) {
+    return NextResponse.json({
+        tool: buildToolPayload(tool),
+        allowed: true,
+        accessLevel: "public",
+        source: options?.source || "database",
+        degradedPublicAccess: Boolean(options?.degradedReason),
+        degradedReason: options?.degradedReason || null,
+    });
+}
 
 // Helper to get device type from user agent
 function getDeviceType(userAgent: string): string {
@@ -32,48 +73,78 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ slug: string }> }
 ) {
+    let slug = "";
+    let ip = "unknown";
+
     try {
-        const { slug } = await params;
+        ({ slug } = await params);
+        const fallbackTool = getDefaultToolBySlug(slug);
+        const hasPublicFallback = Boolean(fallbackTool?.isPublic && fallbackTool.isActive);
 
         // SECURITY: Validate slug format (prevent injection)
         if (!slug || !/^[a-z0-9-]+$/.test(slug) || slug.length > 50) {
             return NextResponse.json({ error: "Invalid tool identifier" }, { status: 400 });
         }
 
-        // SECURITY: Rate limiting check
         const headersList = await headers();
-        const ip = headersList.get("x-forwarded-for") || "unknown";
-        const { allowed, resetIn } = await checkRateLimit(
-            `tool_access:${hashIP(ip)}`,
-            30, // 30 requests per minute
-            60
-        );
+        ip = headersList.get("x-forwarded-for") || "unknown";
 
-        if (!allowed) {
-            return NextResponse.json(
-                { error: "Too many requests" },
-                { status: 429, headers: { "Retry-After": resetIn.toString() } }
+        let degradedReason: string | null = null;
+
+        try {
+            const { allowed } = await checkRateLimit(
+                `tool_access:${hashIP(ip)}`,
+                30,
+                60
             );
+
+            if (!allowed) {
+                degradedReason = "rate_limit";
+            }
+        } catch (rateLimitError) {
+            console.warn("Public tool rate-limit check degraded:", rateLimitError);
+            degradedReason = "rate_limiter_unavailable";
         }
 
-        const tool = await prisma.tool.findUnique({
-            where: { slug },
-            select: {
-                id: true,
-                slug: true,
-                name: true,
-                description: true,
-                icon: true,
-                category: true,
-                config: true,
-                isPublic: true,
-                isActive: true,
-            },
-        });
+        let tool = null;
+        try {
+            tool = await prisma.tool.findUnique({
+                where: { slug },
+                select: {
+                    id: true,
+                    slug: true,
+                    name: true,
+                    description: true,
+                    icon: true,
+                    category: true,
+                    config: true,
+                    isPublic: true,
+                    isActive: true,
+                },
+            });
+        } catch (dbError) {
+            console.error("Error loading tool metadata:", dbError);
+            if (!hasPublicFallback) {
+                throw dbError;
+            }
 
-        // SECURITY CRITICAL: If tool is NOT in DB, block access by default
-        // Only explicitly registered tools are allowed
+            degradedReason = degradedReason || "database_unavailable";
+        }
+
         if (!tool) {
+            if (hasPublicFallback && fallbackTool) {
+                return buildPublicResponse(
+                    {
+                        ...fallbackTool,
+                        config: null,
+                    },
+                    {
+                        source: degradedReason ? "registry-degraded" : "registry",
+                        degradedReason,
+                    }
+                );
+            }
+
             // Log potential probe attempt
             console.warn(`[SECURITY] Tool probe attempt: ${slug} from IP: ${hashIP(ip)}`);
             return NextResponse.json(
@@ -90,39 +161,58 @@ export async function GET(
             );
         }
 
-        // SECURITY: Non-public tools require admin authentication
-        if (!tool.isPublic) {
-            const session = await auth();
-
-            // No session = unauthorized
-            if (!session?.user) {
-                return NextResponse.json(
-                    { error: "Authentication required", allowed: false },
-                    { status: 401 }
-                );
-            }
-
-            // SECURITY: Verify admin role (not just any logged-in user)
-            const userRole = (session.user as { role?: string })?.role;
-            if (userRole !== "admin" && userRole !== "ADMIN") {
-                // Log potential privilege escalation attempt
-                console.warn(`[SECURITY] Unauthorized tool access attempt: ${slug} by user: ${session.user.email}`);
-                return NextResponse.json(
-                    { error: "Insufficient permissions", allowed: false },
-                    { status: 403 }
-                );
-            }
+        if (tool.isPublic) {
+            return buildPublicResponse(tool, {
+                source: degradedReason ? "database-degraded" : "database",
+                degradedReason,
+            });
         }
 
-        // Tool is accessible - return with explicit allowed flag
+        // SECURITY: Non-public tools require admin authentication
+        const session = await auth();
+
+        // No session = unauthorized
+        if (!session?.user) {
+            return NextResponse.json(
+                { error: "Authentication required", allowed: false },
+                { status: 401 }
+            );
+        }
+
+        // SECURITY: Verify admin role (not just any logged-in user)
+        const userRole = (session.user as { role?: string })?.role;
+        if (userRole !== "admin" && userRole !== "ADMIN") {
+            console.warn(`[SECURITY] Unauthorized tool access attempt: ${slug} by user: ${session.user.email}`);
+            return NextResponse.json(
+                { error: "Insufficient permissions", allowed: false },
+                { status: 403 }
+            );
+        }
+
         return NextResponse.json({
             tool,
             allowed: true,
-            accessLevel: tool.isPublic ? "public" : "admin"
+            accessLevel: "admin",
+            degradedPublicAccess: Boolean(degradedReason),
+            degradedReason,
         });
     } catch (error) {
         console.error("Error fetching tool:", error);
-        // SECURITY: On any error, block access (fail-closed)
+
+        const fallbackTool = getDefaultToolBySlug(slug);
+        if (fallbackTool?.isPublic && fallbackTool.isActive) {
+            return buildPublicResponse(
+                {
+                    ...fallbackTool,
+                    config: null,
+                },
+                {
+                    source: "registry-failsafe",
+                    degradedReason: "verification_error",
+                }
+            );
+        }
+
         return NextResponse.json(
             { error: "Access verification failed", allowed: false },
             { status: 500 }

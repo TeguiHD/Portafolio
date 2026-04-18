@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { convertCurrency, type SupportedCurrency } from "@/services/exchange-rate";
 import { formatCurrency } from "@/lib/currency";
 import type { FinanceDashboardData, DashboardSummary, CategorySummary, RecentTransaction, BudgetStatus, FinanceAlert } from "@/modules/finance/types";
-import type { Role } from "@prisma/client";
+import type { Role } from '@/generated/prisma/client';
 
 export const dynamic = "force-dynamic";
 
@@ -117,35 +117,48 @@ export async function GET(request: Request) {
             }),
         ]);
 
-        // Calculate total balance across all accounts (converted to target currency)
-        let totalBalance = 0;
-        for (const account of accounts as AccountWithCurrency[]) {
-            const converted = await convertCurrency(
-                account.currentBalance,
-                account.currency.code as SupportedCurrency,
-                currency
-            );
-            totalBalance += converted;
-        }
+        // Paralelizar todas las conversiones de moneda en un solo Promise.all
+        const typedAccounts = accounts as AccountWithCurrency[];
+        const typedTxs = transactions as TransactionWithRelations[];
+        const prevExpenseTxs = (previousMonthTransactions as unknown as TransactionWithRelations[]).filter(
+            tx => tx.type === "EXPENSE"
+        );
 
-        // Calculate income and expenses for current month
+        const [accountConversions, txConversions, prevConversions] = await Promise.all([
+            Promise.all(
+                typedAccounts.map(a =>
+                    convertCurrency(a.currentBalance, a.currency.code as SupportedCurrency, currency)
+                )
+            ),
+            Promise.all(
+                typedTxs.map(tx =>
+                    convertCurrency(tx.amount, tx.account.currency.code as SupportedCurrency, currency)
+                )
+            ),
+            Promise.all(
+                prevExpenseTxs.map(tx =>
+                    convertCurrency(tx.amount, tx.account.currency.code as SupportedCurrency, currency)
+                )
+            ),
+        ]);
+
+        // Calcular totales de cuentas
+        const totalBalance = accountConversions.reduce((sum, v) => sum + v, 0);
+
+        // Calcular totales de transacciones del mes
         let totalIncome = 0;
         let totalExpenses = 0;
         const expensesByCategory: Map<string, { amount: number; count: number; categoryName: string; icon: string | null }> = new Map();
 
-        for (const tx of transactions as TransactionWithRelations[]) {
-            const converted = await convertCurrency(
-                tx.amount,
-                tx.account.currency.code as SupportedCurrency,
-                currency
-            );
+        for (let i = 0; i < typedTxs.length; i++) {
+            const tx = typedTxs[i];
+            const converted = txConversions[i];
 
             if (tx.type === "INCOME") {
                 totalIncome += converted;
             } else {
                 totalExpenses += converted;
 
-                // Group by category
                 if (tx.category) {
                     const existing = expensesByCategory.get(tx.categoryId!) || {
                         amount: 0,
@@ -160,18 +173,8 @@ export async function GET(request: Request) {
             }
         }
 
-        // Previous month totals for comparison
-        let previousMonthExpenses = 0;
-        for (const tx of previousMonthTransactions) {
-            if (tx.type === "EXPENSE") {
-                const converted = await convertCurrency(
-                    tx.amount,
-                    tx.account.currency.code as SupportedCurrency,
-                    currency
-                );
-                previousMonthExpenses += converted;
-            }
-        }
+        // Totales del mes anterior
+        const previousMonthExpenses = prevConversions.reduce((sum, v) => sum + v, 0);
 
         // Calculate projections
         const today = new Date();

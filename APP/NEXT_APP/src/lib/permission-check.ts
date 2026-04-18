@@ -4,8 +4,9 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { Role } from "@prisma/client";
+import { Role } from '@/generated/prisma/client';
 import { DEFAULT_PERMISSIONS } from "./permissions";
+import { logger } from "@/lib/logger";
 
 /**
  * Cache for user permissions (simple in-memory, cleared on restart)
@@ -44,9 +45,9 @@ async function syncPermissionsToDatabase(): Promise<void> {
             });
         }
         permissionsSynced = true;
-        console.log("[Permissions] Synced", DEFAULT_PERMISSIONS.length, "permissions to database");
+        logger.info("[Permissions] Synced defaults", { count: DEFAULT_PERMISSIONS.length });
     } catch (error) {
-        console.error("[Permissions] Failed to sync permissions:", error);
+        logger.error("[Permissions] Failed to sync permissions", error);
     }
 }
 

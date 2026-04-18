@@ -2,7 +2,16 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone', // Required for Docker deployment
-  typedRoutes: true, // Moved from experimental in Next.js 16
+  // typedRoutes disabled: Turbopack does not generate proper AppRoutes/PageRoutes
+  // (StaticRoutes only contains redirect routes, causing false type errors)
+  // Re-enable when Turbopack fully supports typed route generation
+  // typedRoutes: true,
+  compiler: {
+    // Remove debug logs from production bundles (client/server transpiled output)
+    removeConsole: process.env.NODE_ENV === 'production'
+      ? { exclude: ['warn', 'error'] }
+      : false,
+  },
 
   images: {
     // SECURITY: Restrict image sources to trusted domains only
@@ -32,15 +41,15 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          // HSTS - Force HTTPS for 1 year (incluye subdominios)
+          // HSTS - Force HTTPS for 2 years (matches proxy.ts - HSTS preload requirement)
           {
             key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains; preload',
+            value: 'max-age=63072000; includeSubDomains; preload',
           },
           // Prevent clickjacking
           {
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
+            value: 'DENY',
           },
           // Prevent MIME sniffing
           {
@@ -96,4 +105,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-

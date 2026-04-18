@@ -792,10 +792,10 @@ export default function AsciiArtPage() {
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">
-                                Generador ASCII Art
+                                Imagen a ASCII
                             </h1>
                             <p className="text-neutral-400 text-xs sm:text-sm mt-1">
-                                Convierte imágenes en arte ASCII personalizable
+                                Convierte imágenes en texto ASCII con control de ancho, densidad y color
                             </p>
                         </div>
 
@@ -907,7 +907,7 @@ export default function AsciiArtPage() {
                         <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 space-y-3">
                             {/* Presets Row */}
                             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                                <span className="text-xs text-neutral-500 flex-shrink-0 hidden sm:block">Presets:</span>
+                                <span className="text-xs text-neutral-500 flex-shrink-0 hidden sm:block">Ajustes rápidos:</span>
                                 {PRESETS.map((preset) => (
                                     <button
                                         key={preset.name}

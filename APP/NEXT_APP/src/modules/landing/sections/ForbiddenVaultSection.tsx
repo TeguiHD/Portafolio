@@ -75,15 +75,15 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
             return;
         }
 
-        // Rotate views - slower for better readability
+        // Rotate views - slow pace for readability
         const viewInterval = setInterval(() => {
             setCurrentView(prev => (prev + 1) % 3);
-        }, 6000);
+        }, 9000);
 
-        // Animate chart - gentler pace
+        // Animate chart - gentle pace
         const chartInterval = setInterval(() => {
             setValues(prev => prev.map(() => Math.floor(Math.random() * 50) + 40));
-        }, 2000);
+        }, 3500);
 
         return () => {
             clearInterval(viewInterval);
@@ -102,7 +102,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                 setAiTyping(advice.slice(0, i + 1));
                 i++;
             }
-        }, 50);
+        }, 70);
         return () => clearInterval(typeInterval);
         // aiAdvices is a constant array defined above - no need to include in deps
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,8 +115,8 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
             return;
         }
         const scanInterval = setInterval(() => {
-            setScanProgress(prev => prev < 100 ? prev + 2 : 0);
-        }, 120);
+            setScanProgress(prev => prev < 100 ? prev + 1.5 : 0);
+        }, 160);
         return () => clearInterval(scanInterval);
     }, [isActive, currentView]);
 
@@ -146,9 +146,10 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                 {currentView === 0 && (
                     <motion.div
                         key="dashboard"
-                        initial={{ opacity: 0, x: -20 }}
+                        initial={{ opacity: 0, x: -15 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
+                        exit={{ opacity: 0, x: 15 }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
                         className="flex-1 flex flex-col"
                     >
                         {/* Stats row */}
@@ -179,7 +180,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                     className="flex-1 bg-gradient-to-t from-emerald-500 to-emerald-400/60 rounded-t-sm"
                                     initial={{ height: "20%" }}
                                     animate={{ height: `${v}%` }}
-                                    transition={{ duration: 0.4, ease: "easeOut" }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
                                 />
                             ))}
                         </div>
@@ -189,9 +190,10 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                 {currentView === 1 && (
                     <motion.div
                         key="ai-advice"
-                        initial={{ opacity: 0, x: -20 }}
+                        initial={{ opacity: 0, x: -15 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
+                        exit={{ opacity: 0, x: 15 }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
                         className="flex-1 flex flex-col"
                     >
                         {/* Risk Profile */}
@@ -241,9 +243,10 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                 {currentView === 2 && (
                     <motion.div
                         key="ocr-scan"
-                        initial={{ opacity: 0, x: -20 }}
+                        initial={{ opacity: 0, x: -15 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
+                        exit={{ opacity: 0, x: 15 }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
                         className="flex-1 flex flex-col"
                     >
                         {/* OCR Scanner */}
@@ -338,14 +341,14 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
             return;
         }
 
-        // Slower cycle through phases
+        // Slow deliberate cycle through phases
         const phaseInterval = setInterval(() => {
             setPhase(prev => {
                 if (prev === 'analyzing') return 'suggestions';
                 if (prev === 'suggestions') return 'optimized';
                 return 'analyzing';
             });
-        }, 5000);
+        }, 8000);
 
         return () => clearInterval(phaseInterval);
     }, [isActive]);
@@ -357,8 +360,8 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
             return;
         }
         const interval = setInterval(() => {
-            setAnalysisProgress(prev => prev < 100 ? prev + 3 : 100);
-        }, 150);
+            setAnalysisProgress(prev => prev < 100 ? prev + 2 : 100);
+        }, 200);
         return () => clearInterval(interval);
     }, [isActive, phase]);
 
@@ -372,7 +375,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
         const interval = setInterval(() => {
             setHighlightedLine(line);
             line = line === 3 ? 4 : line === 4 ? 6 : 3;
-        }, 1800);
+        }, 2800);
         return () => clearInterval(interval);
     }, [isActive, phase]);
 
@@ -526,7 +529,7 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
                 const updated = [...prev, newLog];
                 return updated.slice(-5);
             });
-        }, 1500);
+        }, 2500);
         return () => clearInterval(interval);
         // logTemplates is a constant array defined in component scope
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -591,7 +594,7 @@ function RestrictedOverlay({ color: _color, colorRgb }: { color: string; colorRg
     useEffect(() => {
         const interval = setInterval(() => {
             setScanLine(prev => (prev + 1) % 120);
-        }, 100);
+        }, 180);
         return () => clearInterval(interval);
     }, []);
 

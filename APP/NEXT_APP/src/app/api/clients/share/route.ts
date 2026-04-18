@@ -6,7 +6,7 @@ import {
     revokeAllShareCodes,
     removeSharedAccess,
 } from "@/services/sharing-service";
-import type { PermissionLevel } from "@prisma/client";
+import type { PermissionLevel } from '@/generated/prisma/client';
 
 /**
  * POST /api/clients/share - Generate a share code for a client
