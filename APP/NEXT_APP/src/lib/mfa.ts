@@ -16,7 +16,7 @@
  */
 
 import 'server-only'
-import { createHmac, randomBytes, createCipheriv, createDecipheriv, scryptSync, timingSafeEqual } from 'crypto'
+import { createHash, createHmac, randomBytes, createCipheriv, createDecipheriv, scryptSync, timingSafeEqual } from 'crypto'
 import { readSecret } from '@/lib/read-secret'
 
 // ============= CONFIGURACIÓN =============
@@ -176,11 +176,24 @@ function getMfaEncryptionKey(): string {
     return key
 }
 
+function getMfaDerivedKey(): Buffer {
+    const salt = createHash('sha256')
+        .update(`portfolio-mfa-kdf-v2-${getMfaEncryptionKey()}`)
+        .digest()
+        .subarray(0, 16)
+
+    return scryptSync(getMfaEncryptionKey(), salt, 32)
+}
+
+function getLegacyMfaKey(): Buffer {
+    return scryptSync(getMfaEncryptionKey(), 'mfa-salt', 32)
+}
+
 /**
  * Encrypt MFA secret for database storage
  */
 export function encryptMFASecret(secret: string): string {
-    const key = scryptSync(getMfaEncryptionKey(), 'mfa-salt', 32)
+    const key = getMfaDerivedKey()
     const iv = randomBytes(16)
     const cipher = createCipheriv('aes-256-gcm', key, iv)
 
@@ -189,19 +202,32 @@ export function encryptMFASecret(secret: string): string {
 
     const authTag = cipher.getAuthTag()
 
-    return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`
+    return `v2:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`
 }
 
 /**
  * Decrypt MFA secret from database
  */
 export function decryptMFASecret(encryptedSecret: string): string {
-    const [ivBase64, authTagBase64, encrypted] = encryptedSecret.split(':')
+    const isV2 = encryptedSecret.startsWith('v2:')
+    const payload = isV2 ? encryptedSecret.slice(3) : encryptedSecret
+    const [ivBase64, authTagBase64, encrypted] = payload.split(':')
 
-    const key = scryptSync(getMfaEncryptionKey(), 'mfa-salt', 32)
     const iv = Buffer.from(ivBase64, 'base64')
     const authTag = Buffer.from(authTagBase64, 'base64')
 
+    if (isV2) {
+        return decryptMfaWithKey(getMfaDerivedKey(), iv, authTag, encrypted)
+    }
+
+    try {
+        return decryptMfaWithKey(getMfaDerivedKey(), iv, authTag, encrypted)
+    } catch {
+        return decryptMfaWithKey(getLegacyMfaKey(), iv, authTag, encrypted)
+    }
+}
+
+function decryptMfaWithKey(key: Buffer, iv: Buffer, authTag: Buffer, encrypted: string): string {
     const decipher = createDecipheriv('aes-256-gcm', key, iv)
     decipher.setAuthTag(authTag)
 

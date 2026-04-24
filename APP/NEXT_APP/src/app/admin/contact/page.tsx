@@ -1,6 +1,5 @@
 import { Metadata } from "next";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import ContactPageClient from "./client";
 
 export const metadata: Metadata = {
@@ -9,16 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ContactAdminPage() {
-    const session = await auth();
-
-    if (!session?.user) {
-        redirect("/acceso");
-    }
-
-    // Only SUPERADMIN can access
-    if (session.user.role !== "SUPERADMIN") {
-        redirect("/admin");
-    }
+    await requirePagePermission("contact.manage");
 
     return <ContactPageClient />;
 }

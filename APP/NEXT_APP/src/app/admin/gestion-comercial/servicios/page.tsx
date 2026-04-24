@@ -1,7 +1,4 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from '@/generated/prisma/client';
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -37,14 +34,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default async function ServiciosPage() {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "crm.contracts.view"
-    );
-    if (!canView) redirect("/admin");
+    const session = await requirePagePermission("crm.contracts.view");
 
     // Fetch contracts, clients with CRM data, and recent payments in parallel
     const [contracts, clients, recentPayments] = await Promise.all([

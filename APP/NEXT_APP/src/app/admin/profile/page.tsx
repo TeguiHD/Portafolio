@@ -1,4 +1,4 @@
-import { verifyAdminAllowMissingMfa } from "@/lib/auth/dal";
+import { verifyAnyRole } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { lookupIPs } from "@/lib/vps/geo-ip";
 import { ProfilePageClient } from "./client";
@@ -15,7 +15,7 @@ function settledValue<T>(result: PromiseSettledResult<T>, fallback: T, label: st
 }
 
 export default async function ProfilePage() {
-    const session = await verifyAdminAllowMissingMfa();
+    const session = await verifyAnyRole();
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },

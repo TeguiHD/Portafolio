@@ -1,21 +1,11 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from '@/generated/prisma/client';
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientesPage() {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "quotations.view"
-    );
-    if (!canView) redirect("/admin/gestion-comercial");
+    const session = await requirePagePermission("quotations.view");
 
     const clients = await prisma.quotationClient.findMany({
         where: { userId: session.user.id },

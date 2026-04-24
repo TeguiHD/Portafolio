@@ -12,7 +12,7 @@ import { logger } from "@/lib/logger";
  * Cache for user permissions (simple in-memory, cleared on restart)
  * In production, consider Redis for distributed caching
  */
-const permissionCache = new Map<string, { permissions: Set<string>; timestamp: number }>();
+const permissionCache = new Map<string, { permissions: Set<string>; role: Role; timestamp: number }>();
 const CACHE_TTL = 60 * 1000; // 1 minute
 
 // Flag to track if permissions have been synced
@@ -61,19 +61,28 @@ async function syncPermissionsToDatabase(): Promise<void> {
  */
 export async function hasPermission(
     userId: string,
-    userRole: Role,
+    _userRole: Role,
     permissionCode: string
 ): Promise<boolean> {
     // Sync permissions to database on first call
     await syncPermissionsToDatabase();
 
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, isActive: true, mfaEnabled: true },
+    });
+
+    if (!user?.isActive || user.mfaEnabled !== true) {
+        return false;
+    }
+
     // SUPERADMIN always has all permissions
-    if (userRole === "SUPERADMIN") {
+    if (user.role === "SUPERADMIN") {
         return true;
     }
 
     // Get user's effective permissions
-    const userPermissions = await getUserEffectivePermissions(userId, userRole);
+    const userPermissions = await getUserEffectivePermissions(userId, user.role);
     return userPermissions.has(permissionCode);
 }
 
@@ -87,7 +96,7 @@ export async function getUserEffectivePermissions(
 ): Promise<Set<string>> {
     // Check cache
     const cached = permissionCache.get(userId);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    if (cached && cached.role === userRole && Date.now() - cached.timestamp < CACHE_TTL) {
         return cached.permissions;
     }
 
@@ -95,9 +104,14 @@ export async function getUserEffectivePermissions(
     const permissions = new Set<string>();
 
     for (const perm of DEFAULT_PERMISSIONS) {
-        if (perm.defaultRoles.includes(userRole)) {
+        if (userRole === "SUPERADMIN" || perm.defaultRoles.includes(userRole)) {
             permissions.add(perm.code);
         }
+    }
+
+    if (userRole === "SUPERADMIN") {
+        permissionCache.set(userId, { permissions, role: userRole, timestamp: Date.now() });
+        return permissions;
     }
 
     // Apply user-specific overrides from database
@@ -115,7 +129,7 @@ export async function getUserEffectivePermissions(
     }
 
     // Cache result
-    permissionCache.set(userId, { permissions, timestamp: Date.now() });
+    permissionCache.set(userId, { permissions, role: userRole, timestamp: Date.now() });
 
     return permissions;
 }

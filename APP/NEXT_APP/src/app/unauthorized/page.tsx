@@ -34,10 +34,10 @@ export default async function UnauthorizedPage() {
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Link
-                        href="/admin"
+                        href="/admin/landing"
                         className="px-6 py-3 rounded-xl bg-accent-1/20 text-accent-1 font-medium hover:bg-accent-1/30 transition-colors border border-accent-1/30"
                     >
-                        Ir al Dashboard
+                        Ir a mi Panel
                     </Link>
                     <Link
                         href="/"

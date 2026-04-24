@@ -1,9 +1,6 @@
 import { Metadata } from "next";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { hasPermission } from "@/lib/permission-check";
+import { requirePagePermission } from "@/lib/page-security";
 import { FinanceProvider } from "@/modules/finance";
-import type { Role } from '@/generated/prisma/client';
 
 export const metadata: Metadata = {
     title: "Finanzas | Admin Panel",
@@ -17,18 +14,7 @@ export default async function FinanceLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const session = await auth();
-    
-    if (!session?.user) {
-        redirect("/login");
-    }
-
-    // Check finance permission
-    const canViewFinance = await hasPermission(session.user.id, session.user.role as Role, "finance.view");
-    
-    if (!canViewFinance) {
-        redirect("/forbidden");
-    }
+    await requirePagePermission("finance.view");
 
     return (
         <FinanceProvider>

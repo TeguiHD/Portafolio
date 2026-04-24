@@ -134,29 +134,39 @@ export const verifyAdminAllowMissingMfa = cache(async (): Promise<Session> => {
 export const verifyAnyRole = cache(async (): Promise<Session> => {
     const session = await verifySession()
 
+    let user: {
+        id: string
+        role: Role
+        isActive: boolean
+        name: string | null
+        emailEncrypted: string | null
+        avatar: string | null
+        mfaEnabled: boolean
+    } | null
+
     try {
         const emailHash = hashEmail(session.user.email)
-        const user = await prisma.user.findUnique({
+        user = await prisma.user.findUnique({
             where: { email: emailHash },
             select: { id: true, role: true, isActive: true, name: true, emailEncrypted: true, avatar: true, mfaEnabled: true },
         })
-
-        if (!user || !user.isActive) {
-            redirect('/unauthorized')
-        }
-
-        return {
-            user: {
-                id: user.id,
-                email: session.user.email,
-                name: user.name,
-                role: user.role,
-                avatar: null,
-                mfaEnabled: user.mfaEnabled,
-            },
-        }
     } catch {
         redirect('/acceso')
+    }
+
+    if (!user || !user.isActive) {
+        redirect('/unauthorized')
+    }
+
+    return {
+        user: {
+            id: user.id,
+            email: session.user.email,
+            name: user.name,
+            role: user.role,
+            avatar: null,
+            mfaEnabled: user.mfaEnabled,
+        },
     }
 })
 

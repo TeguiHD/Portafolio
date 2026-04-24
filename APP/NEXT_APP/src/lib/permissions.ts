@@ -25,6 +25,13 @@ export const DEFAULT_PERMISSIONS: PermissionDefinition[] = [
         name: "Ver Dashboard",
         description: "Acceder al panel de administración",
         category: "dashboard",
+        defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR"],
+    },
+    {
+        code: "connections.view",
+        name: "Ver Conexiones",
+        description: "Gestionar conexiones propias y recursos compartidos",
+        category: "collaboration",
         defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"],
     },
 
@@ -467,6 +474,13 @@ export const DEFAULT_PERMISSIONS: PermissionDefinition[] = [
         category: "finance",
         defaultRoles: ["SUPERADMIN", "ADMIN"],
     },
+    {
+        code: "finance.categories.view",
+        name: "Ver Categorías",
+        description: "Ver categorías personalizadas de transacciones",
+        category: "finance",
+        defaultRoles: ["SUPERADMIN", "ADMIN"],
+    },
 
     // ============= FINANCE - RECURRING =============
     {
@@ -550,6 +564,15 @@ export const DEFAULT_PERMISSIONS: PermissionDefinition[] = [
         name: "Administrar Todas las Sesiones",
         description: "Ver y revocar sesiones de cualquier usuario",
         category: "security",
+        defaultRoles: ["SUPERADMIN"],
+    },
+
+    // ============= SUPERADMIN =============
+    {
+        code: "superadmin.view",
+        name: "Ver Superadmin",
+        description: "Acceder al panel de control del VPS y funciones críticas",
+        category: "superadmin",
         defaultRoles: ["SUPERADMIN"],
     },
 

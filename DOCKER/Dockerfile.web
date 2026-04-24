@@ -3,6 +3,9 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
+# TypeScript/Next production builds need more heap than Node's default on small VPS builders.
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/

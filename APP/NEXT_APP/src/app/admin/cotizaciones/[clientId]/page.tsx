@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/page-security";
 import { hasPermission } from "@/lib/permission-check";
-import { auth } from "@/lib/auth";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Eye, ChevronRight } from "lucide-react";
 import CreateQuotationModal from "./create-modal";
@@ -57,12 +56,7 @@ export default async function ClientQuotationsPage({
     params: Promise<{ clientId: string }>;
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-    await requirePagePermission("quotations.view");
-
-    const session = await auth();
-    if (!session?.user?.id) {
-        redirect("/acceso");
-    }
+    const session = await requirePagePermission("quotations.view");
 
     const { clientId } = await params;
     const { action, project } = await searchParams; // Await searchParams

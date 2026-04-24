@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/page-security";
-import { auth } from "@/lib/auth";
 import QuotationsView from "./quotations-view";
 
 export const dynamic = "force-dynamic";
@@ -57,12 +56,7 @@ export default async function QuotationsPage({
 }: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-    await requirePagePermission("quotations.view");
-
-    const session = await auth();
-    if (!session?.user?.id) {
-        return <div className="text-red-400">No autorizado</div>;
-    }
+    const session = await requirePagePermission("quotations.view");
 
     const isSuperAdmin = session.user.role === "SUPERADMIN";
     const { spyUserId } = await searchParams;

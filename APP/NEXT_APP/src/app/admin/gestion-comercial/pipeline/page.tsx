@@ -1,21 +1,11 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from '@/generated/prisma/client';
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import { PipelineBoard } from "./pipeline-board";
 
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage() {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "crm.pipeline.view"
-    );
-    if (!canView) redirect("/admin/gestion-comercial");
+    const session = await requirePagePermission("crm.pipeline.view");
 
     // Fetch deals and clients in parallel
     const [deals, clients] = await Promise.all([

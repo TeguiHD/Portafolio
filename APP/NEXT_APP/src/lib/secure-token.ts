@@ -12,7 +12,7 @@
  * @module secure-token
  */
 
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from "crypto";
 
 // Secret key for HMAC - should be from environment
 const getSecretKey = (): string => {
@@ -137,7 +137,7 @@ export function generateSecureAccessCode(): string {
         "Quebec", "Romeo", "Sierra", "Tango", "Victor"
     ];
 
-    const word = words[Math.floor(Math.random() * words.length)];
+    const word = words[randomInt(words.length)];
 
     // Generate 3 groups of 4 characters each
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed confusing chars: I, O, 0, 1

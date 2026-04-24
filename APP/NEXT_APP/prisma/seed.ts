@@ -145,6 +145,7 @@ async function main() {
     const permissions = [
         // Dashboard
         { code: "dashboard.view", name: "Ver Dashboard", description: "Acceder al panel de administración", category: "dashboard", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR"] },
+        { code: "connections.view", name: "Ver Conexiones", description: "Gestionar conexiones propias y recursos compartidos", category: "collaboration", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"] },
         // Analytics
         { code: "analytics.view", name: "Ver Analytics", description: "Ver estadísticas y métricas del sitio", category: "analytics", defaultRoles: ["SUPERADMIN", "ADMIN", "MODERATOR"] },
         { code: "analytics.export", name: "Exportar Analytics", description: "Descargar reportes de analytics", category: "analytics", defaultRoles: ["SUPERADMIN", "ADMIN"] },

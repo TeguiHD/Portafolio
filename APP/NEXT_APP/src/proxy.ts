@@ -297,15 +297,15 @@ function buildCSP(): string {
         // SECURITY: 'unsafe-eval' REMOVED — not required by Next.js 16 / React 19 in production
         // https://static.cloudflareinsights.com is Cloudflare's official RUM/Analytics CDN
         // OWASP 2025 A04 / MITRE T1059: Prevent eval()-based XSS execution
-        `script-src 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com https://cdn.tailwindcss.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
+        `script-src 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
 
         // Explicit script element/attribute directives reduce browser fallback ambiguity.
-        `script-src-elem 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com https://cdn.tailwindcss.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
+        `script-src-elem 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
         "script-src-attr 'unsafe-inline'",
 
         // Styles: Allow unsafe-inline for React/Framer Motion dynamic styles
-        `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com`,
-        `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com`,
+        `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com`,
+        `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com`,
         `style-src-attr 'unsafe-inline'`,
 
         // Images: self + data URIs for inline images + HTTPS (+ HTTP for dev)
@@ -616,8 +616,15 @@ export async function proxy(request: NextRequest) {
     // Prevents Burp Suite / proxy content-type manipulation attacks
     if (pathname.startsWith('/api/') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
         const contentType = request.headers.get('content-type')
-        // Allow: application/json, multipart/form-data, no content-type (for DELETE with no body)
-        if (contentType && !contentType.includes('application/json') && !contentType.includes('multipart/form-data') && !contentType.includes('application/x-www-form-urlencoded')) {
+        // Allow form-urlencoded only for Auth.js endpoints; cross-site forms can otherwise
+        // become a CSRF primitive for JSON APIs.
+        const formUrlencodedAllowed = pathname.startsWith('/api/auth/')
+        const isAllowedContentType = !contentType
+            || contentType.includes('application/json')
+            || contentType.includes('multipart/form-data')
+            || (formUrlencodedAllowed && contentType.includes('application/x-www-form-urlencoded'))
+
+        if (!isAllowedContentType) {
             logSecurityIncidentAsync(request, 'blocked_request', 'MEDIUM', clientIp, pathname, 'blocked',
                 { reason: 'invalid_content_type', contentType: contentType.slice(0, 100) })
             return new NextResponse(

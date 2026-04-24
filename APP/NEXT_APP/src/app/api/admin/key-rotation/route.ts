@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { verifySuperAdminForApi } from '@/lib/auth/dal'
 import {
     getRotationStatus,
     triggerRotation,
@@ -24,20 +24,20 @@ const getClientIP = (request: NextRequest): string => {
         '127.0.0.1'
 }
 
-async function isAdmin(): Promise<{ isAdmin: boolean; userId?: string }> {
-    const session = await auth()
+async function requireKeyRotationOperator(): Promise<{ allowed: boolean; userId?: string }> {
+    const session = await verifySuperAdminForApi()
     return {
-        isAdmin: session?.user?.role === 'ADMIN',
+        allowed: Boolean(session?.user?.id),
         userId: session?.user?.id,
     }
 }
 
 // GET - Get rotation status
 export async function GET(request: NextRequest) {
-    const { isAdmin: admin, userId } = await isAdmin()
+    const { allowed, userId } = await requireKeyRotationOperator()
     const clientIP = getClientIP(request)
 
-    if (!admin) {
+    if (!allowed) {
         SecurityLogger.auth({
             success: false,
             userId: userId || '',
@@ -72,10 +72,10 @@ export async function GET(request: NextRequest) {
 
 // POST - Trigger manual rotation or start/stop auto-rotation
 export async function POST(request: NextRequest) {
-    const { isAdmin: admin, userId } = await isAdmin()
+    const { allowed, userId } = await requireKeyRotationOperator()
     const clientIP = getClientIP(request)
 
-    if (!admin) {
+    if (!allowed) {
         SecurityLogger.auth({
             success: false,
             userId: userId || '',
@@ -147,10 +147,10 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Revoke a specific key
 export async function DELETE(request: NextRequest) {
-    const { isAdmin: admin, userId } = await isAdmin()
+    const { allowed, userId } = await requireKeyRotationOperator()
     const clientIP = getClientIP(request)
 
-    if (!admin) {
+    if (!allowed) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 

@@ -8,7 +8,7 @@
  */
 
 import 'server-only'
-import { verifySession, type Session } from '@/lib/auth/dal'
+import { verifyAnyRole, type Session } from '@/lib/auth/dal'
 import { hasPermission } from '@/lib/permission-check'
 import { redirect } from 'next/navigation'
 import { SecurityLogger } from '@/lib/security-logger'
@@ -29,7 +29,11 @@ import { headers } from 'next/headers'
  * ```
  */
 export async function requirePagePermission(permissionCode: string): Promise<Session> {
-    const session = await verifySession()
+    const session = await verifyAnyRole()
+
+    if (session.user.mfaEnabled !== true) {
+        redirect('/admin/profile')
+    }
 
     // Get request context for logging
     const headersList = await headers()
@@ -66,7 +70,11 @@ export async function requirePagePermission(permissionCode: string): Promise<Ses
  * Check multiple permissions (user needs ALL of them)
  */
 export async function requireAllPermissions(permissionCodes: string[]): Promise<Session> {
-    const session = await verifySession()
+    const session = await verifyAnyRole()
+
+    if (session.user.mfaEnabled !== true) {
+        redirect('/admin/profile')
+    }
 
     const headersList = await headers()
     const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -96,7 +104,11 @@ export async function requireAllPermissions(permissionCodes: string[]): Promise<
  * Check multiple permissions (user needs ANY of them)
  */
 export async function requireAnyPermission(permissionCodes: string[]): Promise<Session> {
-    const session = await verifySession()
+    const session = await verifyAnyRole()
+
+    if (session.user.mfaEnabled !== true) {
+        redirect('/admin/profile')
+    }
 
     const headersList = await headers()
     const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||

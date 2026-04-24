@@ -1,20 +1,10 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from '@/generated/prisma/client';
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function GestionComercialDashboard() {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "crm.dashboard"
-    );
-    if (!canView) redirect("/admin");
+    const session = await requirePagePermission("crm.dashboard");
 
     // Fetch aggregate stats — defensive to handle stale Prisma client
     let totalDeals = 0, activeDeals = 0, totalContracts = 0, activeContracts = 0, totalClients = 0;

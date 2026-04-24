@@ -1,5 +1,7 @@
-import { requirePagePermission } from "@/lib/page-security";
+import { redirect } from "next/navigation";
+import { verifyAnyRole } from "@/lib/auth/dal";
 import { getUserEffectivePermissions } from "@/lib/permission-check";
+import { canOpenAdminDashboard, resolveAdminLandingPath } from "@/lib/admin-landing";
 import { DashboardStats } from "@/modules/admin/components/DashboardStats";
 import { RecentActivity } from "@/modules/admin/components/RecentActivity";
 import { QuickActions } from "@/modules/admin/components/QuickActions";
@@ -9,11 +11,19 @@ import { VpsControlSummary } from "@/modules/admin/components/VpsControlSummary"
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
-  // Server-side permission validation
-  const session = await requirePagePermission('dashboard.view');
+  const session = await verifyAnyRole();
+  if (session.user.mfaEnabled !== true) {
+    redirect("/admin/profile");
+  }
 
-  // Load permissions for QuickActions filtering
   const permissionsSet = await getUserEffectivePermissions(session.user.id, session.user.role);
+
+  const canViewDashboard = canOpenAdminDashboard(session.user.role) && permissionsSet.has("dashboard.view");
+  if (!canViewDashboard) {
+    const landingPath = resolveAdminLandingPath(session.user.role, permissionsSet);
+    redirect(landingPath === "/admin" ? "/unauthorized" : landingPath);
+  }
+
   const permissions = Array.from(permissionsSet);
 
   return (
@@ -41,4 +51,3 @@ export default async function AdminDashboard() {
     </div>
   );
 }
-

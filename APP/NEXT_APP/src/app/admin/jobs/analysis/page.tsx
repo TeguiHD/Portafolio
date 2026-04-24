@@ -1,7 +1,4 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@/generated/prisma/client";
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import AnalysisClient from "./client";
 import type { CvVersionOption } from "../types";
@@ -48,14 +45,7 @@ export default async function JobsAnalysisPage({
 }: {
     searchParams: Promise<SearchParams>;
 }) {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "jobs.vacancies.view"
-    );
-    if (!canView) redirect("/admin/jobs");
+    const session = await requirePagePermission("jobs.vacancies.view");
 
     const userId = session.user.id;
     const { vacancyId } = await searchParams;

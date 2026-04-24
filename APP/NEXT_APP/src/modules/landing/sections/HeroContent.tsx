@@ -80,7 +80,7 @@ export function HeroContent() {
       <div className="grid grid-cols-3 gap-4 sm:gap-8 md:gap-12 max-w-xl hero-fade-in" style={{ animationDelay: "0.6s" }}>
         <div className="group text-left">
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums" id="hero-counter-projects">500</span>
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums" id="hero-counter-projects">50</span>
             <span className="text-xl sm:text-2xl font-bold text-blue-400">+</span>
           </div>
           <div className="flex items-center gap-2 mt-1">

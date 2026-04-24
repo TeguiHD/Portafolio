@@ -11,7 +11,7 @@ import { sanitizeRedirectPath } from "@/lib/url-security";
 
 function LoginForm() {
     const searchParams = useSearchParams();
-    const callbackUrl = sanitizeRedirectPath(searchParams.get("callbackUrl"), "/admin");
+    const callbackUrl = sanitizeRedirectPath(searchParams.get("callbackUrl"), "/admin/landing");
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

@@ -1,8 +1,5 @@
 import Link from "next/link";
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@/generated/prisma/client";
-import { redirect } from "next/navigation";
+import { requireAnyPermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import {
     Briefcase,
@@ -32,22 +29,10 @@ type ActivityEntry = {
 };
 
 export default async function JobsDashboardPage() {
-    const session = await verifyAdmin();
-
-    const canViewVacancies = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "jobs.vacancies.view"
-    );
-    const canViewApplications = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "jobs.applications.view"
-    );
-
-    if (!canViewVacancies && !canViewApplications) {
-        redirect("/admin");
-    }
+    const session = await requireAnyPermission([
+        "jobs.vacancies.view",
+        "jobs.applications.view",
+    ]);
 
     const userId = session.user.id;
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

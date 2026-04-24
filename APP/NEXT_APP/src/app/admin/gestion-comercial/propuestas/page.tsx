@@ -1,20 +1,10 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from '@/generated/prisma/client';
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function PropuestasPage() {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "quotations.view"
-    );
-    if (!canView) redirect("/admin/gestion-comercial");
+    await requirePagePermission("quotations.view");
 
     return (
         <div className="space-y-6">

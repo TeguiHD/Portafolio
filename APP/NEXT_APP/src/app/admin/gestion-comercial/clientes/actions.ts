@@ -39,7 +39,7 @@ export async function updateClientAction(clientId: string, input: UpdateClientIn
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "No autorizado" };
 
-    const canManage = await hasPermission(session.user.id, session.user.role as Role, "quotations.manage");
+    const canManage = await hasPermission(session.user.id, session.user.role as Role, "quotations.edit");
     if (!canManage) return { success: false, error: "Permiso denegado" };
 
     // Verify ownership

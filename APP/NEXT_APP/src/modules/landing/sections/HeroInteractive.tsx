@@ -110,7 +110,7 @@ export function HeroInteractive() {
 
     const startEnhancements = () => {
       stopTyping = startTypingAnimation();
-      stopProjectsCounter = startCounterAnimation("hero-counter-projects", 500, 2500);
+      stopProjectsCounter = startCounterAnimation("hero-counter-projects", 50, 2500);
       stopUptimeCounter = startCounterAnimation("hero-counter-uptime", 99, 2000);
     };
 

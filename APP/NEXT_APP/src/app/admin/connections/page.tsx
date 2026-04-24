@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import { Users } from "lucide-react";
 import CollaborationHub from "@/components/user/CollaborationHub";
@@ -10,10 +10,7 @@ export const metadata = {
 };
 
 export default async function ConnectionsPage() {
-    const session = await auth();
-    if (!session?.user?.id) {
-        redirect("/acceso");
-    }
+    const session = await requirePagePermission("connections.view");
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },

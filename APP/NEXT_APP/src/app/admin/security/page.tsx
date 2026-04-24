@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import SecurityDashboardClient from "./client";
 
 export const metadata = {
@@ -8,12 +7,7 @@ export const metadata = {
 };
 
 export default async function SecurityPage() {
-    const session = await auth();
-    const userRole = (session?.user as { role?: string })?.role;
-
-    if (!session?.user || (userRole !== "ADMIN" && userRole !== "SUPERADMIN")) {
-        redirect("/acceso");
-    }
+    await requirePagePermission("security.view");
 
     return <SecurityDashboardClient />;
 }

@@ -8,15 +8,16 @@ import { cn } from "@/components/ui/Button";
 
 const projects = [
   {
-    id: "slep",
-    title: "SLEP Gobierno",
-    category: "High Traffic / EdTech",
-    metric: "-65%",
-    metricLabel: "Load Time Reduction",
-    desc: "Plataforma crítica con 500+ usuarios concurrentes. Migración a Next.js y optimización de base de datos.",
+    id: "otec-intranet",
+    title: "Intranet OTEC ImpulsaTech",
+    category: "EdTech / Intranet",
+    metric: "100%",
+    metricLabel: "Digitalización OTEC",
+    desc: "Intranet corporativa para OTEC ImpulsaTech: gestión de cursos, alumnos y docentes. Landing institucional integrada.",
     colSpan: "md:col-span-2",
     bg: "bg-blue-950",
-    gradient: "from-blue-900 to-slate-900"
+    gradient: "from-blue-900 to-slate-900",
+    link: "https://impulsatech.cl/"
   },
   {
     id: "floresdyd",

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SecuritySeverity } from '@/generated/prisma/client';
 import { hasPermission } from "@/lib/permission-check";
 import type { Role } from '@/generated/prisma/client';
+import { timingSafeEqual } from "crypto";
 
 // GET: List security incidents with filters
 export async function GET(request: NextRequest) {
@@ -74,7 +75,18 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST: Create a new security incident (internal use)
+function hasValidInternalSecret(providedSecret: string | null, configuredSecret: string | undefined): boolean {
+    if (!providedSecret || !configuredSecret) {
+        return false;
+    }
+
+    const provided = Buffer.from(providedSecret);
+    const configured = Buffer.from(configuredSecret);
+
+    return provided.length === configured.length && timingSafeEqual(provided, configured);
+}
+
+// POST: Create a new security incident (internal use only)
 export async function POST(request: NextRequest) {
     try {
         // This endpoint is for internal use - verify with INTERNAL_API_SECRET.
@@ -82,15 +94,8 @@ export async function POST(request: NextRequest) {
         const authHeader = request.headers.get("x-internal-secret");
         const internalSecret = process.env.INTERNAL_API_SECRET;
 
-        // Allow if internal secret matches OR if called from server context
-        if (authHeader !== internalSecret) {
-            // Check if admin session exists as fallback
-            const session = await auth();
-            const userRole = (session?.user as { role?: string })?.role;
-
-            if (!session?.user || (userRole !== "ADMIN" && userRole !== "SUPERADMIN")) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
+        if (!hasValidInternalSecret(authHeader, internalSecret)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const body = await request.json();

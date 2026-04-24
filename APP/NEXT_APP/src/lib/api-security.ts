@@ -17,6 +17,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { 
     sanitizeObject, 
     safeJsonParse,
@@ -285,12 +286,57 @@ export async function secureApiEndpoint(
         }
         
         context.userId = session.user.id
+
+        const dbUser = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: {
+                role: true,
+                isActive: true,
+                mfaEnabled: true,
+            },
+        })
+
+        if (!dbUser || !dbUser.isActive) {
+            SecurityLogger.unauthorized({
+                ipAddress: context.ipAddress,
+                userAgent: context.userAgent,
+                userId: session.user.id,
+                resource: request.nextUrl.pathname,
+                requiredPermission: 'active_account'
+            })
+
+            return {
+                error: NextResponse.json(
+                    { error: 'Forbidden' },
+                    { status: 403 }
+                ),
+                context
+            }
+        }
         
         // Permission check
         if (options.requiredPermission) {
+            if (dbUser.mfaEnabled !== true) {
+                SecurityLogger.unauthorized({
+                    ipAddress: context.ipAddress,
+                    userAgent: context.userAgent,
+                    userId: session.user.id,
+                    resource: request.nextUrl.pathname,
+                    requiredPermission: 'mfa'
+                })
+
+                return {
+                    error: NextResponse.json(
+                        { error: 'MFA required' },
+                        { status: 403 }
+                    ),
+                    context
+                }
+            }
+
             const hasAccess = await hasPermission(
                 session.user.id,
-                session.user.role as Role,
+                dbUser.role as Role,
                 options.requiredPermission
             )
             

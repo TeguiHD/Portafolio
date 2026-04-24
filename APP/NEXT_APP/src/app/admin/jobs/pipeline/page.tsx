@@ -1,7 +1,4 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from "@/generated/prisma/client";
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import PipelineClient from "./client";
 import type { ApplicationItem } from "../types";
@@ -9,14 +6,7 @@ import type { ApplicationItem } from "../types";
 export const dynamic = "force-dynamic";
 
 export default async function JobsPipelinePage() {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "jobs.applications.view"
-    );
-    if (!canView) redirect("/admin/jobs");
+    const session = await requirePagePermission("jobs.applications.view");
 
     const userId = session.user.id;
 

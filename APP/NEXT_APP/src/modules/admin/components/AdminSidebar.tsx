@@ -141,6 +141,7 @@ const menuStructure: {
             href: "/admin",
             icon: icons.dashboard,
             requiredPermission: "dashboard.view",
+            requiredRoles: ["SUPERADMIN", "ADMIN", "MODERATOR"],
         },
     ],
     // Collapsible groups
@@ -279,7 +280,7 @@ const menuStructure: {
                     name: "Conexiones",
                     href: "/admin/connections",
                     icon: icons.users,
-                    requiredPermission: "dashboard.view", // Accessible to all dashboard users
+                    requiredPermission: "connections.view",
                 },
             ],
         },

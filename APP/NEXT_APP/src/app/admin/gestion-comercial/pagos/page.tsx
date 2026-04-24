@@ -1,7 +1,4 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from '@/generated/prisma/client';
-import { redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -13,14 +10,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default async function PagosPage() {
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "crm.payments.view"
-    );
-    if (!canView) redirect("/admin/gestion-comercial");
+    const session = await requirePagePermission("crm.payments.view");
 
     // Fetch payments from quotations that belong to this user
     const payments = await prisma.quotationPayment.findMany({

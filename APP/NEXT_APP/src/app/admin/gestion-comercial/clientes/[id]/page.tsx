@@ -1,7 +1,5 @@
-import { verifyAdmin } from "@/lib/auth/dal";
-import { hasPermission } from "@/lib/permission-check";
-import type { Role } from '@/generated/prisma/client';
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
+import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
 import ClientDetailClient from "./client";
 
@@ -13,14 +11,7 @@ interface PageProps {
 
 export default async function ClientDetailPage({ params }: PageProps) {
     const { id } = await params;
-    const session = await verifyAdmin();
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "quotations.view"
-    );
-    if (!canView) redirect("/admin/gestion-comercial/clientes");
+    const session = await requirePagePermission("quotations.view");
 
     const client = await prisma.quotationClient.findFirst({
         where: { id, userId: session.user.id },
