@@ -61,6 +61,8 @@ debug.log*
 .next/dev/logs/
 
 ## Local-only / not for GitHub
+.codex
+.codex/
 .claude/
 .tools/
 Archivos/

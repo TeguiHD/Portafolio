@@ -36,6 +36,7 @@
 ## 📋 Tabla de Contenidos
 
 - [Descripción General](#-descripción-general)
+- [Estado Actual](#-estado-actual)
 - [Stack Tecnológico](#-stack-tecnológico)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
 - [Arquitectura de Seguridad](#️-arquitectura-de-seguridad)
@@ -64,6 +65,27 @@ Plataforma **full-stack de nivel empresarial** diseñada como vitrina técnica y
 
 ---
 
+## ✅ Estado Actual
+
+- **Producción validada:** 24 de abril de 2026
+- **Sitio:** https://nicoholas.dev
+- **Rama publicada:** `main`
+
+| Área | Estado |
+|------|--------|
+| **Aplicación** | Build productivo validado con Next.js 16.2.4 y Prisma 7.8.0 |
+| **Dependencias** | `npm audit --audit-level=moderate` sin vulnerabilidades conocidas |
+| **Acceso** | Autorización por permisos granulares, rol activo desde base de datos y MFA donde corresponde |
+| **Infraestructura** | Web, PostgreSQL y Redis aislados en localhost detrás de Nginx/Cloudflare |
+| **Firewall** | UFW activo, entrada denegada por defecto, solo 80/443 públicos y SSH con rate limit |
+| **Headers** | HSTS, CSP, `frame-ancestors 'none'`, `object-src 'none'`, `nosniff` y política de permisos restrictiva |
+| **Repositorio** | `.env`, secretos, llaves, dumps, artefactos y archivos locales de agente excluidos por `.gitignore` |
+
+> [!IMPORTANT]
+> El repositorio no debe contener credenciales reales. Usa solo `.env.example` como plantilla y genera secretos nuevos por entorno.
+
+---
+
 ## 🔧 Stack Tecnológico
 
 ### Frontend
@@ -72,8 +94,8 @@ Plataforma **full-stack de nivel empresarial** diseñada como vitrina técnica y
 | **Next.js** | 16.x | Framework principal con App Router |
 | **React** | 19.x | Librería UI con características de concurrencia |
 | **TypeScript** | 5.x | Tipado estático completo |
-| **Tailwind CSS** | 3.x | Sistema de estilos basado en utilidades |
-| **Framer Motion** | 11.x | Animaciones declarativas y gestos |
+| **Tailwind CSS** | 4.x | Sistema de estilos basado en utilidades |
+| **Framer Motion** | 12.x | Animaciones declarativas y gestos |
 | **GSAP** | 3.x | Animaciones de alto rendimiento |
 
 ### Backend
@@ -81,7 +103,7 @@ Plataforma **full-stack de nivel empresarial** diseñada como vitrina técnica y
 |------------|---------|-----|
 | **Next.js API Routes** | 16.x | Endpoints serverless |
 | **Prisma ORM** | 7.x | Acceso a BD con tipado seguro |
-| **PostgreSQL** | 18.x | Base de datos relacional |
+| **PostgreSQL** | 15.x | Base de datos relacional |
 | **NextAuth** | v5 | Sistema de autenticación |
 | **Argon2id** | - | Hashing de contraseñas |
 | **AES-256-GCM** | - | Cifrado de datos sensibles |
@@ -301,13 +323,15 @@ Portafolio/
 
 ### Auditoría y Estado
 > [!NOTE]
-> **Auditoría de Seguridad (Ene 2026):** Proyecto auditado y endurecido.
+> **Auditoría de Seguridad (Abr 2026):** Proyecto auditado, actualizado y endurecido.
 > - ✅ Migración completa de URLs a español (SEO mejorado).
 > - ✅ Redirects 301 configurados para compatibilidad.
-> - ✅ Puerto 3000 cerrado (Solo acceso vía Nginx).
+> - ✅ Puertos internos 3000, 5432 y 6379 cerrados al público.
 > - ✅ Middleware centralizado de protección.
+> - ✅ RBAC corregido con permisos granulares por sección.
+> - ✅ Checks de sesión, usuario activo, MFA y permisos consultando base de datos.
 > - ✅ Protección contra DoS y Memory Exhaustion.
-> - ✅ Pruebas E2E automatizadas.
+> - ✅ Dependencias actualizadas y lockfile versionado.
 
 ### Flujo de Seguridad por Capas
 
@@ -387,6 +411,7 @@ const ALGORITHM = 'aes-256-gcm'
 **50+ Permisos Granulares organizados por categoría:**
 
 - `dashboard.*` — Acceso al panel
+- `connections.*` — Conexiones propias y recursos compartidos
 - `analytics.*` — Métricas y reportes
 - `users.*` — Gestión de usuarios
 - `tools.*` — Administración de herramientas
@@ -408,18 +433,30 @@ detectPromptInjection(userInput)
 sanitizeAIResponse(response)
 ```
 
-#### 📋 Headers de Seguridad (CSP con Nonce)
+#### 📋 Headers de Seguridad (CSP con Allowlist)
 
 ```typescript
-// Generación de nonce único por request
-const nonce = generateNonce()
-
-// Content-Security-Policy estricto
-"script-src 'self' 'nonce-${nonce}'"
-"style-src 'self' 'nonce-${nonce}'"
+// Content-Security-Policy endurecido con allowlist explícita
+"default-src 'none'"
+"script-src 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com"
+"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com"
 "img-src 'self' data: blob: https:"
-"connect-src 'self' https://api.openrouter.ai"
+"connect-src 'self' blob: https://api.openrouter.ai https://api.frankfurter.app"
+"frame-ancestors 'none'"
+"object-src 'none'"
 ```
+
+#### 🔐 Endurecimiento de Producción
+
+| Control | Implementación |
+|---------|----------------|
+| **Zero Trust** | No se confía en el rol del JWT para permisos críticos; se refresca usuario desde DB |
+| **MFA** | Las secciones con permisos granulares exigen MFA cuando el usuario lo tiene pendiente |
+| **API hardening** | Validación de `Content-Type`, rate limiting, sanitización y errores fail-closed |
+| **Secretos** | `PASSWORD_PEPPER`, `INTERNAL_API_SECRET`, `AUDIT_SIGNING_KEY` y claves de cifrado fuera de Git |
+| **Incidentes** | Endpoint interno protegido por secreto dedicado y comparación constante |
+| **Key rotation** | Operación restringida a `SUPERADMIN` |
+| **Red** | PostgreSQL, Redis y Next.js expuestos solo en `127.0.0.1` dentro del VPS |
 
 #### 🔐 Bloqueo de Cuenta Progresivo
 
@@ -683,7 +720,7 @@ Dashboard completo para gestión del sistema:
 
 ### Requisitos Previos
 
-- **Node.js** 20.x o superior
+- **Node.js** 20.x o superior (producción validada con Node.js 24.15.0)
 - **PostgreSQL** 15.x o superior
 - **npm** o **pnpm**
 
@@ -718,9 +755,8 @@ npm run start        # Iniciar producción
 npm run lint         # Verificar código
 npm run db:push      # Push schema a BD
 npm run db:seed      # Ejecutar seeds
-npm run db:push      # Push schema a BD
-npm run db:seed      # Ejecutar seeds
 npm run db:studio    # Abrir Prisma Studio
+npm audit            # Auditoría de dependencias
 npx playwright test  # Ejecutar tests E2E
 ```
 
@@ -740,6 +776,15 @@ NEXTAUTH_URL="https://tu-dominio.com"
 
 # Cifrado de datos sensibles
 ENCRYPTION_KEY="<generar: openssl rand -base64 32>"
+PASSWORD_PEPPER="<generar: openssl rand -hex 32>"
+AUDIT_SIGNING_KEY="<generar: openssl rand -hex 32>"
+INTERNAL_API_SECRET="<generar: openssl rand -base64 32>"
+
+# Redis / rate limiting
+REDIS_URL="redis://:password@redis:6379"
+
+# CORS
+CORS_ALLOWED_ORIGINS="https://tu-dominio.com"
 
 # IA via OpenRouter
 OPENROUTER_API_KEY="<tu-api-key>"
@@ -756,6 +801,24 @@ openssl rand -base64 32
 
 # En PowerShell
 [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+```
+
+### Higiene de Repositorio
+
+El `.gitignore` bloquea archivos locales y sensibles:
+
+- `.env`, `.env.*`, `.envrc`
+- `.codex`, `.codex/`, `.claude/`, `.tools/`
+- llaves privadas, certificados, keystores y bases locales
+- dumps/backups SQL comprimidos o generados
+- artefactos de build, deploy, logs y staging
+- notas privadas de seguridad y documentos personales
+
+Si accidentalmente se trackea un archivo local, quitarlo del índice sin borrarlo:
+
+```bash
+git rm --cached -- ruta/al/archivo
+git commit -m "chore: remove local artifact from repository"
 ```
 
 ---
@@ -779,6 +842,30 @@ El script configura automáticamente:
 - ✅ Volúmenes para archivos subidos
 - ✅ Red interna entre contenedores
 
+### Producción en VPS de Baja Memoria
+
+El VPS productivo tiene recursos limitados, por lo que el build debe hacerse localmente y subirse como runtime:
+
+1. Ejecutar `npm run build` en local.
+2. Empaquetar `.next/standalone`, `.next/static`, `public` y `Dockerfile.runtime`.
+3. Subir el paquete al VPS.
+4. Construir imagen runtime ligera sin recompilar Next.js en el servidor.
+5. Recrear solo el servicio `web`.
+
+En producción, los puertos internos deben quedar enlazados a localhost:
+
+```yaml
+web:
+  ports:
+    - "127.0.0.1:3000:3000"
+db:
+  ports:
+    - "127.0.0.1:5432:5432"
+redis:
+  ports:
+    - "127.0.0.1:6379:6379"
+```
+
 ### Estructura Docker
 
 ```yaml
@@ -786,6 +873,7 @@ services:
   db:          # PostgreSQL 15
   web:         # Next.js 16
   nginx:       # Proxy reverso + SSL
+  redis:       # Cache/rate limiting
 
 volumes:
   postgres_data:    # Datos persistentes
