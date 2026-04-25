@@ -1714,3 +1714,34 @@ model ClientApproval {
   @@index([accessToken])
   @@index([expiresAt])
 }
+
+// ─── ThreatScoreHistory ───────────────────────────────────────────
+model ThreatScoreHistory {
+  id        String   @id @default(cuid())
+  ipHash    String
+  userId    String?
+  score     Int
+  signals   Json     // { rateLimitHits: number, authFailures: number, attackPatterns: number, abuseipdb: number, sessionAnomalies: number }
+  source    String   // "internal" | "abuseipdb" | "combined"
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ─── ThreatPendingAction ──────────────────────────────────────────
+model ThreatPendingAction {
+  id          String    @id @default(cuid())
+  actionType  String    // "PERMANENT_BLOCK" | "ACCOUNT_SUSPEND" | "EXTEND_BLOCK"
+  ipHash      String?
+  userId      String?
+  score       Int
+  context     Json      // full event + decision context
+  status      String    @default("pending") // "pending"|"approved"|"rejected"
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+
+  @@index([status, createdAt])
+}
