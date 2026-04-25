@@ -2,15 +2,22 @@
   "name": "portfolio-scream",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.22.0 <25",
+    "pnpm": ">=10.33.0 <11"
+  },
   "scripts": {
-    "dev": "npm run prisma:generate && next dev",
-    "build": "npm run prisma:generate && next build",
+    "dev": "prisma generate && next dev",
+    "build": "prisma generate && next build",
     "start": "next start",
     "prisma:generate": "prisma generate",
     "lint": "eslint . --max-warnings 0",
-    "security:check": "npm run lint && npm audit --audit-level=moderate && npm run build",
-    "security:prod": "npm audit --omit=dev --audit-level=moderate"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "security:check": "pnpm run lint && pnpm run typecheck && pnpm audit --prod --audit-level=high && pnpm run build",
+    "security:prod": "pnpm audit --prod --audit-level=high"
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.3",
@@ -94,18 +101,12 @@
       "hono": "4.12.15",
       "lodash": "4.18.1",
       "lodash-es": "4.18.1",
-      "brace-expansion": "5.0.5",
+      "brace-expansion": "2.0.1",
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
       "postcss": "8.5.10",
       "markdown-it": "14.1.1",
       "next>postcss": "8.5.10",
-      "@eslint/config-array>minimatch": "3.1.4",
-      "@eslint/eslintrc>minimatch": "3.1.4",
-      "@eslint/eslintrc>ajv": "6.14.0",
-      "eslint>minimatch": "3.1.4",
-      "eslint>ajv": "6.14.0",
-      "eslint-plugin-react>minimatch": "3.1.4",
       "@typescript-eslint/typescript-estree>minimatch": "9.0.7",
       "glob>minimatch": "9.0.7",
       "editorconfig>minimatch": "9.0.7",
@@ -117,7 +118,7 @@
     "hono": "4.12.15",
     "lodash": "4.18.1",
     "lodash-es": "4.18.1",
-    "brace-expansion": "5.0.5",
+    "brace-expansion": "2.0.1",
     "flatted": "3.4.2",
     "picomatch": "4.0.4",
     "postcss": "8.5.10",
@@ -125,20 +126,6 @@
     "next": {
       ".": "^16.2.4",
       "postcss": "8.5.10"
-    },
-    "@eslint/config-array": {
-      "minimatch": "3.1.4"
-    },
-    "@eslint/eslintrc": {
-      "minimatch": "3.1.4",
-      "ajv": "6.14.0"
-    },
-    "eslint": {
-      "minimatch": "3.1.4",
-      "ajv": "6.14.0"
-    },
-    "eslint-plugin-react": {
-      "minimatch": "3.1.4"
     },
     "@typescript-eslint/typescript-estree": {
       "minimatch": "9.0.7"

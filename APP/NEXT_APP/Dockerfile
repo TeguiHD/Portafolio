@@ -1,14 +1,16 @@
-FROM node:23-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN npm run build \
+RUN pnpm run build \
 	&& mkdir -p .next/standalone/.next \
 	&& cp -R .next/static .next/standalone/.next/static \
 	&& cp -R public .next/standalone/public
@@ -16,4 +18,3 @@ RUN npm run build \
 EXPOSE 3000
 
 CMD ["node", ".next/standalone/server.js"]
-

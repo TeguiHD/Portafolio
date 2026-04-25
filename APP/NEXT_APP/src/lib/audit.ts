@@ -41,6 +41,8 @@ export const AuditActions = {
     PERMISSION_RESET: "permission.reset",
     CONCURRENT_SESSION: "session.concurrent",
     SESSION_REVOKED: "session.revoked",
+    AUTONOMOUS_DEFENSE_DECISION: "autonomous_defense.decision",
+    AUTONOMOUS_DEFENSE_APPROVAL_REQUIRED: "autonomous_defense.approval_required",
 
     // Tools
     TOOL_CREATED: "tool.created",

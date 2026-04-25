@@ -2,7 +2,7 @@
 # USO: La app debe estar precompilada antes de construir la imagen.
 # La salida standalone ya incluye el runtime necesario para ejecutar Next.
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 

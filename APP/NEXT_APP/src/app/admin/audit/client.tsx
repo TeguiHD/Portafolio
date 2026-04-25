@@ -50,6 +50,8 @@ const actionIcons: Record<string, React.ReactNode> = {
     // Security actions
     "session.concurrent": <AlertTriangle size={16} className="text-orange-400" />,
     "session.revoked": <Lock size={16} className="text-red-400" />,
+    "autonomous_defense.decision": <Shield size={16} className="text-cyan-400" />,
+    "autonomous_defense.approval_required": <AlertTriangle size={16} className="text-orange-400" />,
 };
 
 const categoryColors: Record<string, string> = {

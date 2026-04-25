@@ -197,7 +197,7 @@ async function flushScoreToDB(params: {
         ipHash: params.ipHash,
         userId: params.userId ?? null,
         score: params.score,
-        signals: params.signals,
+        signals: params.signals as unknown as import('@prisma/client').Prisma.InputJsonValue,
         source: params.source,
       },
     })

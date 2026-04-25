@@ -1,0 +1,181 @@
+Arquitectura de Resiliencia Cibernética Global: De la Gobernanza de Riesgos al Paradigma del Post-Quantum y la Defensa Autónoma Militar
+La evolución del paisaje de amenazas digitales ha trascendido la capacidad de los modelos de seguridad tradicionales, obligando a una redefinición estructural de la defensa en el ciberespacio. La convergencia de infraestructuras críticas, la proliferación de la inteligencia artificial agéntica y la inminente amenaza de la computación cuántica han generado un entorno donde la seguridad ya no puede ser considerada un componente periférico, sino el núcleo mismo de la continuidad institucional y la soberanía nacional. Este informe analiza de manera exhaustiva las mejores prácticas contemporáneas y futuras, fundamentadas en los marcos de referencia de mayor autoridad global, como el NIST, CISA, OWASP y el Departamento de Defensa de los Estados Unidos (DoD).
+El Cambio de Paradigma en la Gobernanza: NIST CSF 2.0
+La publicación del Marco de Ciberseguridad de NIST (CSF) 2.0 en 2024 marca un hito en la gestión de riesgos a nivel organizacional. A diferencia de su predecesor, el CSF 2.0 expande su alcance más allá de las infraestructuras críticas para abarcar a todas las organizaciones, independientemente de su tamaño o sector.1 El cambio más significativo es la introducción de la función "Gobernar" (Govern), que se sitúa como el eje central sobre el cual orbitan las otras cinco funciones: Identificar, Proteger, Detectar, Responder y Recuperar.1
+La Función de Gobernanza como Motor Estratégico
+La gobernanza en el CSF 2.0 no es simplemente una capa administrativa, sino un requisito imperativo para alinear la estrategia de ciberseguridad con la misión de la organización y sus requisitos legales y regulatorios.1 Esta función establece que la gestión del riesgo debe ser una responsabilidad compartida que emana desde la alta dirección, definiendo prioridades, apetito de riesgo y líneas de autoridad claras.1
+La relevancia de esta integración radica en que permite a las organizaciones personalizar su perfil de ciberseguridad basándose en su contexto organizacional único, incluyendo sus dependencias en la cadena de suministro y las expectativas de los interesados.1 Al elevar la gobernanza a una función central, NIST reconoce que las fallas de seguridad suelen ser, en su origen, fallas de estrategia y supervisión.1
+Función
+Propósito Principal
+Resultados Clave
+Gobernar
+Establecer y monitorear la estrategia de gestión de riesgos.
+Políticas claras, roles definidos y supervisión de la cadena de suministro.
+Identificar
+Comprender los activos, sistemas y datos críticos.
+Inventario de activos, evaluación de vulnerabilidades y contexto de negocio.
+Proteger
+Implementar salvaguardas para garantizar la entrega de servicios.
+Gestión de identidad (IAM), protección de datos y concientización.
+Detectar
+Identificar la ocurrencia de eventos de ciberseguridad.
+Monitoreo continuo y análisis de anomalías.
+Responder
+Tomar medidas ante incidentes detectados.
+Planificación de respuesta, mitigación y comunicación.
+Recuperar
+Restaurar capacidades y servicios afectados.
+Planes de resiliencia y mejora continua post-incidente.
+
+Este marco utiliza "Niveles de Implementación" (Tiers) para calificar la madurez de la organización, desde el Nivel 1 (Parcial), donde las prácticas son informales y reactivas, hasta el Nivel 4 (Adaptativo), donde la ciberseguridad es una cultura de mejora continua y respuesta predictiva.4
+Ciberseguridad a Nivel Militar: Estrategia Zero Trust y CMMC 2.0
+El Departamento de Defensa de los Estados Unidos ha establecido los estándares más rigurosos del mundo para proteger su ecosistema, conocido como la Base Industrial de Defensa (DIB). La implementación de la arquitectura Zero Trust (Confianza Cero) y el modelo de Certificación de Madurez de Ciberseguridad (CMMC) 2.0 representan el "estándar de oro" para la protección de información sensible.6
+Arquitectura de Confianza Cero (Zero Trust)
+El principio fundamental de la Confianza Cero es "nunca confiar, siempre verificar". Esto implica que ningún usuario, dispositivo o aplicación tiene confianza implícita, independientemente de si se encuentra dentro o fuera del perímetro de la red.7 La estrategia del DoD para 2027 establece una hoja de ruta con 152 actividades divididas en siete pilares críticos.7
+La ejecución de estas actividades se divide en dos niveles: el "Nivel Objetivo" (Target Level), que incluye 91 actividades básicas que deben cumplirse para finales del año fiscal 2027, y el "Nivel Avanzado", que suma 61 actividades adicionales para una implementación completa hacia 2032.7
+Pilar de Zero Trust
+Enfoque Estratégico
+Actividades Destacadas
+Usuario
+Autenticación continua y privilegios mínimos.
+MFA resistente a phishing, análisis de comportamiento del usuario (UEBA).
+Dispositivo
+Verificación del estado y cumplimiento del hardware.
+Inventario de dispositivos en tiempo real, cumplimiento dinámico de parches.
+Aplicación y Carga de Trabajo
+Seguridad intrínseca en el software.
+Micro-segmentación de aplicaciones, escaneo de contenedores y APIs.
+Datos
+Protección del activo más valioso.
+Etiquetado de datos, cifrado en reposo y tránsito, prevención de pérdida de datos (DLP).
+Red y Entorno
+Control del flujo de información.
+Segmentación basada en software (SDN), encriptación de extremo a extremo.
+Automatización y Orquestación
+Respuesta a la velocidad de la máquina.
+Integración de SOAR, respuesta automatizada a incidentes.
+Visibilidad y Analítica
+Monitoreo integral.
+Registro centralizado (SIEM), detección de amenazas mediante IA/ML.
+
+El pilar de "Datos" es considerado el pilar de carga, ya que al vincular directamente la clasificación y las políticas de acceso a cada objeto de datos, se permite lo que el DoD denomina "colapso de red": la consolidación de redes separadas en una sola capa de transporte segura.12
+CMMC 2.0: Seguridad en la Cadena de Suministro de Defensa
+Para garantizar que los contratistas privados mantengan un nivel de seguridad equivalente al del DoD, se ha formalizado el programa CMMC 2.0. A partir de noviembre de 2025, los requisitos de CMMC comenzarán a aparecer en los contratos de defensa de manera obligatoria.6 El modelo se estructura en tres niveles de cumplimiento:
+Nivel 1 (Fundacional): Requiere una autoevaluación anual sobre 15 prácticas básicas de higiene cibernética para proteger la Información de Contrato Federal (FCI).14
+Nivel 2 (Avanzado): Exige el cumplimiento de los 110 controles de NIST SP 800-171 para proteger la Información Sin Clasificar Controlada (CUI). Puede requerir una evaluación de terceros (C3PAO) cada tres años.14
+Nivel 3 (Experto): Destinado a los contratos más sensibles, requiere el cumplimiento de NIST SP 800-172 y evaluaciones directas por parte del gobierno para contrarrestar Amenazas Persistentes Avanzadas (APT).14
+La Era de la Computación Cuántica y el Hackeo Cuántico
+La mayor amenaza futura para la ciberseguridad global es el desarrollo de una Computadora Cuántica Criptográficamente Relevante (CRQC). Las computadoras tradicionales procesan información en bits (0 o 1), mientras que las computadoras cuánticas utilizan qubits, que pueden existir en múltiples estados simultáneamente gracias a la superposición y el entrelazamiento.17 Esta capacidad permite resolver problemas matemáticos que actualmente son la base de la criptografía moderna en cuestión de horas o días, en lugar de miles de millones de años.17
+El Impacto de los Algoritmos Cuánticos
+El algoritmo de Shor representa la amenaza más directa, ya que es capaz de factorizar números enteros grandes y resolver logaritmos discretos de manera exponencialmente más rápida que cualquier algoritmo clásico.18 Esto inutilizaría por completo los estándares actuales de clave pública como RSA y ECC (Criptografía de Curva Elíptica).17
+La complejidad del problema de factorización para un número $N$ en una computadora clásica sigue la función:
+
+$$L_N [1/3, c] = \exp \left( (c + o(1)) (\ln N)^{1/3} (\ln \ln N)^{2/3} \right)$$
+Mientras que el algoritmo de Shor reduce esto a una complejidad polinómica de aproximadamente $O((\log N)^3)$, lo que significa que la seguridad basada en la dificultad de factorización desaparece una vez que el hardware cuántico sea escalable.18
+Por otro lado, el algoritmo de Grover amenaza la criptografía simétrica (como AES). Aunque no rompe el cifrado de la misma manera que Shor, reduce la fuerza efectiva de las claves a la mitad. Por lo tanto, para mantener un nivel de seguridad de 128 bits, una organización debe migrar a claves AES de 256 bits.17
+Transición a la Criptografía Post-Cuántica (PQC)
+NIST ha liderado un esfuerzo global de ocho años para estandarizar algoritmos resistentes a ataques cuánticos. En agosto de 2024, se publicaron los tres primeros estándares finales de PQC, diseñados para reemplazar los sistemas vulnerables antes de que llegue el "Día Q".18
+Estándar
+Algoritmo Base
+Función Principal
+Base Matemática
+FIPS 203 (ML-KEM)
+CRYSTALS-Kyber
+Establecimiento de claves (Encriptación general).
+Reticulados de Módulos (Lattice-based).
+FIPS 204 (ML-DSA)
+CRYSTALS-Dilithium
+Firmas digitales primarias.
+Reticulados de Módulos (Lattice-based).
+FIPS 205 (SLH-DSA)
+SPHINCS+
+Firmas digitales de respaldo (Sin estado).
+Funciones Hash.
+
+La migración a PQC no es opcional debido a la amenaza de "Cosechar ahora, descifrar después" (Harvest Now, Decrypt Later - HNDL), donde los adversarios interceptan datos cifrados hoy con la esperanza de descifrarlos en el futuro con una computadora cuántica.17 NIST SP 1800-38 proporciona una guía de práctica para que las organizaciones realicen un inventario criptográfico y comiencen la migración priorizando los protocolos más expuestos, como TLS, SSH y firmas de código.21
+Inteligencia de Amenazas y Priorización de Vulnerabilidades (CISA)
+La Agencia de Seguridad de Infraestructura y Ciberseguridad (CISA) de los EE. UU. ha transformado la gestión de vulnerabilidades mediante la creación del Catálogo de Vulnerabilidades Explotadas Conocidas (KEV).23 En lugar de depender únicamente de las puntuaciones CVSS, que miden la gravedad técnica, el KEV se centra en la evidencia de explotación activa en el mundo real.23
+Gestión de Riesgos Basada en Evidencia
+El catálogo KEV permite a los defensores priorizar qué parches aplicar primero. Por ejemplo, en 2026, CISA ha añadido vulnerabilidades críticas en productos como Microsoft Defender (CVE-2026-33825), Cisco Catalyst SD-WAN y PaperCut, señalando que estos son los vectores de ataque preferidos por los actores maliciosos.24
+Para una gestión avanzada, se recomienda integrar el catálogo KEV con el modelo SSVC (Stakeholder-Specific Vulnerability Categorization), que ayuda a determinar la urgencia de mitigación basándose en el impacto operativo y la exposición del activo.23
+La Filosofía "Secure by Design" (Seguro por Diseño)
+CISA aboga por un cambio radical en la responsabilidad de la ciberseguridad, moviéndola desde el consumidor hacia el fabricante de software.27 Los principios fundamentales de este enfoque incluyen:
+Propiedad de los Resultados de Seguridad del Cliente: Los fabricantes deben invertir en el endurecimiento de aplicaciones (hardening) y en configuraciones seguras por defecto, eliminando las contraseñas predeterminadas y requiriendo MFA desde el inicio.27
+Transparencia Radical y Rendición de Cuentas: Publicación de estadísticas de seguridad, roadmaps de seguridad por diseño y adopción de lenguajes de programación con gestión de memoria segura (como Rust o Go) para eliminar clases enteras de vulnerabilidades.27
+Liderazgo desde la Cúspide: La ciberseguridad debe ser una prioridad de negocio, con informes regulares a la junta directiva y una estructura que incentive la calidad y la seguridad del producto sobre la velocidad de lanzamiento.28
+El Futuro de la Ciberseguridad 2026-2030: IA y Defensa Autónoma
+Hacia el final de la década, la ciberseguridad estará dominada por la inteligencia artificial, tanto en el ataque como en la defensa. El surgimiento de la "IA Agéntica" (Agentic AI) representa un salto cualitativo: sistemas capaces de realizar reconocimiento autónomo, explotar vulnerabilidades y moverse lateralmente sin intervención humana.31
+IA Agéntica en Operaciones de Seguridad (SOC)
+Los Centros de Operaciones de Seguridad (SOC) están evolucionando hacia modelos de defensa autónoma donde la IA maneja el triaje de alertas, el monitoreo 24/7 y la respuesta automatizada a incidentes.32 Sin embargo, esta misma tecnología es utilizada por atacantes para crear malware auto-evolutivo que cambia su código en segundos para evadir la detección.31
+La seguridad de los modelos de lenguaje (LLM) se ha convertido en una disciplina crítica. El proyecto OWASP Top 10 para Aplicaciones de LLM identifica riesgos emergentes que deben ser mitigados para permitir el uso seguro de la IA en las empresas.34
+Riesgo OWASP LLM
+Descripción del Ataque
+Estrategia de Mitigación
+Inyección de Prompts
+Manipulación de la IA mediante entradas maliciosas para ignorar instrucciones previas.
+Filtrado semántico de entradas y uso de reglas deterministas.
+Divulgación de Información Sensible
+Revelación accidental de PII o secretos comerciales en las salidas del modelo.
+Sanitización profunda de datos de entrenamiento y restricciones de salida.
+Envenenamiento de Datos
+Manipulación de los conjuntos de datos de entrenamiento o de RAG para introducir sesgos o backdoors.
+Verificación de integridad de fuentes y auditorías de comportamiento del modelo.
+Fallas en la Cadena de Suministro
+Uso de modelos o plugins comprometidos de terceros.
+Implementación de SBOM para IA y evaluación de procedencia de modelos.
+
+Edge AI y Seguridad Descentralizada
+El mercado de "Edge AI" para ciberseguridad verá un crecimiento exponencial, pasando de $45 mil millones en 2025 a más de $228 mil millones en 2030.36 Esta tecnología permite el procesamiento de datos y la detección de anomalías localmente en los dispositivos (sensores, cámaras, dispositivos IoT), reduciendo la latencia y mejorando la privacidad al no depender de nubes centralizadas.36 El uso de TinyML permite que incluso dispositivos con recursos limitados puedan detectar comportamientos sospechosos en tiempo real, lo cual es vital para la protección de infraestructuras críticas en sectores como energía y transporte.2
+Mejores Prácticas en el Desarrollo de Aplicaciones Institucionales
+La seguridad de las aplicaciones que gestionan instituciones debe basarse en marcos de desarrollo modernos y robustos. El análisis de vulnerabilidades en el ecosistema PHP y Laravel revela que, aunque los marcos modernos ofrecen protecciones por defecto, la configuración incorrecta sigue siendo la principal causa de brechas.37
+Endurecimiento de Aplicaciones Modernas
+Marcos como Laravel han implementado de manera nativa defensas contra las vulnerabilidades más comunes del OWASP Top 10, pero requieren una implementación activa del desarrollador.38
+Inyección SQL: El uso de Eloquent ORM y el constructor de consultas mediante sentencias preparadas elimina la inyección directa, pero se debe evitar el uso de consultas "raw" con datos no confiables.37
+Gestión de Cargas de Archivos: Las vulnerabilidades críticas de RCE (Ejecución Remota de Código) suelen ocurrir por una validación de tipo MIME insuficiente.37 La mejor práctica implica almacenar archivos fuera del directorio público y validar estrictamente las extensiones y los contenidos mediante escaneo de malware.38
+Protección de Identidad: La implementación de MFA, políticas de contraseñas fuertes y limitación de tasa (rate limiting) reduce drásticamente el éxito de los ataques de fuerza bruta y relleno de credenciales (credential stuffing).2
+Gestión Continua de la Exposición (CTEM)
+El concepto de escaneo periódico de vulnerabilidades está siendo reemplazado por la Gestión Continua de la Exposición a Amenazas (CTEM). Este enfoque asume que el perímetro siempre será vulnerado y se centra en la resiliencia operativa y la visibilidad total.32 Gartner predice que las organizaciones que adopten CTEM serán tres veces menos propensas a sufrir brechas críticas.32
+Conclusiones Estratégicas y Recomendaciones
+La ciberseguridad en la segunda mitad de la década de 2020 exige una integración sin precedentes entre la gobernanza estratégica y la excelencia técnica. La transición desde una postura reactiva hacia una arquitectura de Confianza Cero y resiliencia post-cuántica no es solo una recomendación técnica, sino un imperativo de supervivencia institucional.
+El análisis de los marcos de referencia líderes indica que las organizaciones deben priorizar la adopción de los estándares de criptografía post-cuántica de NIST de manera inmediata para proteger la integridad de sus datos a largo plazo frente a ataques HNDL. Asimismo, la implementación de la gobernanza como función central según NIST CSF 2.0 asegura que la ciberseguridad sea una prioridad a nivel de junta directiva, alineando los recursos con los riesgos más críticos.
+Finalmente, la adopción de los principios de "Secure by Design" y el uso de inteligencia de amenazas basada en evidencia, como el catálogo KEV de CISA, permitirán a las organizaciones navegar en un entorno cada vez más automatizado por la IA agéntica. La ciberseguridad militar, con sus 152 actividades de Zero Trust, seguirá siendo la brújula para la protección de los activos más sensibles de la nación y sus aliados, marcando el camino hacia un futuro digital más seguro y resiliente.
+Obras citadas
+NIST CSF 2.0: Understanding and Implementing the Govern Function - Arctic Wolf, fecha de acceso: abril 24, 2026, https://arcticwolf.com/resources/blog/nist-csf-2-0-understanding-and-implementing-the-govern-function/
+What is NIST CSF 2.0? - CyberArk, fecha de acceso: abril 24, 2026, https://www.cyberark.com/what-is/nist-csf-20/
+NIST Cybersecurity Framework (CSF) Core Explained - CyberSaint, fecha de acceso: abril 24, 2026, https://www.cybersaint.io/blog/nist-cybersecurity-framework-core-explained
+How to Implement NIST CSF 2.0, Complete Guide | Isora GRC, fecha de acceso: abril 24, 2026, https://www.saltycloud.com/blog/how-to-implement-nist-csf/
+NIST Cybersecurity Framework 2.0: Resource & Overview Guide, fecha de acceso: abril 24, 2026, https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1299.pdf
+Department of Defense Releases Long-Anticipated Final Rule Implementing the Cybersecurity Maturity Model Certification Program - Mayer Brown, fecha de acceso: abril 24, 2026, https://www.mayerbrown.com/en/insights/publications/2025/09/department-of-defense-releases-long-anticipated-final-rule-implementing-the-cybersecurity-maturity-model-certification-program
+DoD Zero Trust Mandate: Compliance Guide for Defense Contractors - TerraZone, fecha de acceso: abril 24, 2026, https://terrazone.io/dod-zero-trust-mandate-defense-contractors/
+DoD Zero Trust Capability Execution Roadmap (COA 1), fecha de acceso: abril 24, 2026, https://dodcio.defense.gov/Portals/0/Documents/Library/ZT-ExecutionRoadmap-v1.1.pdf
+The 7 Pillars of Zero Trust, What Every IT Leader Needs to Know for 2026 - ATC, fecha de acceso: abril 24, 2026, https://4atc.com/7-pillars-of-zero-trust/
+Xage Support for DoD Zero Trust Roadmap - Four Inc., fecha de acceso: abril 24, 2026, https://www.fourinc.com/uploads/docs/Xage-DoD-ZT-Capabilities-Activities-Mapping-1.pdf
+Department of Defense Zero Trust Strategy – Overview and Xage Coverage, fecha de acceso: abril 24, 2026, https://xage.com/blog/department-of-defense-zero-trust-strategy/
+Zero Trust Architecture Explained: The Seven Pillars and the Data Foundation for Organizational Success - Virtru, fecha de acceso: abril 24, 2026, https://www.virtru.com/blog/zero-trust/primer
+DoD Zero Trust Strategy, fecha de acceso: abril 24, 2026, https://dodcio.defense.gov/Portals/0/Documents/Library/DoD-ZTStrategy.pdf
+CMMC 2.0 Implementation Rule - Thompson Hine LLP, fecha de acceso: abril 24, 2026, https://www.thompsonhine.com/insights/cmmc-2-0-implementation-rule/
+Department of Defense Finalizes Long-Awaited Cybersecurity Rule | Government Contracts Insights - Morrison Foerster, fecha de acceso: abril 24, 2026, https://govcon.mofo.com/topics/department-of-defense-finalizes-long-awaited-cybersecurity-rule
+CMMC Final Rule Passed: 90-Day Compliance Guide 2025 - Ridge IT, fecha de acceso: abril 24, 2026, https://www.ridgeit.com/cmmc-final-rule-compliance-checklist/
+Cross the Quantum Divide: The Ultimate Guide to Post-Quantum Cryptography - DigiCert, fecha de acceso: abril 24, 2026, https://www.digicert.com/content/dam/digicert/pdfs/guide/ultimate-guide-to-pqc.pdf
+NIST Releases First 3 Finalized Post-Quantum Encryption Standards, fecha de acceso: abril 24, 2026, https://www.nist.gov/news-events/news/2024/08/nist-releases-first-3-finalized-post-quantum-encryption-standards
+NIST Post-Quantum Cryptography Standards: A Comprehensive Review of Theoretical Foundations and Implementations - IEEE Xplore, fecha de acceso: abril 24, 2026, https://ieeexplore.ieee.org/iel8/6287639/11323511/11352813.pdf
+NIST chooses Kyber, Dilithium and SPHINCS+ as standards for post-quantumcryptography, fecha de acceso: abril 24, 2026, https://www.ru.nl/en/research/research-news/nist-chooses-kyber-dilithium-and-sphincs-as-standards-for-post-quantumcryptography
+NIST Releases SP 1800-38: A Roadmap for Migration to Post-Quantum Cryptography, fecha de acceso: abril 24, 2026, https://postquantum.com/quantum-policy/nist-sp-1800-38-pqc-release/
+A Complete Guide to Post-Quantum Cryptography Standards - Palo Alto Networks, fecha de acceso: abril 24, 2026, https://www.paloaltonetworks.com/cyberpedia/pqc-standards
+What is the Known Exploited Vulnerabilities Catalog (KEV)? - ARMO, fecha de acceso: abril 24, 2026, https://www.armosec.io/glossary/known-exploited-vulnerabilities-catalog-kev/
+CISA Adds Eight Known Exploited Vulnerabilities to Catalog, fecha de acceso: abril 24, 2026, https://www.cisa.gov/news-events/alerts/2026/04/20/cisa-adds-eight-known-exploited-vulnerabilities-catalog
+CISA Adds One Known Exploited Vulnerability to Catalog | CISA, fecha de acceso: abril 24, 2026, https://www.cisa.gov/news-events/alerts/2026/04/22/cisa-adds-one-known-exploited-vulnerability-catalog
+CISA Known Exploited Vulnerabilities (KEV) Catalog - Query Docs, fecha de acceso: abril 24, 2026, https://docs.query.ai/docs/cisa-known-exploited-vulnerabilities-kev-catalog
+Changing the industry with CISA's Secure by Design principles - The Cloudflare Blog, fecha de acceso: abril 24, 2026, https://blog.cloudflare.com/secure-by-design-principles/
+Secure-by-Design - CISA, fecha de acceso: abril 24, 2026, https://www.cisa.gov/resources-tools/resources/secure-by-design
+Shifting the Balance of Cybersecurity Risk: Principles and Approaches for Secure by Design Software - CISA, fecha de acceso: abril 24, 2026, https://www.cisa.gov/sites/default/files/2023-10/Shifting-the-Balance-of-Cybersecurity-Risk-Principles-and-Approaches-for-Secure-by-Design-Software.pdf
+Secure by Design: CISA's Updated Guidance for Software and Technology Manufacturers, fecha de acceso: abril 24, 2026, https://www.zwillgen.com/data-security/cisa-updated-guidance-for-software-and-technology-manufacturers/
+Cyber 2026: Evolving Threats Demand Strategic Leadership - Aon, fecha de acceso: abril 24, 2026, https://www.aon.com/en/insights/articles/cyber-2026-evolving-threats-demand-strategic-leadership
+10 Cyber Security Trends For 2026 - SentinelOne, fecha de acceso: abril 24, 2026, https://www.sentinelone.com/cybersecurity-101/cybersecurity/cyber-security-trends/
+Top Cybersecurity Trends of 2026: AI, Zero Trust & Quantum Security, fecha de acceso: abril 24, 2026, https://www.eccu.edu/blog/cybersecurity-trends-2026/
+OWASP Top 10 LLM, Updated 2025: Examples and Mitigation Strategies - Oligo Security, fecha de acceso: abril 24, 2026, https://www.oligo.security/academy/owasp-top-10-llm-updated-2025-examples-and-mitigation-strategies
+OWASP Top 10 for LLMs 2025 | DeepTeam by Confident AI - The LLM Red Teaming Framework, fecha de acceso: abril 24, 2026, https://trydeepteam.com/docs/frameworks-owasp-top-10-for-llms
+Edge AI for Cybersecurity Market Report 2026, fecha de acceso: abril 24, 2026, https://www.researchandmarkets.com/reports/6226089/edge-ai-cybersecurity-market-report
+5 PHP Vulnerabilities In 2025 & How To Secure Them - TuxCare, fecha de acceso: abril 24, 2026, https://tuxcare.com/blog/php-vulnerability/
+Laravel Security Best Practices: Protecting Against Common Vulnerabilities, fecha de acceso: abril 24, 2026, https://dev.to/addwebsolutionpvtltd/laravel-security-best-practices-protecting-against-common-vulnerabilities-3794
+Latest Laravel Vulnerabilities - Feedly, fecha de acceso: abril 24, 2026, https://feedly.com/cve/vendors/laravel

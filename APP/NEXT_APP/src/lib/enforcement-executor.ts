@@ -139,7 +139,7 @@ async function executeTempBlockIp(
         actionType: 'PERMANENT_BLOCK',
         ipHash,
         score,
-        context: { reason: action.reason, metadata: action.metadata, blockId },
+        context: { reason: action.reason, metadata: action.metadata ?? null, blockId } as unknown as import('@prisma/client').Prisma.InputJsonValue,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     })

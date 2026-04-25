@@ -26,6 +26,7 @@ import {
 } from '@/lib/security-hardened'
 import { SecurityLogger, getThreatScore, shouldBlockIp } from '@/lib/security-logger'
 import { hasPermission } from '@/lib/permission-check'
+import { checkRateLimit as checkDistributedRateLimit } from '@/lib/redis'
 import type { Role } from '@/generated/prisma/client'
 import type { Session } from 'next-auth'
 
@@ -74,44 +75,6 @@ export interface SecureApiOptions {
     // Audit
     auditAccess?: boolean
     sensitiveFields?: string[]
-}
-
-// ============= RATE LIMITING =============
-
-const apiRateLimits = new Map<string, { count: number; resetAt: number; blocked: boolean }>()
-
-function checkApiRateLimit(
-    key: string, 
-    limit: number, 
-    windowMs: number
-): { allowed: boolean; remaining: number; retryAfter?: number } {
-    const now = Date.now()
-    const record = apiRateLimits.get(key)
-    
-    if (!record || now > record.resetAt) {
-        apiRateLimits.set(key, { count: 1, resetAt: now + windowMs, blocked: false })
-        return { allowed: true, remaining: limit - 1 }
-    }
-    
-    if (record.blocked) {
-        return { 
-            allowed: false, 
-            remaining: 0,
-            retryAfter: Math.ceil((record.resetAt - now) / 1000)
-        }
-    }
-    
-    if (record.count >= limit) {
-        record.blocked = true
-        return { 
-            allowed: false, 
-            remaining: 0,
-            retryAfter: Math.ceil((record.resetAt - now) / 1000)
-        }
-    }
-    
-    record.count++
-    return { allowed: true, remaining: limit - record.count }
 }
 
 // ============= SECURITY CONTEXT =============
@@ -214,11 +177,11 @@ export async function secureApiEndpoint(
     
     // ===== 3. RATE LIMITING =====
     if (options.rateLimit) {
-        const rateLimitKey = `${context.ipAddress}:${request.nextUrl.pathname}`
-        const rateCheck = checkApiRateLimit(
+        const rateLimitKey = `api:${context.ipAddress}:${request.nextUrl.pathname}`
+        const rateCheck = await checkDistributedRateLimit(
             rateLimitKey,
             options.rateLimit.limit,
-            options.rateLimit.windowMs
+            Math.ceil(options.rateLimit.windowMs / 1000)
         )
         
         if (!rateCheck.allowed) {
@@ -232,11 +195,11 @@ export async function secureApiEndpoint(
             
             return {
                 error: NextResponse.json(
-                    { error: 'Too many requests', retryAfter: rateCheck.retryAfter },
+                    { error: 'Too many requests', retryAfter: rateCheck.resetIn },
                     { 
                         status: 429,
                         headers: {
-                            'Retry-After': String(rateCheck.retryAfter || 60),
+                            'Retry-After': String(rateCheck.resetIn || 60),
                             'X-RateLimit-Limit': String(options.rateLimit.limit),
                             'X-RateLimit-Remaining': '0'
                         }

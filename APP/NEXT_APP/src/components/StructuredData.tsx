@@ -2,7 +2,10 @@
  * JSON-LD structured data for Google Rich Snippets.
  * Renders as a <script type="application/ld+json"> in the page.
  */
-export function StructuredData() {
+import { getNonce } from "@/lib/nonce";
+
+export async function StructuredData() {
+  const nonce = await getNonce();
   const personSchema = {
     "@context": "https://schema.org",
     "@type": "Person",
@@ -101,18 +104,22 @@ export function StructuredData() {
   return (
     <>
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }}
       />
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(professionalServiceSchema) }}
       />
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
