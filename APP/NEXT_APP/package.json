@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "security:check": "pnpm run lint && pnpm run typecheck && pnpm audit --prod --audit-level=high && pnpm run build",
-    "security:prod": "pnpm audit --prod --audit-level=high"
+    "security:prod": "pnpm audit --prod --audit-level=high",
+    "security:false-positives": "tsx scripts/review-false-positives.ts"
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.3",

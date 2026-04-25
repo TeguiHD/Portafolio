@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ============================================
   # Next.js Web Application
@@ -72,15 +70,17 @@ services:
       - portfolio_network
 
   # ============================================
-  # Redis - Cache & Rate Limiting
-  # Memory limited to 128MB with LRU eviction
+  # Redis - Cache, rate limiting, adaptive defense
+  # AOF enabled for fast recovery; noeviction avoids silently dropping security keys.
   # ============================================
   redis:
     image: redis:7-alpine
     container_name: portfolio_redis
     restart: unless-stopped
     command: >
-      redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly no --save ""
+      redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy noeviction --appendonly yes --appendfsync everysec --save "" --rename-command FLUSHALL "" --rename-command FLUSHDB ""
+    volumes:
+      - redis_data:/data
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
@@ -119,6 +119,10 @@ services:
 volumes:
   # PostgreSQL persistent data
   postgres_data:
+    driver: local
+
+  # Redis AOF persistence for rate limits and autonomous defense state
+  redis_data:
     driver: local
 
   # Receipt uploads - finance module

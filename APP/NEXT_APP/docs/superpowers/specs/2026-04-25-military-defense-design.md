@@ -98,7 +98,7 @@ Single-instance Redis restart would take the entire app offline for all users. P
 
 On Redis failure: fire critical alert immediately (Discord + email) via `security-alerts.ts`. Target: operator notified within 30 seconds.
 
-For production robustness: provision Redis with persistent AOF (`appendonly yes`) and `maxmemory-policy allkeys-lru` so restart recovery is fast (<5s) and doesn't lose enforcement state.
+For production robustness: provision Redis with persistent AOF (`appendonly yes`, `appendfsync everysec`) and `maxmemory-policy noeviction`. Security state must fail closed rather than being silently evicted under memory pressure.
 
 ---
 

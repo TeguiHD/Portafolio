@@ -41,6 +41,13 @@ function makeBlockId(auditId: string): string {
   return auditId.slice(0, 8)
 }
 
+async function incrementMetric(client: Awaited<ReturnType<typeof getRedisClient>>, key: string): Promise<void> {
+  const count = await client.incr(key)
+  if (count === 1) {
+    await client.expire(key, CACHE_TTL.THREAT_METRICS)
+  }
+}
+
 // ── Action Executors ───────────────────────────────────────────────
 
 async function executeLowerRateLimit(action: AutonomousDefenseAction, scopeKey: string): Promise<void> {
@@ -72,7 +79,7 @@ async function executeCooldownEndpoint(action: AutonomousDefenseAction, scopeKey
   const path = (action.metadata?.path as string) ?? '*'
   const client = await getRedisClient()
   await client.setEx(`${CACHE_KEYS.THREAT_ENDPOINT_COOLDOWN}:${path}:${scopeKey}`, ttl, '1')
-  await client.incr(CACHE_KEYS.THREAT_METRICS_COOLDOWNS)
+  await incrementMetric(client, CACHE_KEYS.THREAT_METRICS_COOLDOWNS)
 
   await createAuditLog({
     action: AuditActions.AUTONOMOUS_DEFENSE_DECISION,
@@ -93,7 +100,7 @@ async function executeMfaStepUp(action: AutonomousDefenseAction, sessionId: stri
     CACHE_TTL.THREAT_MFA_STEP_UP,
     new Date().toISOString()
   )
-  await client.incr(CACHE_KEYS.THREAT_METRICS_MFA)
+  await incrementMetric(client, CACHE_KEYS.THREAT_METRICS_MFA)
 
   await createAuditLog({
     action: AuditActions.AUTONOMOUS_DEFENSE_DECISION,
@@ -117,7 +124,7 @@ async function executeTempBlockIp(
 
   const client = await getRedisClient()
   await client.setEx(`${CACHE_KEYS.THREAT_BLOCK}:${ipHash}`, ttl, String(offenseLevel))
-  await client.incr(CACHE_KEYS.THREAT_METRICS_BLOCKS)
+  await incrementMetric(client, CACHE_KEYS.THREAT_METRICS_BLOCKS)
 
   const auditEntry = await prisma.auditLog.create({
     data: {

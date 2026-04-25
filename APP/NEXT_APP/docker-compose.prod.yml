@@ -82,10 +82,12 @@ services:
       - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       - --appendonly
       - "yes"
+      - --appendfsync
+      - everysec
       - --maxmemory
-      - 128mb
+      - 192mb
       - --maxmemory-policy
-      - allkeys-lru
+      - noeviction
       - --rename-command
       - FLUSHALL
       - ""
@@ -109,7 +111,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 160M
+          memory: 256M
         reservations:
           memory: 64M
 

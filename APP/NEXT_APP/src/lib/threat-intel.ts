@@ -107,6 +107,9 @@ export function triggerAbuseIPDBLookup(realIp: string, ipHash: string): void {
       try {
         const client = await getRedisClient()
         const fails = await client.incr(FAIL_COUNT_KEY)
+        if (fails === 1) {
+          await client.expire(FAIL_COUNT_KEY, CACHE_TTL.THREAT_INTEL_BREAKER)
+        }
         if (fails >= 3) {
           await client.setEx(BREAKER_KEY, CACHE_TTL.THREAT_INTEL_BREAKER, '1')
           console.warn('[ThreatIntel] Circuit breaker OPEN — AbuseIPDB degraded for 10min')
