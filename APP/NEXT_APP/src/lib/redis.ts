@@ -132,16 +132,41 @@ export const CACHE_KEYS = {
     USER_PERMISSIONS: 'user:permissions',
     FINANCE_SUMMARY: 'finance:summary',
     RATE_LIMIT: 'ratelimit',
+    // Threat detection keys
+    THREAT_IP_SCORE: 'threat:ip',
+    THREAT_USER_SCORE: 'threat:user',
+    THREAT_BLOCK: 'threat:block',
+    THREAT_MFA_STEP_UP: 'threat:mfa-step-up',
+    THREAT_ENDPOINT_COOLDOWN: 'threat:endpoint-cooldown',
+    THREAT_RATE_OVERRIDE: 'threat:ratelimit-override',
+    THREAT_OFFENSE_COUNT: 'threat:offense-count',
+    THREAT_INTEL_BREAKER: 'threat:intel:abuseipdb:breaker',
+    THREAT_METRICS_BLOCKS: 'threat:metrics:blocks',
+    THREAT_METRICS_MFA: 'threat:metrics:mfa-stepup',
+    THREAT_METRICS_COOLDOWNS: 'threat:metrics:cooldowns',
 } as const;
 
 /**
  * Default TTL values (in seconds)
  */
 export const CACHE_TTL = {
-    EXCHANGE_RATE: 4 * 60 * 60,      // 4 hours (Frankfurter updates daily)
-    USER_PERMISSIONS: 60,             // 1 minute
-    FINANCE_SUMMARY: 5 * 60,          // 5 minutes
-    RATE_LIMIT_WINDOW: 60,            // 1 minute
+    EXCHANGE_RATE: 4 * 60 * 60,
+    USER_PERMISSIONS: 60,
+    FINANCE_SUMMARY: 5 * 60,
+    RATE_LIMIT_WINDOW: 60,
+    // Threat TTLs (seconds)
+    THREAT_SCORE: 24 * 60 * 60,
+    THREAT_ABUSEIPDB: 12 * 60 * 60,
+    THREAT_BLOCK_L1: 15 * 60,
+    THREAT_BLOCK_L2: 60 * 60,
+    THREAT_BLOCK_L3: 24 * 60 * 60,
+    THREAT_MFA_STEP_UP: 15 * 60,
+    THREAT_COOLDOWN_L1: 5 * 60,
+    THREAT_COOLDOWN_L2: 15 * 60,
+    THREAT_COOLDOWN_L3: 60 * 60,
+    THREAT_OFFENSE_COUNT: 24 * 60 * 60,
+    THREAT_METRICS: 24 * 60 * 60,
+    THREAT_INTEL_BREAKER: 10 * 60,
 } as const;
 
 /**
@@ -320,4 +345,17 @@ export async function checkRateLimit(
  */
 export async function resetRateLimit(identifier: string): Promise<boolean> {
     return deleteCached(`${CACHE_KEYS.RATE_LIMIT}:${identifier}`);
+}
+
+/**
+ * Execute a Lua script atomically on Redis.
+ * Used for race-safe offense-count increment (INCR + EXPIRE in one atomic op).
+ */
+export async function evalLua(
+    script: string,
+    keys: string[],
+    args: string[]
+): Promise<unknown> {
+    const client = await getRedisClient()
+    return client.eval(script, { keys, arguments: args })
 }
