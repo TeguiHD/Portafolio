@@ -733,6 +733,134 @@ export default function SecurityDashboardClient() {
                 <span className="w-1 h-1 rounded-full bg-neutral-700" />
                 <span className="flex items-center gap-1"><Zap size={10} /> Auto: 10s</span>
             </div>
+
+            <PendingActionsPanel />
+        </div>
+    );
+}
+
+// ── Autonomous Defense Panel ──────────────────────────────────────
+
+interface ThreatPendingAction {
+    id: string;
+    actionType: string;
+    ipHash: string | null;
+    userId: string | null;
+    score: number;
+    context: Record<string, unknown>;
+    status: string;
+    createdAt: string;
+    expiresAt: string;
+}
+
+interface ThreatMetrics {
+    blocks: number;
+    mfaStepups: number;
+    cooldowns: number;
+}
+
+function PendingActionsPanel() {
+    const [pending, setPending] = useState<ThreatPendingAction[]>([]);
+    const [metrics, setMetrics] = useState<ThreatMetrics>({ blocks: 0, mfaStepups: 0, cooldowns: 0 });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        Promise.all([
+            fetch('/api/admin/security/autonomous-defense?view=pending').then(r => r.json()),
+            fetch('/api/admin/security/autonomous-defense?view=metrics').then(r => r.json()),
+        ]).then(([pendingData, metricsData]) => {
+            setPending((pendingData as { pending: ThreatPendingAction[] }).pending ?? []);
+            setMetrics((metricsData as { today: ThreatMetrics }).today ?? { blocks: 0, mfaStepups: 0, cooldowns: 0 });
+            setLoading(false);
+        }).catch(() => setLoading(false));
+    }, []);
+
+    async function handleReview(id: string, action: 'approved' | 'rejected') {
+        await fetch('/api/admin/security/autonomous-defense', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action }),
+        });
+        setPending(prev => prev.filter(p => p.id !== id));
+    }
+
+    if (loading) {
+        return (
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-6">
+                <div className="text-sm text-neutral-400">Cargando métricas de defensa autónoma...</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-6 space-y-6">
+            <div className="flex items-center gap-2 mb-2">
+                <Shield size={16} className="text-accent-1" />
+                <h3 className="text-sm font-semibold text-white">Defensa Autónoma — Métricas del Día</h3>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-lg border border-red-900/40 bg-red-950/20 p-4 text-center">
+                    <div className="text-2xl font-bold text-red-400">{metrics.blocks}</div>
+                    <div className="text-xs text-neutral-400 mt-1">IPs Bloqueadas</div>
+                </div>
+                <div className="rounded-lg border border-yellow-900/40 bg-yellow-950/20 p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-400">{metrics.mfaStepups}</div>
+                    <div className="text-xs text-neutral-400 mt-1">Step-ups MFA</div>
+                </div>
+                <div className="rounded-lg border border-blue-900/40 bg-blue-950/20 p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-400">{metrics.cooldowns}</div>
+                    <div className="text-xs text-neutral-400 mt-1">Cooldowns</div>
+                </div>
+            </div>
+
+            {pending.length > 0 && (
+                <div>
+                    <h4 className="text-sm font-semibold text-red-400 mb-3">
+                        Aprobación Humana Requerida ({pending.length})
+                    </h4>
+                    <div className="space-y-3">
+                        {pending.map(item => (
+                            <div key={item.id} className="rounded-lg border border-neutral-700 bg-neutral-900/50 p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div className="text-sm font-medium text-white">{item.actionType}</div>
+                                        <div className="text-xs text-neutral-400 mt-1">
+                                            Score: {item.score}/100 · IP: {item.ipHash?.slice(0, 8) ?? '—'} · {new Date(item.createdAt).toLocaleString('es-CL')}
+                                        </div>
+                                        {item.context && (
+                                            <div className="text-xs text-neutral-500 mt-1 font-mono">
+                                                {JSON.stringify(item.context).slice(0, 120)}…
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button
+                                            onClick={() => handleReview(item.id, 'approved')}
+                                            className="rounded px-3 py-1 text-xs bg-red-700 hover:bg-red-600 text-white transition-colors"
+                                        >
+                                            Aprobar
+                                        </button>
+                                        <button
+                                            onClick={() => handleReview(item.id, 'rejected')}
+                                            className="rounded px-3 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-white transition-colors"
+                                        >
+                                            Rechazar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {pending.length === 0 && (
+                <div className="text-sm text-emerald-400 flex items-center gap-2">
+                    <CheckCircle size={14} />
+                    Sin acciones pendientes de aprobación humana
+                </div>
+            )}
         </div>
     );
 }
