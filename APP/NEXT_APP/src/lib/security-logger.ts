@@ -11,6 +11,8 @@
 
 import 'server-only'
 import { createHash } from 'crypto'
+import { evaluateAutonomousDefense, logAutonomousDefenseDecision } from '@/lib/autonomous-defense'
+import { hashIp, incrementSignal } from '@/lib/threat-scoring'
 
 // ============= TYPES =============
 
@@ -360,6 +362,12 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'eventId' | 'timesta
     // Update threat score
     updateThreatScore(fullEvent)
 
+    // Autonomous defense phase 1: decision-only, dry-run by default.
+    const autonomousDecisions = evaluateAutonomousDefense(fullEvent)
+    for (const decision of autonomousDecisions) {
+        logAutonomousDefenseDecision(decision)
+    }
+
     // Flush if buffer is full
     if (eventBuffer.length >= BUFFER_SIZE) {
         flushEventBuffer()
@@ -417,6 +425,29 @@ function updateThreatScore(event: SecurityEvent): void {
             events: [event.eventType],
             lastUpdate: now,
         })
+    }
+
+    // Persist signal to Redis for distributed scoring (ThreatScoringEngine)
+    try {
+        const redisIpKey = hashIp(event.ipAddress)
+        const redisUserKey = event.userId
+
+        let signal: 'rate-hits' | 'auth-fails' | 'attack-hits' | 'session-anomalies' | null = null
+        if (event.category === 'RATE_LIMITING') signal = 'rate-hits'
+        else if (event.category === 'AUTHENTICATION' && event.outcome === 'FAILURE') signal = 'auth-fails'
+        else if (event.category === 'BRUTE_FORCE') signal = 'auth-fails'
+        else if (event.category === 'INJECTION_ATTEMPT' || event.category === 'INPUT_VALIDATION') signal = 'attack-hits'
+        else if (event.category === 'SESSION') signal = 'session-anomalies'
+
+        if (signal) {
+            if (redisUserKey) {
+                void incrementSignal('user', redisUserKey, signal)
+            } else {
+                void incrementSignal('ip', redisIpKey, signal)
+            }
+        }
+    } catch {
+        // Non-fatal: Redis signal increment failed
     }
 }
 
