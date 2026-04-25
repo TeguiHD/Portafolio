@@ -14,6 +14,8 @@
  */
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createHash, createHmac } from 'crypto'
+import { getRedisClient, isRedisAvailable, CACHE_KEYS } from '@/lib/redis'
 
 // ============= SECURITY CONSTANTS =============
 const SECURITY_VERSION = '2.1.0'
@@ -266,42 +268,55 @@ function generateRequestId(): string {
  * Build CSP header with nonce - STRICT MODE
  * 
  * Security levels:
- * - Scripts: nonce-based ONLY (strict, XSS protected)
+ * - Scripts: nonce-based in production (strict, XSS protected)
  * - Styles: nonce + unsafe-inline fallback (for styled-jsx compatibility)
  * - report-uri for CSP violation monitoring
  * 
  * Note: 'unsafe-inline' for styles is necessary for Next.js styled-jsx.
  * 
- * SECURITY NOTE for Next.js Standalone Mode:
- * - In standalone mode, pages are pre-rendered with inline scripts
- * - These inline scripts cannot receive dynamically generated nonces
- * - Therefore, we must use 'unsafe-inline' for script-src
- * - This is the standard approach for Next.js production deployments
- * - Other CSP directives still provide strong protection against:
- *   - Clickjacking (frame-ancestors 'none')
- *   - XSS via external scripts (only 'self' origin allowed)
- *   - Data exfiltration (strict connect-src)
- *   - Form hijacking (form-action 'self')
+ * SECURITY NOTE:
+ * - The proxy places the nonce in the request CSP header.
+ * - Next.js reads that nonce and applies it to framework scripts.
+ * - Development keeps unsafe-inline/unsafe-eval because dev tooling needs them.
+ * - Production script-src removes unsafe-inline and blocks inline event handlers.
  */
-function buildCSP(): string {
+function buildCSP(nonce?: string): string {
     // Detect if running in development/localhost
     const isDev = process.env.NODE_ENV !== 'production' ||
         process.env.NEXTAUTH_URL?.includes('localhost') ||
         process.env.NEXTAUTH_URL?.includes('127.0.0.1')
 
+    const scriptSources = isDev
+        ? [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            'blob:',
+            'https://static.cloudflareinsights.com',
+            'http://localhost:*',
+            'http://127.0.0.1:*',
+        ]
+        : [
+            "'self'",
+            nonce ? `'nonce-${nonce}'` : '',
+            "'strict-dynamic'",
+            'blob:',
+            'https://static.cloudflareinsights.com',
+        ].filter(Boolean)
+
     const directives = [
         // Default: Block everything not explicitly allowed
         "default-src 'none'",
 
-        // Scripts: 'self' for static chunks, 'unsafe-inline' for Next.js inline scripts
-        // SECURITY: 'unsafe-eval' REMOVED — not required by Next.js 16 / React 19 in production
+        // Scripts: production uses per-request nonce + strict-dynamic.
+        // Dev keeps inline/eval because Next dev tooling requires them.
         // https://static.cloudflareinsights.com is Cloudflare's official RUM/Analytics CDN
         // OWASP 2025 A04 / MITRE T1059: Prevent eval()-based XSS execution
-        `script-src 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
+        `script-src ${scriptSources.join(' ')}`,
 
         // Explicit script element/attribute directives reduce browser fallback ambiguity.
-        `script-src-elem 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com${isDev ? " 'unsafe-eval' http://localhost:* http://127.0.0.1:*" : ''}`,
-        "script-src-attr 'unsafe-inline'",
+        `script-src-elem ${scriptSources.join(' ')}`,
+        isDev ? "script-src-attr 'unsafe-inline'" : "script-src-attr 'none'",
 
         // Styles: Allow unsafe-inline for React/Framer Motion dynamic styles
         `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com`,
@@ -552,14 +567,135 @@ function getClientIp(request: NextRequest): string {
     return forwarded?.split(',')[0]?.trim() || realIp || 'unknown'
 }
 
+// ── Threat Enforcement Helpers ────────────────────────────────────
+
+/** HMAC-SHA256 IP hash using IP_HASH_SECRET (matches threat-scoring.ts). */
+function hashIpForThreat(ip: string): string {
+    const secret = process.env.IP_HASH_SECRET
+    if (!secret) {
+        return ip.split('').reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)
+            .toString(16).replace('-', '').padStart(8, '0')
+    }
+    return createHmac('sha256', secret).update(ip).digest('hex').slice(0, 16)
+}
+
+/** SHA-256 session cookie hash for MFA step-up lookup. */
+function hashSessionCookie(cookie: string): string {
+    return createHash('sha256').update(cookie).digest('hex').slice(0, 16)
+}
+
+/** Routes that must fail-closed when Redis is unavailable. */
+function isSecurePath(pathname: string): boolean {
+    return pathname.startsWith('/api/admin') ||
+        pathname.startsWith('/api/superadmin') ||
+        pathname.startsWith('/api/finance') ||
+        pathname.startsWith('/api/auth')
+}
+
+async function checkEnforcement(
+    ipHash: string,
+    sessionHash: string | null,
+    pathname: string
+): Promise<{ action: 'block' | 'mfa' | 'cooldown'; ttl?: number } | null> {
+    try {
+        const client = await getRedisClient()
+        const [blockLevel, mfaFlag, cooldownActive] = await Promise.all([
+            client.get(`${CACHE_KEYS.THREAT_BLOCK}:${ipHash}`),
+            sessionHash ? client.get(`${CACHE_KEYS.THREAT_MFA_STEP_UP}:${sessionHash}`) : Promise.resolve(null),
+            client.get(`${CACHE_KEYS.THREAT_ENDPOINT_COOLDOWN}:${pathname}:${ipHash}`),
+        ])
+
+        if (blockLevel) return { action: 'block' }
+        if (mfaFlag) return { action: 'mfa' }
+        if (cooldownActive) {
+            const ttlKey = `${CACHE_KEYS.THREAT_ENDPOINT_COOLDOWN}:${pathname}:${ipHash}`
+            const ttl = await client.ttl(ttlKey)
+            return { action: 'cooldown', ttl: ttl > 0 ? ttl : 60 }
+        }
+        return null
+    } catch {
+        return null
+    }
+}
+
+async function getRateLimitOverride(ipHash: string, category: string): Promise<number | null> {
+    try {
+        const client = await getRedisClient()
+        const raw = await client.get(`${CACHE_KEYS.THREAT_RATE_OVERRIDE}:${ipHash}:${category}`)
+        return raw ? parseFloat(raw) : null
+    } catch {
+        return null
+    }
+}
+
 export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
     const requestId = generateRequestId()
     const clientIp = getClientIp(request)
     const userAgent = request.headers.get('user-agent')
+    const nonce = generateNonce()
+    const csp = buildCSP(nonce)
+    const earlySecurityHeaders = {
+        ...staticSecurityHeaders,
+        'Content-Security-Policy': csp,
+        'X-Request-ID': requestId,
+        'Cache-Control': 'no-store',
+    }
 
     // ═══════════════════════════════════════════════════════════
-    // 0. EARLY SECURITY CHECKS (Block malicious requests fast)
+    // 0a. THREAT ENFORCEMENT (Redis — before all other logic)
+    // ═══════════════════════════════════════════════════════════
+    const threatIpHash = hashIpForThreat(clientIp)
+    const sessionCookieValue = request.cookies.get('next-auth.session-token')?.value
+        ?? request.cookies.get('__Secure-next-auth.session-token')?.value ?? null
+    const sessionHash = sessionCookieValue ? hashSessionCookie(sessionCookieValue) : null
+
+    const redisUp = await isRedisAvailable()
+
+    if (!redisUp && isSecurePath(pathname)) {
+        console.error('[Proxy] SECURITY: Redis unavailable — blocking sensitive route:', pathname)
+        return new NextResponse(
+            JSON.stringify({ error: 'Service temporarily unavailable' }),
+            { status: 503, headers: { 'Content-Type': 'application/json', ...earlySecurityHeaders } }
+        )
+    }
+
+    if (redisUp) {
+        const enforcement = await checkEnforcement(threatIpHash, sessionHash, pathname)
+        if (enforcement) {
+            const blockId = threatIpHash.slice(0, 8)
+            if (enforcement.action === 'block') {
+                return new NextResponse(
+                    JSON.stringify({ error: 'Access denied' }),
+                    {
+                        status: 403,
+                        headers: { 'Content-Type': 'application/json', 'X-Security-ID': blockId, ...earlySecurityHeaders },
+                    }
+                )
+            }
+            if (enforcement.action === 'mfa') {
+                return new NextResponse(
+                    JSON.stringify({ error: 'MFA verification required' }),
+                    {
+                        status: 401,
+                        headers: { 'Content-Type': 'application/json', 'X-MFA-Required': 'step-up', 'X-Security-ID': blockId, ...earlySecurityHeaders },
+                    }
+                )
+            }
+            if (enforcement.action === 'cooldown') {
+                return new NextResponse(
+                    JSON.stringify({ error: 'Too many requests' }),
+                    {
+                        status: 429,
+                        headers: { 'Content-Type': 'application/json', 'Retry-After': String(enforcement.ttl ?? 60), 'X-Security-ID': blockId, ...earlySecurityHeaders },
+                    }
+                )
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 0b. EARLY SECURITY CHECKS (Block malicious requests fast)
     // ═══════════════════════════════════════════════════════════
 
     // HONEYPOT: Catch attackers probing for vulnerabilities
@@ -578,7 +714,7 @@ export async function proxy(request: NextRequest) {
                 status: 404,
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Request-ID': requestId
+                    ...earlySecurityHeaders,
                 }
             }
         )
@@ -597,7 +733,13 @@ export async function proxy(request: NextRequest) {
         logSecurityIncidentAsync(request, 'blocked_url', 'HIGH', clientIp, pathname, 'blocked')
         return new NextResponse(
             JSON.stringify({ error: 'Bad Request' }),
-            { status: 400, headers: { 'Content-Type': 'application/json' } }
+            {
+                status: 400,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...earlySecurityHeaders,
+                },
+            }
         )
     }
 
@@ -608,7 +750,13 @@ export async function proxy(request: NextRequest) {
         // Return 200 with fake response to confuse scanners
         return new NextResponse(
             JSON.stringify({ status: 'ok' }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
+            {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...earlySecurityHeaders,
+                },
+            }
         )
     }
 
@@ -629,7 +777,13 @@ export async function proxy(request: NextRequest) {
                 { reason: 'invalid_content_type', contentType: contentType.slice(0, 100) })
             return new NextResponse(
                 JSON.stringify({ error: 'Unsupported Media Type' }),
-                { status: 415, headers: { 'Content-Type': 'application/json' } }
+                {
+                    status: 415,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...earlySecurityHeaders,
+                    },
+                }
             )
         }
 
@@ -641,20 +795,26 @@ export async function proxy(request: NextRequest) {
                 { reason: 'payload_too_large', size: contentLength, limit: MAX_BODY })
             return new NextResponse(
                 JSON.stringify({ error: 'Payload too large' }),
-                { status: 413, headers: { 'Content-Type': 'application/json' } }
+                {
+                    status: 413,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...earlySecurityHeaders,
+                    },
+                }
             )
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 1. Generate unique nonce for this request
+    // 1. Forward nonce/request context to Next.js
     // ═══════════════════════════════════════════════════════════
-    const nonce = generateNonce()
-
     // Create response with request headers containing nonce and request ID
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-nonce', nonce)
     requestHeaders.set('x-request-id', requestId)
+    // Next.js reads the request CSP nonce and applies it to framework scripts.
+    requestHeaders.set('Content-Security-Policy', csp)
 
     const response = NextResponse.next({
         request: {
@@ -671,11 +831,14 @@ export async function proxy(request: NextRequest) {
     })
 
     // Dynamic CSP with nonce
-    response.headers.set('Content-Security-Policy', buildCSP())
+    response.headers.set('Content-Security-Policy', csp)
 
-    // Pass nonce and request ID to client
-    response.headers.set('x-nonce', nonce)
+    // Pass request ID to client for support/debug correlation.
+    // The CSP nonce is intentionally kept request-side only (server components read it via headers()).
+    // Never expose nonce in HTTP response headers — it belongs only in CSP and HTML nonce attributes.
     response.headers.set('x-request-id', requestId)
+    response.headers.delete('x-nonce')
+    response.headers.delete('x-middleware-request-x-nonce')
 
     // Security version header (for audit)
     response.headers.set('x-security-version', SECURITY_VERSION)
@@ -701,8 +864,10 @@ export async function proxy(request: NextRequest) {
         // Stricter limits based on endpoint sensitivity
         let limit = 100
         let window = 60000
+        let pathCategory = 'api'
 
         if (pathname.startsWith('/api/auth')) {
+            pathCategory = 'auth'
             // Allow more requests for logout/session operations
             if (pathname.includes('/signout') || pathname.includes('/csrf') || pathname.includes('/session')) {
                 limit = 30      // 30 requests per minute for logout/session
@@ -715,11 +880,21 @@ export async function proxy(request: NextRequest) {
                 window = 60000
             }
         } else if (pathname.startsWith('/api/finance/ocr')) {
+            pathCategory = 'finance'
             limit = 10      // 10 OCR requests per minute
             window = 60000
         } else if (pathname.startsWith('/api/admin')) {
+            pathCategory = 'admin'
             limit = 50      // 50 admin requests per minute
             window = 60000
+        }
+
+        // Apply dynamic rate limit override from EnforcementExecutor
+        if (redisUp) {
+            const override = await getRateLimitOverride(threatIpHash, pathCategory)
+            if (override !== null) {
+                limit = Math.max(1, Math.floor(limit * override))
+            }
         }
 
         const rateCheck = checkRateLimit(rateLimitKey, limit, window)
@@ -737,7 +912,7 @@ export async function proxy(request: NextRequest) {
                         'X-RateLimit-Limit': String(limit),
                         'X-RateLimit-Remaining': '0',
                         ...staticSecurityHeaders,
-                        'Content-Security-Policy': buildCSP(),
+                        'Content-Security-Policy': csp,
                     },
                 }
             )
@@ -767,7 +942,7 @@ export async function proxy(request: NextRequest) {
                     status: 403,
                     headers: {
                         'Content-Type': 'application/json',
-                        ...staticSecurityHeaders,
+                        ...earlySecurityHeaders,
                     },
                 }
             )
