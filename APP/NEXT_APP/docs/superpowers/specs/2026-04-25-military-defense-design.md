@@ -76,10 +76,29 @@ REQUEST
 
 **Principles:**
 - Zero Trust: no layer trusts the previous one
-- Fail-closed in production: Redis down = block by default
+- Fail-closed in production: Redis down = block authenticated/admin routes; fail-open public routes with critical alert (see §3a)
 - No coupling: each layer can fail without cascading
 - Edge separation: proxy.ts reads Redis only (no Prisma calls)
 - Full audit: every action writes to AuditLog
+- Atomic enforcement: offense counters use Lua scripts (no race conditions)
+- Identity-weighted scoring: authenticated traffic scored by userId > sessionHash > IP
+
+---
+
+## 3a. Fail-Closed Policy (Nuanced)
+
+Single-instance Redis restart would take the entire app offline for all users. Policy:
+
+| Route category | Redis down behavior |
+|----------------|---------------------|
+| `/api/admin/*`, `/api/superadmin/*`, `/api/finance/*` | **Fail-closed** — block, return 503 |
+| `/api/auth/*` | **Fail-closed** — block login attempts |
+| `/api/*` (other) | **Fail-open** — allow through, log warning |
+| Public pages | **Fail-open** — always serve |
+
+On Redis failure: fire critical alert immediately (Discord + email) via `security-alerts.ts`. Target: operator notified within 30 seconds.
+
+For production robustness: provision Redis with persistent AOF (`appendonly yes`) and `maxmemory-policy allkeys-lru` so restart recovery is fast (<5s) and doesn't lose enforcement state.
 
 ---
 
@@ -103,15 +122,30 @@ threat:metrics:mfa-stepup            → counter, TTL 24h
 threat:metrics:cooldowns             → counter, TTL 24h
 ```
 
+### IP Hash Salting
+
+IP hashes use HMAC-SHA256 with `IP_HASH_SECRET` env var (not plain SHA-256). Without a secret salt, common IPs are reversible via rainbow tables.
+
+```typescript
+// Correct: HMAC with secret
+const ipHash = createHmac('sha256', process.env.IP_HASH_SECRET!).update(ip).digest('hex').slice(0, 16)
+```
+
+`IP_HASH_SECRET` is rotated quarterly. On rotation: all existing threat keys expire naturally via their TTLs (max 24h), so no migration is needed.
+
 ### Score Composition (MITRE ATT&CK informed)
 
-| Signal | Weight | Source |
-|--------|--------|--------|
-| Rate limit hits (last 24h) | 25% | Redis internal |
-| Auth failures / brute force | 25% | SecurityLogger events |
-| Attack patterns (SQLi, traversal, scanning) | 20% | proxy.ts incidents |
-| AbuseIPDB confidence score | 20% | External API (cached) |
-| Session anomalies | 10% | session-manager |
+**For unauthenticated traffic** — primary key is `ipHash`.
+
+**For authenticated traffic** — primary key is `userId`. IP signals are secondary (CGNAT protection: hundreds of users can share one IP in corporate/university/mobile networks). A single attacker on a shared IP cannot escalate the block to affect co-located legitimate users when they are authenticated.
+
+| Signal | Weight (unauth) | Weight (auth) | Source |
+|--------|-----------------|---------------|--------|
+| Rate limit hits (last 24h) | 25% | 15% | Redis internal |
+| Auth failures / brute force | 25% | 30% | SecurityLogger events |
+| Attack patterns (SQLi, traversal, scanning) | 20% | 20% | proxy.ts incidents |
+| AbuseIPDB confidence score | 20% | 10% | External API (cached) |
+| Session anomalies | 10% | 25% | session-manager |
 
 ### Thresholds
 
@@ -191,14 +225,29 @@ Action: immediate session invalidation in DB + Redis session list.
 Notifications: user email alert + admin security alert.  
 Logged to AuditLog with full context.
 
-### Escalation Counter
+### Escalation Counter (Atomic via Lua)
+
+Race condition risk: 1000 concurrent requests could write multiple escalation events simultaneously. Fix: use a Redis Lua script so check-and-increment is a single atomic operation.
+
+```lua
+-- Atomic offense-count increment + threshold check
+local key = KEYS[1]
+local ttl = tonumber(ARGV[1])
+local count = redis.call('INCR', key)
+if count == 1 then
+  redis.call('EXPIRE', key, ttl)
+end
+return count
+```
 
 ```
-threat:ip:{ipHash}:offense-count → TTL 24h
+threat:ip:{ipHash}:offense-count → TTL 24h (atomic INCR via Lua)
 1st offense → Level 1 (15min)
 2nd offense in <24h → Level 2 (1h) automatic
 3rd offense in <24h → Level 3 (24h) + human queue
 ```
+
+For authenticated users: offense-count key is `threat:user:{userId}:offense-count` (same logic, isolated from IP-based counts).
 
 ---
 
@@ -283,7 +332,20 @@ const overrideLimit = await redis.get(`threat:ratelimit-override:${ipHash}:${cat
 const effectiveLimit = overrideLimit ? parseInt(overrideLimit) : staticLimit
 ```
 
-Fail-closed: if Redis throws in production, the request is blocked by default.
+Fail-closed for sensitive routes (see §3a). Public routes fail-open.
+
+### X-Security-ID on blocked responses
+
+Every 403/429/401 enforcement response includes `X-Security-ID: {blockId}` — a short opaque ID (8 hex chars) referencing the AuditLog entry. If a legitimate user is blocked, they can provide this ID to support for fast resolution without exposing internal details.
+
+```typescript
+// blockId = first 8 chars of AuditLog entry id
+response.headers.set('X-Security-ID', blockId)
+```
+
+### Level 3 alerts
+
+Level 3 blocks (24h, score ≥90) fire an immediate out-of-band alert via `security-alerts.ts` to Discord/email. Target: operator notified within 30 seconds. If block rate exceeds 10 Level-3 blocks in 5 minutes, fire "mass block alert" — possible false positive storm or infrastructure issue.
 
 ---
 
@@ -332,11 +394,25 @@ Fail-closed: if Redis throws in production, the request is blocked by default.
 ## 11. Environment Variables
 
 ```env
-AUTONOMOUS_DEFENSE_MODE=active          # off | dry-run | active
+AUTONOMOUS_DEFENSE_MODE=dry-run         # Start here. Switch to active after 7-day warm-up
 AUTONOMOUS_DEFENSE_AUDIT=true
 ABUSEIPDB_API_KEY=                      # Free tier: 1000 req/day
-ABUSEIPDB_MAX_DAILY_LOOKUPS=80          # Safety budget
+ABUSEIPDB_MAX_DAILY_LOOKUPS=80          # Safety budget (conserves quota)
+IP_HASH_SECRET=                         # HMAC secret for IP hashing, rotate quarterly
 ```
+
+## 11a. Deployment Warm-Up Protocol
+
+Before switching `AUTONOMOUS_DEFENSE_MODE=active`:
+
+1. Run `dry-run` for **7 days minimum**
+2. Query `ThreatScoreHistory` for scores ≥ 70 → identify false positive candidates
+3. Review `AuditLog` entries with `action: autonomous_defense.decision` — count legitimate users that would have been blocked
+4. Adjust weight thresholds if false positive rate > 2%
+5. Switch to `active` mode during low-traffic window
+6. Monitor Level 3 alerts for first 48h
+
+This follows NIST SP 800-61r3 §3.3: test detection before enabling automated response.
 
 ---
 
@@ -353,3 +429,8 @@ ABUSEIPDB_MAX_DAILY_LOOKUPS=80          # Safety budget
 | Forense readiness | ThreatScoreHistory + AuditLog queryable by incident timeline |
 | NIST SP 800-61 alignment | Graduated response, evidence preservation, human-in-the-loop for irreversible |
 | OWASP ASVS L3 | Rate limiting, anomaly detection, session protection, audit logging |
+| CGNAT protection | Authenticated traffic scored by userId, not IP; IP primary only for unauthenticated |
+| Rainbow table resistance | IP hashes use HMAC-SHA256 with rotated secret, not plain SHA-256 |
+| Race condition safety | Offense counters use atomic Lua scripts |
+| Availability | Nuanced fail-closed: admin/auth routes block, public routes serve, operator alerted |
+| Support tracability | X-Security-ID on all blocked responses for fast legitimate-user resolution |
