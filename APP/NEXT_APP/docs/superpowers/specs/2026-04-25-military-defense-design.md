@@ -304,8 +304,9 @@ model ThreatPendingAction {
 ## 8. Proxy Middleware Changes
 
 ```typescript
-// src/middleware.ts / src/proxy.ts
-export const runtime = 'nodejs'  // Required for redis npm package on VPS
+// src/proxy.ts
+// Next.js 16 proxy files always run on Node.js runtime.
+// Do not add `export const runtime`; Next.js rejects route segment config in proxy files.
 
 // Session identifier for MFA step-up check:
 // Proxy cannot call auth() (no Prisma in middleware).

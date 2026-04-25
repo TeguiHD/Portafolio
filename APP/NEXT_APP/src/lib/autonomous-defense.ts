@@ -96,6 +96,14 @@ function hasHighVelocity(event: SecurityEvent): boolean {
     return (event.enrichedData?.requestCount ?? 0) >= 50
 }
 
+function inferRateLimitCategory(resource?: string): string {
+    if (!resource) return 'api'
+    if (resource.startsWith('/api/auth')) return 'auth'
+    if (resource.startsWith('/api/finance')) return 'finance'
+    if (resource.startsWith('/api/admin')) return 'admin'
+    return 'api'
+}
+
 const autonomousRules: AutonomousRule[] = [
     {
         id: 'critical-event-human-review',
@@ -241,7 +249,18 @@ export function evaluateAutonomousDefense(event: SecurityEvent): AutonomousDefen
             userId: event.userId,
             sessionId: event.sessionId,
             resource: event.resource,
-            actions: rule.actions(event),
+            actions: rule.actions(event).map((action) => ({
+                ...action,
+                metadata: {
+                    ...action.metadata,
+                    eventId: event.eventId,
+                    eventType: event.eventType,
+                    path: event.resource,
+                    category: inferRateLimitCategory(event.resource),
+                    ipHash: event.ipAddressHash,
+                    userId: event.userId,
+                },
+            })),
             createdAt: new Date().toISOString(),
         }))
 }

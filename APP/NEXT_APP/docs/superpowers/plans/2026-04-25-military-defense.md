@@ -923,14 +923,11 @@ git commit -m "feat(security): wire EnforcementExecutor into AutonomousDefenseEn
 - Modify: `src/proxy.ts`
 - Modify: `src/middleware.ts`
 
-- [ ] **Step 1: Add Node.js runtime export to middleware.ts**
+- [ ] **Step 1: Ensure `src/proxy.ts` is used directly**
 
-In `src/middleware.ts`, change the content to:
-
-```typescript
-export const runtime = 'nodejs'
-export { proxy as middleware, config } from './proxy'
-```
+Next.js 16 treats `src/proxy.ts` as the first-class proxy file and runs it on Node.js runtime.
+Do not create `src/middleware.ts`, and do not add `export const runtime` to `src/proxy.ts`;
+Next.js rejects route segment config in proxy files.
 
 - [ ] **Step 2: Add Redis enforcement checks to proxy.ts**
 

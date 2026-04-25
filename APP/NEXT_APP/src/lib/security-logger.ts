@@ -11,8 +11,8 @@
 
 import 'server-only'
 import { createHash } from 'crypto'
-import { evaluateAutonomousDefense, logAutonomousDefenseDecision } from '@/lib/autonomous-defense'
-import { hashIp, incrementSignal } from '@/lib/threat-scoring'
+import { evaluateAndEnforce } from '@/lib/autonomous-defense'
+import { computeThreatScore, hashIp, incrementSignal } from '@/lib/threat-scoring'
 
 // ============= TYPES =============
 
@@ -337,14 +337,57 @@ export function createEnrichedSecurityData(
 
 // ============= EVENT LOGGING =============
 
+function getSecurityIpHash(ipAddress: string): string {
+    try {
+        return hashIp(ipAddress)
+    } catch (error) {
+        console.error('[SecurityLogger] IP_HASH_SECRET is missing or invalid; falling back to legacy hash', {
+            error: error instanceof Error ? error.message : String(error),
+        })
+        return hashValue(ipAddress)
+    }
+}
+
+function getInMemoryThreatScore(ipHash: string, severity: SecurityEventSeverity): number {
+    return Math.min(100, threatScores.get(ipHash)?.score ?? SEVERITY_SCORES[severity])
+}
+
+function runAutonomousDefensePipeline(event: SecurityEvent): void {
+    void (async () => {
+        let score = getInMemoryThreatScore(event.ipAddressHash, event.severity)
+
+        try {
+            const computed = await computeThreatScore({
+                realIp: event.ipAddress,
+                ipHash: event.ipAddressHash,
+                userId: event.userId,
+            })
+            score = computed.score
+        } catch (error) {
+            console.error('[SecurityLogger] ThreatScoringEngine failed; using in-memory score fallback', {
+                eventId: event.eventId,
+                error: error instanceof Error ? error.message : String(error),
+            })
+        }
+
+        await evaluateAndEnforce(event, score, event.sessionId)
+    })().catch((error) => {
+        console.error('[SecurityLogger] Autonomous defense pipeline failed', {
+            eventId: event.eventId,
+            error: error instanceof Error ? error.message : String(error),
+        })
+    })
+}
+
 /**
  * Log a security event
  */
 export function logSecurityEvent(event: Omit<SecurityEvent, 'eventId' | 'timestamp' | 'ipAddressHash'>): void {
+    const ipAddressHash = getSecurityIpHash(event.ipAddress)
     const fullEvent: SecurityEvent = {
         eventId: generateEventId(),
         timestamp: new Date().toISOString(),
-        ipAddressHash: hashValue(event.ipAddress),
+        ipAddressHash,
         userAgentHash: event.userAgent ? hashValue(event.userAgent) : undefined,
         ...event,
         // Sanitize string fields
@@ -362,11 +405,8 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'eventId' | 'timesta
     // Update threat score
     updateThreatScore(fullEvent)
 
-    // Autonomous defense phase 1: decision-only, dry-run by default.
-    const autonomousDecisions = evaluateAutonomousDefense(fullEvent)
-    for (const decision of autonomousDecisions) {
-        logAutonomousDefenseDecision(decision)
-    }
+    // Autonomous defense: dry-run logs decisions, active writes reversible enforcement to Redis.
+    runAutonomousDefensePipeline(fullEvent)
 
     // Flush if buffer is full
     if (eventBuffer.length >= BUFFER_SIZE) {
@@ -455,7 +495,7 @@ function updateThreatScore(event: SecurityEvent): void {
  * Get current threat score for an IP
  */
 export function getThreatScore(ipAddress: string): number {
-    const key = hashValue(ipAddress)
+    const key = getSecurityIpHash(ipAddress)
     const record = threatScores.get(key)
 
     if (!record) return 0

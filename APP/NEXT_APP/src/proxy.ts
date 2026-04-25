@@ -1,8 +1,8 @@
 /**
  * Proxy Layer - Next.js 16 Architecture (MILITARY-GRADE SECURITY)
  * 
- * Este archivo actúa como proxy ligero (edge-compatible).
- * SOLO maneja: Security Headers, CORS, Rate Limiting, CSP with Nonce.
+ * Este archivo actúa como proxy ligero en runtime Node.js.
+ * Maneja: enforcement Redis, Security Headers, CORS, Rate Limiting, CSP with Nonce.
  * 
  * Security Level: OWASP ASVS Level 3 + Additional Hardening
  * 

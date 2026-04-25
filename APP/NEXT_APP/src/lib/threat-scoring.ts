@@ -72,17 +72,19 @@ async function collectIpSignals(ipHash: string, realIp: string): Promise<SignalW
   ])
 
   const abuseResult = await getCachedAbuseScore(ipHash)
-  if (!abuseResult) {
-    triggerAbuseIPDBLookup(realIp, ipHash)
-  }
-
-  return {
+  const signals: SignalWeights = {
     rateLimitHits:    Math.min(100, (parseInt(rateLimitRaw ?? '0') / 10) * 100),
     authFailures:     Math.min(100, (parseInt(authFailRaw ?? '0') / 5) * 100),
     attackPatterns:   Math.min(100, (parseInt(attackRaw ?? '0') / 3) * 100),
     abuseipdb:        abuseResult?.abuseConfidenceScore ?? 0,
     sessionAnomalies: Math.min(100, (parseInt(sessionRaw ?? '0') / 2) * 100),
   }
+
+  if (!abuseResult && scoreUnauthenticated({ ...signals, abuseipdb: 0 }) >= 40) {
+    triggerAbuseIPDBLookup(realIp, ipHash)
+  }
+
+  return signals
 }
 
 async function collectUserSignals(userId: string): Promise<SignalWeights> {
