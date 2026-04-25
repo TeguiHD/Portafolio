@@ -84,6 +84,8 @@ Archivos/
 **/prisma_log*.txt
 **/seed_log*.txt
 **/seed_error*.txt
+**/playwright-report/
+**/test-results/
 
 ## Nginx secrets
 DOCKER/nginx/ssl/

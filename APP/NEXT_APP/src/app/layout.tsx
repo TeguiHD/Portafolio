@@ -1,24 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google"; // turbo
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { StructuredData } from "@/components/StructuredData";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { PWARegister } from "@/modules/finance/components/PWAComponents";
 import { VisualEnhancements } from "@/modules/landing/layout/VisualEnhancements";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap", // Ensure text is visible immediately while font loads (LCP fix)
-  preload: true,
-});
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  display: "swap",
-  preload: true,
-});
 
 const BASE_URL = "https://nicoholas.dev";
 
@@ -109,10 +95,6 @@ export default async function RootLayout({
         {/* Structured Data for Google Rich Snippets */}
         <StructuredData />
 
-        {/* Resource hints for faster loading */}
-        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-
         {/* Browser compatibility warning - shown if JS fails to execute (old browsers/CSP block) */}
         <noscript>
           <style dangerouslySetInnerHTML={{
@@ -164,7 +146,7 @@ export default async function RootLayout({
           </div>
         </noscript>
       </head>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased text-white bg-[#0a0a0a] selection:bg-accent-success/30`}>
+      <body className="font-sans antialiased text-white bg-[#0a0a0a] selection:bg-accent-success/30">
         {/* Skip to content — accessibility (WCAG 2.4.1) */}
         <a
           href="#hero"

@@ -66,6 +66,9 @@
 
 /* Custom Utilities and Global Styles */
 :root {
+  --font-inter: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
   /* Primary Gradients */
   --grad-blue-purple: linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%);
   --grad-green-cyan: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
