@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, encryptEmail, decryptEmail } from "@/lib/security.server";
 import { NotificationHelpers } from "@/lib/notificationService";
 import { createAuditLog, AuditActions } from "@/lib/audit";
+import { resetRateLimit } from "@/lib/redis";
 import { Prisma } from '@/generated/prisma/client';
 
 export async function GET() {
@@ -25,6 +26,8 @@ export async function GET() {
                 mfaEnabled: true,
                 avatar: true,
                 createdAt: true,
+                failedLoginAttempts: true,
+                lockedUntil: true,
                 _count: {
                     select: {
                         quotations: true,
@@ -132,7 +135,7 @@ export async function PATCH(request: Request) {
     }
 
     try {
-        const { userId, role, isActive, password } = await request.json();
+        const { userId, role, isActive, password, unlockLoginBlock } = await request.json();
 
         if (!userId) {
             return NextResponse.json({ error: "Missing data" }, { status: 400 });
@@ -157,6 +160,18 @@ export async function PATCH(request: Request) {
         // ...
 
         const data: Prisma.UserUpdateInput = {};
+
+        if (unlockLoginBlock) {
+            if (session.user.role !== "SUPERADMIN") {
+                return NextResponse.json(
+                    { error: "Solo SUPERADMIN puede desbloquear cuentas por limite de intentos" },
+                    { status: 403 }
+                );
+            }
+
+            data.failedLoginAttempts = 0;
+            data.lockedUntil = null;
+        }
 
         // Role hierarchy check for role changes
         if (role) {
@@ -211,6 +226,12 @@ export async function PATCH(request: Request) {
             await NotificationHelpers.passwordChanged(userInfo, actor);
         }
 
+        if (unlockLoginBlock) {
+            await resetRateLimit(targetUser.email).catch((error) => {
+                console.error("Error resetting login rate limit:", error);
+            });
+        }
+
         // Audit logs for all changes
         if (role && role !== targetUser.role) {
             await createAuditLog({
@@ -238,6 +259,20 @@ export async function PATCH(request: Request) {
                 userId: session.user.id,
                 targetId: userId,
                 targetType: "user",
+            });
+        }
+
+        if (unlockLoginBlock) {
+            await createAuditLog({
+                action: AuditActions.ACCOUNT_UNLOCKED,
+                category: "security",
+                userId: session.user.id,
+                targetId: userId,
+                targetType: "user",
+                metadata: {
+                    previousFailedLoginAttempts: targetUser.failedLoginAttempts,
+                    previousLockedUntil: targetUser.lockedUntil?.toISOString() ?? null,
+                },
             });
         }
 

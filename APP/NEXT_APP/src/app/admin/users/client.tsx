@@ -19,6 +19,8 @@ type User = {
     isActive: boolean;
     avatar: string | null;
     createdAt: string;
+    failedLoginAttempts: number;
+    lockedUntil: string | null;
     deletionStatus?: string;
     deletionScheduledAt?: string | null;
     _count: { quotations: number; sessions: number };
@@ -43,7 +45,7 @@ const roleLabels = {
     USER: "Usuario",
 };
 
-export default function UsersPageClient() {
+export default function UsersPageClient({ currentUserRole }: { currentUserRole: User["role"] }) {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -225,6 +227,29 @@ export default function UsersPageClient() {
         });
     };
 
+    const handleUnlockLoginBlock = (userId: string, userName: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: "Desbloquear acceso",
+            message: `¿Quitar el bloqueo por demasiados intentos de login a ${userName}? Esto limpiará el contador y el tiempo de espera.`,
+            type: "info",
+            action: async () => {
+                try {
+                    const res = await fetch("/api/admin/users", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ userId, unlockLoginBlock: true }),
+                    });
+                    if (!res.ok) throw new Error();
+                    await fetchUsers();
+                    toast.success("Bloqueo de login removido");
+                } catch {
+                    setError("Error al desbloquear usuario");
+                }
+            }
+        });
+    };
+
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!passwordModal.userId || !newPassword) return;
@@ -401,6 +426,9 @@ export default function UsersPageClient() {
                 ) : (
                     paginatedUsers.map((user, idx) => {
                         const isSuperAdmin = user.role === "SUPERADMIN";
+                        const isLoginLocked = Boolean(user.lockedUntil && new Date(user.lockedUntil) > new Date());
+                        const hasLoginPenalty = isLoginLocked || user.failedLoginAttempts > 0;
+                        const canUnlockLoginBlock = currentUserRole === "SUPERADMIN" && !isSuperAdmin && hasLoginPenalty;
 
                         return (
                             <motion.div
@@ -437,8 +465,20 @@ export default function UsersPageClient() {
                                                     <ShieldCheck size={10} /> PROTEGIDO
                                                 </span>
                                             )}
+                                            {isLoginLocked && (
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/20">
+                                                    BLOQUEADO
+                                                </span>
+                                            )}
                                         </div>
                                         <p className="text-sm text-neutral-400 truncate">{user.email}</p>
+                                        {hasLoginPenalty && (
+                                            <p className="text-xs text-amber-300/80 mt-1">
+                                                {isLoginLocked
+                                                    ? `Bloqueado hasta ${new Date(user.lockedUntil!).toLocaleString("es-CL")}`
+                                                    : `Intentos fallidos acumulados: ${user.failedLoginAttempts}`}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Controls Container */}
@@ -513,6 +553,16 @@ export default function UsersPageClient() {
                                                     >
                                                         <Key size={18} />
                                                     </button>
+
+                                                    {canUnlockLoginBlock && (
+                                                        <button
+                                                            onClick={() => handleUnlockLoginBlock(user.id, user.name || user.email)}
+                                                            className="p-2 rounded-lg text-neutral-400 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
+                                                            title="Quitar bloqueo por demasiados intentos"
+                                                        >
+                                                            <ShieldCheck size={18} />
+                                                        </button>
+                                                    )}
 
                                                     {/* Status Toggle / Restore */}
                                                     <button

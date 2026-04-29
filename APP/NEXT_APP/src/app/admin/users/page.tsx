@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function UsersPage() {
     // Server-side permission validation
-    await requirePagePermission('users.view')
+    const session = await requirePagePermission('users.view')
 
-    return <UsersPageClient />
+    return <UsersPageClient currentUserRole={session.user.role} />
 }
