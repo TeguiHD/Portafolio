@@ -52,9 +52,29 @@ test.describe("Sitemap y robots", () => {
     });
 
     test("todas las URLs del sitemap responden 200", async ({ request }) => {
+        // Margen amplio: esta prueba recorre 34 URLs en serie contra el
+        // servidor real. `src/proxy.ts` consulta `isRedisAvailable()`
+        // (`src/lib/redis.ts`) en cada request, y si Redis no está disponible
+        // (checkout en frío, CI sin Redis) cada llamada repite un ciclo
+        // completo de connect-with-retry en lugar de cachear el fallo. Eso
+        // puede multiplicar la latencia por request y agotar el timeout por
+        // defecto de Playwright sin que el sitemap tenga ningún problema real.
+        test.setTimeout(120_000);
+
         const xml = await (await request.get("/sitemap.xml")).text();
         const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-        expect(locs.length).toBeGreaterThanOrEqual(34);
+
+        // Total exacto según el Definition of Done del plan: 3 core
+        // (home, hub, blog) + 29 herramientas + 2 legales = 34. Un piso
+        // (`toBeGreaterThanOrEqual`) dejaría pasar una regresión que infla el
+        // sitemap (p. ej. un merge que reintroduce URLs hardcodeadas junto a
+        // las derivadas del registro).
+        expect(locs.length).toBe(34);
+
+        // Ninguna URL debe repetirse: duplicados pasarían el chequeo de
+        // presencia de las 29 herramientas y seguirían devolviendo 200.
+        const uniqueLocs = new Set(locs);
+        expect(uniqueLocs.size, "el sitemap contiene URLs duplicadas").toBe(locs.length);
 
         for (const loc of locs) {
             const path = loc.replace(SITE_URL, "") || "/";
