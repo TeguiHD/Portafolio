@@ -46,7 +46,9 @@ Hallazgos verificados sobre el código en `main` al 2026-08-02.
 - `robots.ts` publica dos sitemaps (`/sitemap.xml` y `/sitemap_index.xml`) donde el
   segundo solo apunta al primero. Redundante.
 - `public/og-image.png` **no existe**, pero root layout y `twitter:image` lo referencian.
-  Todas las tarjetas Open Graph están rotas.
+  Todas las tarjetas Open Graph están rotas. Existe `src/app/opengraph-image.tsx`, que
+  generaría la imagen correctamente vía `next/og`, pero la referencia explícita al PNG
+  inexistente tiene precedencia sobre la convención de archivo y la anula.
 
 ### 2.2 Datos estructurados
 
@@ -75,12 +77,18 @@ Hallazgos verificados sobre el código en `main` al 2026-08-02.
 
 ### 2.5 Canibalización de keywords
 
-Clusters que compiten entre sí por la misma intención:
+Contrastado contra `DEFAULT_TOOL_REGISTRY`: las 29 herramientas son funcionalmente
+distintas. `esteganografia` oculta texto en emojis, `esteganografia-imagen` usa LSB en
+píxeles; `ascii` convierte imágenes en ASCII art, `banner-ascii` genera banners de
+terminal; `convertir-ico` hace PNG→ICO, `favicon` genera el pack completo.
 
-- `esteganografia` vs `esteganografia-imagen`
-- `convertir-imagen` vs `comprimir-imagen` vs `redimensionar` vs `recortar-imagen`
-- `ascii` vs `banner-ascii`
-- `convertir-ico` vs `favicon`
+**No hay herramientas que fusionar.** El riesgo real es de nivel keyword: sin una
+primaria asignada, el cluster de imágenes (`convertir-imagen`, `comprimir-imagen`,
+`redimensionar`, `recortar-imagen`, `quitar-fondo`, `marca-agua`) competiría entre sí
+por términos genéricos como "editor de imágenes online".
+
+**Solución:** una keyword primaria única y excluyente por herramienta, declarada en el
+registro y validada automáticamente. Sin fusiones, sin 301, sin pérdida de páginas.
 
 ### 2.6 Slugs
 
@@ -187,7 +195,8 @@ crawler access.*
 7. Ampliar `robots.ts`: mantener `disallow` de `/admin/`, `/api/`, `/acceso`; agregar
    reglas explícitas de `allow` para GPTBot, ClaudeBot, PerplexityBot, Google-Extended,
    CCBot, Bytespider, Applebot-Extended, Amazonbot, meta-externalagent.
-8. Generar `public/og-image.png` (1200×630) y verificar que las rutas de iconos del
+8. Eliminar del root layout las referencias a `/og-image.png` para que la convención
+   `opengraph-image.tsx` vuelva a aplicarse; verificar que las rutas de iconos del
    manifest resuelvan.
 9. Auditar enlaces internos rotos y respuestas 404; mejorar `not-found.tsx` con enlaces
    a las herramientas de mayor prioridad.
@@ -240,8 +249,8 @@ fix keyword cannibalization, merge thin pages, internal links, clean descriptive
 
 1. Mapa de keywords: primaria + secundarias por herramienta, español LATAM, priorizando
    volumen alto y dificultad baja.
-2. Resolver los 4 clusters de canibalización de §2.5. Por cada uno: fusionar en una
-   página con 301, o diferenciar por intención con enlaces cruzados explícitos.
+2. Asignar keyword primaria única y excluyente por herramienta (§2.5). Validado por
+   script: dos herramientas no pueden declarar la misma primaria. Sin fusiones.
 3. Escribir ~500 palabras originales por herramienta en el registro: intro, guía paso a
    paso, 3-4 casos de uso reales, FAQ de 4-5 preguntas.
 4. Enlazado interno: bloque de relacionadas derivado de `related[]`, más enlaces
@@ -306,7 +315,7 @@ Ninguna fase se declara completa sin evidencia ejecutada:
 | Riesgo | Mitigación |
 |---|---|
 | Renombrar slugs rompe enlaces externos y rankings | 301 permanentes; decisión explícita del usuario antes de ejecutar |
-| Fusionar herramientas elimina páginas que ya rankean | Revisar datos de Search Console antes de fusionar; 301 al destino |
+| Dos herramientas compiten por la misma keyword | Primaria única validada por script; falla el audit si se repite |
 | Cambiar el `<noscript>` debilita la postura de seguridad | El banner conserva el aviso; solo deja de ocultar el contenido. Sin cambios en CSP ni cabeceras |
 | El contenido generado suena genérico | Escrito desde el comportamiento real de cada herramienta, revisado por el usuario |
 | 29 `layout.tsx` se desincronizan | Son plantilla trivial; toda la lógica vive en el registro |
@@ -317,5 +326,7 @@ Ninguna fase se declara completa sin evidencia ejecutada:
 
 1. **Renombrado de slugs** (Fase 4.5) — mejora relevancia y CTR, pero cambia URLs
    vivas. Requiere aprobación explícita.
-2. **Fusión de clusters canibalizados** (Fase 4.2) — la decisión por cluster se toma
-   con datos de Search Console si están disponibles.
+2. **Imagen Open Graph** — ya existe `src/app/opengraph-image.tsx` que la genera
+   dinámicamente vía `next/og`. El root layout la rompe al sobrescribirla con
+   `images: ["/og-image.png"]`, archivo que no existe. La corrección es eliminar esa
+   sobrescritura, no crear un PNG.
