@@ -8,7 +8,20 @@ test.describe("Metadata por página", () => {
     test("la home canoniza a sí misma", async ({ page }) => {
         await page.goto("/");
         const canonical = await page.locator('link[rel="canonical"]').getAttribute("href");
-        expect(canonical).toBe(`${SITE_URL}/`);
+        // Next.js resuelve el canonical de la raíz sin slash final (colapsa a
+        // `origin` cuando el pathname resuelto es exactamente "/"). Lo que
+        // importa es que apunte a la home y no a otra URL.
+        expect(canonical).toBe(SITE_URL);
+    });
+
+    test("ningún canonical del sitio termina en slash final", async ({ page }) => {
+        const routes = ["/", ...SAMPLE_TOOLS.map((slug) => `/herramientas/${slug}`)];
+        for (const route of routes) {
+            await page.goto(route);
+            const canonical = await page.locator('link[rel="canonical"]').getAttribute("href");
+            expect(canonical).toBeTruthy();
+            expect(canonical!.endsWith("/")).toBe(false);
+        }
     });
 
     for (const slug of SAMPLE_TOOLS) {
