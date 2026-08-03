@@ -6,7 +6,10 @@ test.describe("Enlaces y 404", () => {
         expect(response?.status()).toBe(404);
 
         // Debe ofrecer rutas de recuperación, no ser un callejón sin salida.
-        const links = page.locator("main a, body a");
+        // Todos los enlaces del 404 viven dentro del landmark <main>, así
+        // que el selector ya no necesita el fallback "body a" que cubría el
+        // caso en que la página no tenía ningún <main> real.
+        const links = page.locator("main a");
         expect(await links.count()).toBeGreaterThanOrEqual(4);
         await expect(page.locator('a[href="/herramientas"]')).toBeVisible();
 

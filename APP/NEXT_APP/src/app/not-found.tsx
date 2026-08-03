@@ -21,7 +21,7 @@ const RECOVERY_LINKS = [
 
 export default function NotFound() {
     return (
-        <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724] px-6 text-center">
+        <main className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724] px-6 text-center">
             {/* Glowing orb background */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-gradient-to-r from-[#FF8A00]/10 to-[#00B8A9]/10 blur-[120px]" />
@@ -99,6 +99,6 @@ export default function NotFound() {
             <p className="absolute bottom-6 text-xs text-neutral-600">
                 Error 404 • nicoholas.dev
             </p>
-        </div>
+        </main>
     );
 }
