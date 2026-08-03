@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import ToolsGrid from "@/components/tools/ToolsGrid";
 import { mergePublicToolCatalog } from "@/lib/tool-registry";
 
 export const revalidate = 10; // Revalidate every 10 seconds for faster updates
+
+export const metadata: Metadata = {
+    title: { absolute: "29 Herramientas Online Gratis para Desarrolladores" },
+    description:
+        "Colección de 29 herramientas gratuitas para desarrollo y diseño: QR, contraseñas, Base64, JSON, JWT, subredes, imágenes y más. Sin registro ni marcas de agua.",
+    alternates: { canonical: "/herramientas" },
+};
 
 async function getPublicTools() {
     try {

@@ -45,29 +45,17 @@ export const metadata: Metadata = {
     title: "Nicoholas Lopetegui | Desarrollador Full Stack",
     description:
       "Transformo problemas complejos en productos funcionales. Plataformas, automatizaciones y datos con impacto real.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Nicoholas Lopetegui — Desarrollador Full Stack",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Nicoholas Lopetegui | Desarrollador Full Stack",
     description:
       "Transformo problemas complejos en productos funcionales. Sin rodeos. Sin demoras.",
-    images: ["/og-image.png"],
   },
   robots: {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true },
-  },
-  alternates: {
-    canonical: BASE_URL,
   },
   manifest: "/manifest.json",
   icons: {

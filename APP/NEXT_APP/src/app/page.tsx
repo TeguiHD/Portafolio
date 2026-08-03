@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { HeroSection } from "@/modules/landing/sections/HeroSection";
 import { Navbar } from "@/modules/landing/layout/Navbar";
 import {
   DeferredLandingSection,
   type DeferredLandingSectionId,
 } from "@/modules/landing/sections/DeferredLandingSection";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const deferredSections: DeferredLandingSectionId[] = [
   "tools-belt",
