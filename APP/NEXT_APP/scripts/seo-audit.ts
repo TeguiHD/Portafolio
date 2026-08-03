@@ -2,7 +2,7 @@
  * Auditoría SEO mecánica. Falla el proceso si alguna regla se rompe.
  * Uso: pnpm seo:audit
  */
-import { readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TOOLS_SEO, type ToolSeoEntry } from "../src/lib/seo/tools-content";
 
@@ -30,6 +30,38 @@ function checkCoverage(routes: string[]) {
     }
     for (const slug of registered) {
         if (!routes.includes(slug)) fail(`Entrada en TOOLS_SEO sin ruta real: ${slug}`);
+    }
+}
+
+// Prueba route ⇄ layout.tsx, no solo route ⇄ registro. Sin esto, una ruta
+// puede quedar sin layout.tsx (hereda title/description del root layout y
+// no tiene canonical, pero igual sale en el sitemap), o un layout.tsx puede
+// llamar a buildToolMetadata con el slug de otra herramienta (copy-paste),
+// duplicando title y canonical entre dos páginas. checkCoverage no detecta
+// ninguno de los dos casos porque ambos solo miran el registro, nunca el
+// archivo que realmente produce la metadata servida.
+const BUILD_TOOL_METADATA_CALL = /buildToolMetadata\(\s*["'`]([^"'`]+)["'`]\s*\)/;
+
+function checkLayouts(routes: string[]) {
+    for (const slug of routes) {
+        const layoutPath = join(TOOLS_DIR, slug, "layout.tsx");
+        if (!existsSync(layoutPath)) {
+            fail(`Ruta sin layout.tsx: ${slug} (sin metadata propia ni canonical)`);
+            continue;
+        }
+        const source = readFileSync(layoutPath, "utf-8");
+        const match = source.match(BUILD_TOOL_METADATA_CALL);
+        if (!match) {
+            fail(`${slug}/layout.tsx no llama a buildToolMetadata("...")`);
+            continue;
+        }
+        const literalSlug = match[1];
+        if (literalSlug !== slug) {
+            fail(
+                `${slug}/layout.tsx llama a buildToolMetadata("${literalSlug}"), ` +
+                    `debería ser buildToolMetadata("${slug}")`
+            );
+        }
     }
 }
 
@@ -67,6 +99,7 @@ function checkUniqueness(field: "title" | "description" | "primaryKeyword") {
 
 const routes = routeSlugs();
 checkCoverage(routes);
+checkLayouts(routes);
 Object.entries(TOOLS_SEO).forEach(([key, entry]) => checkEntry(key, entry));
 (["title", "description", "primaryKeyword"] as const).forEach(checkUniqueness);
 
