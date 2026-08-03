@@ -19,7 +19,8 @@
     "security:check": "pnpm run lint && pnpm run typecheck && pnpm audit --prod --audit-level=high && pnpm run build",
     "security:prod": "pnpm audit --prod --audit-level=high",
     "security:false-positives": "tsx scripts/review-false-positives.ts",
-    "seo:audit": "tsx scripts/seo-audit.ts"
+    "seo:audit": "tsx scripts/seo-audit.ts",
+    "seo:verify": "pnpm run seo:audit && pnpm run typecheck && pnpm run lint && pnpm run build"
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.3",
