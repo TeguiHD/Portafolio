@@ -2,8 +2,11 @@ import { Navbar } from "@/modules/landing/layout/Navbar";
 import { FooterSection } from "@/modules/landing/sections/FooterSection";
 
 export const metadata = {
-    title: "Términos y Condiciones | Nicoholas Lopetegui",
+    // absolute evita que el template "%s | Nicoholas Lopetegui" del root
+    // layout vuelva a sufijar un title que ya trae el sufijo incluido.
+    title: { absolute: "Términos y Condiciones | Nicoholas Lopetegui" },
     description: "Términos de uso para el portafolio y herramientas de Nicoholas Lopetegui.",
+    alternates: { canonical: "/terminos" },
 };
 
 export default function TermsPage() {

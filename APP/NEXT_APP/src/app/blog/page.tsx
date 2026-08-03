@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Blog",
   description:
     "Blog interactivo con noticias técnicas, seguridad, mercado, clima y actividad real de GitHub en una experiencia tipo command center.",
+  alternates: { canonical: "/blog" },
 };
 
 export default function BlogPage() {
