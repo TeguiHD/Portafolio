@@ -60,6 +60,10 @@ jobs:
       working-directory: ./APP/NEXT_APP
       run: pnpm run typecheck
 
+    - name: SEO Audit
+      working-directory: ./APP/NEXT_APP
+      run: pnpm run seo:audit
+
     # ============================================
     # Build Verification
     # ============================================
