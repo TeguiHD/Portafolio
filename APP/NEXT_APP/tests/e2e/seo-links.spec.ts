@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Enlaces y 404", () => {
-    test("una URL inexistente devuelve 404 con enlaces de salida", async ({ page }) => {
+    test("una URL inexistente devuelve 404 con enlaces de salida", async ({ page, request }) => {
         const response = await page.goto("/esta-ruta-no-existe-jamas");
         expect(response?.status()).toBe(404);
 
@@ -9,6 +9,22 @@ test.describe("Enlaces y 404", () => {
         const links = page.locator("main a, body a");
         expect(await links.count()).toBeGreaterThanOrEqual(4);
         await expect(page.locator('a[href="/herramientas"]')).toBeVisible();
+
+        // Las herramientas curadas del propio 404 deben ser enlaces vivos:
+        // esta es la comprobación cuya ausencia permitió que los slugs
+        // hardcodeados pudieran pudrirse en silencio si tools-content.ts
+        // cambiaba. Se deriva de lo que la página realmente renderiza, no de
+        // una lista repetida a mano.
+        const toolHrefs = await page
+            .locator('a[href^="/herramientas/"]')
+            .evaluateAll((els) =>
+                Array.from(new Set(els.map((el) => (el as HTMLAnchorElement).getAttribute("href")!)))
+            );
+        expect(toolHrefs.length).toBeGreaterThanOrEqual(3);
+        for (const href of toolHrefs) {
+            const res = await request.get(href);
+            expect(res.status(), `${href} devolvió ${res.status()}`).toBe(200);
+        }
     });
 
     test("una herramienta inexistente devuelve 404", async ({ page }) => {

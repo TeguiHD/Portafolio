@@ -1,6 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { getToolSeo } from "@/lib/seo/tools-content";
+
+// Curación editorial: estas tres herramientas son las salidas de recuperación
+// deliberadas para un visitante perdido, no un slice arbitrario del registro.
+// Se derivan de TOOLS_SEO (href y label) para que un rename o borrado del
+// slug en tools-content.ts rompa el build en vez de dejar un enlace muerto.
+const RECOVERY_TOOL_SLUGS = ["qr", "claves", "json"] as const;
+
+const RECOVERY_LINKS = [
+    { href: "/herramientas", label: "Todas las herramientas" },
+    ...RECOVERY_TOOL_SLUGS.map((slug) => {
+        const tool = getToolSeo(slug);
+        return { href: `/herramientas/${tool.slug}`, label: tool.h1 };
+    }),
+    { href: "/blog", label: "Blog" },
+    { href: "/", label: "Inicio" },
+];
 
 export default function NotFound() {
     return (
@@ -64,14 +81,7 @@ export default function NotFound() {
                         Quizás buscabas alguna de estas:
                     </p>
                     <ul className="flex flex-wrap justify-center gap-2">
-                        {[
-                            { href: "/herramientas", label: "Todas las herramientas" },
-                            { href: "/herramientas/qr", label: "Generador de QR" },
-                            { href: "/herramientas/claves", label: "Contraseñas seguras" },
-                            { href: "/herramientas/json", label: "Formateador JSON" },
-                            { href: "/blog", label: "Blog" },
-                            { href: "/", label: "Inicio" },
-                        ].map((item) => (
+                        {RECOVERY_LINKS.map((item) => (
                             <li key={item.href}>
                                 <Link
                                     href={item.href}
