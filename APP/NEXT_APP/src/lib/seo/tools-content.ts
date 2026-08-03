@@ -48,7 +48,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
 
     claves: {
         slug: "claves",
-        title: "Generador de Contraseñas 100% Seguras Online y Gratis",
+        title: "Generador de Contraseñas Aleatorias Online y Gratis",
         description:
             "Genera contraseñas seguras y aleatorias con la longitud y los caracteres que elijas. Todo ocurre en tu navegador: ninguna clave se envía ni se almacena.",
         h1: "Generador de Contraseñas Seguras",
@@ -98,7 +98,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
 
     jwt: {
         slug: "jwt",
-        title: "Decodificar JWT Online: Header, Payload y Firma Ya",
+        title: "Decodificar JWT Online: Ver Header, Payload y Firma",
         description:
             "Decodifica tokens JWT y revisa header, payload y firma al instante. El token nunca sale de tu navegador, ideal para depurar sesiones sin exponer datos.",
         h1: "Decodificador de JWT",
@@ -217,7 +217,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
 
     enlaces: {
         slug: "enlaces",
-        title: "Generar Enlace de WhatsApp Sin Guardar el Número Ya",
+        title: "Generar un Enlace de WhatsApp Sin Guardar el Número",
         description:
             "Genera enlaces directos de WhatsApp, correo o eventos de calendario sin necesidad de guardar el número en tu agenda. Comparte el link y empieza a chatear.",
         h1: "Generador de Enlaces Rápidos",
@@ -268,7 +268,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
 
     favicon: {
         slug: "favicon",
-        title: "Generador de Favicon Online: Todos los Tamaños Ahora",
+        title: "Generador de Favicon Online: Pack de Todos los Tamaños",
         description:
             "Genera todos los tamaños de favicon que tu web necesita a partir de una sola imagen y descárgalos en un ZIP listo para usar en cualquier navegador moderno.",
         h1: "Generador de Favicon",
