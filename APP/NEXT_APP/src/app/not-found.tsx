@@ -56,6 +56,33 @@ export default function NotFound() {
                         Volver atrás
                     </button>
                 </div>
+
+                {/* Salidas — evita que el 404 sea un callejón sin salida y reparte
+                    autoridad hacia las herramientas más importantes. */}
+                <nav aria-label="Páginas sugeridas" className="mt-10">
+                    <p className="mb-4 text-sm text-neutral-400">
+                        Quizás buscabas alguna de estas:
+                    </p>
+                    <ul className="flex flex-wrap justify-center gap-2">
+                        {[
+                            { href: "/herramientas", label: "Todas las herramientas" },
+                            { href: "/herramientas/qr", label: "Generador de QR" },
+                            { href: "/herramientas/claves", label: "Contraseñas seguras" },
+                            { href: "/herramientas/json", label: "Formateador JSON" },
+                            { href: "/blog", label: "Blog" },
+                            { href: "/", label: "Inicio" },
+                        ].map((item) => (
+                            <li key={item.href}>
+                                <Link
+                                    href={item.href}
+                                    className="inline-block rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-neutral-300 transition hover:border-[#00B8A9]/40 hover:text-white"
+                                >
+                                    {item.label}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </nav>
             </div>
 
             {/* Footer */}
