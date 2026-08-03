@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import ToolsGrid from "@/components/tools/ToolsGrid";
 import { mergePublicToolCatalog } from "@/lib/tool-registry";
+import { TOOL_SEO_SLUGS } from "@/lib/seo/tools-content";
 
 export const revalidate = 10; // Revalidate every 10 seconds for faster updates
 
+// Derivado del registro para que agregar/quitar una herramienta actualice
+// el title y la description sin necesidad de tocar este archivo.
+const TOOL_COUNT = TOOL_SEO_SLUGS.length;
+
 export const metadata: Metadata = {
-    title: { absolute: "29 Herramientas Online Gratis para Desarrolladores" },
+    title: { absolute: `${TOOL_COUNT} Herramientas Online Gratis para Desarrolladores` },
     description:
-        "Colección de 29 herramientas gratuitas para desarrollo y diseño: QR, contraseñas, Base64, JSON, JWT, subredes, imágenes y más. Sin registro ni marcas de agua.",
+        `Colección de ${TOOL_COUNT} herramientas gratuitas para desarrollo y diseño: QR, contraseñas, Base64, JSON, JWT, subredes, imágenes y más. Sin registro ni marcas de agua.`,
     alternates: { canonical: "/herramientas" },
 };
 

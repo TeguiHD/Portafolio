@@ -3,6 +3,14 @@ import { TOOL_SEO_SLUGS } from "../../src/lib/seo/tools-content";
 
 const SITE_URL = "https://nicoholas.dev";
 
+// Páginas no derivadas del registro que src/app/sitemap.ts añade a mano:
+// home, hub de herramientas y blog (core) + privacidad y términos (legal).
+// Si se agrega o quita una de estas páginas en el sitemap, este número debe
+// actualizarse a mano junto con sitemap.ts; las herramientas, en cambio, se
+// derivan de TOOL_SEO_SLUGS y no deben tocar este archivo nunca.
+const NON_TOOL_SITEMAP_PAGES = 5;
+const EXPECTED_SITEMAP_URL_COUNT = TOOL_SEO_SLUGS.length + NON_TOOL_SITEMAP_PAGES;
+
 test.describe("Sitemap y robots", () => {
     test("el sitemap incluye las 29 herramientas", async ({ request }) => {
         const response = await request.get("/sitemap.xml");
@@ -64,12 +72,16 @@ test.describe("Sitemap y robots", () => {
         const xml = await (await request.get("/sitemap.xml")).text();
         const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 
-        // Total exacto según el Definition of Done del plan: 3 core
-        // (home, hub, blog) + 29 herramientas + 2 legales = 34. Un piso
-        // (`toBeGreaterThanOrEqual`) dejaría pasar una regresión que infla el
-        // sitemap (p. ej. un merge que reintroduce URLs hardcodeadas junto a
-        // las derivadas del registro).
-        expect(locs.length).toBe(34);
+        // Total exacto: 3 core (home, hub, blog) + herramientas del registro
+        // + 2 legales. Se deriva de TOOL_SEO_SLUGS en vez de hardcodear 34
+        // para que agregar una herramienta al registro (que agrega una URL
+        // real al sitemap) no vuelva rojo este test — la propiedad que este
+        // branch garantiza es justamente que el sitemap sigue al registro
+        // sin ningún otro edit. Un piso (`toBeGreaterThanOrEqual`) seguiría
+        // dejando pasar una regresión que infla el sitemap con URLs
+        // hardcodeadas ajenas al registro, así que el exact-match se
+        // mantiene, solo que contra un valor derivado.
+        expect(locs.length).toBe(EXPECTED_SITEMAP_URL_COUNT);
 
         // Ninguna URL debe repetirse: duplicados pasarían el chequeo de
         // presencia de las 29 herramientas y seguirían devolviendo 200.
