@@ -22,6 +22,7 @@ export function buildToolMetadata(slug: string): Metadata {
             siteName: SITE_NAME,
             title: entry.title,
             description: entry.description,
+            images: ["/opengraph-image"],
         },
         twitter: {
             card: "summary_large_image",

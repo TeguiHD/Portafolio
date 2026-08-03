@@ -66,4 +66,31 @@ test.describe("Metadata por página", () => {
         const response = await request.get(ogImage!);
         expect(response.status()).toBe(200);
     });
+
+    // Scope este-antes-solo-home es justo el motivo por el que ninguna
+    // revisión por tarea detectó que buildToolMetadata() pisaba el og:image
+    // heredado del root en las 29 páginas de herramientas: declarar
+    // `openGraph` sin `images` descarta el back-fill del root layout y no
+    // hay ningún `opengraph-image.tsx` en el segmento de la herramienta que
+    // lo reponga. og:image y twitter:image deben resolver también aquí.
+    for (const slug of SAMPLE_TOOLS) {
+        test(`/herramientas/${slug} emite og:image y twitter:image`, async ({
+            page,
+            request,
+        }) => {
+            await page.goto(`/herramientas/${slug}`);
+
+            const ogImage = await page
+                .locator('meta[property="og:image"]')
+                .getAttribute("content");
+            expect(ogImage).toBeTruthy();
+            const ogResponse = await request.get(ogImage!);
+            expect(ogResponse.status()).toBe(200);
+
+            const twitterImage = await page
+                .locator('meta[name="twitter:image"]')
+                .getAttribute("content");
+            expect(twitterImage).toBeTruthy();
+        });
+    }
 });
