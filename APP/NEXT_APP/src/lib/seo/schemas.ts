@@ -8,6 +8,7 @@
  */
 import { getToolSeo } from "./tools-content";
 import { SITE_URL, SITE_NAME } from "./metadata";
+import { getToolCopy } from "./tools-copy";
 
 export type JsonLdObject = Record<string, unknown>;
 
@@ -137,7 +138,9 @@ export function softwareApplicationSchema(slug: string): JsonLdObject {
         url: `${SITE_URL}/herramientas/${entry.slug}`,
         description: entry.description,
         applicationCategory: "UtilitiesApplication",
-        // Corre íntegramente en el navegador: sin instalación, sin backend.
+        // Se usa desde el navegador, sin instalación. No se afirma "sin backend":
+        // dns y regex llaman a endpoints propios, así que esa promesa sería falsa
+        // en un schema compartido por las 29.
         operatingSystem: "Any",
         browserRequirements: "Requiere JavaScript",
         inLanguage: "es",
@@ -148,5 +151,30 @@ export function softwareApplicationSchema(slug: string): JsonLdObject {
             price: "0",
             priceCurrency: "CLP",
         },
+    };
+}
+
+/**
+ * FAQPage a partir del contenido editorial de una herramienta.
+ *
+ * Devuelve null si la herramienta todavía no tiene FAQ escritas: un FAQPage
+ * con `mainEntity: []` es schema inválido, y emitirlo vacío es peor que no
+ * emitirlo.
+ */
+export function faqPageSchema(slug: string): JsonLdObject | null {
+    const copy = getToolCopy(slug);
+    if (!copy || copy.faq.length === 0) return null;
+
+    return {
+        "@context": CONTEXT,
+        "@type": "FAQPage",
+        mainEntity: copy.faq.map((item) => ({
+            "@type": "Question",
+            name: item.question,
+            acceptedAnswer: {
+                "@type": "Answer",
+                text: item.answer,
+            },
+        })),
     };
 }
