@@ -1017,6 +1017,260 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
         ],
     },
+    "quitar-fondo": {
+        intro:
+            "Recortar un fondo a mano con una herramienta de selección lleva minutos y el pelo siempre queda mal. Este removedor usa un modelo de segmentación que corre dentro de tu navegador para separar el sujeto del fondo y devolver un PNG con transparencia. La primera vez descarga el modelo, que pesa; a partir de ahí funciona sin conexión y sin subir tus imágenes a ningún servidor.",
+        steps: [
+            {
+                title: "Carga la imagen",
+                body: "Funciona mejor con un sujeto claramente separado del fondo. Contra un fondo del mismo color y textura que el sujeto, cualquier modelo falla.",
+            },
+            {
+                title: "Espera el procesado",
+                body: "La primera ejecución descarga el modelo y tarda más. Las siguientes son rápidas porque el modelo queda en caché del navegador.",
+            },
+            {
+                title: "Descarga el PNG",
+                body: "Sale con transparencia real, no con fondo blanco. Si necesitas fondo de color, ponlo después en cualquier editor sin perder el recorte.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Fotos de producto",
+                body: "Catálogos y marketplaces piden fondo blanco o transparente uniforme. Recortar el fondo homogeneiza fotos tomadas en sitios distintos.",
+            },
+            {
+                title: "Firmas escaneadas",
+                body: "Una firma sobre papel escaneada queda con fondo gris. Quitarlo permite superponerla sobre un documento sin el recuadro delator.",
+            },
+            {
+                title: "Composiciones y montajes",
+                body: "Aislar un sujeto para colocarlo sobre otro fondo, que es el paso que consume la mayor parte del tiempo en cualquier montaje.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Se suben mis imágenes a algún servidor?",
+                answer: "No. El modelo de segmentación se descarga a tu navegador y la imagen se procesa localmente. Es más lento que un servicio en la nube, pero significa que fotos de clientes o material confidencial nunca salen de tu equipo.",
+            },
+            {
+                question: "¿Por qué la primera vez tarda tanto?",
+                answer: "Porque descarga el modelo de segmentación, que pesa varios megabytes. Queda en caché del navegador, así que las imágenes siguientes se procesan en segundos y la herramienta funciona incluso sin conexión.",
+            },
+            {
+                question: "¿Funciona bien con pelo y bordes finos?",
+                answer: "Razonablemente, aunque es donde todo modelo de segmentación sufre. Con buen contraste entre el pelo y el fondo el resultado suele ser usable directamente; con fondos oscuros y pelo oscuro conviene retocar los bordes después en un editor.",
+            },
+            {
+                question: "¿El resultado tiene transparencia real?",
+                answer: "Sí, se exporta como PNG con canal alfa. No es un fondo blanco simulado: puedes superponerlo sobre cualquier color o imagen y no aparecerá un recuadro. Por eso el formato de salida es PNG y no JPG, que no admite transparencia.",
+            },
+        ],
+    },
+
+    "marca-agua": {
+        intro:
+            "Una marca de agua no impide que copien tu imagen, pero deja constancia de su origen cuando circula sin crédito. Esta herramienta superpone texto o un logo con control de posición, tamaño, rotación y opacidad, y aplica el resultado en tu navegador. Puedes ajustar la transparencia hasta el punto donde la marca se lee sin arruinar la imagen.",
+        steps: [
+            {
+                title: "Carga la imagen base",
+                body: "Es la que recibirá la marca. Se procesa localmente, así que puedes marcar material que aún no has publicado.",
+            },
+            {
+                title: "Elige texto o logo",
+                body: "El texto sirve para firmas y avisos de copyright. Un logo en PNG con transparencia queda mejor integrado que uno con fondo sólido.",
+            },
+            {
+                title: "Ajusta posición y opacidad",
+                body: "Entre 30% y 50% suele ser el rango útil: visible pero sin tapar. Una esquina es discreta; el centro es difícil de recortar pero molesta más.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Proteger fotografía propia",
+                body: "Firmar las imágenes antes de publicarlas en redes o portafolios, para que el crédito viaje con la foto aunque la compartan sin mencionarte.",
+            },
+            {
+                title: "Documentos con aviso",
+                body: "Marcar un PDF exportado como imagen con BORRADOR o CONFIDENCIAL, para que nadie lo confunda con la versión final.",
+            },
+            {
+                title: "Muestras para clientes",
+                body: "Enviar previsualizaciones marcadas antes del pago, y entregar la versión limpia una vez cerrado el trabajo.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Dónde conviene poner la marca de agua?",
+                answer: "Depende de qué priorices. En una esquina es discreta pero se recorta en segundos. Sobre el centro del sujeto es muy difícil de quitar pero estropea la imagen. Un patrón repetido a baja opacidad es el término medio más usado en material profesional.",
+            },
+            {
+                question: "¿Se puede quitar una marca de agua?",
+                answer: "Con esfuerzo, sí: existen herramientas de relleno generativo que la eliminan con resultados aceptables. Una marca de agua disuade el uso casual y deja rastro del origen, pero no es una protección real contra alguien decidido.",
+            },
+            {
+                question: "¿Qué opacidad conviene usar?",
+                answer: "Entre 30% y 50% en la mayoría de los casos. Por debajo del 20% deja de leerse tras una compresión fuerte de la red social; por encima del 60% compite con la imagen y arruina la composición que estás intentando mostrar.",
+            },
+            {
+                question: "¿Se sube mi imagen a algún servidor?",
+                answer: "No. La marca se aplica en tu navegador mediante la API Canvas y ni la imagen base ni el logo salen de tu equipo. Es lo que permite marcar material inédito o de clientes sin entregarlo a un tercero primero.",
+            },
+        ],
+    },
+
+    "paleta-colores": {
+        intro:
+            "Sacar los colores de una imagen a ojo produce valores aproximados que nunca terminan de encajar. Este extractor analiza la imagen y devuelve los colores dominantes en HEX, RGB y HSL, listos para copiar a CSS o a una herramienta de diseño. Sirve para construir una paleta a partir de una fotografía, o para recuperar los colores exactos de una marca a partir de su logo.",
+        steps: [
+            {
+                title: "Carga la imagen",
+                body: "Funciona con fotografías, logos y capturas. Cuantos más colores distintos tenga, más interesante resulta la paleta extraída.",
+            },
+            {
+                title: "Revisa los colores dominantes",
+                body: "Se ordenan por presencia en la imagen. El primero no siempre es el que uno percibe como principal: los fondos ocupan mucha superficie.",
+            },
+            {
+                title: "Copia en el formato que necesites",
+                body: "HEX para CSS, RGB si vas a manipular transparencia, HSL si quieres generar variantes más claras o más oscuras de forma controlada.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Paleta a partir de una foto",
+                body: "Construir el esquema de color de una web o una presentación desde una imagen de referencia, en vez de elegir colores sueltos que luego no combinan.",
+            },
+            {
+                title: "Recuperar colores de marca",
+                body: "Cuando existe el logo pero no el manual de marca, extraer los valores exactos evita usar un azul parecido que se nota distinto al lado del original.",
+            },
+            {
+                title: "Ajustar interfaces a una imagen",
+                body: "Hacer que botones y acentos de una interfaz combinen con la fotografía de fondo, usando colores que ya están presentes en ella.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Qué formato de color conviene usar en CSS?",
+                answer: "HEX es el más compacto y el más común. HSL resulta más útil cuando necesitas variantes: subir o bajar la luminosidad de un color es cambiar un número, mientras que en HEX exige recalcular los tres canales a mano.",
+            },
+            {
+                question: "¿Por qué el color dominante no es el que yo veo como principal?",
+                answer: "Porque la extracción mide superficie ocupada, no protagonismo visual. Un fondo neutro que cubre el 60% de la imagen sale primero aunque el ojo se fije en el sujeto. Los colores siguientes de la lista suelen ser los que buscas.",
+            },
+            {
+                question: "¿Cuántos colores debería tener una paleta?",
+                answer: "Entre tres y cinco para una interfaz: un color principal, uno de acento y dos o tres neutros. Más de eso complica mantener la coherencia, y las paletas amplias tienden a usarse mal cuando el proyecto crece.",
+            },
+            {
+                question: "¿Se sube mi imagen a algún servidor?",
+                answer: "No. El análisis lee los píxeles con la API Canvas del navegador y la imagen no se transmite. Puedes extraer colores de material confidencial o de un logo aún no publicado sin exponerlo.",
+            },
+        ],
+    },
+
+    favicon: {
+        intro:
+            "El favicon dejó de ser un solo archivo hace años: hoy un navegador, un móvil y una app instalada piden tamaños distintos, y faltar uno hace que el icono salga borroso o directamente en blanco. Este generador produce todos los tamaños necesarios a partir de una imagen y los entrega en un ZIP, junto con las etiquetas HTML que hay que pegar.",
+        steps: [
+            {
+                title: "Sube la imagen de origen",
+                body: "Cuadrada y de al menos 512 píxeles. Los tamaños pequeños se generan reduciendo, así que partir de algo grande evita bordes sucios.",
+            },
+            {
+                title: "Revisa las previsualizaciones",
+                body: "Mira sobre todo el tamaño de 16 píxeles: un logo con detalle fino se convierte ahí en una mancha ilegible y conviene simplificarlo.",
+            },
+            {
+                title: "Descarga el ZIP",
+                body: "Incluye todos los tamaños y las etiquetas HTML. Los archivos van en la raíz del sitio, y las etiquetas dentro del head.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Lanzar un sitio nuevo",
+                body: "Resolver de una vez todos los tamaños en vez de descubrir meses después que el icono sale en blanco al guardar la web en un iPhone.",
+            },
+            {
+                title: "Apps instalables",
+                body: "Una PWA necesita iconos de 192 y 512 píxeles declarados en el manifiesto, o el sistema operativo usa una captura genérica de la página.",
+            },
+            {
+                title: "Actualizar tras un rediseño",
+                body: "Regenerar el juego completo cuando cambia el logo, para que no queden tamaños antiguos mezclados con los nuevos.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Qué tamaños de favicon hacen falta?",
+                answer: "Los imprescindibles son 16 y 32 píxeles para la pestaña, 180 para el icono de iOS, y 192 y 512 para instalación como aplicación. Un solo archivo de 32 funciona a medias: en móvil y en accesos directos el sistema acaba usando una imagen borrosa.",
+            },
+            {
+                question: "¿Sigue haciendo falta el archivo .ico?",
+                answer: "Cada vez menos, pero conviene incluirlo. Los navegadores modernos prefieren PNG declarados en el HTML, aunque algunos aún buscan favicon.ico en la raíz por defecto, y ciertos lectores de feeds y herramientas antiguas solo entienden ese formato.",
+            },
+            {
+                question: "¿Por qué mi favicon se ve borroso?",
+                answer: "Casi siempre porque el navegador está escalando un tamaño que no coincide con el que necesita. Servir cada tamaño exacto en lugar de dejar que el navegador reduzca uno grande resuelve el problema de inmediato.",
+            },
+            {
+                question: "¿Por qué no cambia mi favicon tras actualizarlo?",
+                answer: "Porque los navegadores lo cachean de forma muy agresiva, a veces durante días. Forzar una recarga completa suele bastar; si no, cambiar el nombre del archivo o añadirle un parámetro de versión en la etiqueta obliga a volver a pedirlo.",
+            },
+        ],
+    },
+
+    "convertir-ico": {
+        intro:
+            "El formato ICO es un contenedor: un solo archivo que guarda varias resoluciones del mismo icono, para que Windows y los navegadores elijan la que necesitan. Este conversor toma un PNG, JPG o WebP y lo empaqueta como .ico con los tamaños habituales, en el navegador y sin subir nada. Es la pieza que falta cuando un sistema pide específicamente ese formato.",
+        steps: [
+            {
+                title: "Sube la imagen",
+                body: "Cuadrada da mejor resultado. Una imagen rectangular se deforma o se recorta al ajustarse a los tamaños cuadrados del formato.",
+            },
+            {
+                title: "Convierte",
+                body: "El archivo resultante contiene varias resoluciones. Ese es justamente el punto del formato: un archivo que sirve para todos los contextos.",
+            },
+            {
+                title: "Colócalo en la raíz",
+                body: "Como favicon.ico en el directorio raíz del sitio. Muchos navegadores lo buscan ahí por defecto aunque no lo declares en el HTML.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Favicon clásico",
+                body: "Cubrir el archivo que los navegadores piden por defecto, además de los PNG modernos declarados en las etiquetas del head.",
+            },
+            {
+                title: "Iconos de aplicaciones Windows",
+                body: "Los ejecutables y accesos directos de Windows usan ICO. Convertir un logo existente evita tener que rehacerlo en un editor de iconos.",
+            },
+            {
+                title: "Compatibilidad con software antiguo",
+                body: "Lectores de feeds, gestores de marcadores y herramientas de escritorio que solo reconocen ICO y ignoran los PNG declarados.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Qué diferencia hay entre ICO y PNG para un favicon?",
+                answer: "ICO es un contenedor con varias resoluciones dentro de un solo archivo; PNG es una sola imagen de un tamaño. Los navegadores modernos prefieren PNG declarados explícitamente, pero ICO sigue siendo el que buscan por defecto en la raíz del sitio.",
+            },
+            {
+                question: "¿El ICO admite transparencia?",
+                answer: "Sí, cuando se genera a partir de un PNG con canal alfa. Si conviertes desde un JPG no habrá transparencia, porque ese formato no la soporta y el fondo llega ya aplanado a un color sólido.",
+            },
+            {
+                question: "¿Qué tamaño debe tener la imagen de origen?",
+                answer: "Al menos 256 píxeles de lado, y cuadrada. Los tamaños menores se generan reduciendo, así que partir de algo grande da bordes limpios. Ampliar una imagen pequeña antes de convertir no mejora nada: los detalles no existen.",
+            },
+            {
+                question: "¿Se sube mi imagen a algún servidor?",
+                answer: "No. La conversión se hace en el navegador y el archivo no se transmite en ningún momento. Puedes convertir el logo de un proyecto que aún no se ha anunciado sin que pase por infraestructura de terceros.",
+            },
+        ],
+    },
 };
 
 export function getToolCopy(slug: string): ToolCopy | undefined {
