@@ -42,6 +42,19 @@ function checkCoverage(routes: string[]) {
 // archivo que realmente produce la metadata servida.
 const SLUG_LITERAL = /const\s+SLUG\s*=\s*["']([^"']+)["']/;
 
+// Que "const SLUG" coincida con el directorio no basta: nada obliga a que
+// buildToolMetadata, toolBreadcrumbTrail o softwareApplicationSchema usen
+// ESE identificador. Un layout con `const SLUG = "qr"` puede llamar a
+// `buildToolMetadata("claves")` con un literal reescrito a mano — el título
+// y el canonical servidos serían los de otra herramienta, y ni checkCoverage
+// ni el chequeo de arriba lo detectan, porque ambos solo miran `const SLUG`.
+// Exigir que las tres llamadas usen el identificador SLUG (no un literal)
+// convierte esa constante en el único lugar del archivo donde puede escribirse
+// un slug, así que las dos referencias ya no pueden divergir.
+const BUILD_TOOL_METADATA_SLUG_CALL = /buildToolMetadata\(\s*SLUG\s*\)/;
+const TOOL_BREADCRUMB_TRAIL_SLUG_CALL = /toolBreadcrumbTrail\(\s*SLUG\s*\)/;
+const SOFTWARE_APPLICATION_SCHEMA_SLUG_CALL = /softwareApplicationSchema\(\s*SLUG\s*\)/;
+
 function checkLayouts(routes: string[]) {
     for (const slug of routes) {
         const layoutPath = join(TOOLS_DIR, slug, "layout.tsx");
@@ -60,6 +73,25 @@ function checkLayouts(routes: string[]) {
             fail(
                 `${slug}/layout.tsx declara const SLUG = "${literalSlug}", ` +
                     `debería ser "${slug}"`
+            );
+        }
+
+        if (!BUILD_TOOL_METADATA_SLUG_CALL.test(source)) {
+            fail(
+                `${slug}/layout.tsx no llama a buildToolMetadata(SLUG) con el identificador ` +
+                    `(un literal reescrito ahí serviría title/canonical de otra herramienta)`
+            );
+        }
+        if (!TOOL_BREADCRUMB_TRAIL_SLUG_CALL.test(source)) {
+            fail(
+                `${slug}/layout.tsx no llama a toolBreadcrumbTrail(SLUG) con el identificador ` +
+                    `(un literal reescrito ahí serviría las migas de otra herramienta)`
+            );
+        }
+        if (!SOFTWARE_APPLICATION_SCHEMA_SLUG_CALL.test(source)) {
+            fail(
+                `${slug}/layout.tsx no llama a softwareApplicationSchema(SLUG) con el identificador ` +
+                    `(un literal reescrito ahí anunciaría el SoftwareApplication de otra herramienta)`
             );
         }
     }
