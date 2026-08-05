@@ -836,9 +836,13 @@ export async function proxy(request: NextRequest) {
     // Pass request ID to client for support/debug correlation.
     // The CSP nonce is intentionally kept request-side only (server components read it via headers()).
     // Never expose nonce in HTTP response headers — it belongs only in CSP and HTML nonce attributes.
+    // `x-nonce` (unprefixed) is what would actually reach the client, so it is stripped here.
+    // `x-middleware-request-x-nonce` is NOT client-facing: it is Next.js's internal transport
+    // for request-header overrides (see NextResponse.next({ request: { headers } })) — deleting
+    // it here does not protect the client, it just tells the router to drop its own override,
+    // so headers().get('x-nonce') would come back empty in every Server Component. Keep it.
     response.headers.set('x-request-id', requestId)
     response.headers.delete('x-nonce')
-    response.headers.delete('x-middleware-request-x-nonce')
 
     // Security version header (for audit)
     response.headers.set('x-security-version', SECURITY_VERSION)
