@@ -89,3 +89,64 @@ test.describe("Datos estructurados", () => {
         expect(Array.isArray(person!.sameAs)).toBe(true);
     });
 });
+
+const SAMPLE_TOOLS = ["qr", "claves", "base64", "json", "subredes"];
+
+test.describe("Herramientas: breadcrumbs y SoftwareApplication", () => {
+    for (const slug of SAMPLE_TOOLS) {
+        test(`/herramientas/${slug} emite BreadcrumbList real de 3 niveles`, async ({
+            page,
+        }) => {
+            await page.goto(`/herramientas/${slug}`);
+            const crumb = (await readJsonLd(page)).find(
+                (s) => s["@type"] === "BreadcrumbList"
+            );
+            expect(crumb, "falta BreadcrumbList").toBeTruthy();
+
+            const items = crumb!.itemListElement as Record<string, unknown>[];
+            expect(items).toHaveLength(3);
+            expect(items[0].position).toBe(1);
+            expect(items[0].item).toBe(SITE_URL);
+            expect(items[1].item).toBe(`${SITE_URL}/herramientas`);
+            expect(items[2].item).toBe(`${SITE_URL}/herramientas/${slug}`);
+        });
+
+        test(`/herramientas/${slug} emite SoftwareApplication con su propia URL`, async ({
+            page,
+        }) => {
+            await page.goto(`/herramientas/${slug}`);
+            const app = (await readJsonLd(page)).find(
+                (s) => s["@type"] === "SoftwareApplication"
+            );
+            expect(app, "falta SoftwareApplication").toBeTruthy();
+            expect(app!.url).toBe(`${SITE_URL}/herramientas/${slug}`);
+            expect(app!.name).toBeTruthy();
+        });
+
+        test(`/herramientas/${slug} muestra migas navegables`, async ({ page }) => {
+            await page.goto(`/herramientas/${slug}`);
+            const nav = page.locator('nav[aria-label="Ruta de navegación"]');
+            await expect(nav).toBeVisible();
+            await expect(nav.locator('a[href="/"]')).toBeVisible();
+            await expect(nav.locator('a[href="/herramientas"]')).toBeVisible();
+        });
+
+        test(`/herramientas/${slug} tiene exactamente un h1`, async ({ page }) => {
+            await page.goto(`/herramientas/${slug}`);
+            await expect(page.locator("h1")).toHaveCount(1);
+        });
+    }
+
+    test("el hub de herramientas emite sus propias migas de 2 niveles", async ({
+        page,
+    }) => {
+        await page.goto("/herramientas");
+        const crumb = (await readJsonLd(page)).find(
+            (s) => s["@type"] === "BreadcrumbList"
+        );
+        expect(crumb).toBeTruthy();
+        const items = crumb!.itemListElement as Record<string, unknown>[];
+        expect(items).toHaveLength(2);
+        expect(items[1].item).toBe(`${SITE_URL}/herramientas`);
+    });
+});

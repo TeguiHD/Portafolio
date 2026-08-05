@@ -88,6 +88,13 @@ export interface BreadcrumbCrumb {
 export type BreadcrumbTrail = BreadcrumbCrumb[];
 
 export function breadcrumbSchema(trail: BreadcrumbTrail): JsonLdObject {
+    if (trail.length === 0) {
+        throw new Error(
+            "[seo] breadcrumbSchema recibió una ruta vacía: un BreadcrumbList sin " +
+                "itemListElement es inválido para schema.org."
+        );
+    }
+
     return {
         "@context": CONTEXT,
         "@type": "BreadcrumbList",
@@ -99,6 +106,26 @@ export function breadcrumbSchema(trail: BreadcrumbTrail): JsonLdObject {
         })),
     };
 }
+
+/**
+ * Ruta de migas canónica de una herramienta: Inicio > Herramientas > <tool>.
+ * Se usa tanto para la UI visible como para el JSON-LD, de modo que no puedan
+ * divergir.
+ */
+export function toolBreadcrumbTrail(slug: string): BreadcrumbTrail {
+    const entry = getToolSeo(slug);
+    return [
+        { name: "Inicio", path: "" },
+        { name: "Herramientas", path: "/herramientas" },
+        { name: entry.h1, path: `/herramientas/${entry.slug}` },
+    ];
+}
+
+/** Ruta de migas del hub de herramientas. */
+export const TOOLS_HUB_TRAIL: BreadcrumbTrail = [
+    { name: "Inicio", path: "" },
+    { name: "Herramientas", path: "/herramientas" },
+];
 
 export function softwareApplicationSchema(slug: string): JsonLdObject {
     const entry = getToolSeo(slug);

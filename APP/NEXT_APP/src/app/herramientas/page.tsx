@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import ToolsGrid from "@/components/tools/ToolsGrid";
 import { mergePublicToolCatalog } from "@/lib/tool-registry";
 import { TOOL_SEO_SLUGS } from "@/lib/seo/tools-content";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { breadcrumbSchema, TOOLS_HUB_TRAIL } from "@/lib/seo/schemas";
 
 export const revalidate = 10; // Revalidate every 10 seconds for faster updates
 
@@ -49,6 +52,8 @@ export default async function ToolsPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
+            <JsonLd schema={breadcrumbSchema(TOOLS_HUB_TRAIL)} />
+            <Breadcrumbs trail={TOOLS_HUB_TRAIL} />
             <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Hero */}
                 <div className="text-center mb-10 sm:mb-14">

@@ -40,7 +40,7 @@ function checkCoverage(routes: string[]) {
 // duplicando title y canonical entre dos páginas. checkCoverage no detecta
 // ninguno de los dos casos porque ambos solo miran el registro, nunca el
 // archivo que realmente produce la metadata servida.
-const BUILD_TOOL_METADATA_CALL = /buildToolMetadata\(\s*["'`]([^"'`]+)["'`]\s*\)/;
+const SLUG_LITERAL = /const\s+SLUG\s*=\s*["']([^"']+)["']/;
 
 function checkLayouts(routes: string[]) {
     for (const slug of routes) {
@@ -50,16 +50,16 @@ function checkLayouts(routes: string[]) {
             continue;
         }
         const source = readFileSync(layoutPath, "utf-8");
-        const match = source.match(BUILD_TOOL_METADATA_CALL);
-        if (!match) {
-            fail(`${slug}/layout.tsx no llama a buildToolMetadata("...")`);
+        const slugLiteral = SLUG_LITERAL.exec(source);
+        if (!slugLiteral) {
+            fail(`${slug}/layout.tsx no declara const SLUG = "..."`);
             continue;
         }
-        const literalSlug = match[1];
+        const literalSlug = slugLiteral[1];
         if (literalSlug !== slug) {
             fail(
-                `${slug}/layout.tsx llama a buildToolMetadata("${literalSlug}"), ` +
-                    `debería ser buildToolMetadata("${slug}")`
+                `${slug}/layout.tsx declara const SLUG = "${literalSlug}", ` +
+                    `debería ser "${slug}"`
             );
         }
     }
