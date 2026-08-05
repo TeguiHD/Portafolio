@@ -814,6 +814,209 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
         ],
     },
+    "convertir-imagen": {
+        intro:
+            "El formato de una imagen decide cuánto pesa y dónde se puede usar. WebP pesa bastante menos que JPG con calidad equivalente, PNG conserva transparencia y JPG sigue siendo el que acepta cualquier sistema antiguo. Este conversor pasa entre PNG, JPG, WebP y BMP en el navegador, sin subir el archivo a ningún servidor y sin límite de cantidad.",
+        steps: [
+            {
+                title: "Suelta la imagen",
+                body: "Arrastra el archivo o selecciónalo. Se lee localmente con la API del navegador, así que el original nunca sale de tu equipo.",
+            },
+            {
+                title: "Elige el formato de salida",
+                body: "WebP para web, PNG si necesitas transparencia, JPG si el destino es un sistema que no acepta nada más moderno.",
+            },
+            {
+                title: "Descarga el resultado",
+                body: "Compara el peso antes y después. Si el ahorro es marginal, probablemente la imagen ya estaba optimizada y no vale la pena cambiar de formato.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Aligerar imágenes de una web",
+                body: "Convertir a WebP suele recortar entre un 25% y un 35% del peso frente a JPG, lo que se nota directamente en el tiempo de carga y en Core Web Vitals.",
+            },
+            {
+                title: "Preparar imágenes para impresión",
+                body: "Pasar a PNG cuando el archivo va a una imprenta y el JPG original tiene artefactos de compresión visibles en zonas planas o degradados.",
+            },
+            {
+                title: "Compatibilidad con sistemas antiguos",
+                body: "Algunos gestores y software de escritorio aún rechazan WebP. Convertir a JPG resuelve el rechazo sin tener que rehacer la imagen.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿WebP es mejor que JPG?",
+                answer: "Para web, casi siempre: pesa entre un 25% y un 35% menos con calidad visual equivalente, y admite transparencia, que JPG no. La excepción son los sistemas antiguos que no lo soportan, cada vez menos frecuentes pero todavía presentes en software de escritorio.",
+            },
+            {
+                question: "¿Convertir de JPG a PNG mejora la calidad?",
+                answer: "No. La pérdida de calidad del JPG ya ocurrió y es irreversible; pasarlo a PNG conserva los artefactos existentes y además aumenta el peso. PNG conviene cuando el original ya es PNG o cuando necesitas transparencia, no como intento de recuperación.",
+            },
+            {
+                question: "¿Se sube mi imagen a algún servidor?",
+                answer: "No. La conversión usa la API Canvas del navegador, así que el archivo se procesa en tu equipo y nunca se transmite. Puedes comprobarlo desconectando la red antes de convertir: la herramienta sigue funcionando igual.",
+            },
+            {
+                question: "¿Se pierde calidad al convertir entre formatos?",
+                answer: "Al pasar a JPG o WebP sí, porque ambos comprimen con pérdida. A PNG no, porque es sin pérdida. Convertir repetidamente entre formatos con pérdida degrada la imagen en cada paso, así que conviene partir siempre del original.",
+            },
+        ],
+    },
+
+    "comprimir-imagen": {
+        intro:
+            "Las imágenes son casi siempre lo que más pesa en una página, y casi siempre lo que menos se optimiza. Este compresor reduce el tamaño del archivo ajustando la calidad hasta el punto donde la diferencia deja de notarse a simple vista, y te muestra el antes y el después para que decidas tú dónde está ese punto. Todo ocurre en tu navegador.",
+        steps: [
+            {
+                title: "Carga la imagen",
+                body: "Verás el peso original de referencia. Sin ese número no hay forma de saber si la compresión valió la pena.",
+            },
+            {
+                title: "Ajusta el nivel",
+                body: "Baja la calidad progresivamente y observa la vista previa. El punto útil suele estar entre 70 y 85: por debajo aparecen artefactos en degradados y bordes.",
+            },
+            {
+                title: "Descarga",
+                body: "Compara el peso final con el original. Una reducción menor al 20% rara vez justifica el cambio; una del 60% sí, y suele ser invisible.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Acelerar una web",
+                body: "El Largest Contentful Paint casi siempre lo marca una imagen. Comprimir la del hero es la intervención de mayor impacto sobre esa métrica.",
+            },
+            {
+                title: "Adjuntos de correo",
+                body: "Muchos servidores rechazan adjuntos sobre cierto tamaño. Comprimir evita tener que subir el archivo a la nube y mandar un enlace.",
+            },
+            {
+                title: "Subir a plataformas con límite",
+                body: "Formularios, marketplaces y portales de trámites suelen imponer un máximo por archivo. Comprimir permite cumplirlo sin recortar la imagen.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Cuánto se puede comprimir sin que se note?",
+                answer: "En fotografías, una calidad del 80% suele reducir el peso a la mitad sin diferencia perceptible. En imágenes con texto, líneas finas o zonas planas de color, los artefactos aparecen antes: ahí conviene no bajar de 90 o usar PNG.",
+            },
+            {
+                question: "¿La compresión es reversible?",
+                answer: "No. JPG y WebP comprimen con pérdida: la información descartada no se recupera subiendo la calidad después. Conserva siempre el original en algún lado antes de comprimir, porque el archivo comprimido no se puede deshacer.",
+            },
+            {
+                question: "¿Comprimir cambia las dimensiones de la imagen?",
+                answer: "No. Comprimir reduce el peso del archivo manteniendo el mismo alto y ancho en píxeles. Si lo que necesitas es cambiar las dimensiones, esa es otra operación distinta y suele reducir el peso mucho más que ajustar la calidad.",
+            },
+            {
+                question: "¿Se sube mi imagen a algún servidor?",
+                answer: "No. La compresión ocurre en tu navegador y el archivo no se transmite en ningún momento. Es lo que permite comprimir fotos personales o material de clientes sin entregárselos a un tercero.",
+            },
+        ],
+    },
+
+    redimensionar: {
+        intro:
+            "Servir una imagen de 4000 píxeles de ancho en un espacio de 400 desperdicia ancho de banda y tiempo de carga sin ganar nada: el navegador la reduce igual, después de haberla descargado entera. Esta herramienta cambia las dimensiones reales del archivo, con presets para los formatos de YouTube, Instagram y otras plataformas, y mantiene la proporción salvo que le digas lo contrario.",
+        steps: [
+            {
+                title: "Carga la imagen",
+                body: "Verás sus dimensiones actuales. Es el dato que determina cuánto margen de reducción tienes antes de que se note.",
+            },
+            {
+                title: "Elige preset o medida propia",
+                body: "Los presets cubren los formatos habituales de cada plataforma. Para medidas propias, mantén bloqueada la proporción o la imagen se deformará.",
+            },
+            {
+                title: "Descarga",
+                body: "Reducir siempre da buen resultado. Ampliar por encima del tamaño original nunca lo da: no hay información que inventar y el resultado sale borroso.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Preparar imágenes para web",
+                body: "Ajustar cada imagen al tamaño máximo en que se va a mostrar. Es la optimización que más peso ahorra, por encima de cualquier ajuste de calidad.",
+            },
+            {
+                title: "Miniaturas de vídeo",
+                body: "YouTube pide 1280x720. Salirse de esa medida hace que la plataforma recorte por su cuenta, casi nunca por donde uno querría.",
+            },
+            {
+                title: "Fotos de perfil",
+                body: "Ajustar al cuadrado exacto que pide cada red evita que el recorte automático corte cabezas o deje la cara descentrada.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Redimensionar pierde calidad?",
+                answer: "Al reducir, prácticamente no: se descarta información sobrante y el resultado se ve nítido. Al ampliar, sí y de forma notoria, porque los píxeles nuevos se interpolan a partir de los existentes. Ampliar más allá del original siempre degrada.",
+            },
+            {
+                question: "¿Qué diferencia hay entre redimensionar y comprimir?",
+                answer: "Redimensionar cambia el alto y ancho en píxeles; comprimir mantiene las dimensiones y reduce la calidad de los datos. Para aligerar una imagen web, redimensionar al tamaño real de uso suele ahorrar mucho más peso que ajustar la compresión.",
+            },
+            {
+                question: "¿Por qué se deforma mi imagen al cambiar el tamaño?",
+                answer: "Porque el alto y el ancho se modificaron en proporciones distintas. Bloquear la proporción hace que al cambiar una dimensión la otra se ajuste sola. Si necesitas una medida exacta que no respeta la proporción original, recorta antes en vez de deformar.",
+            },
+            {
+                question: "¿Cuál es el tamaño ideal para una imagen de web?",
+                answer: "El mismo en que se va a mostrar, multiplicado por dos si quieres que se vea nítida en pantallas de alta densidad. Servir una imagen de 3000 píxeles en un contenedor de 600 desperdicia descarga sin ninguna mejora visual.",
+            },
+        ],
+    },
+
+    "recortar-imagen": {
+        intro:
+            "Recortar no es solo quitar bordes: es decidir qué mira quien ve la imagen. Este editor recorta con vista previa en vivo y trae los formatos que piden las redes, para que la plataforma no recorte por su cuenta y termine cortando lo importante. El archivo se procesa en tu navegador, así que puedes recortar material privado sin subirlo a ningún lado.",
+        steps: [
+            {
+                title: "Carga la imagen",
+                body: "Aparece con el marco de recorte encima. Puedes moverlo y redimensionarlo con el ratón o con gestos táctiles.",
+            },
+            {
+                title: "Elige la proporción",
+                body: "Cuadrado para perfiles, 16:9 para portadas, vertical para historias. Fijar la proporción evita entregar una medida que la plataforma vaya a recortar de nuevo.",
+            },
+            {
+                title: "Ajusta y descarga",
+                body: "Deja aire alrededor del sujeto principal: muchas plataformas recortan un poco más al generar sus propias miniaturas.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Fotos de perfil",
+                body: "Centrar la cara en el cuadrado exacto que pide la red, en lugar de dejar que el recorte automático decida y descentre.",
+            },
+            {
+                title: "Portadas y banners",
+                body: "Las cabeceras tienen proporciones muy anchas. Recortar a medida evita que la plataforma estire la imagen o corte los extremos.",
+            },
+            {
+                title: "Quitar información del fondo",
+                body: "Recortar una captura de pantalla para eliminar barras de herramientas, nombres de archivo o datos que no deberían salir publicados.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Recortar reduce el peso del archivo?",
+                answer: "Sí, porque quedan menos píxeles que almacenar. La reducción es proporcional al área eliminada: recortar a la mitad del área suele dejar el archivo en torno a la mitad, aunque la cifra exacta depende del contenido y del formato.",
+            },
+            {
+                question: "¿Qué proporción usan las redes sociales?",
+                answer: "Cuadrado 1:1 para fotos de perfil, 16:9 para portadas y miniaturas de vídeo, y 9:16 vertical para historias y reels. Entregar la proporción correcta evita que la plataforma recorte por su cuenta, que es cuando se pierden partes importantes.",
+            },
+            {
+                question: "¿Se puede deshacer un recorte?",
+                answer: "No sobre el archivo ya descargado: los píxeles eliminados no están en él. Conserva el original antes de recortar. Dentro del editor sí puedes reajustar el marco todas las veces que quieras antes de descargar.",
+            },
+            {
+                question: "¿Se sube mi imagen a algún servidor?",
+                answer: "No. El recorte ocurre en tu navegador mediante la API Canvas y el archivo nunca se transmite. Es lo que permite recortar documentos, capturas con datos o fotos personales sin entregarlos a un servicio externo.",
+            },
+        ],
+    },
 };
 
 export function getToolCopy(slug: string): ToolCopy | undefined {
