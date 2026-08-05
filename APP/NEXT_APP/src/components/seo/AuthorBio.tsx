@@ -19,9 +19,8 @@ export function AuthorBio() {
                 </p>
                 <p className="mt-3 text-base font-semibold text-white">{SITE_NAME}</p>
                 <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-                    Desarrollador Full Stack. Construyo plataformas, automatizaciones y
-                    herramientas que corren enteras en el navegador — sin subir tus
-                    archivos a ningún servidor.
+                    Desarrollador Full Stack. Mantengo este conjunto de herramientas
+                    gratuitas, sin registro y sin marcas de agua en el resultado.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3 text-sm">
                     <Link
