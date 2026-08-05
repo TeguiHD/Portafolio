@@ -306,6 +306,514 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
         ],
     },
+    regex: {
+        intro:
+            "Una expresión regular es un patrón para buscar dentro de texto. Escribirlas a ciegas es lento y propenso a errores silenciosos: el patrón compila, no lanza ningún error y aun así captura lo que no debía. Este probador evalúa el patrón mientras escribes, resalta cada coincidencia sobre tu propio texto y muestra los grupos capturados, que es donde suele estar el fallo.",
+        steps: [
+            {
+                title: "Escribe el patrón",
+                body: "Sin las barras delimitadoras: el campo ya asume que lo que escribes es la expresión. Los modificadores como global o insensible a mayúsculas se activan aparte.",
+            },
+            {
+                title: "Pega el texto de prueba",
+                body: "Usa datos reales, no ejemplos inventados. Los casos que rompen un patrón casi siempre son los raros: acentos, espacios dobles, líneas vacías.",
+            },
+            {
+                title: "Revisa los grupos",
+                body: "Cada paréntesis crea un grupo de captura numerado. Si extraes el fragmento equivocado, comparar los grupos suele señalar el paréntesis mal puesto.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Validar formatos de entrada",
+                body: "Correos, RUT, teléfonos o códigos postales. Probar el patrón contra casos límite antes de ponerlo en un formulario evita rechazar entradas válidas de usuarios reales.",
+            },
+            {
+                title: "Buscar y reemplazar en el editor",
+                body: "Refactorizaciones que un buscar-reemplazar simple no alcanza, como renombrar solo las llamadas a una función y no las menciones en comentarios.",
+            },
+            {
+                title: "Filtrar logs",
+                body: "Extraer las líneas con cierto código de error, o quedarse solo con las peticiones de un rango de IP, sin escribir un script para cada consulta puntual.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Por qué mi expresión regular es tan lenta?",
+                answer: "Casi siempre por retroceso catastrófico: cuantificadores anidados como (a+)+ hacen que el motor pruebe una cantidad explosiva de combinaciones antes de rendirse. La solución es evitar anidar cuantificadores y ser lo más específico posible en cada parte del patrón.",
+            },
+            {
+                question: "¿Cuál es la diferencia entre codicioso y perezoso?",
+                answer: "Un cuantificador codicioso como .* captura todo lo que puede y luego retrocede; uno perezoso como .*? captura lo mínimo y va creciendo. Es la causa habitual de que un patrón para extraer una etiqueta HTML se trague el documento entero.",
+            },
+            {
+                question: "¿Sirve una expresión regular para validar correos?",
+                answer: "Para un filtro básico sí, pero la especificación real de direcciones de correo es tan permisiva que ninguna expresión razonable la cubre entera. En producción conviene validar que haya una arroba y un punto, y confirmar de verdad enviando un correo.",
+            },
+            {
+                question: "¿Las expresiones regulares funcionan igual en todos los lenguajes?",
+                answer: "No. La sintaxis básica se comparte, pero el comportamiento de lookbehind, grupos con nombre y clases Unicode varía entre JavaScript, Python, PCRE y Go. Un patrón probado aquí funciona en JavaScript; conviene verificarlo en el motor de destino.",
+            },
+        ],
+    },
+
+    impuestos: {
+        intro:
+            "Calcular IVA a mano se equivoca en la dirección: sumar el 19% a un precio y luego restarle el 19% al resultado no devuelve el precio original. Esta calculadora resuelve los dos sentidos por separado — añadir impuesto a un valor neto y extraerlo de un valor bruto — con la tasa que configures, para que la cifra que entregues al cliente cuadre con la que declares.",
+        steps: [
+            {
+                title: "Elige el sentido",
+                body: "Agregar IVA parte de un valor neto y calcula el total. Quitar IVA parte del total que ya cobraste y separa cuánto de eso es impuesto.",
+            },
+            {
+                title: "Ajusta la tasa",
+                body: "Viene con 19%, la tasa general en Chile. Cámbiala si trabajas con otro país o con un régimen especial: el cálculo es el mismo, solo cambia el porcentaje.",
+            },
+            {
+                title: "Copia el desglose",
+                body: "Verás neto, impuesto y total por separado. Ese desglose es el que va en la factura, no solo la cifra final.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Cotizar servicios",
+                body: "Definir el neto que quieres ganar y ver el total que cobrarás, para que el precio anunciado no cambie de golpe al momento de facturar.",
+            },
+            {
+                title: "Revisar boletas recibidas",
+                body: "Separar cuánto del total pagado fue impuesto, que es lo que necesitas para declarar y lo que casi nunca viene desglosado en un recibo de compra.",
+            },
+            {
+                title: "Fijar precios de venta",
+                body: "Trabajar hacia atrás desde un precio de venta redondo hasta el neto real, para saber cuál es tu margen efectivo después del impuesto.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Cómo se quita el IVA de un precio con impuesto incluido?",
+                answer: "Se divide entre 1,19 cuando la tasa es del 19%, no se resta el 19%. Restarlo da un resultado menor al correcto, porque el porcentaje se calculó sobre el neto y no sobre el total. Es el error de cálculo más común con impuestos.",
+            },
+            {
+                question: "¿Cuál es la tasa de IVA en Chile?",
+                answer: "El 19% general, vigente desde 2003 y aplicable a la mayoría de bienes y servicios. Existen exenciones específicas, por ejemplo ciertos servicios educacionales y de salud. La calculadora permite cambiar la tasa para trabajar con otros países o regímenes.",
+            },
+            {
+                question: "¿Por qué al sumar y luego restar el porcentaje no vuelvo al precio inicial?",
+                answer: "Porque los dos porcentajes se calculan sobre bases distintas. El 19% que sumas se calcula sobre el neto; el 19% que restas se calcularía sobre el total, que es mayor. Por eso la operación inversa es una división, no una resta.",
+            },
+            {
+                question: "¿Los cálculos se envían a algún servidor?",
+                answer: "No. Toda la aritmética ocurre en tu navegador y ninguna cifra sale de tu equipo. Puedes usarla con montos reales de tu negocio sin que queden registrados en ningún lado, ni siquiera de forma temporal.",
+            },
+        ],
+    },
+
+    subredes: {
+        intro:
+            "Dividir una red en subredes es aritmética binaria disfrazada de decimal, y ahí es donde se cometen los errores. Esta calculadora toma una dirección con su prefijo y devuelve máscara, dirección de red, broadcast, rango utilizable y cuántos hosts caben, además de la representación binaria que hace evidente por qué el corte cae donde cae. Funciona con IPv4 e IPv6.",
+        steps: [
+            {
+                title: "Introduce la dirección con prefijo",
+                body: "En notación CIDR, por ejemplo 192.168.1.0/24. El número tras la barra indica cuántos bits pertenecen a la red y cuántos quedan para los hosts.",
+            },
+            {
+                title: "Lee el rango utilizable",
+                body: "No es el rango completo: la primera dirección identifica la red y la última es el broadcast. Ninguna de las dos se puede asignar a un equipo en IPv4.",
+            },
+            {
+                title: "Revisa la vista binaria",
+                body: "Es donde se ve el corte real. Un /26 parece arbitrario en decimal, pero en binario queda claro que parte el último octeto en cuatro bloques de 64.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Segmentar una red de oficina",
+                body: "Separar servidores, equipos de trabajo e invitados en subredes distintas para que un dispositivo comprometido en la red de visitas no vea la red interna.",
+            },
+            {
+                title: "Planificar direccionamiento en la nube",
+                body: "Las VPC exigen definir el bloque CIDR por adelantado, y ampliarlo después suele ser imposible. Calcular bien el tamaño evita quedarse sin direcciones a mitad de proyecto.",
+            },
+            {
+                title: "Estudiar para certificaciones",
+                body: "La vista binaria convierte el subneteo de una regla memorizada en algo que se entiende, que es la diferencia entre aprobar y aprobar sabiendo por qué.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Cuántos hosts caben en una red /24?",
+                answer: "254 hosts utilizables. Un /24 deja 8 bits para hosts, lo que da 256 direcciones, pero la primera identifica la red y la última es el broadcast, así que ninguna de esas dos se asigna a un equipo.",
+            },
+            {
+                question: "¿Qué significa el número después de la barra en CIDR?",
+                answer: "Cuántos bits, desde la izquierda, pertenecen a la porción de red. En un /24 los primeros 24 bits identifican la red y los 8 restantes los hosts. Cuanto mayor el número, más pequeña la subred y menos direcciones disponibles.",
+            },
+            {
+                question: "¿Por qué IPv6 no tiene dirección de broadcast?",
+                answer: "IPv6 eliminó el broadcast y lo reemplazó por multicast, que envía solo a los equipos suscritos en lugar de a todos. Por eso en IPv6 sí se puede usar la última dirección del rango, a diferencia de IPv4.",
+            },
+            {
+                question: "¿Qué rangos de IP son privados?",
+                answer: "En IPv4: 10.0.0.0/8, 172.16.0.0/12 y 192.168.0.0/16. No se enrutan por internet, así que se pueden reutilizar dentro de cualquier red local. En IPv6 el rango equivalente para direcciones únicas locales es fc00::/7.",
+            },
+        ],
+    },
+
+    binario: {
+        intro:
+            "Todo texto es, por debajo, una secuencia de números, y cada número una secuencia de bits. Este traductor convierte texto a código binario y de vuelta, mostrando la correspondencia carácter a carácter. Sirve para entender qué está pasando bajo la superficie, para resolver ejercicios y para descifrar esas cadenas de ceros y unos que aparecen en juegos y acertijos.",
+        steps: [
+            {
+                title: "Elige la dirección",
+                body: "De texto a binario, o de binario a texto. La herramienta acepta los bloques separados por espacios, que es como se suelen escribir.",
+            },
+            {
+                title: "Escribe o pega",
+                body: "La conversión es inmediata. Cada carácter se traduce a 8 bits, que es lo que ocupa un carácter ASCII básico.",
+            },
+            {
+                title: "Copia el resultado",
+                body: "Si conviertes de binario a texto, revisa que los bloques tengan 8 dígitos: un bloque incompleto produce un carácter equivocado o ninguno.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Aprender cómo funciona la codificación",
+                body: "Ver que la letra A es 01000001 hace concreto algo que en abstracto cuesta: que los caracteres son números y los números son bits.",
+            },
+            {
+                title: "Resolver acertijos y CTF",
+                body: "Las cadenas binarias aparecen constantemente en retos de seguridad y juegos de ingenio. Traducirlas rápido ahorra el paso manual de convertir a mano.",
+            },
+            {
+                title: "Verificar ejercicios de clase",
+                body: "Comprobar una conversión hecha a mano antes de entregarla, que es más útil que descubrir el error cuando ya está corregido.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Por qué cada carácter ocupa 8 bits?",
+                answer: "Porque un byte son 8 bits y ASCII asigna un byte por carácter, lo que permite 256 combinaciones. Los caracteres con acento y los emoji necesitan más de un byte bajo UTF-8, así que su representación binaria es más larga.",
+            },
+            {
+                question: "¿Cómo se convierte una letra a binario?",
+                answer: "Se busca su código numérico y se pasa ese número a base 2. La letra A tiene código 65, que en binario es 01000001. La herramienta hace ambos pasos, pero conocerlos ayuda a detectar cuándo un resultado no cuadra.",
+            },
+            {
+                question: "¿Es lo mismo binario que código máquina?",
+                answer: "No exactamente. Todo el código máquina es binario, pero no todo binario es código máquina: aquí se representan caracteres de texto, no instrucciones de procesador. Un mismo patrón de bits significa cosas distintas según cómo se interprete.",
+            },
+            {
+                question: "¿Qué pasa con los acentos y las eñes?",
+                answer: "Ocupan más de 8 bits porque UTF-8 los codifica con dos bytes. Al convertirlos verás bloques adicionales. Si esperabas un bloque por carácter y aparecen dos, es exactamente eso y no un error de la conversión.",
+            },
+        ],
+    },
+
+    unidades: {
+        intro:
+            "Un conversor de unidades sirve de poco si solo escupe un número. Este convierte longitud, velocidad, masa y otras magnitudes, y además explica la relación entre las unidades: cuántos metros hay en una milla náutica y por qué, o qué distancia recorre la luz en un segundo. La idea es que salgas sabiendo la equivalencia, no habiéndola consultado.",
+        steps: [
+            {
+                title: "Elige la magnitud",
+                body: "Longitud, velocidad, masa, tiempo. Cada magnitud agrupa solo unidades compatibles entre sí, para que no puedas convertir kilos a kilómetros.",
+            },
+            {
+                title: "Introduce el valor",
+                body: "La conversión se actualiza mientras escribes, en todas las unidades de esa magnitud a la vez, no solo en la que elegiste como destino.",
+            },
+            {
+                title: "Lee la explicación",
+                body: "Junto al resultado aparece de dónde sale la equivalencia. Es lo que diferencia convertir de entender qué acabas de convertir.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Trabajar con documentación en otras unidades",
+                body: "Especificaciones técnicas en pulgadas, velocidades en nudos, potencias en caballos de fuerza. Convertir sin salir a buscar la tabla cada vez.",
+            },
+            {
+                title: "Cocinar con recetas extranjeras",
+                body: "Onzas, tazas y grados Fahrenheit traducidos a gramos, mililitros y Celsius, que es donde se arruinan las recetas importadas.",
+            },
+            {
+                title: "Estudiar física o astronomía",
+                body: "Años luz, unidades astronómicas y pársecs puestos en escala con distancias cotidianas, que es lo que hace que las cifras signifiquen algo.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Cuántos metros tiene una milla náutica?",
+                answer: "Exactamente 1.852 metros. No es una cifra arbitraria: equivale a un minuto de arco de latitud sobre la superficie terrestre, que es precisamente por qué se adoptó para navegación marítima y aérea.",
+            },
+            {
+                question: "¿Qué distancia recorre la luz en un año?",
+                answer: "Unos 9,46 billones de kilómetros, es decir 9,46 seguido de doce ceros. Un año luz mide distancia, no tiempo, aunque el nombre confunda: es lo que recorre la luz en un año a 299.792 kilómetros por segundo.",
+            },
+            {
+                question: "¿Por qué una pulgada mide 2,54 centímetros exactos?",
+                answer: "Porque en 1959 un acuerdo internacional fijó esa equivalencia por definición, no por medición. Antes cada país usaba pulgadas ligeramente distintas, lo que causaba problemas reales en manufactura e ingeniería entre fabricantes.",
+            },
+            {
+                question: "¿La conversión ocurre en mi navegador?",
+                answer: "Sí. Los factores de conversión están en el propio código de la página y el cálculo no consulta ningún servicio externo. La herramienta sigue funcionando sin conexión una vez que la página cargó.",
+            },
+        ],
+    },
+
+    aleatorio: {
+        intro:
+            "Elegir al azar delante de otras personas exige que el método sea visible, no solo justo. Esta herramienta sortea con una ruleta animada y también forma grupos aleatorios a partir de una lista. El resultado sale del generador criptográfico del navegador, no de un pseudoaleatorio predecible, y la animación existe para que quien mira acepte el resultado.",
+        steps: [
+            {
+                title: "Carga los participantes",
+                body: "Un nombre por línea. Puedes pegar una lista completa desde una planilla sin tener que reformatearla.",
+            },
+            {
+                title: "Elige el modo",
+                body: "Ruleta para sacar un ganador único. Grupos para repartir a todos en equipos del tamaño que definas.",
+            },
+            {
+                title: "Gira y comparte",
+                body: "El resultado queda a la vista para capturarlo. Si repites el sorteo, el anterior no queda registrado en ningún lado.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Sorteos en redes sociales",
+                body: "Pegar la lista de participantes y girar en vivo. La animación hace la elección presenciable, que es lo que evita las acusaciones de arreglo.",
+            },
+            {
+                title: "Formar equipos en clase",
+                body: "Repartir un curso en grupos sin que se junten siempre los mismos, y sin que nadie pueda decir que el profesor eligió.",
+            },
+            {
+                title: "Decidir turnos",
+                body: "Quién presenta primero, quién revisa el código, quién se queda de guardia. Aleatorio y a la vista de todos zanja la discusión.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿El sorteo es realmente aleatorio?",
+                answer: "Usa la API criptográfica del navegador, que es la misma fuente de aleatoriedad empleada para generar claves. No es un pseudoaleatorio sembrado con la hora, así que el resultado no se puede predecir ni reproducir conociendo el momento del sorteo.",
+            },
+            {
+                question: "¿Se guardan los participantes o los resultados?",
+                answer: "No. La lista vive solo en la memoria de tu navegador mientras la pestaña está abierta y desaparece al cerrarla. Nada se envía a un servidor, así que no queda registro del sorteo en ningún lado.",
+            },
+            {
+                question: "¿Puedo repetir el sorteo si no me gusta el resultado?",
+                answer: "Técnicamente sí, pero repetir hasta obtener el resultado deseado anula la aleatoriedad. Si el sorteo es público, conviene anunciar de antemano que vale el primer giro: es lo que hace que el resultado sea aceptado.",
+            },
+            {
+                question: "¿Cuántos participantes admite?",
+                answer: "No hay un límite fijado por la herramienta. Con listas de varios miles la animación se vuelve menos legible, pero el sorteo sigue siendo correcto. Para listas muy grandes el modo de grupos resulta más práctico que la ruleta.",
+            },
+        ],
+    },
+
+    enlaces: {
+        intro:
+            "Un enlace de WhatsApp bien formado abre una conversación con un número que el destinatario no necesita tener guardado, y puede incluso llevar el mensaje ya escrito. Este generador construye ese enlace y también los de correo con asunto y cuerpo predefinidos, y los de evento de calendario. Todos son enlaces estándar: no pasan por ningún intermediario ni acortador.",
+        steps: [
+            {
+                title: "Elige el tipo",
+                body: "WhatsApp, correo o evento de calendario. Cada uno pide campos distintos porque cada protocolo acepta parámetros distintos.",
+            },
+            {
+                title: "Completa los campos",
+                body: "Para WhatsApp usa el número con código de país y sin signos ni espacios. Es el error más frecuente y hace que el enlace no abra nada.",
+            },
+            {
+                title: "Copia y prueba",
+                body: "Ábrelo tú primero antes de publicarlo. Un enlace mal formado falla en silencio: no da error, simplemente no ocurre nada al pulsarlo.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Botón de contacto en una web",
+                body: "Un enlace que abre WhatsApp con un mensaje inicial ya escrito baja la fricción de escribir el primer mensaje, que es donde se pierden las consultas.",
+            },
+            {
+                title: "Campañas con mensaje predefinido",
+                body: "Que todos los interesados lleguen escribiendo el mismo texto permite identificar de qué campaña vinieron sin pedirle nada al usuario.",
+            },
+            {
+                title: "Invitaciones a eventos",
+                body: "Un enlace que agrega el evento al calendario con fecha, hora y descripción ya rellenadas, en lugar de esperar que cada asistente lo copie a mano.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Cómo se escribe el número para un enlace de WhatsApp?",
+                answer: "Con código de país y sin signo más, sin espacios, sin guiones ni paréntesis. Para Chile, un número móvil queda como 56912345678. Cualquier símbolo intermedio hace que el enlace no abra la conversación, sin mostrar error alguno.",
+            },
+            {
+                question: "¿Hace falta tener el contacto guardado?",
+                answer: "No, y esa es la utilidad principal. El enlace abre la conversación directamente con ese número aunque no esté en la agenda de ninguna de las dos partes, que es lo que permite usarlo como botón de contacto público.",
+            },
+            {
+                question: "¿El enlace pasa por algún servidor intermedio?",
+                answer: "No. Se genera en tu navegador y apunta directo al dominio oficial de WhatsApp. No hay acortador ni redirección propia, así que no hay nada que pueda caerse, cobrar o dejar de funcionar más adelante.",
+            },
+            {
+                question: "¿Se puede predefinir el mensaje?",
+                answer: "Sí, y viaja en el propio enlace. El destinatario lo verá escrito en el campo de texto, listo para enviar, pero puede modificarlo antes: es una sugerencia, no un mensaje enviado automáticamente en su nombre.",
+            },
+        ],
+    },
+    dns: {
+        intro:
+            "Cuando cambias un registro DNS, el cambio no llega a todo el mundo al mismo tiempo: cada resolutor guarda la respuesta anterior hasta que expira su TTL. Este verificador consulta el dominio desde servidores de distintas regiones y muestra qué responde cada uno, que es la única forma de saber si la propagación terminó o si aún hay resolutores sirviendo lo viejo.",
+        steps: [
+            {
+                title: "Escribe el dominio",
+                body: "Sin http ni barras, solo el nombre. Puedes consultar también subdominios concretos si el registro que cambiaste no es el raíz.",
+            },
+            {
+                title: "Elige el tipo de registro",
+                body: "A para IPv4, AAAA para IPv6, MX para correo, TXT para verificaciones y SPF, CNAME para alias. Cada uno propaga por separado.",
+            },
+            {
+                title: "Compara las respuestas",
+                body: "Si todos los servidores coinciden, la propagación terminó. Si difieren, aún hay cachés con el valor antiguo y toca esperar a que expire su TTL.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Confirmar una migración de servidor",
+                body: "Tras apuntar el dominio a una IP nueva, saber si el tráfico ya llega al servidor nuevo o si parte de los usuarios sigue golpeando el viejo.",
+            },
+            {
+                title: "Depurar entrega de correo",
+                body: "Los registros MX, SPF y DKIM mal propagados hacen que el correo rebote o caiga en spam. Verlos desde varias regiones señala si el problema es de propagación o de configuración.",
+            },
+            {
+                title: "Validar verificaciones de dominio",
+                body: "Muchos servicios piden un registro TXT para probar que el dominio es tuyo. Comprobar que ya es visible evita reintentar la verificación a ciegas.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Cuánto tarda en propagarse un cambio de DNS?",
+                answer: "Depende del TTL que tenía el registro anterior, no del nuevo. Si el TTL era de 24 horas, algunos resolutores servirán el valor viejo hasta un día completo. Bajar el TTL antes de un cambio planificado acorta mucho la espera.",
+            },
+            {
+                question: "¿Qué es el TTL de un registro DNS?",
+                answer: "El tiempo en segundos que un resolutor puede guardar la respuesta antes de volver a preguntar. Un TTL alto reduce consultas y mejora rendimiento; uno bajo hace que los cambios se propaguen rápido. Se suele bajar días antes de una migración.",
+            },
+            {
+                question: "¿Por qué mi dominio funciona en un lugar y en otro no?",
+                answer: "Porque cada resolutor tiene su propia caché con su propio vencimiento. Unos ya pidieron el valor nuevo y otros aún sirven el guardado. No es un error: es cómo funciona el DNS, y se resuelve esperando a que expiren los TTL.",
+            },
+            {
+                question: "¿Puedo forzar la propagación?",
+                answer: "No globalmente. Puedes limpiar tu caché local y la de tu resolutor, pero no la del resto del mundo. Lo único que acelera de verdad una migración es haber bajado el TTL con antelación, antes de hacer el cambio.",
+            },
+        ],
+    },
+
+    nginx: {
+        intro:
+            "La mayoría de los fallos de configuración de Nginx no son errores de sintaxis, sino directivas puestas en el bloque equivocado o un orden de location que hace que la regla correcta nunca se evalúe. Este generador arma configuraciones para los casos habituales — redirecciones, HTTPS, cabeceras de seguridad, proxy inverso — con la estructura ya correcta, y también genera el equivalente en .htaccess.",
+        steps: [
+            {
+                title: "Elige qué necesitas",
+                body: "Redirección de dominio, forzar HTTPS, servir una SPA, proxy a un backend, cabeceras de seguridad. Cada opción genera el bloque completo.",
+            },
+            {
+                title: "Rellena dominio y destino",
+                body: "Los valores se insertan en la plantilla. Revisa las rutas de certificados: dependen de cómo los emitiste y son la causa habitual de que no arranque.",
+            },
+            {
+                title: "Prueba antes de recargar",
+                body: "Ejecuta nginx -t en el servidor. Valida la sintaxis sin aplicar nada, y evita dejar el servicio caído por una llave sin cerrar.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Migrar un dominio conservando el SEO",
+                body: "Una redirección 301 traspasa la autoridad del dominio antiguo al nuevo. Una 302 no, y es el error que hace perder posiciones tras una migración.",
+            },
+            {
+                title: "Poner una aplicación tras un proxy inverso",
+                body: "Servir una app de Node por el puerto 443 con TLS terminado en Nginx, que es la disposición estándar y evita exponer el puerto de la app.",
+            },
+            {
+                title: "Endurecer cabeceras",
+                body: "HSTS, X-Content-Type-Options y una política de referrer sensata son tres líneas que cierran varias clases de ataque de una sola vez.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Cuál es la diferencia entre redirección 301 y 302?",
+                answer: "La 301 es permanente y traspasa la autoridad de enlaces al destino; la 302 es temporal y no la traspasa. Para migraciones de dominio o cambios de URL definitivos siempre 301: usar 302 hace perder posicionamiento acumulado.",
+            },
+            {
+                question: "¿Por qué mi bloque location no se aplica?",
+                answer: "Casi siempre por el orden de evaluación. Nginx prioriza las coincidencias exactas y los prefijos con el modificador ^~ antes que las expresiones regulares, y entre regex gana la primera que coincide. Una regla general puesta arriba puede capturar todo.",
+            },
+            {
+                question: "¿Cómo compruebo la configuración antes de aplicarla?",
+                answer: "Con nginx -t, que valida la sintaxis y las rutas de archivos sin recargar el servicio. Si pasa, nginx -s reload aplica los cambios sin cortar conexiones activas. Recargar sin probar es cómo se dejan servidores caídos.",
+            },
+            {
+                question: "¿La configuración generada sirve para producción?",
+                answer: "Es un punto de partida correcto, no una configuración auditada para tu caso. Revisa siempre las rutas de certificados, los límites de tamaño de petición y las cabeceras según lo que sirva tu aplicación antes de ponerla en producción.",
+            },
+        ],
+    },
+
+    metadatos: {
+        intro:
+            "Una foto tomada con el móvil suele llevar dentro mucho más que la imagen: modelo de cámara, ajustes, fecha exacta y, con frecuencia, las coordenadas GPS del lugar donde se tomó. Esta herramienta lee esos metadatos EXIF y permite eliminarlos antes de publicar. El análisis ocurre en tu navegador, que es la única forma sensata de revisar la privacidad de una foto propia.",
+        steps: [
+            {
+                title: "Suelta la imagen",
+                body: "JPEG y TIFF son los formatos que más metadatos guardan. PNG almacena menos, y algunas redes sociales los eliminan al subir, pero no todas.",
+            },
+            {
+                title: "Revisa lo que aparece",
+                body: "Presta atención a las coordenadas GPS y a la fecha. Son los dos campos que revelan más de lo que la gente cree al compartir una foto.",
+            },
+            {
+                title: "Descarga la versión limpia",
+                body: "La imagen resultante es visualmente idéntica pero sin metadatos. Esa es la que conviene publicar si la foto se tomó en tu casa o en la de alguien.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Publicar fotos sin revelar dónde vives",
+                body: "Una foto de un objeto en venta tomada en casa puede llevar las coordenadas exactas de tu domicilio. Limpiarla antes de subirla evita ese problema.",
+            },
+            {
+                title: "Verificar el origen de una imagen",
+                body: "La fecha y el modelo de cámara ayudan a contrastar si una foto es lo que dice ser, o si fue tomada en otro momento del que se afirma.",
+            },
+            {
+                title: "Preparar material para entregar",
+                body: "Limpiar metadatos de imágenes que van a un cliente o a un informe evita filtrar información del equipo, del software o de la ubicación de trabajo.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Qué información guarda una foto sin que yo lo sepa?",
+                answer: "Modelo de cámara o teléfono, apertura, velocidad de obturación, ISO, fecha y hora exactas, orientación y, si el GPS estaba activo, latitud y longitud con precisión de metros. Algunos dispositivos añaden también el número de serie del equipo.",
+            },
+            {
+                question: "¿Las redes sociales eliminan los metadatos?",
+                answer: "Las grandes suelen quitarlos al procesar la imagen, pero no todas y no siempre. Servicios de mensajería, gestores de archivos y correo frecuentemente los conservan intactos. No conviene delegar la privacidad en el comportamiento de un tercero.",
+            },
+            {
+                question: "¿Se pierde calidad al quitar los metadatos?",
+                answer: "No. Los metadatos son un bloque de información separado de los píxeles, así que eliminarlos no recomprime ni altera la imagen. El archivo resultante pesa incluso un poco menos y se ve exactamente igual.",
+            },
+            {
+                question: "¿Se sube mi foto a algún servidor?",
+                answer: "No. La lectura y el borrado ocurren en tu navegador mediante la API FileReader, y la imagen no sale de tu equipo. Es un requisito, no un detalle: enviar a un servidor una foto para comprobar su privacidad sería contradictorio.",
+            },
+        ],
+    },
 };
 
 export function getToolCopy(slug: string): ToolCopy | undefined {
