@@ -6,8 +6,16 @@
  */
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/seo/metadata";
+import { personSchema } from "@/lib/seo/schemas";
 
 export function AuthorBio() {
+    // Solo describe a la persona (nombre + rol de personSchema()). Ningún dato
+    // aquí puede depender de qué herramienta esté renderizando este componente:
+    // una afirmación de producto ("gratis", "sin registro", "sin marcas de
+    // agua"...) puede ser falsa en alguna de las 29, así que no vive aquí. Eso
+    // es responsabilidad del registro por herramienta (Fase 4).
+    const jobTitle = personSchema().jobTitle as string;
+
     return (
         <aside
             data-testid="author-bio"
@@ -18,10 +26,7 @@ export function AuthorBio() {
                     Quién mantiene esta herramienta
                 </p>
                 <p className="mt-3 text-base font-semibold text-white">{SITE_NAME}</p>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-                    Desarrollador Full Stack. Mantengo este conjunto de herramientas
-                    gratuitas, sin registro y sin marcas de agua en el resultado.
-                </p>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400">{jobTitle}</p>
                 <div className="mt-4 flex flex-wrap gap-3 text-sm">
                     <Link
                         href="/sobre-mi"
