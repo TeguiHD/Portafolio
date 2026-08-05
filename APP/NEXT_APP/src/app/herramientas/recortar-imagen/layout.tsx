@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { buildToolMetadata } from "@/lib/seo/metadata";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { AuthorBio } from "@/components/seo/AuthorBio";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
   breadcrumbSchema,
@@ -24,6 +25,7 @@ export default function ToolLayout({
       <JsonLd schema={[breadcrumbSchema(trail), softwareApplicationSchema(SLUG)]} />
       <Breadcrumbs trail={trail} />
       {children}
+      <AuthorBio />
     </>
   );
 }
