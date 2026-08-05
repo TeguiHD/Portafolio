@@ -5,6 +5,7 @@ import {
   DeferredLandingSection,
   type DeferredLandingSectionId,
 } from "@/modules/landing/sections/DeferredLandingSection";
+import { NoScriptLanding } from "@/components/seo/NoScriptLanding";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -32,6 +33,10 @@ export default function Home() {
       {deferredSections.map((section) => (
         <DeferredLandingSection key={section} section={section} />
       ))}
+
+      {/* Respaldo para crawlers que no ejecutan JS (GPTBot, ClaudeBot, CCBot...):
+          las secciones de arriba solo existen tras hidratar. */}
+      <NoScriptLanding />
     </main>
   );
 }

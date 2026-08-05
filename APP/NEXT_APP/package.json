@@ -21,7 +21,7 @@
     "security:false-positives": "tsx scripts/review-false-positives.ts",
     "seo:audit": "tsx scripts/seo-audit.ts",
     "seo:verify": "pnpm run seo:audit && pnpm run typecheck && pnpm run lint && pnpm run build",
-    "seo:e2e": "playwright test tests/e2e/seo-metadata.spec.ts tests/e2e/seo-crawl.spec.ts tests/e2e/seo-links.spec.ts tests/e2e/seo-schema.spec.ts tests/e2e/seo-author.spec.ts tests/e2e/seo-headings.spec.ts --workers=2"
+    "seo:e2e": "playwright test tests/e2e/seo-metadata.spec.ts tests/e2e/seo-crawl.spec.ts tests/e2e/seo-links.spec.ts tests/e2e/seo-schema.spec.ts tests/e2e/seo-author.spec.ts tests/e2e/seo-headings.spec.ts tests/e2e/seo-geo.spec.ts --workers=2"
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.3",

@@ -83,58 +83,64 @@ export default async function RootLayout({
         {/* Structured Data for Google Rich Snippets */}
         <StructuredData />
 
-        {/* Browser compatibility warning - shown if JS fails to execute (old browsers/CSP block) */}
+        {/*
+          Aviso de JavaScript deshabilitado.
+
+          Antes esto era un overlay `position: fixed` a pantalla completa que
+          tapaba el sitio entero. Googlebot ejecuta JS y lo ignoraba, pero los
+          crawlers de modelos de lenguaje (GPTBot, ClaudeBot, PerplexityBot,
+          CCBot...) no renderizan JavaScript: para ellos el sitio ENTERO era ese
+          mensaje. Ahora es una franja que no oculta nada, así que el contenido
+          servido sigue siendo legible sin JS.
+        */}
         <noscript>
           <style dangerouslySetInnerHTML={{
             __html: `
             .browser-warning {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
+              position: relative;
               background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+              border-bottom: 1px solid rgba(245, 158, 11, 0.35);
               color: white;
               display: flex;
-              flex-direction: column;
+              flex-wrap: wrap;
               align-items: center;
               justify-content: center;
+              gap: 0.75rem;
               text-align: center;
-              padding: 2rem;
+              padding: 0.75rem 1rem;
               font-family: system-ui, -apple-system, sans-serif;
-              z-index: 99999;
+              font-size: 0.9rem;
+              line-height: 1.5;
             }
-            .browser-warning .browser-warning-title { font-size: 2rem; margin-bottom: 1rem; color: #f59e0b; }
-            .browser-warning p { font-size: 1.1rem; margin-bottom: 1.5rem; max-width: 500px; line-height: 1.6; }
+            .browser-warning .browser-warning-title { font-weight: 700; color: #f59e0b; margin: 0; }
+            .browser-warning p { margin: 0; max-width: 60ch; }
             .browser-warning a {
               background: #3b82f6;
               color: white;
-              padding: 12px 24px;
+              padding: 6px 14px;
               border-radius: 8px;
               text-decoration: none;
               font-weight: 600;
-              transition: background 0.2s;
+              white-space: nowrap;
             }
-            .browser-warning a:hover { background: #2563eb; }
           `}} />
-        </noscript>
-        <noscript>
-          <div className="browser-warning">
-            <p className="browser-warning-title">🔒 Navegador no compatible</p>
-            <p>
-              Para acceder a la experiencia completa y segura de este sitio,
-              necesitas un navegador moderno con JavaScript habilitado.
-            </p>
-            <p>
-              Recomendamos actualizar a la última versión de Chrome, Firefox, Safari o Edge.
-            </p>
-            <a href="https://browsehappy.com/" target="_blank" rel="noopener noreferrer">
-              Actualizar navegador
-            </a>
-          </div>
         </noscript>
       </head>
       <body className="font-sans antialiased text-white bg-[#0a0a0a] selection:bg-accent-success/30">
+        {/* El aviso vive en el body: <head> solo admite link/style/meta dentro
+            de <noscript>, y un <div> ahí lo expulsa el parser. */}
+        <noscript>
+          <div className="browser-warning" role="status">
+            <p className="browser-warning-title">JavaScript deshabilitado</p>
+            <p>
+              Las herramientas interactivas necesitan JavaScript. El contenido de
+              esta página se puede leer igualmente.
+            </p>
+            <a href="https://browsehappy.com/" target="_blank" rel="noopener noreferrer">
+              Cómo activarlo
+            </a>
+          </div>
+        </noscript>
         {/* Skip to content — accessibility (WCAG 2.4.1) */}
         <a
           href="#hero"
