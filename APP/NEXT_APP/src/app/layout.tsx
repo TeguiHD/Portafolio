@@ -104,7 +104,7 @@ export default async function RootLayout({
               font-family: system-ui, -apple-system, sans-serif;
               z-index: 99999;
             }
-            .browser-warning h1 { font-size: 2rem; margin-bottom: 1rem; color: #f59e0b; }
+            .browser-warning .browser-warning-title { font-size: 2rem; margin-bottom: 1rem; color: #f59e0b; }
             .browser-warning p { font-size: 1.1rem; margin-bottom: 1.5rem; max-width: 500px; line-height: 1.6; }
             .browser-warning a {
               background: #3b82f6;
@@ -120,7 +120,7 @@ export default async function RootLayout({
         </noscript>
         <noscript>
           <div className="browser-warning">
-            <h1>🔒 Navegador no compatible</h1>
+            <p className="browser-warning-title">🔒 Navegador no compatible</p>
             <p>
               Para acceder a la experiencia completa y segura de este sitio,
               necesitas un navegador moderno con JavaScript habilitado.
