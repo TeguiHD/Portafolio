@@ -1,128 +1,23 @@
 /**
- * JSON-LD structured data for Google Rich Snippets.
- * Renders as a <script type="application/ld+json"> in the page.
+ * JSON-LD de ámbito global: identidad del sitio y de su autor.
+ *
+ * Los breadcrumbs NO se emiten acá. Antes este componente declaraba una
+ * BreadcrumbList fija (Inicio > Herramientas > Blog) idéntica en las 89
+ * páginas del sitio, incluida la home: no es una jerarquía de navegación
+ * y describía una ruta que ninguna página recorre. Cada página emite ahora
+ * sus propias migas.
  */
-import { getNonce } from "@/lib/nonce";
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
+    personSchema,
+    websiteSchema,
+    professionalServiceSchema,
+} from "@/lib/seo/schemas";
 
 export async function StructuredData() {
-  const nonce = await getNonce();
-  const personSchema = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    name: "Nicoholas Lopetegui",
-    url: "https://nicoholas.dev",
-    jobTitle: "Desarrollador Full Stack",
-    description:
-      "Desarrollador Full Stack que transforma problemas complejos en productos funcionales. Plataformas, automatizaciones y datos con impacto real.",
-    sameAs: [
-      "https://github.com/TeguiHD",
-      "https://linkedin.com/in/nicoholas-lopetegui",
-    ],
-    knowsAbout: [
-      "Next.js",
-      "React",
-      "TypeScript",
-      "Node.js",
-      "PostgreSQL",
-      "Docker",
-      "Desarrollo Web Full Stack",
-      "Automatización",
-      "Arquitectura de Software",
-    ],
-  };
-
-  const websiteSchema = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Nicoholas Lopetegui | Desarrollador Full Stack",
-    url: "https://nicoholas.dev",
-    description:
-      "Portafolio de Nicoholas Lopetegui — Desarrollador Full Stack. Plataformas, herramientas y automatizaciones.",
-    author: {
-      "@type": "Person",
-      name: "Nicoholas Lopetegui",
-    },
-    inLanguage: "es",
-  };
-
-  const professionalServiceSchema = {
-    "@context": "https://schema.org",
-    "@type": "ProfessionalService",
-    name: "Nicoholas Lopetegui — Desarrollo Full Stack",
-    url: "https://nicoholas.dev",
-    description:
-      "Servicios de desarrollo web Full Stack: plataformas, automatizaciones, APIs y arquitectura de software.",
-    provider: {
-      "@type": "Person",
-      name: "Nicoholas Lopetegui",
-    },
-    areaServed: {
-      "@type": "Country",
-      name: "Chile",
-    },
-    serviceType: [
-      "Desarrollo Web",
-      "Desarrollo Full Stack",
-      "Automatización",
-      "Consultoría en Arquitectura de Software",
-    ],
-    offers: {
-      "@type": "Offer",
-      availability: "https://schema.org/InStock",
-      priceSpecification: {
-        "@type": "PriceSpecification",
-        priceCurrency: "CLP",
-      },
-    },
-  };
-
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Inicio",
-        item: "https://nicoholas.dev",
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Herramientas",
-        item: "https://nicoholas.dev/herramientas",
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: "Blog",
-        item: "https://nicoholas.dev/blog",
-      },
-    ],
-  };
-
-  return (
-    <>
-      <script
-        nonce={nonce}
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }}
-      />
-      <script
-        nonce={nonce}
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
-      />
-      <script
-        nonce={nonce}
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(professionalServiceSchema) }}
-      />
-      <script
-        nonce={nonce}
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
-    </>
-  );
+    return (
+        <JsonLd
+            schema={[personSchema(), websiteSchema(), professionalServiceSchema()]}
+        />
+    );
 }
