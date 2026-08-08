@@ -10,11 +10,15 @@
  * técnico de `defaultTechnologies` en
  * `src/modules/landing/sections/AboutSection.tsx`.
  *
- * El título (Ingeniero en Informática) y la práctica profesional en el SLEP
- * Santa Rosa los confirmó el titular del sitio de forma explícita el
- * 2026-08-05. NO se incluyen las afirmaciones que NO confirmó —"5+ años de
- * experiencia" y "+150% ventas" del párrafo de marketing de AboutSection.tsx—
- * porque no fueron verificadas.
+ * El título (Ingeniero en Informática), la práctica profesional en el SLEP
+ * Santa Rosa y los dos proyectos (FloresDyD y la intranet/aula virtual para
+ * una OTEC) los confirmó el titular del sitio de forma explícita el
+ * 2026-08-05. floresdyd.cl es un sitio público y verificable; el proyecto de
+ * la OTEC es un sistema interno tras login y por eso no se enlaza. NO se
+ * incluyen las afirmaciones que NO confirmó —"5+ años de experiencia" y
+ * "+150% ventas" del párrafo de marketing de AboutSection.tsx— ni la lista
+ * ampliada de marcos de seguridad, que en un e-commerce pequeño leería como
+ * sobreafirmación; se conserva solo la referencia concreta y creíble (OWASP).
  */
 import type { Metadata } from "next";
 import { Navbar } from "@/modules/landing/layout/Navbar";
@@ -142,6 +146,54 @@ export default function SobreMiPage() {
                                         </li>
                                     ))}
                                 </ol>
+                            </section>
+
+                            <section>
+                                <h2 className="mb-4 text-xl font-semibold text-white">
+                                    Proyectos
+                                </h2>
+                                <div className="space-y-6">
+                                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
+                                        <div className="mb-2 flex flex-wrap items-center gap-3">
+                                            <h3 className="text-base font-semibold text-white">
+                                                FloresDyD — e-commerce a medida
+                                            </h3>
+                                            <a
+                                                href="https://floresdyd.cl"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs font-medium text-[#00B8A9] transition hover:text-white"
+                                            >
+                                                floresdyd.cl ↗
+                                            </a>
+                                        </div>
+                                        <p className="text-sm leading-relaxed text-neutral-400">
+                                            Tienda online construida desde cero para un
+                                            emprendimiento que no tenía identidad de marca ni
+                                            presencia digital. Incluye identidad visual, gestión de
+                                            clientes recurrentes y ocasionales, gestión de entregas,
+                                            pasarelas de pago, inicio de sesión con Google y con
+                                            cuenta propia, y carrito persistente por cuenta y por
+                                            cookies para quien compra sin registrarse. Desarrollado
+                                            aplicando buenas prácticas de seguridad —siguiendo
+                                            referencias como OWASP— y cuidando la experiencia de uso.
+                                        </p>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
+                                        <h3 className="mb-2 text-base font-semibold text-white">
+                                            Intranet y aula virtual para una OTEC
+                                        </h3>
+                                        <p className="text-sm leading-relaxed text-neutral-400">
+                                            Plataforma interna para un organismo técnico de
+                                            capacitación: intranet y aula virtual para sus
+                                            estudiantes, con emisión de certificados de cursos y
+                                            actividades, gestión de cursos y gestión de pagos. Al ser
+                                            un sistema privado tras autenticación, no tiene una demo
+                                            pública.
+                                        </p>
+                                    </div>
+                                </div>
                             </section>
 
                             <section>
