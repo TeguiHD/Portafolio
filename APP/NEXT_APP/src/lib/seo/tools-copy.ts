@@ -1271,6 +1271,260 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
         ],
     },
+    ascii: {
+        intro:
+            "El arte ASCII convierte una imagen en texto: cada zona de la foto se reemplaza por el carácter cuya densidad visual se parece a ese nivel de brillo. Esta herramienta hace esa traducción con varios juegos de caracteres y opciones de color, y exporta el resultado como texto o como imagen. Sirve para banners de terminal, firmas de correo y por el gusto de ver una foto hecha de letras.",
+        steps: [
+            {
+                title: "Carga la imagen",
+                body: "Las de contraste alto y sujeto claro funcionan mejor. Una foto plana de tonos medios se convierte en una masa de caracteres sin forma reconocible.",
+            },
+            {
+                title: "Ajusta ancho y caracteres",
+                body: "El ancho es la resolución: más columnas, más detalle y más texto. El juego de caracteres cambia el aspecto, de fino y detallado a grueso y contrastado.",
+            },
+            {
+                title: "Exporta",
+                body: "Como texto para pegar en una terminal o un README, o como imagen si vas a publicarlo donde el texto monoespaciado se descuadra.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Banners de proyecto",
+                body: "Un logo en ASCII en el README o en la pantalla de inicio de una herramienta de consola, que es donde una imagen normal no se puede mostrar.",
+            },
+            {
+                title: "Firmas y arte de terminal",
+                body: "Decorar el mensaje del día de un servidor o una firma de correo en texto plano, donde solo caben caracteres.",
+            },
+            {
+                title: "Compartir imágenes como texto",
+                body: "Pasar una imagen por un canal que solo acepta texto, como algunos chats de terminal o sistemas antiguos, convirtiéndola en caracteres.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Qué imágenes quedan bien en ASCII?",
+                answer: "Las de contraste alto y un sujeto bien definido: un logo, un rostro, una silueta clara. Las fotografías planas, con muchos tonos medios y sin un foco evidente, se convierten en una masa uniforme de caracteres donde no se distingue nada.",
+            },
+            {
+                question: "¿Por qué se ve descuadrado al pegarlo?",
+                answer: "Porque el arte ASCII solo se alinea en una fuente monoespaciada, donde todos los caracteres ocupan el mismo ancho. En una fuente normal cada letra mide distinto y la imagen se deforma. Para publicarlo fuera de una terminal, expórtalo como imagen.",
+            },
+            {
+                question: "¿Qué significa el ancho en caracteres?",
+                answer: "Es cuántas columnas de texto tendrá el resultado, y equivale a su resolución. Más ancho da más detalle pero produce bloques enormes de texto. Para una terminal estándar, entre 80 y 120 columnas es el rango que se ve completo sin cortarse.",
+            },
+            {
+                question: "¿Se sube mi imagen a algún servidor?",
+                answer: "No. La conversión lee los píxeles con la API Canvas del navegador y la imagen no se transmite. Todo el procesamiento es local, así que puedes convertir cualquier imagen sin que salga de tu equipo.",
+            },
+        ],
+    },
+
+    "banner-ascii": {
+        intro:
+            "Un banner ASCII es texto grande dibujado con caracteres, del tipo que aparece al conectarse a un servidor o al arrancar una herramienta de consola. Este generador convierte una palabra en ese texto ampliado usando distintas tipografías de caracteres, y lo exporta listo para un mensaje del día, un banner SSH o la cabecera de un script. A diferencia del arte ASCII, parte de texto, no de una imagen.",
+        steps: [
+            {
+                title: "Escribe el texto",
+                body: "Las palabras cortas funcionan mejor. Un texto largo produce un banner tan ancho que se corta en la mayoría de las terminales.",
+            },
+            {
+                title: "Elige la tipografía",
+                body: "Las hay finas, en bloque y en relieve. La legibilidad cambia mucho: algunas quedan bien con una palabra y se vuelven ilegibles con otra.",
+            },
+            {
+                title: "Exporta",
+                body: "Como texto para pegar en un script, o como archivo de configuración listo para el mensaje del día del servidor.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Mensaje del día de un servidor",
+                body: "El texto que aparece al entrar por SSH. Un banner con el nombre del servidor ayuda a no equivocarse de máquina antes de ejecutar un comando.",
+            },
+            {
+                title: "Cabeceras de scripts",
+                body: "Un banner al inicio de la salida de un script deja claro qué se está ejecutando cuando hay varios corriendo en la misma terminal.",
+            },
+            {
+                title: "Pantallas de inicio de herramientas CLI",
+                body: "El banner que muestra una herramienta de línea de comandos al arrancar, que es su equivalente a un logotipo.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿En qué se diferencia de convertir una imagen a ASCII?",
+                answer: "Este parte de texto y lo dibuja en grande con caracteres; el arte ASCII parte de una imagen y la reconstruye con caracteres según su brillo. Uno sirve para títulos y banners legibles; el otro para representar fotos o logos como texto.",
+            },
+            {
+                question: "¿Cómo pongo un banner en el mensaje de bienvenida de SSH?",
+                answer: "Se coloca el texto del banner en el archivo del mensaje del día del sistema, normalmente /etc/motd, o se referencia desde la configuración del servidor SSH. La herramienta exporta el contenido ya listo para pegar en ese archivo.",
+            },
+            {
+                question: "¿Por qué mi banner se ve cortado?",
+                answer: "Porque es más ancho que la terminal. Cada tipografía tiene su propio ancho por carácter, y una palabra larga en una fuente grande supera fácilmente las 80 columnas estándar. Usa texto más corto o una tipografía más estrecha.",
+            },
+            {
+                question: "¿Puedo usar acentos y eñes en el banner?",
+                answer: "Depende de la tipografía: muchas de las clásicas solo definen el alfabeto inglés básico y los caracteres acentuados salen en blanco o como un signo de interrogación. Si necesitas acentos, prueba primero con la palabra completa antes de darlo por bueno.",
+            },
+        ],
+    },
+
+    esteganografia: {
+        intro:
+            "La esteganografía esconde un mensaje a plena vista, sin que se note que hay algo escondido. Esta herramienta oculta texto dentro de un emoji usando caracteres Unicode invisibles: el emoji se ve completamente normal, pero arrastra el mensaje pegado. Quien no sepa que está ahí solo verá una carita. No es cifrado, es ocultación: cualquiera que sepa dónde mirar lo recupera.",
+        steps: [
+            {
+                title: "Elige el emoji portador",
+                body: "El que se verá a simple vista. Cualquiera sirve: el mensaje va en caracteres invisibles añadidos después, no en el emoji en sí.",
+            },
+            {
+                title: "Escribe el mensaje",
+                body: "Se codifica como caracteres invisibles y se adjunta al emoji. El resultado se copia y se pega como cualquier texto normal.",
+            },
+            {
+                title: "Para leer, pega y decodifica",
+                body: "El destinatario pega el emoji aquí en modo decodificar y recupera el texto oculto. Sin la herramienta, el mensaje pasa inadvertido.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Curiosidad y juegos",
+                body: "Mandar un mensaje escondido en un emoji por diversión, o montar la pista de una búsqueda del tesoro que solo se revela con la herramienta correcta.",
+            },
+            {
+                title: "Marcar texto de forma invisible",
+                body: "Insertar una marca imperceptible en un texto para reconocer después de dónde salió una copia, sin que la marca sea visible al leer.",
+            },
+            {
+                title: "Demostrar cómo funciona la ocultación",
+                body: "Enseñar de forma concreta la diferencia entre esconder un mensaje y cifrarlo, que en abstracto se confunden constantemente.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿La esteganografía es lo mismo que el cifrado?",
+                answer: "No. El cifrado hace un mensaje ilegible pero visible: se nota que hay algo protegido. La esteganografía lo esconde para que nadie sospeche que existe, pero quien lo encuentra lo lee tal cual. Para secretos de verdad se combinan: cifrar primero y luego ocultar.",
+            },
+            {
+                question: "¿El mensaje oculto sobrevive al copiar y pegar?",
+                answer: "En general sí, porque los caracteres invisibles viajan como parte del texto. Pero algunas plataformas limpian los caracteres Unicode no estándar al pegar, y ahí el mensaje se pierde. Conviene probar en el canal concreto antes de confiarle algo importante.",
+            },
+            {
+                question: "¿Alguien puede darse cuenta de que hay un mensaje oculto?",
+                answer: "A simple vista no, pero no es indetectable: el texto ocupa más caracteres de los que aparenta, y quien lo revise con una herramienta que muestre caracteres invisibles lo notará al instante. Es ocultación frente a un observador casual, no frente a un análisis.",
+            },
+            {
+                question: "¿Se envía mi mensaje a algún servidor?",
+                answer: "No. La codificación y la decodificación ocurren en tu navegador, así que el texto oculto nunca se transmite. Todo el proceso es local, lo que importa precisamente cuando el punto es que el mensaje no quede registrado en ningún lado.",
+            },
+        ],
+    },
+
+    "esteganografia-imagen": {
+        intro:
+            "Una imagen se puede modificar tan poco que el ojo no lo nota pero los datos sí cambian. Esta herramienta esconde un mensaje dentro de una imagen PNG con la técnica LSB: altera el último bit de cada color, el que menos peso tiene, para almacenar texto. La imagen se ve idéntica a la original y arrastra el mensaje en su interior. Todo ocurre en tu navegador.",
+        steps: [
+            {
+                title: "Carga una imagen PNG",
+                body: "Tiene que ser PNG: comprime sin pérdida, así que los bits que se modifican sobreviven. Un JPG los destruiría al recomprimir y el mensaje se perdería.",
+            },
+            {
+                title: "Escribe el mensaje",
+                body: "Cuanto más largo, más píxeles necesita. Una imagen pequeña tiene un límite de cuánto texto puede esconder sin que empiece a notarse.",
+            },
+            {
+                title: "Descarga la imagen resultante",
+                body: "Se ve igual que la original. Para leer el mensaje, se vuelve a cargar aquí en modo decodificar; sin la herramienta, la imagen parece normal.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Aprender cómo funciona la técnica LSB",
+                body: "Ver de forma concreta que una imagen aparentemente intacta puede llevar datos escondidos, un concepto central en análisis forense y seguridad.",
+            },
+            {
+                title: "Marcas invisibles",
+                body: "Insertar un identificador imperceptible en una imagen para reconocer después de dónde salió una copia filtrada.",
+            },
+            {
+                title: "Retos de seguridad y CTF",
+                body: "La esteganografía en imágenes es un clásico de las competiciones de seguridad. Esta herramienta permite crear y resolver ese tipo de pruebas.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Qué es la técnica LSB?",
+                answer: "LSB significa bit menos significativo: el último bit de cada valor de color, el que menos afecta al tono. Cambiarlo altera el color de forma imperceptible, así que se puede usar ese bit de cada píxel para almacenar el mensaje sin que la imagen se vea distinta.",
+            },
+            {
+                question: "¿Por qué tiene que ser PNG y no JPG?",
+                answer: "Porque PNG comprime sin pérdida y conserva cada bit exactamente. JPG comprime con pérdida y recalcula los píxeles al guardar, lo que destruye los bits modificados y con ellos el mensaje. Un JPG con esteganografía LSB no sobrevive a un solo guardado.",
+            },
+            {
+                question: "¿Se nota que la imagen fue modificada?",
+                answer: "A simple vista no: los cambios son de un bit por canal, invisibles para el ojo. Pero un análisis estadístico de los bits menos significativos sí revela el patrón. Es ocultación frente a un observador casual, no frente a un examen forense dedicado.",
+            },
+            {
+                question: "¿Cuánto texto cabe en una imagen?",
+                answer: "Depende de sus dimensiones: cada píxel almacena unos pocos bits, así que una imagen grande esconde más. Un texto que supere la capacidad no cabe, y forzarlo empezaría a alterar la imagen de forma visible. La herramienta avisa cuando el mensaje no entra.",
+            },
+        ],
+    },
+
+    "reverse-shell": {
+        intro:
+            "Un reverse shell invierte la dirección de la conexión: en lugar de que tú entres a la máquina, es la máquina la que sale hacia ti, lo que sortea firewalls que bloquean conexiones entrantes pero permiten las salientes. Este generador arma el payload en Bash, Python, PHP, PowerShell y otros, con la IP y el puerto que indiques. Es una herramienta para pentesting autorizado y para practicar en entornos propios.",
+        steps: [
+            {
+                title: "Indica IP y puerto",
+                body: "Los de la máquina que va a escuchar, la tuya. El puerto tiene que estar abierto y a la escucha, o la conexión de vuelta no encuentra a nadie.",
+            },
+            {
+                title: "Elige el lenguaje",
+                body: "Según lo que haya disponible en la máquina objetivo. Bash y Python casi siempre están; PHP en servidores web; PowerShell en Windows.",
+            },
+            {
+                title: "Pon el listener a la escucha",
+                body: "En tu máquina, antes de lanzar el payload, con netcat o similar esperando en el puerto que indicaste. Si no escuchas primero, la conexión se pierde.",
+            },
+        ],
+        useCases: [
+            {
+                title: "Pruebas de penetración autorizadas",
+                body: "Confirmar que una vulnerabilidad permite ejecución remota, dentro de un encargo con permiso explícito y por escrito del dueño del sistema.",
+            },
+            {
+                title: "Laboratorios y práctica",
+                body: "Entrenar en máquinas de práctica y plataformas de CTF, donde el objetivo es precisamente aprender a obtener y detectar este tipo de acceso.",
+            },
+            {
+                title: "Entender la defensa",
+                body: "Conocer cómo se ve un reverse shell es lo que permite escribir reglas de detección: qué conexiones salientes vigilar y qué patrones marcan alarma.",
+            },
+        ],
+        faq: [
+            {
+                question: "¿Es legal usar un reverse shell?",
+                answer: "Solo contra sistemas propios o con permiso explícito y por escrito del dueño. Usarlo contra un sistema ajeno sin autorización es un delito informático en casi cualquier jurisdicción. La herramienta es para pentesting autorizado y laboratorios de práctica.",
+            },
+            {
+                question: "¿Por qué se llama reverse, al revés?",
+                answer: "Porque invierte quién inicia la conexión. En un acceso normal tú te conectas al servidor; en un reverse shell es el servidor el que se conecta a ti. Eso sortea los firewalls, que suelen bloquear conexiones entrantes pero dejan salir las salientes.",
+            },
+            {
+                question: "¿Por qué mi reverse shell no conecta?",
+                answer: "Las causas habituales: el listener no está a la escucha en tu máquina, el puerto está bloqueado por un firewall intermedio, o la IP indicada no es alcanzable desde el objetivo. Empieza confirmando que tu listener responde antes de revisar el resto.",
+            },
+            {
+                question: "¿Cómo se detecta un reverse shell?",
+                answer: "Vigilando conexiones salientes inesperadas: un servidor web que de pronto abre una conexión a una IP externa por un puerto raro es sospechoso. Las reglas de detección se centran en procesos que no deberían generar tráfico de red haciéndolo.",
+            },
+        ],
+    },
 };
 
 export function getToolCopy(slug: string): ToolCopy | undefined {
