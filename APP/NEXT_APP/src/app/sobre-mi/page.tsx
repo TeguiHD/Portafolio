@@ -5,15 +5,16 @@
  * como identidad canónica del autor — esta ruta es lo que hace que esa
  * declaración apunte a algo real en vez de a un 404.
  *
- * Todo el contenido factual sale de fuentes ya existentes en el repositorio:
- * nombre, cargo y descripción de `personSchema()`; GitHub y LinkedIn de su
- * `sameAs`; el stack técnico y la trayectoria de las constantes
- * `defaultTechnologies` y `timeline` en
- * `src/modules/landing/sections/AboutSection.tsx` (código muerto, no
- * referenciado, pero con datos reales). No se transcribe nada más de ese
- * archivo: el párrafo de marketing que lo acompaña (título académico, años
- * de experiencia, cifras de ventas) no está en la tabla de fuentes de esta
- * página y no se usa aquí.
+ * Todo el contenido factual sale de fuentes verificadas: nombre, cargo y
+ * descripción de `personSchema()`; GitHub y LinkedIn de su `sameAs`; el stack
+ * técnico de `defaultTechnologies` en
+ * `src/modules/landing/sections/AboutSection.tsx`.
+ *
+ * El título (Ingeniero en Informática) y la práctica profesional en el SLEP
+ * Santa Rosa los confirmó el titular del sitio de forma explícita el
+ * 2026-08-05. NO se incluyen las afirmaciones que NO confirmó —"5+ años de
+ * experiencia" y "+150% ventas" del párrafo de marketing de AboutSection.tsx—
+ * porque no fueron verificadas.
  */
 import type { Metadata } from "next";
 import { Navbar } from "@/modules/landing/layout/Navbar";
@@ -52,11 +53,13 @@ const TECHNOLOGIES = [
     { name: "Power BI", category: "BI" },
 ];
 
-// Trayectoria: `timeline` en
-// src/modules/landing/sections/AboutSection.tsx (líneas 23-28).
+// Trayectoria: base en `timeline` de
+// src/modules/landing/sections/AboutSection.tsx (líneas 23-28). La entrada del
+// SLEP se precisó con el dato confirmado por el titular: fue su práctica
+// profesional en el SLEP Santa Rosa.
 const TIMELINE = [
     { year: "2019", event: "Inicio carrera Full-stack" },
-    { year: "2021", event: "Primer proyecto gubernamental (SLEP)" },
+    { year: "2021", event: "Práctica profesional en el SLEP Santa Rosa" },
     { year: "2023", event: "Especialización en automatizaciones" },
     { year: "2024", event: "ML Ops y pipelines de datos" },
 ];
@@ -92,8 +95,8 @@ export default function SobreMiPage() {
                                     Quién soy
                                 </h2>
                                 <p>
-                                    Soy <strong className="text-white">{SITE_NAME}</strong>,{" "}
-                                    {jobTitle.toLowerCase()}.
+                                    Soy <strong className="text-white">{SITE_NAME}</strong>,
+                                    ingeniero en informática y {jobTitle.toLowerCase()}.
                                 </p>
                             </section>
 

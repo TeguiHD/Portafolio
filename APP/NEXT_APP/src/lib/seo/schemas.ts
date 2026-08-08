@@ -31,6 +31,13 @@ export function personSchema(): JsonLdObject {
         jobTitle: "Desarrollador Full Stack",
         description:
             "Desarrollador Full Stack que transforma problemas complejos en productos funcionales. Plataformas, automatizaciones y datos con impacto real.",
+        // Credencial confirmada por el titular el 2026-08-05. Sin institución
+        // declarada: no se afirma alma mater porque no fue verificada.
+        hasCredential: {
+            "@type": "EducationalOccupationalCredential",
+            credentialCategory: "degree",
+            name: "Ingeniero en Informática",
+        },
         sameAs: SAME_AS,
         knowsAbout: [
             "Next.js",
