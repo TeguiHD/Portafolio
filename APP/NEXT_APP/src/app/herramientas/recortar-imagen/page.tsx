@@ -7,6 +7,9 @@ import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
 import { StudioCard, StudioChip, StudioMetric, StudioStage } from "@/components/tools/ImageStudio";
+import { SubjectBrush, type SubjectBrushHandle } from "@/components/tools/SubjectBrush";
+import { getSubjectAlpha } from "@/lib/subject-mask";
+import { bboxFromAlpha, bboxFromMask, fitCropToSubject, scaleRect, type Rect } from "@/lib/crop-geometry";
 import {
     canvasToObjectUrl,
     loadImageSource,
@@ -99,6 +102,16 @@ export default function ImageCropperPage() {
     const [error, setError] = useState<string | null>(null);
     const croppedUrlRef = useRef<string | null>(null);
 
+    // Modo "Marcar sujeto": pincel + segmentación para encajar el recorte al objeto.
+    const [mode, setMode] = useState<"crop" | "subject">("crop");
+    const [brushSize, setBrushSize] = useState(0.06);
+    const [paddingRatio, setPaddingRatio] = useState(0.08);
+    const [subjectBusy, setSubjectBusy] = useState(false);
+    const [subjectLabel, setSubjectLabel] = useState<string | null>(null);
+    const [snapKey, setSnapKey] = useState(0);
+    const [initialArea, setInitialArea] = useState<Area | null>(null);
+    const brushRef = useRef<SubjectBrushHandle | null>(null);
+
     const aspect = PRESETS[selectedPreset].aspect || undefined;
 
     useEffect(() => {
@@ -116,6 +129,9 @@ export default function ImageCropperPage() {
         setZoom(1);
         setRotation(0);
         setError(null);
+        setMode("crop");
+        setInitialArea(null);
+        setSubjectLabel(null);
 
         void loadImageSource(dataUrl).then((image) => {
             setImageDimensions({ width: image.naturalWidth, height: image.naturalHeight });
@@ -160,6 +176,7 @@ export default function ImageCropperPage() {
     }, [croppedUrl, sourceFile]);
 
     const handleResetCrop = useCallback(() => {
+        setInitialArea(null);
         setCroppedUrl(null);
         setCrop({ x: 0, y: 0 });
         setZoom(1);
@@ -167,6 +184,60 @@ export default function ImageCropperPage() {
         setSelectedPreset(0);
         setError(null);
     }, []);
+
+    const handleSnapToSubject = useCallback(async () => {
+        if (!sourceImage || !imageDimensions) return;
+        setSubjectBusy(true);
+        setError(null);
+        setSubjectLabel("Preparando imagen");
+        const brush = brushRef.current;
+        let bbox: Rect | null = null;
+        let usedFallback = false;
+
+        try {
+            try {
+                const subject = await getSubjectAlpha(sourceImage, 512, (label) => setSubjectLabel(label));
+                const mask = brush?.hasStrokes() ? brush.getMask(subject.width, subject.height) : null;
+                // Pincel ∩ segmentación; si la segmentación no ve nada dentro del
+                // trazo, vale la pincelada sola.
+                const found =
+                    bboxFromAlpha(subject.alpha, subject.width, subject.height, 64, mask) ??
+                    (mask ? bboxFromMask(mask, subject.width, subject.height) : null);
+                if (found) bbox = scaleRect(found, 1 / subject.scale);
+            } catch (segmentationError) {
+                console.warn("Segmentación no disponible; se usa la pincelada", segmentationError);
+                usedFallback = true;
+            }
+
+            if (!bbox && brush?.hasStrokes()) {
+                const gw = Math.min(512, imageDimensions.width);
+                const gh = Math.max(1, Math.round((gw * imageDimensions.height) / imageDimensions.width));
+                const mask = brush.getMask(gw, gh);
+                const found = mask ? bboxFromMask(mask, gw, gh) : null;
+                if (found) bbox = scaleRect(found, imageDimensions.width / gw);
+                usedFallback = true;
+            }
+
+            if (!bbox) {
+                setError("No se detectó ningún sujeto. Pinta por encima de lo que quieres conservar e inténtalo de nuevo.");
+                setSubjectLabel(null);
+                return;
+            }
+
+            // "Libre" no fija aspecto y react-easy-crop cae a su 4:3 por defecto:
+            // calculamos con ese mismo aspecto efectivo para que el encaje coincida
+            // exactamente con la caja que mostrará el cropper.
+            const fitted = fitCropToSubject(bbox, imageDimensions, { aspect: aspect ?? 4 / 3, paddingRatio });
+            setInitialArea(fitted);
+            setSnapKey((k) => k + 1);
+            setCroppedUrl(null);
+            setRotation(0);
+            setMode("crop");
+            setSubjectLabel(usedFallback ? "Encaje por pincelada (segmentación no disponible)" : "Encaje ajustado al sujeto");
+        } finally {
+            setSubjectBusy(false);
+        }
+    }, [sourceImage, imageDimensions, aspect, paddingRatio]);
 
     if (isLoading) {
         return (
@@ -252,15 +323,38 @@ export default function ImageCropperPage() {
                                 ))}
                             </div>
 
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                                {([["crop", "Recortar"], ["subject", "Marcar sujeto"]] as const).map(([id, label]) => (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => setMode(id)}
+                                        aria-pressed={mode === id}
+                                        className="rounded-full border px-4 py-2 text-sm font-semibold transition-all"
+                                        style={mode === id
+                                            ? { borderColor: `${ACCENT}70`, backgroundColor: `${ACCENT}22`, color: "#fff" }
+                                            : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.03)", color: "#d4d4d4" }}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                                {subjectLabel && !subjectBusy && <span className="text-xs text-neutral-500">{subjectLabel}</span>}
+                            </div>
+
                             <div className="mt-4">
                                 <StudioStage
-                                    title="Área interactiva"
+                                    title={mode === "subject" ? "Marca el sujeto" : "Área interactiva"}
                                     subtitle={aspect ? `${PRESETS[selectedPreset].name} · ${PRESETS[selectedPreset].label}` : "Aspecto libre"}
                                     accentColor={ACCENT}
                                     badge={croppedAreaPixels ? `${Math.round(croppedAreaPixels.width)}×${Math.round(croppedAreaPixels.height)}` : undefined}
                                 >
                                     <div className="relative h-[420px] w-full overflow-hidden rounded-2xl bg-black sm:h-[520px]">
+                                        {mode === "subject" ? (
+                                            <SubjectBrush ref={brushRef} imageSrc={sourceImage} brushSize={brushSize} accentColor={ACCENT} />
+                                        ) : (
                                         <Cropper
+                                            key={snapKey}
+                                            initialCroppedAreaPixels={initialArea ?? undefined}
                                             image={sourceImage}
                                             crop={crop}
                                             zoom={zoom}
@@ -274,9 +368,43 @@ export default function ImageCropperPage() {
                                             onRotationChange={setRotation}
                                             onCropComplete={onCropComplete}
                                         />
+                                        )}
                                     </div>
                                 </StudioStage>
                             </div>
+
+                            {mode === "subject" && (
+                                <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                    <p className="text-sm text-neutral-300">
+                                        Pinta por encima de lo que quieres conservar. No hace falta precisión: la segmentación afina los bordes
+                                        y el encuadre respeta el formato elegido.
+                                    </p>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <label className="block text-xs text-neutral-400">
+                                            Pincel
+                                            <input type="range" min={0.02} max={0.15} step={0.01} value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="mt-2 w-full" />
+                                        </label>
+                                        <label className="block text-xs text-neutral-400">
+                                            Margen: {Math.round(paddingRatio * 100)}%
+                                            <input type="range" min={0} max={0.3} step={0.01} value={paddingRatio} onChange={(e) => setPaddingRatio(Number(e.target.value))} className="mt-2 w-full" />
+                                        </label>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleSnapToSubject}
+                                            disabled={subjectBusy}
+                                            className="rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all disabled:opacity-60"
+                                            style={{ background: `linear-gradient(135deg, ${ACCENT}, #F472B6)` }}
+                                        >
+                                            {subjectBusy ? `${subjectLabel ?? "Detectando sujeto"}…` : "Ajustar recorte al sujeto"}
+                                        </button>
+                                        <button type="button" onClick={() => brushRef.current?.clear()} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-300 transition-colors hover:text-white">
+                                            Limpiar trazos
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </StudioCard>
 
                         <div className="space-y-6">

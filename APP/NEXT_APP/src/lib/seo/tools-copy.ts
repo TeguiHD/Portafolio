@@ -983,6 +983,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 title: "Ajusta y descarga",
                 body: "Deja aire alrededor del sujeto principal: muchas plataformas recortan un poco más al generar sus propias miniaturas.",
             },
+            {
+                title: "Marca el sujeto (opcional)",
+                body: "Cambia a Marcar sujeto, pinta por encima de lo que quieres conservar y pulsa Ajustar: la segmentación detecta sus bordes y el encuadre se ajusta solo, respetando el formato elegido.",
+            },
         ],
         useCases: [
             {
@@ -1014,6 +1018,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             {
                 question: "¿Se sube mi imagen a algún servidor?",
                 answer: "No. El recorte ocurre en tu navegador mediante la API Canvas y el archivo nunca se transmite. Es lo que permite recortar documentos, capturas con datos o fotos personales sin entregarlos a un servicio externo.",
+            },
+            {
+                question: "¿Cómo funciona el recorte automático al sujeto?",
+                answer: "Pintas por encima de lo que te interesa y la herramienta segmenta la imagen en tu navegador para encontrar los bordes exactos; luego encuadra el rectángulo más pequeño del formato elegido que contenga al sujeto, con el margen que definas. Si hay varios objetos, la pincelada decide cuál.",
             },
         ],
     },
