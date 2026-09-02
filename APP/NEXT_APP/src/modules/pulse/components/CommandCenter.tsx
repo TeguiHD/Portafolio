@@ -419,7 +419,13 @@ function RemoteStateBlock({
     );
   }
 
-  return null;
+  // Éxito sin datos. Misma caja reservada que "cargando": si esto devolviera
+  // null el panel colapsaría de 260px a nada y empujaría todo (CLS 0.26 medido).
+  return (
+    <div className="flex min-h-[260px] items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.03] px-6 text-center text-sm text-white/55">
+      {emptyLabel}
+    </div>
+  );
 }
 
 function CommandMetric({
@@ -1696,10 +1702,10 @@ export function CommandCenter({ mode = "page", visible = true }: CommandCenterPr
                       </div>
                     </div>
 
-                    {financeState.status !== "success" || !financeState.data ? (
+                    {financeState.status !== "success" || !financeState.data || financeState.data.length === 0 ? (
                       <RemoteStateBlock state={financeState} emptyLabel="No hay mercado disponible." onRetry={() => void loadFinance(true)} />
                     ) : (
-                      <div className="flex flex-col gap-4">
+                      <div className="flex min-h-[260px] flex-col gap-4">
                         {financeState.data.map((item) => {
                           const isPositive = item.changePercent > 0;
                           const isNegative = item.changePercent < 0;
@@ -1777,7 +1783,7 @@ export function CommandCenter({ mode = "page", visible = true }: CommandCenterPr
                       {devState.status !== "success" || !devState.data ? (
                         <RemoteStateBlock state={devState} emptyLabel="No se pudo leer GitHub." onRetry={() => void loadDev(true)} />
                       ) : (
-                        <div className="space-y-4">
+                        <div className="min-h-[260px] space-y-4">
                           <div className="grid grid-cols-3 gap-3">
                             <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
                               <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">Repos</p>
