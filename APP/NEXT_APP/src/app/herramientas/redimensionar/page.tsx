@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
@@ -9,8 +9,8 @@ import { StudioCard, StudioChip, StudioMetric, StudioStage } from "@/components/
 import {
     canvasToObjectUrl,
     drawImageToCanvas,
+    imageBitmapFromSource,
     isLossyFormat,
-    loadImageSource,
     revokeObjectUrl,
     sanitizeFileBaseName,
     triggerDownload,
@@ -74,6 +74,9 @@ export default function ImageResizerPage() {
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const resizedUrlRef = useRef<string | null>(null);
+    // Imagen decodificada una sola vez; cada cambio de ajuste la reutiliza.
+    const bitmapRef = useRef<ImageBitmap | null>(null);
+    const runIdRef = useRef(0);
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
         setSourceImage(dataUrl);
@@ -83,13 +86,16 @@ export default function ImageResizerPage() {
         revokeObjectUrl(resizedUrlRef.current);
         resizedUrlRef.current = null;
 
-        const img = new Image();
-        img.onload = () => {
-            setOriginalDimensions({ w: img.naturalWidth, h: img.naturalHeight });
-            setWidth(img.naturalWidth);
-            setHeight(img.naturalHeight);
-        };
-        img.src = dataUrl;
+        bitmapRef.current?.close();
+        bitmapRef.current = null;
+        void imageBitmapFromSource(file, dataUrl)
+            .then((bitmap) => {
+                bitmapRef.current = bitmap;
+                setOriginalDimensions({ w: bitmap.width, h: bitmap.height });
+                setWidth(bitmap.width);
+                setHeight(bitmap.height);
+            })
+            .catch(() => setError("No se pudo leer la imagen"));
     }, []);
 
     const handleClear = useCallback(() => {
@@ -99,6 +105,8 @@ export default function ImageResizerPage() {
         setError(null);
         revokeObjectUrl(resizedUrlRef.current);
         resizedUrlRef.current = null;
+        bitmapRef.current?.close();
+        bitmapRef.current = null;
     }, []);
 
     const updateWidth = useCallback((nextWidth: number) => {
@@ -129,12 +137,13 @@ export default function ImageResizerPage() {
     }, []);
 
     const handleResize = useCallback(async () => {
-        if (!sourceImage || !canvasRef.current) return;
+        if (!sourceImage || !canvasRef.current || width <= 0 || height <= 0) return;
+        const runId = ++runIdRef.current;
         setIsResizing(true);
         setError(null);
 
         try {
-            const image = await loadImageSource(sourceImage);
+            const image = bitmapRef.current ?? (bitmapRef.current = await imageBitmapFromSource(sourceFile, sourceImage));
             const canvas = canvasRef.current;
             canvas.width = width;
             canvas.height = height;
@@ -164,15 +173,26 @@ export default function ImageResizerPage() {
                 exportFormat,
                 isLossyFormat(exportFormat) ? quality / 100 : 1
             );
+            if (runId !== runIdRef.current) {
+                revokeObjectUrl(nextUrl); // llegó un ajuste más nuevo
+                return;
+            }
             revokeObjectUrl(resizedUrlRef.current);
             resizedUrlRef.current = nextUrl;
             setResizedUrl(nextUrl);
         } catch (resizeError) {
             setError(resizeError instanceof Error ? resizeError.message : "No se pudo redimensionar la imagen");
         } finally {
-            setIsResizing(false);
+            if (runId === runIdRef.current) setIsResizing(false);
         }
-    }, [backgroundColor, exportFormat, fitMode, height, quality, sourceImage, useBackgroundFill, width]);
+    }, [backgroundColor, exportFormat, fitMode, height, quality, sourceFile, sourceImage, useBackgroundFill, width]);
+
+    // Vista previa en vivo: cualquier cambio de medidas, ajuste o formato regenera la salida.
+    useEffect(() => {
+        if (!sourceImage) return;
+        const timer = setTimeout(() => { void handleResize(); }, 250);
+        return () => clearTimeout(timer);
+    }, [sourceImage, handleResize]);
 
     const handleDownload = useCallback(() => {
         if (!resizedUrl || !sourceFile) return;
@@ -243,7 +263,7 @@ export default function ImageResizerPage() {
                                 <StudioStage title="Original" subtitle="Referencia" accentColor={ACCENT}>
                                     <img src={sourceImage} alt="Original" className="max-h-[360px] w-full rounded-2xl object-contain" />
                                 </StudioStage>
-                                <StudioStage title="Salida prevista" subtitle={`${width} × ${height}px`} accentColor={ACCENT} badge={resizedUrl ? "exportada" : "preview"}>
+                                <StudioStage title="Salida prevista" subtitle={`${width} × ${height}px`} accentColor={ACCENT} badge={isResizing ? "actualizando" : resizedUrl ? "en vivo" : "preview"}>
                                     <div className="flex w-full items-center justify-center">
                                         <div
                                             className="overflow-hidden rounded-[24px] border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)]"
@@ -385,14 +405,16 @@ export default function ImageResizerPage() {
                                     </div>
                                 )}
                                 <div className="mt-4 space-y-3">
-                                    <button
-                                        onClick={handleResize}
-                                        disabled={isResizing}
-                                        className="w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
-                                        style={{ background: `linear-gradient(135deg, ${ACCENT}, #A78BFA)` }}
-                                    >
-                                        {isResizing ? "Redimensionando..." : `Generar ${width} × ${height}`}
-                                    </button>
+                                    <p className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-neutral-300">
+                                        {isResizing ? (
+                                            <>
+                                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+                                                Redimensionando…
+                                            </>
+                                        ) : (
+                                            `Vista previa en vivo · ${width} × ${height}px`
+                                        )}
+                                    </p>
                                     <button
                                         onClick={handleDownload}
                                         disabled={!resizedUrl}

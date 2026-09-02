@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { imageBitmapFromSource } from "@/lib/tools/image-processing";
 
 const ACCENT = "#F59E0B";
 
@@ -16,7 +17,7 @@ const ICO_SIZES = [16, 32, 48, 64, 128, 256];
  * ICO format: Header + Directory Entries + Image Data (PNG embedded)
  * SECURITY: No external dependencies, pure binary construction.
  */
-async function generateIco(imageSrc: string, sizes: number[]): Promise<Blob> {
+async function generateIco(img: ImageBitmap, sizes: number[]): Promise<Blob> {
     const pngBlobs: { size: number; data: ArrayBuffer }[] = [];
 
     for (const size of sizes) {
@@ -24,14 +25,6 @@ async function generateIco(imageSrc: string, sizes: number[]): Promise<Blob> {
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext("2d")!;
-
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = reject;
-            img.src = imageSrc;
-        });
 
         // Draw image scaled to the target size with high-quality interpolation
         ctx.imageSmoothingEnabled = true;
@@ -128,7 +121,10 @@ export default function IcoConverterPage() {
         setIsConverting(true);
 
         try {
-            const blob = await generateIco(sourceImage, selectedSizes);
+            // Una sola decodificación para todos los tamaños del ICO.
+            const bitmap = await imageBitmapFromSource(sourceFile, sourceImage);
+            const blob = await generateIco(bitmap, selectedSizes);
+            bitmap.close();
             if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
             const url = URL.createObjectURL(blob);
             resultUrlRef.current = url;
@@ -138,7 +134,7 @@ export default function IcoConverterPage() {
         } finally {
             setIsConverting(false);
         }
-    }, [sourceImage, selectedSizes]);
+    }, [sourceImage, sourceFile, selectedSizes]);
 
     const handleDownload = useCallback(() => {
         if (!resultUrl || !sourceFile) return;

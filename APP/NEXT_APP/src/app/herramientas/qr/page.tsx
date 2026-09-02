@@ -132,12 +132,18 @@ export default function QRGeneratorPage() {
 
     const downloadQR = () => {
         if (!canvasRef.current || !isGenerated) return;
-        const link = document.createElement("a");
-        link.download = `qr-${qrType}-${Date.now()}.png`;
-        link.href = canvasRef.current.toDataURL("image/png");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // toBlob evita construir un data URL base64 gigante en memoria.
+        canvasRef.current.toBlob((blob) => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.download = `qr-${qrType}-${Date.now()}.png`;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }, "image/png");
         trackImmediate("download", { type: qrType, format: "png" });
     };
 

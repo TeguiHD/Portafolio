@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { imageBitmapFromSource } from "@/lib/tools/image-processing";
 
 const ACCENT = "#06B6D4";
 
@@ -19,15 +20,7 @@ const FAVICON_SIZES = [
     { size: 512, name: "android-chrome-512x512.png", desc: "PWA Splash" },
 ];
 
-async function generateFaviconPng(imageSrc: string, size: number): Promise<Blob> {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = reject;
-        img.src = imageSrc;
-    });
-
+async function generateFaviconPng(img: ImageBitmap, size: number): Promise<Blob> {
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
@@ -44,17 +37,20 @@ async function generateFaviconPng(imageSrc: string, size: number): Promise<Blob>
 export default function FaviconGeneratorPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("favicon");
     const [sourceImage, setSourceImage] = useState<string | null>(null);
+    const [sourceFile, setSourceFile] = useState<File | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [generatedPreviews, setGeneratedPreviews] = useState<{ size: number; url: string }[]>([]);
+    const [generatedPreviews, setGeneratedPreviews] = useState<{ size: number; url: string; blob: Blob }[]>([]);
     const zipUrlRef = useRef<string | null>(null);
 
-    const handleImageLoad = useCallback((_: File, dataUrl: string) => {
+    const handleImageLoad = useCallback((file: File, dataUrl: string) => {
         setSourceImage(dataUrl);
+        setSourceFile(file);
         setGeneratedPreviews([]);
     }, []);
 
     const handleClear = useCallback(() => {
         setSourceImage(null);
+        setSourceFile(null);
         setGeneratedPreviews([]);
         generatedPreviews.forEach(p => URL.revokeObjectURL(p.url));
         if (zipUrlRef.current) URL.revokeObjectURL(zipUrlRef.current);
@@ -65,19 +61,21 @@ export default function FaviconGeneratorPage() {
         setIsGenerating(true);
 
         try {
-            // Generate previews
-            const previews: { size: number; url: string }[] = [];
+            // Una sola decodificación (createImageBitmap) reutilizada en los 8 tamaños.
+            const bitmap = await imageBitmapFromSource(sourceFile, sourceImage);
+            const previews: { size: number; url: string; blob: Blob }[] = [];
             for (const { size } of FAVICON_SIZES) {
-                const blob = await generateFaviconPng(sourceImage, size);
-                previews.push({ size, url: URL.createObjectURL(blob) });
+                const blob = await generateFaviconPng(bitmap, size);
+                previews.push({ size, url: URL.createObjectURL(blob), blob });
             }
+            bitmap.close();
             setGeneratedPreviews(previews);
         } catch {
             // Error handled
         } finally {
             setIsGenerating(false);
         }
-    }, [sourceImage]);
+    }, [sourceImage, sourceFile]);
 
     const handleDownloadZip = useCallback(async () => {
         if (!sourceImage) return;
@@ -86,10 +84,13 @@ export default function FaviconGeneratorPage() {
             const JSZip = (await import("jszip")).default;
             const zip = new JSZip();
 
+            // Reutiliza los PNG ya generados; si no los hay, decodifica una vez.
+            const ready = new Map(generatedPreviews.map((p) => [p.size, p.blob]));
+            const bitmap = ready.size === FAVICON_SIZES.length ? null : await imageBitmapFromSource(sourceFile, sourceImage);
             for (const { size, name } of FAVICON_SIZES) {
-                const blob = await generateFaviconPng(sourceImage, size);
-                zip.file(name, blob);
+                zip.file(name, ready.get(size) ?? (await generateFaviconPng(bitmap!, size)));
             }
+            bitmap?.close();
 
             // Add manifest.json
             const manifest = {
@@ -122,7 +123,7 @@ export default function FaviconGeneratorPage() {
         } catch {
             // Error handled
         }
-    }, [sourceImage]);
+    }, [sourceImage, sourceFile, generatedPreviews]);
 
     const handleDownloadSingle = useCallback((url: string, name: string) => {
         const link = document.createElement("a");

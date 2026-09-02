@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { imageBitmapFromSource } from "@/lib/tools/image-processing";
 
 type OutputFormat = "webp" | "png" | "jpeg";
 
@@ -24,6 +25,8 @@ export default function ImageConverterPage() {
     const [isConverting, setIsConverting] = useState(false);
     const [outputSize, setOutputSize] = useState<number | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const convertedUrlRef = useRef<string | null>(null);
+    const runIdRef = useRef(0);
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
         setSourceImage(dataUrl);
@@ -38,54 +41,53 @@ export default function ImageConverterPage() {
         setConvertedUrl(null);
         setOutputSize(null);
         // SECURITY: Revoke any existing object URLs to prevent memory leaks
-        if (convertedUrl) URL.revokeObjectURL(convertedUrl);
-    }, [convertedUrl]);
+        if (convertedUrlRef.current) URL.revokeObjectURL(convertedUrlRef.current);
+        convertedUrlRef.current = null;
+    }, []);
 
     const handleConvert = useCallback(async () => {
         if (!sourceImage || !canvasRef.current) return;
+        const runId = ++runIdRef.current;
         setIsConverting(true);
 
         try {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-
-            await new Promise<void>((resolve, reject) => {
-                img.onload = () => resolve();
-                img.onerror = () => reject(new Error("Error al cargar la imagen"));
-                img.src = sourceImage;
-            });
-
+            // Decodificación nativa única; el canvas solo re-codifica al formato elegido.
+            const bitmap = await imageBitmapFromSource(sourceFile, sourceImage);
             const canvas = canvasRef.current;
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
             const ctx = canvas.getContext("2d");
             if (!ctx) throw new Error("No se pudo crear contexto 2D");
-
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(bitmap, 0, 0);
+            bitmap.close();
 
             const format = FORMATS.find(f => f.id === outputFormat)!;
             const qualityParam = outputFormat === "png" ? undefined : quality / 100;
+            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, format.mime, qualityParam));
+            if (runId !== runIdRef.current) return; // llegó un ajuste más nuevo
+            if (!blob) return;
 
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    setIsConverting(false);
-                    return;
-                }
-
-                // SECURITY: Revoke previous URL
-                if (convertedUrl) URL.revokeObjectURL(convertedUrl);
-
-                const url = URL.createObjectURL(blob);
-                setConvertedUrl(url);
-                setOutputSize(blob.size);
-                setIsConverting(false);
-            }, format.mime, qualityParam);
+            // SECURITY: Revoke previous URL
+            if (convertedUrlRef.current) URL.revokeObjectURL(convertedUrlRef.current);
+            const url = URL.createObjectURL(blob);
+            convertedUrlRef.current = url;
+            setConvertedUrl(url);
+            setOutputSize(blob.size);
         } catch {
-            setIsConverting(false);
+            // conversión fallida: se mantiene el estado anterior
+        } finally {
+            if (runId === runIdRef.current) setIsConverting(false);
         }
-    }, [sourceImage, outputFormat, quality, convertedUrl]);
+    }, [sourceImage, sourceFile, outputFormat, quality]);
+
+    // Conversión en vivo: cada cambio de formato o calidad actualiza el resultado
+    // (con un pequeño debounce para el deslizador de calidad).
+    useEffect(() => {
+        if (!sourceImage) return;
+        const timer = setTimeout(() => { void handleConvert(); }, 250);
+        return () => clearTimeout(timer);
+    }, [sourceImage, handleConvert]);
 
     const handleDownload = useCallback(() => {
         if (!convertedUrl || !sourceFile) return;
@@ -180,24 +182,14 @@ export default function ImageConverterPage() {
                             </div>
                         )}
 
-                        {/* Convert Button */}
-                        <button
-                            onClick={handleConvert}
-                            disabled={isConverting}
-                            className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
-                            style={{ background: `linear-gradient(135deg, ${activeFormat.color}, ${activeFormat.color}CC)` }}
-                        >
-                            {isConverting ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Convirtiendo...
-                                </span>
-                            ) : (
-                                `Convertir a ${activeFormat.name}`
-                            )}
-                        </button>
+                        {isConverting && (
+                            <p className="flex items-center justify-center gap-2 text-xs text-neutral-400">
+                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+                                Convirtiendo a {activeFormat.name}…
+                            </p>
+                        )}
 
-                        {/* Result */}
+                        {/* Result (conversión en vivo) */}
                         {convertedUrl && (
                             <div className="bg-white/5 rounded-xl p-5 border border-white/10 space-y-4">
                                 <div className="flex items-center justify-between">

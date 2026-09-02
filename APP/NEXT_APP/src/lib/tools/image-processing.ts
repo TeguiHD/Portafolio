@@ -95,9 +95,20 @@ export function fillCanvasSurface(
     ctx.fillRect(0, 0, width, height);
 }
 
+/** Fuente dibujable: <img> decodificado o ImageBitmap (decodificación nativa única). */
+export type DrawableImage = HTMLImageElement | ImageBitmap;
+
+export function drawableWidth(image: DrawableImage): number {
+    return "naturalWidth" in image ? drawableWidth(image) : image.width;
+}
+
+export function drawableHeight(image: DrawableImage): number {
+    return "naturalHeight" in image ? drawableHeight(image) : image.height;
+}
+
 export function drawImageToCanvas(
     ctx: CanvasRenderingContext2D,
-    image: HTMLImageElement,
+    image: DrawableImage,
     options: DrawImageOptions
 ) {
     const {
@@ -116,7 +127,7 @@ export function drawImageToCanvas(
         return { x: 0, y: 0, width, height };
     }
 
-    const imageRatio = image.naturalWidth / image.naturalHeight;
+    const imageRatio = drawableWidth(image) / drawableHeight(image);
     const targetRatio = width / height;
     const useCover = fitMode === "cover";
 
@@ -136,4 +147,25 @@ export function drawImageToCanvas(
     ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
 
     return { x: drawX, y: drawY, width: drawWidth, height: drawHeight };
+}
+/**
+ * Decodifica la imagen UNA sola vez como ImageBitmap (decodificación nativa,
+ * fuera del hilo de layout) para reutilizarla en varios tamaños o formatos.
+ * Prefiere el File original; si no está, reconstruye el Blob desde el data URL
+ * sin pasar por fetch (la CSP no permite connect-src data:).
+ */
+export async function imageBitmapFromSource(
+    file: File | Blob | null | undefined,
+    dataUrl?: string | null
+): Promise<ImageBitmap> {
+    if (file) return createImageBitmap(file);
+    if (!dataUrl) throw new Error("No hay imagen que decodificar");
+    const comma = dataUrl.indexOf(",");
+    const meta = dataUrl.slice(0, comma);
+    const payload = dataUrl.slice(comma + 1);
+    const mime = /^data:([^;,]+)/.exec(meta)?.[1] ?? "application/octet-stream";
+    const bytes = meta.includes(";base64")
+        ? Uint8Array.from(atob(payload), (c) => c.charCodeAt(0))
+        : new TextEncoder().encode(decodeURIComponent(payload));
+    return createImageBitmap(new Blob([bytes], { type: mime }));
 }

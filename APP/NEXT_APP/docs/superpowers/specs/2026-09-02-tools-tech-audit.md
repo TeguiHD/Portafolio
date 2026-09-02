@@ -23,17 +23,25 @@ legadas, sin bloquear el hilo principal, UI consistente.
 | ascii | re-decodificaba la imagen con `new Image()` + data URL en cada cambio de ajuste (la convolución corre sobre el lienzo reducido, no era el coste real) | `createImageBitmap` una vez, vista previa por object URL |
 | ImageDropzone (compartido) | bug: `handleFiles` recibía el `FileList` vivo y `onChange` limpiaba `input.value` antes de terminar la validación; en la ruta "clic" los consumidores recibían `undefined` como `File` | instantánea con `Array.from(fileList)` |
 
-## Severidad MEDIA (pendiente, por impacto/esfuerzo)
+## Severidad MEDIA (corregido en el segundo commit)
 
-1. `dns`: DNS-over-HTTPS desde el navegador (Cloudflare/Google JSON) para los resolvers que
-   lo permitan; dejar en el VPS solo lo que requiera IP cruda.
-2. `favicon`, `convertir-ico`, `convertir-imagen`: decodificar una vez con `createImageBitmap`
-   y reutilizar por tamaño; vista previa en vivo en convertir-imagen.
-3. `redimensionar`: vista previa en vivo al mover controles (operación barata).
-4. `metadatos`: `createImageBitmap` en la ruta de limpieza no-JPEG.
-5. Unificar UI con los primitivos de ImageStudio (StudioCard/Stage/Metric/Chip) en
-   base64, convertir-imagen, convertir-ico, favicon, metadatos, comprimir-imagen.
-6. Menores: `qr` PNG vía `toBlob`; `unidades` con `Intl.NumberFormat`.
+| slug | corrección |
+|---|---|
+| favicon | una decodificación (`imageBitmapFromSource`) para los 8 tamaños; el ZIP reutiliza los PNG ya generados |
+| convertir-ico | una decodificación para todos los tamaños del ICO |
+| convertir-imagen | conversión en vivo (sin botón) con bitmap único y cancelación de conversiones obsoletas |
+| redimensionar | vista previa en vivo (sin botón) desde un bitmap cacheado; `drawImageToCanvas` acepta `ImageBitmap` |
+| qr | PNG por `toBlob` + object URL en lugar de `toDataURL` |
+
+## Severidad MEDIA (pendiente, requiere decisión)
+
+1. `dns`: DNS-over-HTTPS desde el navegador (Cloudflare/Google JSON). Alivia el VPS, pero
+   las consultas del usuario pasarían a un tercero: decisión de producto/privacidad.
+2. Unificar UI con los primitivos de ImageStudio (StudioCard/Stage/Metric/Chip) en
+   base64, convertir-imagen, convertir-ico, favicon, metadatos, comprimir-imagen. Trabajo
+   de diseño de varias horas; conviene acordar el alcance.
+3. Menores: `metadatos` con `createImageBitmap` en la limpieza no-JPEG; `unidades` con
+   `Intl.NumberFormat`.
 
 ## Severidad BAJA
 
