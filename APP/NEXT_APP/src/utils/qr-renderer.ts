@@ -3,7 +3,14 @@ import QRCode from "qrcode";
 export type QRStyle = "square" | "dots" | "rounded" | "classy" | "diamond";
 export type EyeStyle = "square" | "circle" | "rounded" | "leaf" | "diamond";
 
-interface RenderOptions {
+/** Degradado lineal del cuerpo. `angle` sigue la convención CSS: 0° hacia arriba, 90° hacia la derecha. */
+export interface QRGradient {
+    from: string;
+    to: string;
+    angle: number;
+}
+
+export interface RenderOptions {
     text: string;
     size: number;
     bg: string;
@@ -14,30 +21,116 @@ interface RenderOptions {
     logo?: string | null;
     level: "L" | "M" | "Q" | "H";
     margin?: number;
+    gradient?: QRGradient | null;
 }
 
-export const renderQRToCanvas = async (
-    canvas: HTMLCanvasElement,
-    options: RenderOptions
-) => {
-    const {
-        text,
-        size,
-        bg,
-        fg,
-        eyeColor = fg,
-        style,
-        eyeStyle,
-        logo,
-        level,
-        margin = 1,
-    } = options;
+type Shape = QRStyle | EyeStyle;
 
-    const qrData = QRCode.create(text, {
-        errorCorrectionLevel: level,
-    });
+const f = (n: number) => Number(n.toFixed(3));
+
+/**
+ * Geometría de UN módulo como fragmento de path SVG.
+ *
+ * Es la única definición de forma: el canvas la pinta con `Path2D` y el SVG
+ * la emite literal. Así el PNG y el SVG salen idénticos por construcción, y
+ * un estilo nuevo se añade en un solo sitio.
+ */
+export function moduleShapePath(x: number, y: number, s: number, shape: Shape): string {
+    const cx = x + s / 2;
+    const cy = y + s / 2;
+    switch (shape) {
+        case "square": {
+            // Sangrado de 0.2px para que módulos vecinos no dejen costura.
+            const b = 0.2;
+            return `M${f(x - b)} ${f(y - b)}h${f(s + 2 * b)}v${f(s + 2 * b)}h${f(-(s + 2 * b))}z`;
+        }
+        case "dots":
+        case "circle": {
+            const r = s / 2.2;
+            return `M${f(cx - r)} ${f(cy)}a${f(r)} ${f(r)} 0 1 0 ${f(2 * r)} 0a${f(r)} ${f(r)} 0 1 0 ${f(-2 * r)} 0z`;
+        }
+        case "rounded": {
+            const r = s * 0.35;
+            const e = s - 2 * r;
+            return (
+                `M${f(x + r)} ${f(y)}h${f(e)}a${f(r)} ${f(r)} 0 0 1 ${f(r)} ${f(r)}v${f(e)}` +
+                `a${f(r)} ${f(r)} 0 0 1 ${f(-r)} ${f(r)}h${f(-e)}a${f(r)} ${f(r)} 0 0 1 ${f(-r)} ${f(-r)}` +
+                `v${f(-e)}a${f(r)} ${f(r)} 0 0 1 ${f(r)} ${f(-r)}z`
+            );
+        }
+        case "classy":
+            // Redondeado en dos esquinas opuestas.
+            return (
+                `M${f(x + s * 0.3)} ${f(y)}L${f(x + s)} ${f(y)}L${f(x + s)} ${f(y + s * 0.7)}` +
+                `Q${f(x + s)} ${f(y + s)} ${f(x + s * 0.7)} ${f(y + s)}L${f(x)} ${f(y + s)}L${f(x)} ${f(y + s * 0.3)}` +
+                `Q${f(x)} ${f(y)} ${f(x + s * 0.3)} ${f(y)}z`
+            );
+        case "diamond":
+            return `M${f(cx)} ${f(y + s * 0.1)}L${f(x + s * 0.9)} ${f(cy)}L${f(cx)} ${f(y + s * 0.9)}L${f(x + s * 0.1)} ${f(cy)}z`;
+        case "leaf":
+            return (
+                `M${f(x)} ${f(y)}L${f(x + s)} ${f(y)}Q${f(x + s)} ${f(y + s * 0.5)} ${f(x + s)} ${f(y + s)}` +
+                `L${f(x)} ${f(y + s)}Q${f(x)} ${f(y + s * 0.5)} ${f(x)} ${f(y)}z`
+            );
+        default:
+            return `M${f(x)} ${f(y)}h${f(s)}v${f(s)}h${f(-s)}z`;
+    }
+}
+
+interface QRLayout {
+    size: number;
+    bodyPath: string;
+    eyePath: string;
+}
+
+/** Matriz de módulos → dos paths (cuerpo y ojos) en coordenadas de `size`. */
+function buildLayout(options: RenderOptions): QRLayout {
+    const { text, size, style, eyeStyle, level, margin = 1 } = options;
+    const qrData = QRCode.create(text, { errorCorrectionLevel: level });
     const moduleCount = qrData.modules.size;
     const modules = qrData.modules.data;
+    const tileSize = size / (moduleCount + 2 * margin);
+    const offset = margin * tileSize;
+
+    const isEye = (row: number, col: number) =>
+        (row < 7 && col < 7) || (row < 7 && col >= moduleCount - 7) || (row >= moduleCount - 7 && col < 7);
+
+    let bodyPath = "";
+    let eyePath = "";
+    for (let r = 0; r < moduleCount; r++) {
+        for (let c = 0; c < moduleCount; c++) {
+            if (!modules[r * moduleCount + c]) continue;
+            const x = offset + c * tileSize;
+            const y = offset + r * tileSize;
+            if (isEye(r, c)) eyePath += moduleShapePath(x, y, tileSize, eyeStyle);
+            else bodyPath += moduleShapePath(x, y, tileSize, style);
+        }
+    }
+    return { size, bodyPath, eyePath };
+}
+
+/** Extremos de la línea de degradado, igual que CSS `linear-gradient(<angle>)`. Mismos números en canvas y SVG. */
+function gradientLine(size: number, angle: number) {
+    const rad = (angle * Math.PI) / 180;
+    const dx = Math.sin(rad);
+    const dy = -Math.cos(rad);
+    const half = (size / 2) * (Math.abs(dx) + Math.abs(dy));
+    const c = size / 2;
+    return { x1: f(c - dx * half), y1: f(c - dy * half), x2: f(c + dx * half), y2: f(c + dy * half) };
+}
+
+const LOGO_RATIO = 0.2; // Corrección H admite ~30% de cobertura.
+
+function logoBox(size: number) {
+    const logoSize = size * LOGO_RATIO;
+    const pos = (size - logoSize) / 2;
+    const pad = logoSize * 0.1;
+    return { logoSize, pos, pad, radius: logoSize * 0.2 };
+}
+
+export const renderQRToCanvas = async (canvas: HTMLCanvasElement, options: RenderOptions) => {
+    const { size, bg, fg, eyeColor = fg, logo, gradient } = options;
+    const layout = buildLayout(options);
 
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
@@ -48,91 +141,24 @@ export const renderQRToCanvas = async (
     ctx.scale(pixelRatio, pixelRatio);
     ctx.imageSmoothingEnabled = true;
 
-    const tileSize = size / (moduleCount + 2 * margin);
-    const offset = margin * tileSize;
-
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, size, size);
 
-    const isEye = (row: number, col: number) => {
-        if (row < 7 && col < 7) return true;
-        if (row < 7 && col >= moduleCount - 7) return true;
-        if (row >= moduleCount - 7 && col < 7) return true;
-        return false;
-    };
-
-    // Helper to draw different shapes
-    const drawShape = (x: number, y: number, shapeStyle: string, _isEyeModule: boolean) => {
-        const s = tileSize;
-        const cx = x + s / 2;
-        const cy = y + s / 2;
-
-        switch (shapeStyle) {
-            case "square":
-                ctx.fillRect(x - 0.2, y - 0.2, s + 0.4, s + 0.4);
-                break;
-            case "dots":
-            case "circle":
-                ctx.beginPath();
-                ctx.arc(cx, cy, s / 2.2, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-            case "rounded":
-                ctx.beginPath();
-                ctx.roundRect(x, y, s, s, s * 0.35);
-                ctx.fill();
-                break;
-            case "classy":
-                // Rounded on two opposite corners
-                ctx.beginPath();
-                ctx.moveTo(x + s * 0.3, y);
-                ctx.lineTo(x + s, y);
-                ctx.lineTo(x + s, y + s * 0.7);
-                ctx.quadraticCurveTo(x + s, y + s, x + s * 0.7, y + s);
-                ctx.lineTo(x, y + s);
-                ctx.lineTo(x, y + s * 0.3);
-                ctx.quadraticCurveTo(x, y, x + s * 0.3, y);
-                ctx.fill();
-                break;
-            case "diamond":
-                ctx.beginPath();
-                ctx.moveTo(cx, y + s * 0.1);
-                ctx.lineTo(x + s * 0.9, cy);
-                ctx.lineTo(cx, y + s * 0.9);
-                ctx.lineTo(x + s * 0.1, cy);
-                ctx.closePath();
-                ctx.fill();
-                break;
-            case "leaf":
-                // Leaf shape for eyes - rounded on opposite corners
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x + s, y);
-                ctx.quadraticCurveTo(x + s, y + s * 0.5, x + s, y + s);
-                ctx.lineTo(x, y + s);
-                ctx.quadraticCurveTo(x, y + s * 0.5, x, y);
-                ctx.fill();
-                break;
-            default:
-                ctx.fillRect(x, y, s, s);
-        }
-    };
-
-    for (let r = 0; r < moduleCount; r++) {
-        for (let c = 0; c < moduleCount; c++) {
-            if (!modules[r * moduleCount + c]) continue;
-
-            const x = offset + c * tileSize;
-            const y = offset + r * tileSize;
-            const isEyeModule = isEye(r, c);
-
-            ctx.fillStyle = isEyeModule ? eyeColor : fg;
-            const currentStyle = isEyeModule ? eyeStyle : style;
-            drawShape(x, y, currentStyle, isEyeModule);
-        }
+    if (gradient) {
+        const { x1, y1, x2, y2 } = gradientLine(size, gradient.angle);
+        const g = ctx.createLinearGradient(x1, y1, x2, y2);
+        g.addColorStop(0, gradient.from);
+        g.addColorStop(1, gradient.to);
+        ctx.fillStyle = g;
+    } else {
+        ctx.fillStyle = fg;
     }
+    ctx.fill(new Path2D(layout.bodyPath));
 
-    // 6. Draw Logo (if exists)
+    // Los ojos siempre sólidos: es lo que los lectores localizan primero.
+    ctx.fillStyle = eyeColor;
+    ctx.fill(new Path2D(layout.eyePath));
+
     if (logo) {
         try {
             const img = new Image();
@@ -141,46 +167,67 @@ export const renderQRToCanvas = async (
                 img.onload = resolve;
                 img.onerror = reject;
             });
+            const { logoSize, pos, pad, radius } = logoBox(size);
 
-            // Logo size relative to QR (e.g., 20% of QR size)
-            // Error correction M handles up to 15%, Q up to 25%, H up to 30% coverage
-            const logoSize = size * 0.2;
-            const logoX = (size - logoSize) / 2;
-            const logoY = (size - logoSize) / 2;
-
-            // Draw white background text behind logo for contrast
-            // We use a rounded rect for the logo background
             ctx.fillStyle = bg;
-            const bgPadding = logoSize * 0.1;
             ctx.beginPath();
-            ctx.roundRect(
-                logoX - bgPadding,
-                logoY - bgPadding,
-                logoSize + bgPadding * 2,
-                logoSize + bgPadding * 2,
-                logoSize * 0.2
-            );
+            ctx.roundRect(pos - pad, pos - pad, logoSize + pad * 2, logoSize + pad * 2, radius);
             ctx.fill();
-            // Shadow
             ctx.shadowColor = "rgba(0,0,0,0.1)";
             ctx.shadowBlur = 5;
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 2;
 
-            // Draw Logo image
-            // Clip to rounded rect
             ctx.save();
             ctx.beginPath();
-            ctx.roundRect(logoX, logoY, logoSize, logoSize, logoSize * 0.2);
+            ctx.roundRect(pos, pos, logoSize, logoSize, radius);
             ctx.clip();
-            ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
+            ctx.drawImage(img, pos, pos, logoSize, logoSize);
             ctx.restore();
-
-            // Reset shadow
             ctx.shadowColor = "transparent";
-
         } catch (e) {
             console.error("Failed to load logo", e);
         }
     }
+};
+
+const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+/**
+ * Mismo QR como SVG vectorial: misma matriz, mismas formas, mismo degradado.
+ * Escala a cualquier tamaño sin pixelarse — es el formato para imprimir.
+ */
+export const renderQRToSVG = async (options: RenderOptions): Promise<string> => {
+    const { size, bg, fg, eyeColor = fg, logo, gradient } = options;
+    const layout = buildLayout(options);
+
+    let defs = "";
+    let bodyFill = esc(fg);
+    if (gradient) {
+        const { x1, y1, x2, y2 } = gradientLine(size, gradient.angle);
+        defs +=
+            `<linearGradient id="qr-g" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">` +
+            `<stop offset="0" stop-color="${esc(gradient.from)}"/><stop offset="1" stop-color="${esc(gradient.to)}"/></linearGradient>`;
+        bodyFill = "url(#qr-g)";
+    }
+
+    let logoMarkup = "";
+    if (logo) {
+        const { logoSize, pos, pad, radius } = logoBox(size);
+        defs += `<clipPath id="qr-logo-clip"><rect x="${f(pos)}" y="${f(pos)}" width="${f(logoSize)}" height="${f(logoSize)}" rx="${f(radius)}"/></clipPath>`;
+        logoMarkup =
+            `<rect x="${f(pos - pad)}" y="${f(pos - pad)}" width="${f(logoSize + pad * 2)}" height="${f(logoSize + pad * 2)}" rx="${f(radius)}" fill="${esc(bg)}"/>` +
+            `<image href="${esc(logo)}" xlink:href="${esc(logo)}" x="${f(pos)}" y="${f(pos)}" width="${f(logoSize)}" height="${f(logoSize)}" preserveAspectRatio="none" clip-path="url(#qr-logo-clip)"/>`;
+    }
+
+    return (
+        `<?xml version="1.0" encoding="UTF-8"?>` +
+        `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" shape-rendering="geometricPrecision">` +
+        (defs ? `<defs>${defs}</defs>` : "") +
+        `<rect width="${size}" height="${size}" fill="${esc(bg)}"/>` +
+        `<path d="${layout.bodyPath}" fill="${bodyFill}"/>` +
+        `<path d="${layout.eyePath}" fill="${esc(eyeColor)}"/>` +
+        logoMarkup +
+        `</svg>`
+    );
 };

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { ColorPicker } from "@/components/ui/ColorPicker";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
-import { renderQRToCanvas, QRStyle, EyeStyle } from "@/utils/qr-renderer";
+import { renderQRToCanvas, renderQRToSVG, type QRStyle, type EyeStyle } from "@/utils/qr-renderer";
 import {
     QR_TYPES, QR_CATEGORIES, QRType, QRCategory, getTypesByCategory,
     formatURL, formatEmail, formatPhone, formatSMS, formatWhatsApp,
@@ -45,8 +45,11 @@ export default function QRGeneratorPage() {
     const [eyeStyle, setEyeStyle] = useState<EyeStyle>("rounded");
     const [logo, setLogo] = useState<string | null>(null);
     const [useTypeIcon, setUseTypeIcon] = useState(false);
+    const [useGradient, setUseGradient] = useState(false);
+    const [gradientTo, setGradientTo] = useState("#00B8A9");
+    const [gradientAngle, setGradientAngle] = useState(135);
 
-    const [openSection, setOpenSection] = useState<AccordionSection>(null);
+    const [openSection, setOpenSection] = useState<AccordionSection>("design");
     const [isGenerated, setIsGenerated] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -77,24 +80,49 @@ export default function QRGeneratorPage() {
         return null;
     }, [logo, useTypeIcon, qrType, fgColor, bgColor]);
 
-    const generateQR = useCallback(async () => {
-        if (!qrContent || !canvasRef.current) return;
+    const gradient = useMemo(
+        () => (useGradient ? { from: fgColor, to: gradientTo, angle: gradientAngle } : null),
+        [useGradient, fgColor, gradientTo, gradientAngle]
+    );
+
+    // Generación en vivo: cualquier cambio de contenido o diseño re-renderiza el
+    // canvas tras 250 ms, sin botón. Todo ocurre en el navegador. El evento
+    // "generate" se registra como mucho una vez cada 5 s para no inundar analytics.
+    const lastGenerateTrack = useRef(0);
+    useEffect(() => {
+        if (!qrContent || !canvasRef.current) {
+            setIsGenerated(false);
+            return;
+        }
+        let cancelled = false;
         setIsGenerating(true);
-        await renderQRToCanvas(canvasRef.current, {
-            text: qrContent, size, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: errorLevel
-        });
-        setIsGenerated(true);
-        setIsGenerating(false);
-        trackImmediate("generate", { type: qrType });
-        // trackImmediate is excluded to prevent unnecessary re-creation of this callback
+        const timer = setTimeout(async () => {
+            if (!canvasRef.current) return;
+            await renderQRToCanvas(canvasRef.current, {
+                text: qrContent, size, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: errorLevel, gradient,
+            });
+            if (cancelled) return;
+            setIsGenerated(true);
+            setIsGenerating(false);
+            const now = Date.now();
+            if (now - lastGenerateTrack.current > 5000) {
+                lastGenerateTrack.current = now;
+                trackImmediate("generate", { type: qrType });
+            }
+        }, 250);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+        // trackImmediate se excluye a propósito: es estable y meterlo re-dispararía el efecto.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [qrContent, size, fgColor, bgColor, eyeColor, style, eyeStyle, activeLogo, errorLevel, qrType]);
+    }, [qrContent, size, fgColor, bgColor, eyeColor, style, eyeStyle, activeLogo, errorLevel, gradient, qrType]);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (ev) => { setLogo(ev.target?.result as string); setUseTypeIcon(false); setIsGenerated(false); };
+            reader.onload = (ev) => { setLogo(ev.target?.result as string); setUseTypeIcon(false); };
             reader.readAsDataURL(file);
         }
     };
@@ -110,6 +138,22 @@ export default function QRGeneratorPage() {
         trackImmediate("download", { type: qrType, format: "png" });
     };
 
+    const downloadSVG = async () => {
+        if (!qrContent || !isGenerated) return;
+        const svg = await renderQRToSVG({
+            text: qrContent, size, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: errorLevel, gradient,
+        });
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.download = `qr-${qrType}-${Date.now()}.svg`;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        trackImmediate("download", { type: qrType, format: "svg" });
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
@@ -122,7 +166,6 @@ export default function QRGeneratorPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador QR"} />;
     }
 
-    const onSettingChange = () => setIsGenerated(false);
     const presetColors = [
         { fg: "#000000", bg: "#ffffff" }, { fg: "#FFFFFF", bg: "#000000" },
         { fg: "#1e3a8a", bg: "#dbeafe" }, { fg: "#166534", bg: "#dcfce7" },
@@ -135,15 +178,15 @@ export default function QRGeneratorPage() {
 
     const renderTypeForm = () => {
         switch (qrType) {
-            case "url": return <input type="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); onSettingChange(); }} placeholder="https://ejemplo.com" className={inputClass} />;
-            case "text": return <textarea value={textData} onChange={(e) => { setTextData(e.target.value); onSettingChange(); }} placeholder="Escribe cualquier texto..." className={`${inputClass} h-24 resize-none`} />;
-            case "email": return (<div className="space-y-2"><input type="email" placeholder="correo@ejemplo.com" className={inputClass} value={emailData.to} onChange={(e) => { setEmailData({ ...emailData, to: e.target.value }); onSettingChange(); }} /><input type="text" placeholder="Asunto" className={inputClass} value={emailData.subject || ""} onChange={(e) => { setEmailData({ ...emailData, subject: e.target.value }); onSettingChange(); }} /><textarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={emailData.body || ""} onChange={(e) => { setEmailData({ ...emailData, body: e.target.value }); onSettingChange(); }} /></div>);
-            case "phone": return <input type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); onSettingChange(); }} placeholder="+56 9 1234 5678" className={inputClass} />;
-            case "sms": return (<div className="space-y-2"><input type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); onSettingChange(); }} /><textarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); onSettingChange(); }} /></div>);
-            case "whatsapp": return (<div className="space-y-2"><input type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); onSettingChange(); }} /><textarea placeholder="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); onSettingChange(); }} /></div>);
-            case "wifi": return (<div className="space-y-2"><input type="text" placeholder="Nombre de red (SSID)" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); onSettingChange(); }} /><input type="password" placeholder="Contraseña" className={inputClass} value={wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); onSettingChange(); }} /><select className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); onSettingChange(); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></div>);
-            case "vcard": return (<div className="space-y-2"><select className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); onSettingChange(); }}><option value="3.0">vCard 3.0 (Recomendado)</option><option value="2.1">vCard 2.1 (Legacy)</option></select><div className="grid grid-cols-2 gap-2"><input type="text" placeholder="Nombre *" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); onSettingChange(); }} /><input type="text" placeholder="Apellido" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); onSettingChange(); }} /></div><div className="grid grid-cols-2 gap-2"><input type="tel" placeholder="Teléfono" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); onSettingChange(); }} /><input type="tel" placeholder="Celular" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); onSettingChange(); }} /></div><input type="email" placeholder="Email" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); onSettingChange(); }} /><input type="text" placeholder="Empresa" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); onSettingChange(); }} /></div>);
-            case "mecard": return (<div className="space-y-2"><input type="text" placeholder="Nombre completo *" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); onSettingChange(); }} /><input type="tel" placeholder="Teléfono" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); onSettingChange(); }} /><input type="email" placeholder="Email" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); onSettingChange(); }} /></div>);
+            case "url": return <input type="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); }} placeholder="https://ejemplo.com" className={inputClass} />;
+            case "text": return <textarea value={textData} onChange={(e) => { setTextData(e.target.value); }} placeholder="Escribe cualquier texto..." className={`${inputClass} h-24 resize-none`} />;
+            case "email": return (<div className="space-y-2"><input type="email" placeholder="correo@ejemplo.com" className={inputClass} value={emailData.to} onChange={(e) => { setEmailData({ ...emailData, to: e.target.value }); }} /><input type="text" placeholder="Asunto" className={inputClass} value={emailData.subject || ""} onChange={(e) => { setEmailData({ ...emailData, subject: e.target.value }); }} /><textarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={emailData.body || ""} onChange={(e) => { setEmailData({ ...emailData, body: e.target.value }); }} /></div>);
+            case "phone": return <input type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); }} placeholder="+56 9 1234 5678" className={inputClass} />;
+            case "sms": return (<div className="space-y-2"><input type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); }} /><textarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); }} /></div>);
+            case "whatsapp": return (<div className="space-y-2"><input type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); }} /><textarea placeholder="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); }} /></div>);
+            case "wifi": return (<div className="space-y-2"><input type="text" placeholder="Nombre de red (SSID)" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><input type="password" placeholder="Contraseña" className={inputClass} value={wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} /><select className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></div>);
+            case "vcard": return (<div className="space-y-2"><select className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (Recomendado)</option><option value="2.1">vCard 2.1 (Legacy)</option></select><div className="grid grid-cols-2 gap-2"><input type="text" placeholder="Nombre *" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><input type="text" placeholder="Apellido" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><input type="tel" placeholder="Teléfono" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><input type="tel" placeholder="Celular" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><input type="email" placeholder="Email" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><input type="text" placeholder="Empresa" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /></div>);
+            case "mecard": return (<div className="space-y-2"><input type="text" placeholder="Nombre completo *" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><input type="tel" placeholder="Teléfono" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><input type="email" placeholder="Email" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /></div>);
             case "location":
                 return (
                     <div className="space-y-3">
@@ -152,7 +195,7 @@ export default function QRGeneratorPage() {
                                 const Icon = MAP_FORMAT_ICONS[f];
                                 const labels = { google: "Google Maps", apple: "Apple Maps", waze: "Waze", geo: "Universal" };
                                 return (
-                                    <button key={f} type="button" onClick={() => { setLocationData({ ...locationData, format: f }); onSettingChange(); }}
+                                    <button key={f} type="button" onClick={() => { setLocationData({ ...locationData, format: f }); }}
                                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${locationData.format === f ? "bg-[#FF8A00]/20 border border-[#FF8A00] text-white" : "bg-white/5 border border-white/10 text-neutral-400"}`}>
                                         <Icon className="w-4 h-4" />
                                         <span>{labels[f]}</span>
@@ -160,18 +203,18 @@ export default function QRGeneratorPage() {
                                 );
                             })}
                         </div>
-                        <input type="text" placeholder="Dirección o nombre del lugar" className={inputClass} value={locationData.query || ""} onChange={(e) => { setLocationData({ ...locationData, query: e.target.value }); onSettingChange(); }} />
+                        <input type="text" placeholder="Dirección o nombre del lugar" className={inputClass} value={locationData.query || ""} onChange={(e) => { setLocationData({ ...locationData, query: e.target.value }); }} />
                         <details className="text-xs">
                             <summary className="text-neutral-500 cursor-pointer hover:text-neutral-300">Coordenadas exactas (opcional)</summary>
                             <div className="grid grid-cols-2 gap-2 mt-2">
-                                <input type="number" step="any" placeholder="Latitud" className={inputClass} value={locationData.latitude || ""} onChange={(e) => { setLocationData({ ...locationData, latitude: parseFloat(e.target.value) || undefined }); onSettingChange(); }} />
-                                <input type="number" step="any" placeholder="Longitud" className={inputClass} value={locationData.longitude || ""} onChange={(e) => { setLocationData({ ...locationData, longitude: parseFloat(e.target.value) || undefined }); onSettingChange(); }} />
+                                <input type="number" step="any" placeholder="Latitud" className={inputClass} value={locationData.latitude || ""} onChange={(e) => { setLocationData({ ...locationData, latitude: parseFloat(e.target.value) || undefined }); }} />
+                                <input type="number" step="any" placeholder="Longitud" className={inputClass} value={locationData.longitude || ""} onChange={(e) => { setLocationData({ ...locationData, longitude: parseFloat(e.target.value) || undefined }); }} />
                             </div>
                         </details>
                     </div>
                 );
-            case "event": return (<div className="space-y-2"><input type="text" placeholder="Título *" className={inputClass} value={eventData.title} onChange={(e) => { setEventData({ ...eventData, title: e.target.value }); onSettingChange(); }} /><input type="text" placeholder="Lugar" className={inputClass} value={eventData.location || ""} onChange={(e) => { setEventData({ ...eventData, location: e.target.value }); onSettingChange(); }} /><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-neutral-500">Inicio *</label><input type="datetime-local" className={inputClass} value={eventData.startDate} onChange={(e) => { setEventData({ ...eventData, startDate: e.target.value }); onSettingChange(); }} /></div><div><label className="text-[10px] text-neutral-500">Fin</label><input type="datetime-local" className={inputClass} value={eventData.endDate || ""} onChange={(e) => { setEventData({ ...eventData, endDate: e.target.value }); onSettingChange(); }} /></div></div></div>);
-            case "bitcoin": return (<div className="space-y-2"><input type="text" placeholder="Dirección Bitcoin *" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); onSettingChange(); }} /><input type="number" step="0.00000001" placeholder="Cantidad (opcional)" className={inputClass} value={bitcoinData.amount || ""} onChange={(e) => { setBitcoinData({ ...bitcoinData, amount: e.target.value ? parseFloat(e.target.value) : undefined }); onSettingChange(); }} /></div>);
+            case "event": return (<div className="space-y-2"><input type="text" placeholder="Título *" className={inputClass} value={eventData.title} onChange={(e) => { setEventData({ ...eventData, title: e.target.value }); }} /><input type="text" placeholder="Lugar" className={inputClass} value={eventData.location || ""} onChange={(e) => { setEventData({ ...eventData, location: e.target.value }); }} /><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-neutral-500">Inicio *</label><input type="datetime-local" className={inputClass} value={eventData.startDate} onChange={(e) => { setEventData({ ...eventData, startDate: e.target.value }); }} /></div><div><label className="text-[10px] text-neutral-500">Fin</label><input type="datetime-local" className={inputClass} value={eventData.endDate || ""} onChange={(e) => { setEventData({ ...eventData, endDate: e.target.value }); }} /></div></div></div>);
+            case "bitcoin": return (<div className="space-y-2"><input type="text" placeholder="Dirección Bitcoin *" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); }} /><input type="number" step="0.00000001" placeholder="Cantidad (opcional)" className={inputClass} value={bitcoinData.amount || ""} onChange={(e) => { setBitcoinData({ ...bitcoinData, amount: e.target.value ? parseFloat(e.target.value) : undefined }); }} /></div>);
             default: return null;
         }
     };
@@ -200,7 +243,7 @@ export default function QRGeneratorPage() {
                     {QR_CATEGORIES.map((cat) => {
                         const CatIcon = QR_CATEGORY_ICONS[cat.id];
                         return (
-                            <button key={cat.id} onClick={() => { setActiveCategory(cat.id); const types = getTypesByCategory(cat.id); if (types.length) setQrType(types[0].id); onSettingChange(); }}
+                            <button key={cat.id} onClick={() => { setActiveCategory(cat.id); const types = getTypesByCategory(cat.id); if (types.length) setQrType(types[0].id); }}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeCategory === cat.id ? "bg-[#FF8A00] text-white" : "bg-white/5 text-neutral-400 hover:bg-white/10 border border-white/10"}`}>
                                 <CatIcon className="w-4 h-4" />
                                 <span>{cat.label}</span>
@@ -214,7 +257,7 @@ export default function QRGeneratorPage() {
                     {getTypesByCategory(activeCategory).map((type) => {
                         const Icon = QR_TYPE_ICONS[type.id];
                         return (
-                            <button key={type.id} onClick={() => { setQrType(type.id); onSettingChange(); }}
+                            <button key={type.id} onClick={() => { setQrType(type.id); }}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${qrType === type.id ? "bg-white/20 text-white border border-white/30" : "bg-white/5 text-neutral-400 hover:bg-white/10"}`}>
                                 <Icon className="w-3.5 h-3.5" />
                                 <span>{type.label}</span>
@@ -230,33 +273,28 @@ export default function QRGeneratorPage() {
                             <div className="p-4 rounded-2xl border border-white/10 bg-white/5">
                                 <div className="flex items-center justify-center">
                                     <div className="w-full max-w-[280px] rounded-xl overflow-hidden shadow-2xl p-3" style={{ backgroundColor: bgColor }}>
-                                        <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: isGenerated ? "block" : "none" }} />
+                                        <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: isGenerated ? "block" : "none", opacity: isGenerating ? 0.6 : 1, transition: "opacity 150ms ease-out" }} />
                                         {!isGenerated && (
                                             <div className="aspect-square flex flex-col items-center justify-center bg-neutral-200 rounded-lg gap-3">
                                                 {TypeIcon && <TypeIcon className="w-12 h-12 text-neutral-400" />}
-                                                <span className="text-neutral-500 text-xs">Haz clic en "Generar QR"</span>
+                                                <span className="text-neutral-500 text-xs text-center px-4">Escribe un enlace o texto y el QR aparece al instante</span>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
 
-                            <button onClick={generateQR} disabled={!qrContent || isGenerating}
-                                className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all ${isGenerated ? "bg-white/10 text-white border border-white/20" : "bg-gradient-to-r from-[#0EA5E9] to-[#06B6D4] text-white"} disabled:opacity-50`}>
-                                {isGenerating ? (
-                                    <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Generando</>
-                                ) : isGenerated ? (
-                                    <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Regenerar</>
-                                ) : (
-                                    <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="3" height="3" /><rect x="18" y="14" width="3" height="3" /><rect x="14" y="18" width="3" height="3" /><rect x="18" y="18" width="3" height="3" /></svg> Generar QR</>
-                                )}
-                            </button>
-
                             {isGenerated && (
-                                <button onClick={downloadQR} className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#00B8A9] to-[#00a89b] text-white font-semibold">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                    Descargar PNG HD
-                                </button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={downloadQR} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#00B8A9] to-[#00a89b] text-white font-semibold">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        PNG HD
+                                    </button>
+                                    <button onClick={downloadSVG} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/15 bg-white/5 text-white font-semibold hover:bg-white/10 transition-colors">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        SVG
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -285,7 +323,7 @@ export default function QRGeneratorPage() {
                                 <span className="text-xs text-neutral-500">(opcional)</span>
                             </div>
                             <div className="p-4 flex flex-wrap gap-2">
-                                <button onClick={() => { setUseTypeIcon(!useTypeIcon); setLogo(null); onSettingChange(); }}
+                                <button onClick={() => { setUseTypeIcon(!useTypeIcon); setLogo(null); }}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm ${useTypeIcon && !logo ? "border-[#FF8A00] bg-[#FF8A00]/10 text-white" : "border-white/10 text-neutral-400"}`}>
                                     {TypeIcon && <TypeIcon className="w-4 h-4" />} Icono
                                 </button>
@@ -297,7 +335,7 @@ export default function QRGeneratorPage() {
                                     </div>
                                 </div>
                                 {(logo || useTypeIcon) && (
-                                    <button onClick={() => { setLogo(null); setUseTypeIcon(false); onSettingChange(); }} className="px-3 py-2 rounded-xl text-red-400 text-sm border border-red-500/30">
+                                    <button onClick={() => { setLogo(null); setUseTypeIcon(false); }} className="px-3 py-2 rounded-xl text-red-400 text-sm border border-red-500/30">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                     </button>
                                 )}
@@ -319,23 +357,46 @@ export default function QRGeneratorPage() {
                                     <label className="text-xs text-neutral-500 mb-2 block">Colores</label>
                                     <div className="flex gap-2 mb-3">
                                         {presetColors.map((p, i) => (
-                                            <button key={i} onClick={() => { setFgColor(p.fg); setBgColor(p.bg); setEyeColor(p.fg); onSettingChange(); }}
+                                            <button key={i} onClick={() => { setFgColor(p.fg); setBgColor(p.bg); setEyeColor(p.fg); }}
                                                 className={`w-8 h-8 rounded-lg border-2 ${fgColor === p.fg && bgColor === p.bg ? "border-[#FF8A00]" : "border-white/10"}`}
                                                 style={{ background: `linear-gradient(135deg, ${p.fg} 50%, ${p.bg} 50%)` }} />
                                         ))}
                                     </div>
                                     <div className="grid grid-cols-3 gap-3 relative z-20">
-                                        <ColorPicker label="Fondo" color={bgColor} onChange={(c) => { setBgColor(c); onSettingChange(); }} />
-                                        <ColorPicker label="Cuerpo" color={fgColor} onChange={(c) => { setFgColor(c); onSettingChange(); }} />
-                                        <ColorPicker label="Ojos" color={eyeColor} onChange={(c) => { setEyeColor(c); onSettingChange(); }} />
+                                        <ColorPicker label="Fondo" color={bgColor} onChange={(c) => { setBgColor(c); }} />
+                                        <ColorPicker label="Cuerpo" color={fgColor} onChange={(c) => { setFgColor(c); }} />
+                                        <ColorPicker label="Ojos" color={eyeColor} onChange={(c) => { setEyeColor(c); }} />
                                     </div>
+                                </div>
+                                <div>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs text-neutral-500">Degradado del cuerpo</label>
+                                        {/* Área de toque de 44px por diseño; la píldora visual va dentro. */}
+                                        <button type="button" role="switch" aria-checked={useGradient} aria-label="Activar degradado"
+                                            onClick={() => setUseGradient(!useGradient)}
+                                            className="h-11 w-16 flex items-center justify-center -mr-2">
+                                            <span className={`relative h-6 w-11 rounded-full transition-colors ${useGradient ? "bg-[#FF8A00]" : "bg-white/15"}`}>
+                                                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${useGradient ? "translate-x-6" : "translate-x-1"}`} />
+                                            </span>
+                                        </button>
+                                    </div>
+                                    {useGradient && (
+                                        <div className="grid grid-cols-2 gap-3 relative z-10">
+                                            <ColorPicker label="Hasta" color={gradientTo} onChange={setGradientTo} />
+                                            <div>
+                                                <label className="text-xs text-neutral-500 mb-1 block">Ángulo: {gradientAngle}°</label>
+                                                <input type="range" min="0" max="360" step="15" value={gradientAngle} onChange={(e) => setGradientAngle(Number(e.target.value))}
+                                                    className="w-full h-2 rounded-full appearance-none bg-white/10 accent-[#FF8A00]" />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs text-neutral-500 mb-2 block">Cuerpo</label>
                                         <div className="flex gap-1">
                                             {[{ id: "square", icon: "■" }, { id: "rounded", icon: "▢" }, { id: "dots", icon: "●" }, { id: "classy", icon: "◢" }, { id: "diamond", icon: "◆" }].map((s) => (
-                                                <button key={s.id} onClick={() => { setStyle(s.id as QRStyle); onSettingChange(); }}
+                                                <button key={s.id} onClick={() => { setStyle(s.id as QRStyle); }}
                                                     className={`w-8 h-8 rounded-lg border text-xs ${style === s.id ? "border-[#FF8A00] text-[#FF8A00]" : "border-white/10 text-neutral-400"}`}>{s.icon}</button>
                                             ))}
                                         </div>
@@ -344,7 +405,7 @@ export default function QRGeneratorPage() {
                                         <label className="text-xs text-neutral-500 mb-2 block">Ojos</label>
                                         <div className="flex gap-1">
                                             {[{ id: "square", icon: "■" }, { id: "rounded", icon: "▢" }, { id: "circle", icon: "●" }, { id: "leaf", icon: "◠" }, { id: "diamond", icon: "◆" }].map((s) => (
-                                                <button key={s.id} onClick={() => { setEyeStyle(s.id as EyeStyle); onSettingChange(); }}
+                                                <button key={s.id} onClick={() => { setEyeStyle(s.id as EyeStyle); }}
                                                     className={`w-8 h-8 rounded-lg border text-xs ${eyeStyle === s.id ? "border-[#00B8A9] text-[#00B8A9]" : "border-white/10 text-neutral-400"}`}>{s.icon}</button>
                                             ))}
                                         </div>
@@ -353,12 +414,12 @@ export default function QRGeneratorPage() {
                                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/10">
                                     <div>
                                         <label className="text-xs text-neutral-500 mb-1 block">Resolución: {size}px</label>
-                                        <input type="range" min="256" max="2048" step="128" value={size} onChange={(e) => { setSize(Number(e.target.value)); onSettingChange(); }}
+                                        <input type="range" min="256" max="2048" step="128" value={size} onChange={(e) => { setSize(Number(e.target.value)); }}
                                             className="w-full h-2 rounded-full appearance-none bg-white/10 accent-[#FF8A00]" />
                                     </div>
                                     <div>
                                         <label className="text-xs text-neutral-500 mb-1 block">Corrección</label>
-                                        <select value={errorLevel} onChange={(e) => { setErrorLevel(e.target.value as "L" | "M" | "Q" | "H"); onSettingChange(); }}
+                                        <select value={errorLevel} onChange={(e) => { setErrorLevel(e.target.value as "L" | "M" | "Q" | "H"); }}
                                             className="w-full px-2 py-1.5 rounded-lg bg-[#0F1724] border border-white/10 text-white text-xs">
                                             <option value="L">Bajo</option><option value="M">Medio</option><option value="Q">Alto</option><option value="H">Máximo</option>
                                         </select>
