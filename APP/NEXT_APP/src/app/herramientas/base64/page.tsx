@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { decodeUtf8Base64, encodeUtf8Base64 } from "@/lib/base64-utf8";
 
 export default function ImageBase64Page() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("base64");
@@ -45,11 +46,8 @@ export default function ImageBase64Page() {
     const handleTextConvert = (text: string, mode: "encode" | "decode") => {
         setInput(text);
         try {
-            if (mode === "encode") {
-                setOutput(btoa(text));
-            } else {
-                setOutput(atob(text));
-            }
+            // UTF-8 real: btoa/atob solo cubren Latin-1 y fallan con ñ, 中 o emojis.
+            setOutput(mode === "encode" ? encodeUtf8Base64(text) : decodeUtf8Base64(text));
         } catch {
             setOutput("Error: Texto inválido para decodificar");
         }

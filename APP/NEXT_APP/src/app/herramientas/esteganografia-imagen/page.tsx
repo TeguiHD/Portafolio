@@ -6,6 +6,8 @@ import type { Route } from "next";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { runStego } from "@/lib/stego-client";
+import { MAX_MESSAGE_LENGTH, calculateCapacity, calculateCapacityBytes } from "@/lib/stego-lsb";
 
 const ACCENT = "#8B5CF6";
 
@@ -41,158 +43,7 @@ const ACCENT = "#8B5CF6";
  */
 
 // SECURITY(CWE-400): Prevent resource exhaustion
-const MAX_MESSAGE_LENGTH = 50000; // 50K characters max
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB max for steganography
-const MAGIC_HEADER = [0x53, 0x54, 0x47, 0x4F]; // "STGO" - steganography marker
-
-function calculateCapacityBytes(width: number, height: number): number {
-    const totalBits = width * height * 3;
-    const headerBits = (MAGIC_HEADER.length + 4) * 8;
-
-    return Math.max(0, Math.floor((totalBits - headerBits) / 8));
-}
-
-/**
- * Calculate how many characters can be hidden in an image.
- * Each pixel provides 3 bits (R, G, B LSBs).
- * We need 32 bits for length header + 4 bytes for magic + 8 bits per byte of UTF-8 message.
- */
-function calculateCapacity(width: number, height: number): number {
-    // Conservative estimate: assume average 2 bytes per character for international text
-    return Math.floor(calculateCapacityBytes(width, height) / 2);
-}
-
-/**
- * Encode a text message into the LSB of image pixel data.
- * SECURITY: Validates capacity before encoding to prevent buffer overflow.
- */
-function encodeMessage(
-    imageData: ImageData,
-    message: string
-): ImageData | { error: string } {
-    // SECURITY(CWE-20): Convert message to UTF-8 bytes for reliable encoding
-    const encoder = new TextEncoder();
-    const messageBytes = encoder.encode(message);
-
-    // Build the payload: MAGIC + LENGTH (4 bytes BE) + MESSAGE BYTES
-    const payload = new Uint8Array(MAGIC_HEADER.length + 4 + messageBytes.length);
-    payload.set(MAGIC_HEADER, 0);
-    // Store message byte length as big-endian uint32
-    const lengthOffset = MAGIC_HEADER.length;
-    payload[lengthOffset] = (messageBytes.length >>> 24) & 0xFF;
-    payload[lengthOffset + 1] = (messageBytes.length >>> 16) & 0xFF;
-    payload[lengthOffset + 2] = (messageBytes.length >>> 8) & 0xFF;
-    payload[lengthOffset + 3] = messageBytes.length & 0xFF;
-    payload.set(messageBytes, lengthOffset + 4);
-
-    const totalBitsNeeded = payload.length * 8;
-    const totalBitsAvailable = imageData.width * imageData.height * 3;
-
-    // SECURITY(CWE-400): Capacity check
-    if (totalBitsNeeded > totalBitsAvailable) {
-        return {
-            error: `La imagen es muy pequeña. Necesitas al menos ${Math.ceil(totalBitsNeeded / 3)} píxeles. ` +
-                `Esta imagen tiene ${imageData.width * imageData.height} píxeles.`
-        };
-    }
-
-    // Clone pixel data to avoid modifying original
-    const data = new Uint8ClampedArray(imageData.data);
-    let bitIndex = 0;
-
-    for (let byteIdx = 0; byteIdx < payload.length; byteIdx++) {
-        for (let bit = 7; bit >= 0; bit--) {
-            const pixelIndex = Math.floor(bitIndex / 3);
-            const channelOffset = bitIndex % 3; // 0=R, 1=G, 2=B (skip Alpha)
-            const dataIndex = pixelIndex * 4 + channelOffset;
-
-            // Set LSB to the current bit
-            const currentBit = (payload[byteIdx] >> bit) & 1;
-            data[dataIndex] = (data[dataIndex] & 0xFE) | currentBit;
-
-            bitIndex++;
-        }
-    }
-
-    return new ImageData(data, imageData.width, imageData.height);
-}
-
-/**
- * Decode a hidden message from image pixel data.
- * SECURITY: Validates magic header and length before reading message.
- */
-function decodeMessage(imageData: ImageData): { message: string; messageBytes: number } | { error: string } {
-    const data = imageData.data;
-    const totalBitsAvailable = imageData.width * imageData.height * 3;
-
-    // First, extract the magic header (4 bytes = 32 bits)
-    const magicBytes = new Uint8Array(MAGIC_HEADER.length);
-    let bitIndex = 0;
-
-    for (let byteIdx = 0; byteIdx < MAGIC_HEADER.length; byteIdx++) {
-        let byte = 0;
-        for (let bit = 7; bit >= 0; bit--) {
-            const pixelIndex = Math.floor(bitIndex / 3);
-            const channelOffset = bitIndex % 3;
-            const dataIndex = pixelIndex * 4 + channelOffset;
-            byte |= (data[dataIndex] & 1) << bit;
-            bitIndex++;
-        }
-        magicBytes[byteIdx] = byte;
-    }
-
-    // SECURITY: Validate magic header
-    if (!MAGIC_HEADER.every((b, i) => magicBytes[i] === b)) {
-        return { error: "No se encontró ningún mensaje oculto en esta imagen." };
-    }
-
-    // Extract length (4 bytes = 32 bits)
-    const lengthBytes = new Uint8Array(4);
-    for (let byteIdx = 0; byteIdx < 4; byteIdx++) {
-        let byte = 0;
-        for (let bit = 7; bit >= 0; bit--) {
-            const pixelIndex = Math.floor(bitIndex / 3);
-            const channelOffset = bitIndex % 3;
-            const dataIndex = pixelIndex * 4 + channelOffset;
-            byte |= (data[dataIndex] & 1) << bit;
-            bitIndex++;
-        }
-        lengthBytes[byteIdx] = byte;
-    }
-
-    const messageLength = (lengthBytes[0] << 24) | (lengthBytes[1] << 16) | (lengthBytes[2] << 8) | lengthBytes[3];
-
-    // SECURITY(CWE-20): Validate message length
-    if (messageLength <= 0 || messageLength > MAX_MESSAGE_LENGTH * 4) {
-        return { error: "Los datos del mensaje están corruptos o no son válidos." };
-    }
-
-    const bitsNeeded = (MAGIC_HEADER.length + 4 + messageLength) * 8;
-    if (bitsNeeded > totalBitsAvailable) {
-        return { error: "La imagen no contiene suficientes datos para el mensaje indicado." };
-    }
-
-    // Extract message bytes
-    const messageBytes = new Uint8Array(messageLength);
-    for (let byteIdx = 0; byteIdx < messageLength; byteIdx++) {
-        let byte = 0;
-        for (let bit = 7; bit >= 0; bit--) {
-            const pixelIndex = Math.floor(bitIndex / 3);
-            const channelOffset = bitIndex % 3;
-            const dataIndex = pixelIndex * 4 + channelOffset;
-            byte |= (data[dataIndex] & 1) << bit;
-            bitIndex++;
-        }
-        messageBytes[byteIdx] = byte;
-    }
-
-    // SECURITY(CWE-20): Decode UTF-8 safely
-    const decoder = new TextDecoder("utf-8", { fatal: false });
-    return {
-        message: decoder.decode(messageBytes),
-        messageBytes: messageLength,
-    };
-}
 
 export default function ImageSteganographyPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("esteganografia-imagen");
@@ -209,6 +60,7 @@ export default function ImageSteganographyPage() {
 
     // Decode state
     const [decodeImage, setDecodeImage] = useState<string | null>(null);
+    const [decodeFile, setDecodeFile] = useState<File | null>(null);
     const [decodedMessage, setDecodedMessage] = useState("");
     const [decodedByteLength, setDecodedByteLength] = useState<number | null>(null);
     const [decodeCapacityBytes, setDecodeCapacityBytes] = useState(0);
@@ -232,106 +84,69 @@ export default function ImageSteganographyPage() {
         setSourceDimensions(null);
         setCapacityBytes(0);
 
-        // Calculate capacity
-        const img = new Image();
-        img.onload = () => {
-            setSourceDimensions({ width: img.width, height: img.height });
-            setCapacity(calculateCapacity(img.width, img.height));
-            setCapacityBytes(calculateCapacityBytes(img.width, img.height));
-        };
-        img.src = dataUrl;
+        // Capacidad: una sola decodificación con createImageBitmap
+        void createImageBitmap(file)
+            .then((bitmap) => {
+                setSourceDimensions({ width: bitmap.width, height: bitmap.height });
+                setCapacity(calculateCapacity(bitmap.width, bitmap.height));
+                setCapacityBytes(calculateCapacityBytes(bitmap.width, bitmap.height));
+                bitmap.close();
+            })
+            .catch((err: unknown) => {
+                console.warn("createImageBitmap falló", err);
+                setError("No se pudo leer la imagen");
+            });
     }, []);
 
-    const handleDecodeImageLoad = useCallback((_file: File, dataUrl: string) => {
+    const handleDecodeImageLoad = useCallback((file: File, dataUrl: string) => {
         setDecodeImage(dataUrl);
+        setDecodeFile(file);
         setDecodedMessage("");
         setDecodedByteLength(null);
         setError(null);
 
-        const img = new Image();
-        img.onload = () => {
-            setDecodeDimensions({ width: img.width, height: img.height });
-            setDecodeCapacityBytes(calculateCapacityBytes(img.width, img.height));
-        };
-        img.src = dataUrl;
+        void createImageBitmap(file)
+            .then((bitmap) => {
+                setDecodeDimensions({ width: bitmap.width, height: bitmap.height });
+                setDecodeCapacityBytes(calculateCapacityBytes(bitmap.width, bitmap.height));
+                bitmap.close();
+            })
+            .catch((err: unknown) => {
+                console.warn("createImageBitmap falló", err);
+                setError("No se pudo leer la imagen");
+            });
     }, []);
 
     const handleEncode = useCallback(async () => {
-        if (!sourceImage || !message.trim()) return;
+        if (!sourceFile || !message.trim()) return;
         setIsProcessing(true);
         setError(null);
 
         try {
-            const img = new Image();
-            await new Promise<void>((resolve, reject) => {
-                img.onload = () => resolve();
-                img.onerror = () => reject(new Error("Error al cargar la imagen"));
-                img.src = sourceImage;
-            });
-
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d", { willReadFrequently: true });
-            if (!ctx) return;
-
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            const result = encodeMessage(imageData, message);
-
-            if ("error" in result) {
+            // Decodificación, bucle LSB y PNG corren en un Web Worker: la pestaña
+            // sigue respondiendo aunque la imagen pese 20 MB.
+            const result = await runStego({ op: "encode", blob: sourceFile, message });
+            if (!result.ok) {
                 setError(result.error);
                 return;
             }
-
-            ctx.putImageData(result, 0, 0);
-
-            // Convert canvas to PNG blob
-            const blob = await new Promise<Blob | null>(resolve =>
-                canvas.toBlob(resolve, "image/png")
-            );
-
-            if (blob) {
-                if (encodedUrl) URL.revokeObjectURL(encodedUrl);
-                setEncodedUrl(URL.createObjectURL(blob));
-            }
+            if (encodedUrl) URL.revokeObjectURL(encodedUrl);
+            setEncodedUrl(URL.createObjectURL(result.blob));
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error al procesar la imagen");
         } finally {
             setIsProcessing(false);
         }
-    }, [sourceImage, message, encodedUrl]);
+    }, [sourceFile, message, encodedUrl]);
 
     const handleDecode = useCallback(async () => {
-        if (!decodeImage) return;
+        if (!decodeFile) return;
         setIsProcessing(true);
         setError(null);
 
         try {
-            const img = new Image();
-            await new Promise<void>((resolve, reject) => {
-                img.onload = () => resolve();
-                img.onerror = () => reject(new Error("Error al cargar la imagen"));
-                img.src = decodeImage;
-            });
-
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d", { willReadFrequently: true });
-            if (!ctx) return;
-
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            const result = decodeMessage(imageData);
-
-            if ("error" in result) {
+            const result = await runStego({ op: "decode", blob: decodeFile });
+            if (!result.ok) {
                 setError(result.error);
             } else {
                 setDecodedMessage(result.message);
@@ -342,7 +157,7 @@ export default function ImageSteganographyPage() {
         } finally {
             setIsProcessing(false);
         }
-    }, [decodeImage]);
+    }, [decodeFile]);
 
     const handleDownload = useCallback(() => {
         if (!encodedUrl) return;
@@ -372,6 +187,7 @@ export default function ImageSteganographyPage() {
     }, [encodedUrl]);
 
     const handleClearDecode = useCallback(() => {
+        setDecodeFile(null);
         setDecodeImage(null);
         setDecodedMessage("");
         setDecodedByteLength(null);

@@ -163,6 +163,8 @@ export default function AsciiArtPage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    // Imagen decodificada UNA vez (createImageBitmap); cada cambio de ajuste la reutiliza.
+    const bitmapRef = useRef<ImageBitmap | null>(null);
     const outputRef = useRef<HTMLPreElement>(null);
 
     // ==========================================
@@ -347,7 +349,7 @@ export default function AsciiArtPage() {
     };
 
     // Validate image dimensions to prevent memory DoS
-    const validateImageDimensions = (img: HTMLImageElement): boolean => {
+    const validateImageDimensions = (img: { width: number; height: number }): boolean => {
         const MAX_DIMENSION = 8000; // Max 8000x8000 pixels
         const MAX_TOTAL_PIXELS = 25_000_000; // 25 megapixels max
 
@@ -419,7 +421,7 @@ export default function AsciiArtPage() {
     };
 
     // Convert image to ASCII
-    const convertToAscii = useCallback((img: HTMLImageElement) => {
+    const convertToAscii = useCallback((img: ImageBitmap | HTMLImageElement) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -553,6 +555,32 @@ export default function AsciiArtPage() {
         setProcessing(false);
     }, [settings]);
 
+    // Decodifica una sola vez con createImageBitmap y muestra la vista previa
+    // por object URL (sin data URL gigante en memoria).
+    const ingestFile = async (file: File, tag: string) => {
+        try {
+            const bitmap = await createImageBitmap(file);
+            if (!validateImageDimensions(bitmap)) {
+                recordFailedValidation(`dimensions_exceeded: ${bitmap.width}x${bitmap.height}`);
+                bitmap.close();
+                setImageUrl(null);
+                return;
+            }
+            bitmapRef.current?.close();
+            bitmapRef.current = bitmap;
+            setImageSize({ width: bitmap.width, height: bitmap.height });
+            setImageUrl((prev) => {
+                if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+                return URL.createObjectURL(file);
+            });
+            recordUpload(); // Record successful upload
+        } catch {
+            recordFailedValidation(`image_load_error${tag}`);
+            alert("Error al cargar la imagen. El archivo puede estar corrupto.");
+            setImageUrl(null);
+        }
+    };
+
     // Handle file upload
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -564,35 +592,7 @@ export default function AsciiArtPage() {
 
         setFileName(sanitizeFilename(file.name));
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const dataUrl = ev.target?.result as string;
-            setImageUrl(dataUrl);
-
-            const img = new Image();
-            img.onload = () => {
-                // Validate dimensions before processing
-                if (!validateImageDimensions(img)) {
-                    recordFailedValidation(`dimensions_exceeded: ${img.width}x${img.height}`);
-                    setImageUrl(null);
-                    return;
-                }
-                setImageSize({ width: img.width, height: img.height });
-                recordUpload(); // Record successful upload
-                convertToAscii(img);
-            };
-            img.onerror = () => {
-                recordFailedValidation("image_load_error");
-                alert("Error al cargar la imagen. El archivo puede estar corrupto.");
-                setImageUrl(null);
-            };
-            img.src = dataUrl;
-        };
-        reader.onerror = () => {
-            recordFailedValidation("file_read_error");
-            alert("Error al leer el archivo.");
-        };
-        reader.readAsDataURL(file);
+        await ingestFile(file, "");
     };
 
     // Handle drag and drop
@@ -610,46 +610,15 @@ export default function AsciiArtPage() {
 
         setFileName(sanitizeFilename(file.name));
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const dataUrl = ev.target?.result as string;
-            setImageUrl(dataUrl);
-
-            const img = new Image();
-            img.onload = () => {
-                // Validate dimensions before processing
-                if (!validateImageDimensions(img)) {
-                    recordFailedValidation(`dimensions_exceeded: ${img.width}x${img.height}`);
-                    setImageUrl(null);
-                    return;
-                }
-                setImageSize({ width: img.width, height: img.height });
-                recordUpload(); // Record successful upload
-                convertToAscii(img);
-            };
-            img.onerror = () => {
-                recordFailedValidation("image_load_error_drop");
-                alert("Error al cargar la imagen. El archivo puede estar corrupto.");
-                setImageUrl(null);
-            };
-            img.src = dataUrl;
-        };
-        reader.onerror = () => {
-            recordFailedValidation("file_read_error_drop");
-            alert("Error al leer el archivo.");
-        };
-        reader.readAsDataURL(file);
+        await ingestFile(file, "_drop");
         // recordFailedValidation, recordUpload, validateFile are stable helper functions defined in component scope
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [convertToAscii]);
 
-    // Regenerate ASCII when settings change
+    // (Re)genera el ASCII al cargar la imagen o cambiar ajustes, desde el bitmap ya decodificado.
     useEffect(() => {
-        if (imageUrl) {
-            const img = new Image();
-            img.onload = () => convertToAscii(img);
-            img.src = imageUrl;
-        }
+        const bitmap = bitmapRef.current;
+        if (imageUrl && bitmap) convertToAscii(bitmap);
     }, [settings, imageUrl, convertToAscii]);
 
     // Copy to clipboard
@@ -748,6 +717,9 @@ export default function AsciiArtPage() {
 
     // Reset
     const handleReset = () => {
+        bitmapRef.current?.close();
+        bitmapRef.current = null;
+        if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
         setImageUrl(null);
         setAsciiArt("");
         setColoredAscii([]);

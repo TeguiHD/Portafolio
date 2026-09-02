@@ -113,8 +113,12 @@ export function ImageDropzone({
         });
     }, [accept, maxSize]);
 
-    const handleFiles = useCallback(async (files: FileList | null) => {
-        if (!files || files.length === 0) return;
+    const handleFiles = useCallback(async (fileList: FileList | null) => {
+        if (!fileList || fileList.length === 0) return;
+        // Instantánea: el FileList del input es "vivo" y el onChange limpia
+        // input.value justo después de llamar aquí, así que tras el primer
+        // await files[0] sería undefined y los consumidores recibirían un File nulo.
+        const files = Array.from(fileList);
 
         if (multiple && onMultipleLoad) {
             const results: { file: File; dataUrl: string }[] = [];

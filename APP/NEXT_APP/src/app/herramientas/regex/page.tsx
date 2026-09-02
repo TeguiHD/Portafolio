@@ -37,9 +37,12 @@ const CHEATSHEET = [
 
 // Maximum test string length (50KB) for safety
 const MAX_TEXT_LENGTH = 50000;
-const EXECUTION_TIMEOUT_MS = 100;
+// La regex corre en un Web Worker; al superar este límite el worker se termina
+// de verdad (un setTimeout en el hilo principal no puede interrumpir una regex).
+const EXECUTION_TIMEOUT_MS = 500;
 
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { runRegex, warmRegexWorker } from "@/lib/regex-client";
 
 export default function RegexTesterPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("regex");
@@ -47,7 +50,10 @@ export default function RegexTesterPage() {
     const [regex, setRegex] = useState("");
     const [activeFlags, setActiveFlags] = useState({ g: true, i: false, m: true, s: false, u: false });
     const [testString, setTestString] = useState("");
-    const [matches, setMatches] = useState<RegExpMatchArray | null>(null);
+    const [matches, setMatches] = useState<string[] | null>(null);
+    const [ranges, setRanges] = useState<[number, number][]>([]);
+    const [truncated, setTruncated] = useState(false);
+    const runIdRef = useRef(0);
     const [error, setError] = useState<string | null>(null);
     const [execTime, setExecTime] = useState<number | null>(null);
     const [copied, setCopied] = useState<string | null>(null);
@@ -166,17 +172,23 @@ export default function RegexTesterPage() {
         [activeFlags]
     );
 
-    // Safe regex execution with timeout
-    const executeRegex = useCallback(() => {
+    // Arranca el worker por adelantado: la primera ejecución no paga el arranque.
+    useEffect(() => {
+        warmRegexWorker();
+    }, []);
+
+    // Ejecución en Web Worker con timeout real (ver regex-client.ts).
+    const executeRegex = useCallback(async () => {
+        const runId = ++runIdRef.current;
         if (!regex) {
             setMatches(null);
+            setRanges([]);
             setError(null);
             setExecTime(null);
             setTimeoutWarning(false);
             return;
         }
 
-        // Check text length
         if (testString.length > MAX_TEXT_LENGTH) {
             setError(`Texto demasiado largo. Máximo: ${MAX_TEXT_LENGTH.toLocaleString()} caracteres`);
             return;
@@ -185,40 +197,24 @@ export default function RegexTesterPage() {
         setIsExecuting(true);
         setTimeoutWarning(false);
 
-        const startTime = performance.now();
-        let timedOut = false;
+        const outcome = await runRegex(regex, flagsString, testString, EXECUTION_TIMEOUT_MS);
+        if (runId !== runIdRef.current) return; // ya hay una ejecución más nueva
+        if (!outcome.ok && outcome.cancelled) return;
 
-        // Create a timeout to abort long-running regex
-        const timeoutId = setTimeout(() => {
-            timedOut = true;
-            setIsExecuting(false);
-            setTimeoutWarning(true);
-            setError("⚠️ Timeout: La regex tardó demasiado (posible ReDoS). Simplifica el patrón.");
+        setIsExecuting(false);
+        if (!outcome.ok) {
+            setTimeoutWarning(Boolean(outcome.timedOut));
+            setError(outcome.error);
             setMatches(null);
+            setRanges([]);
             setExecTime(null);
-        }, EXECUTION_TIMEOUT_MS);
-
-        try {
-            const re = new RegExp(regex, flagsString);
-            const found = testString.match(re);
-
-            if (!timedOut) {
-                clearTimeout(timeoutId);
-                const endTime = performance.now();
-                setExecTime(endTime - startTime);
-                setMatches(found);
-                setError(null);
-                setIsExecuting(false);
-            }
-        } catch (err: unknown) {
-            clearTimeout(timeoutId);
-            if (!timedOut) {
-                setError(err instanceof Error ? err.message : "Error en la expresión regular");
-                setMatches(null);
-                setExecTime(null);
-                setIsExecuting(false);
-            }
+            return;
         }
+        setExecTime(outcome.result.execMs);
+        setMatches(outcome.result.matches);
+        setRanges(outcome.result.ranges);
+        setTruncated(outcome.result.truncated);
+        setError(null);
     }, [regex, flagsString, testString]);
 
     // Debounced execution
@@ -244,22 +240,24 @@ export default function RegexTesterPage() {
         setRegex(pattern);
     };
 
-    // Highlight matches in text
+    // Resaltado a partir de los rangos que calculó el worker: aquí no se
+    // ejecuta ninguna regex, así que un patrón catastrófico no puede colgar el render.
     const highlightMatches = () => {
-        if (!regex || error || !testString) return testString;
-
-        try {
-            const re = new RegExp(`(${regex})`, flagsString);
-            const parts = testString.split(re);
-            return parts.map((part, i) => {
-                if (new RegExp(regex, flagsString).test(part)) {
-                    return <span key={i} className="bg-blue-500/30 text-white rounded px-0.5 border-b-2 border-blue-400">{part}</span>;
-                }
-                return part;
-            });
-        } catch {
-            return testString;
-        }
+        if (!regex || error || !testString || ranges.length === 0) return testString;
+        const parts: React.ReactNode[] = [];
+        let cursor = 0;
+        ranges.forEach(([start, end], i) => {
+            if (end <= start || start < cursor) return; // vacías o solapadas
+            if (start > cursor) parts.push(testString.slice(cursor, start));
+            parts.push(
+                <span key={i} className="bg-blue-500/30 text-white rounded px-0.5 border-b-2 border-blue-400">
+                    {testString.slice(start, end)}
+                </span>
+            );
+            cursor = end;
+        });
+        if (cursor < testString.length) parts.push(testString.slice(cursor));
+        return parts;
     };
 
     if (isLoading) {
@@ -432,7 +430,7 @@ export default function RegexTesterPage() {
                     {/* Stats */}
                     {!error && matches && (
                         <div className="flex flex-wrap gap-3 text-xs text-neutral-500">
-                            <span className="text-blue-400">{matches.length} coincidencia{matches.length !== 1 ? 's' : ''}</span>
+                            <span className="text-blue-400">{matches.length.toLocaleString()}{truncated ? '+' : ''} coincidencia{matches.length !== 1 ? 's' : ''}</span>
                             {execTime !== null && <span>• {execTime.toFixed(2)}ms</span>}
                         </div>
                     )}
@@ -521,8 +519,8 @@ export default function RegexTesterPage() {
                 {/* Security Notice */}
                 <div className="mt-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
                     <p className="text-[10px] text-amber-400/80">
-                        <strong>🛡️ Seguridad:</strong> Este tester incluye protección contra ataques ReDoS (regex maliciosas).
-                        Las expresiones que tardan más de {EXECUTION_TIMEOUT_MS}ms se abortan automáticamente.
+                        <strong>🛡️ Seguridad:</strong> La expresión se ejecuta en un Web Worker, fuera del hilo de la página.
+                        Si tarda más de {EXECUTION_TIMEOUT_MS}ms (posible ReDoS) el worker se termina: la pestaña nunca se congela.
                         Límite de texto: {(MAX_TEXT_LENGTH / 1000).toFixed(0)}KB.
                     </p>
                 </div>
