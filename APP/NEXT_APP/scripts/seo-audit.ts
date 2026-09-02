@@ -5,6 +5,7 @@
 import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TOOLS_SEO, type ToolSeoEntry } from "../src/lib/seo/tools-content";
+import { TOOL_COUNT } from "../src/lib/tool-count";
 
 const TOOLS_DIR = join(process.cwd(), "src/app/herramientas");
 const TITLE_MIN = 50;
@@ -129,8 +130,18 @@ function checkUniqueness(field: "title" | "description" | "primaryKeyword") {
     }
 }
 
+function checkToolCount(routes: string[]) {
+    if (TOOL_COUNT !== routes.length) {
+        fail(
+            `TOOL_COUNT en src/lib/tool-count.ts es ${TOOL_COUNT} pero hay ${routes.length} rutas ` +
+                `en src/app/herramientas/. La landing mostraría un número falso: actualízalo.`
+        );
+    }
+}
+
 const routes = routeSlugs();
 checkCoverage(routes);
+checkToolCount(routes);
 checkLayouts(routes);
 Object.entries(TOOLS_SEO).forEach(([key, entry]) => checkEntry(key, entry));
 (["title", "description", "primaryKeyword"] as const).forEach(checkUniqueness);

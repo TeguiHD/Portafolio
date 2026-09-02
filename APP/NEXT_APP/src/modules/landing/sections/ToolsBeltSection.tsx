@@ -8,6 +8,7 @@ import {
     type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
+import { TOOL_COUNT } from "@/lib/tool-count";
 import {
     Terminal,
     QrCode,
@@ -284,7 +285,7 @@ function FeaturedToolCard({
                                 whileHover={enableAdvancedHover ? { scale: 1.05, rotate: 2 } : undefined}
                                 transition={{ duration: 0.2 }}
                             >
-                                <div className="w-full h-full bg-[#0A0A0F]/90 rounded-[11px] flex items-center justify-center backdrop-blur-sm">
+                                <div className="w-full h-full bg-[#0A0A0F] rounded-[11px] flex items-center justify-center">
                                     <tool.icon className="w-6 h-6 text-white" />
                                 </div>
                             </motion.div>
@@ -499,9 +500,10 @@ export function ToolsBeltSection() {
                         <Link
                             href="/herramientas"
                             prefetch={false}
-                            className="hidden md:inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/20 text-white hover:bg-white hover:text-black transition-all duration-300 group"
+                            className="hidden md:inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white text-black font-semibold hover:bg-gray-100 transition-all duration-300 group shadow-lg shadow-white/10"
                         >
-                            <span className="font-medium">Ver Arsenal Completo</span>
+                            <span className="inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-full bg-black text-white text-xs font-bold tabular-nums">{TOOL_COUNT}</span>
+                            <span>Ver todas las herramientas</span>
                             <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                         </Link>
                     </motion.div>
@@ -543,7 +545,7 @@ export function ToolsBeltSection() {
                         className="inline-flex items-center justify-center gap-2 w-full max-w-sm px-6 py-3.5 rounded-full bg-white text-black font-semibold hover:bg-gray-100 transition-colors"
                     >
                         <Sparkles className="w-4 h-4" />
-                        Explorar Todas las Herramientas
+                        Ver las {TOOL_COUNT} herramientas
                     </Link>
                 </motion.div>
 

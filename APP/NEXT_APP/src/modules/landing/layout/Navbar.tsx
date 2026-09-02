@@ -6,7 +6,7 @@ import { ThrottledLink } from "@/components/ui/ThrottledLink";
 
 const navItems = [
   { label: "Blog", href: "/blog" },
-  { label: "Herramientas", href: "/#tools-belt" },
+  { label: "Herramientas", href: "/herramientas" },
   { label: "Proyectos", href: "/#casos" },
   { label: "Stack", href: "/#tecnologias" },
 ];
