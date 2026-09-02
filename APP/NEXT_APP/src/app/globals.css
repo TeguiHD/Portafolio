@@ -448,3 +448,36 @@ a,
     z-index: 10;
   }
 }
+
+/* ── Suelo táctil ──
+   Con puntero grueso (dedo) todo control interactivo mide ≥44px de alto.
+   Los enlaces de texto en línea quedan fuera a propósito: solo botones y
+   enlaces con forma de chip/tarjeta (rounded-*). Medido antes: en las
+   herramientas la mayoría de los controles estaba por debajo de 40px. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  select,
+  a.rounded-full,
+  a.rounded-lg,
+  a.rounded-xl,
+  a.rounded-2xl {
+    min-height: 44px;
+  }
+
+  /* Botones-icono: solo con min-height quedaban en 36×44 o 28×44. */
+  button,
+  [role="button"] {
+    min-width: 44px;
+  }
+
+  /* Migas, navbar y footer no son prosa: son navegación y merecen área táctil. */
+  nav a,
+  footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

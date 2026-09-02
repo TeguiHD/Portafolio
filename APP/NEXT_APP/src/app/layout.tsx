@@ -5,6 +5,7 @@ import { StructuredData } from "@/components/StructuredData";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { PWARegister } from "@/modules/finance/components/PWAComponents";
 import { VisualEnhancements } from "@/modules/landing/layout/VisualEnhancements";
+import { MotionProvider } from "@/components/motion/MotionProvider";
 
 const BASE_URL = "https://nicoholas.dev";
 
@@ -152,7 +153,7 @@ export default async function RootLayout({
         <ToastProvider>
           <PWARegister />
           <AnalyticsTracker />
-          {children}
+          <MotionProvider>{children}</MotionProvider>
         </ToastProvider>
       </body>
     </html>
