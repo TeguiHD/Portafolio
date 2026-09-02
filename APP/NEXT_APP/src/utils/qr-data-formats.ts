@@ -8,7 +8,8 @@ export type QRType =
     | "vcard" | "mecard"
     | "event"
     | "location"
-    | "bitcoin";
+    | "bitcoin"
+    | "ar";
 
 export type QRCategory = "basic" | "contact" | "communication" | "network" | "other";
 
@@ -52,6 +53,7 @@ export const QR_TYPES: QRTypeConfig[] = [
     { id: "location", label: "Ubicación", icon: "📍", description: "Coordenadas GPS", category: "other" },
     { id: "event", label: "Evento", icon: "📅", description: "Evento de calendario", category: "other" },
     { id: "bitcoin", label: "Bitcoin", icon: "₿", description: "Dirección crypto", category: "other" },
+    { id: "ar", label: "Realidad aumentada", icon: "🧊", description: "Modelo 3D en AR, sin app", category: "other" },
 ];
 
 // Get types by category
@@ -246,4 +248,31 @@ export const formatQRData = (type: QRType, data: unknown): string => {
         case "bitcoin": return formatBitcoin(data as BitcoinData);
         default: return "";
     }
+};
+
+// ============ REALIDAD AUMENTADA ============
+// El QR apunta a /ar de este mismo sitio con las URLs de los modelos en la query.
+// Sin estado en servidor. window.location.origin: en desarrollo el QR apunta a
+// localhost y en producción al dominio real, sin importar el registro SEO
+// (pesado) en el bundle del generador.
+export interface ARData {
+    title: string;
+    glb?: string;
+    usdz?: string;
+    poster?: string;
+}
+
+export const formatAR = (data: ARData): string => {
+    const glb = data.glb?.trim();
+    const usdz = data.usdz?.trim();
+    if (!glb && !usdz) return "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://nicoholas.dev";
+    const q = new URLSearchParams();
+    const title = data.title?.trim().slice(0, 80);
+    if (title) q.set("t", title);
+    if (glb) q.set("glb", glb);
+    if (usdz) q.set("usdz", usdz);
+    const poster = data.poster?.trim();
+    if (poster) q.set("p", poster);
+    return `${origin}/ar?${q.toString()}`;
 };

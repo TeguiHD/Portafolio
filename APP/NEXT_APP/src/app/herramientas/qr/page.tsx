@@ -11,7 +11,8 @@ import {
     QR_TYPES, QR_CATEGORIES, QRType, QRCategory, getTypesByCategory,
     formatURL, formatEmail, formatPhone, formatSMS, formatWhatsApp,
     formatWiFi, formatVCard, formatMeCard, formatLocation, formatEvent, formatBitcoin,
-    EmailData, SMSData, WhatsAppData, WiFiData, VCardData, MeCardData, LocationData, EventData, BitcoinData, MapFormat
+    EmailData, SMSData, WhatsAppData, WiFiData, VCardData, MeCardData, LocationData, EventData, BitcoinData, MapFormat,
+    formatAR, type ARData,
 } from "@/utils/qr-data-formats";
 import { getTypeIconDataURL } from "@/utils/qr-type-icons";
 import { QR_TYPE_ICONS, QR_CATEGORY_ICONS, MAP_FORMAT_ICONS } from "@/components/qr/QRIcons";
@@ -35,6 +36,7 @@ export default function QRGeneratorPage() {
     const [locationData, setLocationData] = useState<LocationData>({ format: "google", query: "" });
     const [eventData, setEventData] = useState<EventData>({ title: "", startDate: "" });
     const [bitcoinData, setBitcoinData] = useState<BitcoinData>({ address: "" });
+    const [arData, setArData] = useState<ARData>({ title: "", glb: "", usdz: "", poster: "" });
 
     const [size, setSize] = useState(1080);
     const [fgColor, setFgColor] = useState("#000000");
@@ -70,9 +72,10 @@ export default function QRGeneratorPage() {
             case "location": return formatLocation(locationData);
             case "event": return formatEvent(eventData);
             case "bitcoin": return formatBitcoin(bitcoinData);
+            case "ar": return formatAR(arData);
             default: return "";
         }
-    }, [qrType, urlData, textData, emailData, phoneData, smsData, whatsappData, wifiData, vcardData, mecardData, locationData, eventData, bitcoinData]);
+    }, [qrType, urlData, textData, emailData, phoneData, smsData, whatsappData, wifiData, vcardData, mecardData, locationData, eventData, bitcoinData, arData]);
 
     const activeLogo = useMemo(() => {
         if (logo) return logo;
@@ -187,6 +190,25 @@ export default function QRGeneratorPage() {
             case "wifi": return (<div className="space-y-2"><input type="text" placeholder="Nombre de red (SSID)" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><input type="password" placeholder="Contraseña" className={inputClass} value={wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} /><select className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></div>);
             case "vcard": return (<div className="space-y-2"><select className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (Recomendado)</option><option value="2.1">vCard 2.1 (Legacy)</option></select><div className="grid grid-cols-2 gap-2"><input type="text" placeholder="Nombre *" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><input type="text" placeholder="Apellido" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><input type="tel" placeholder="Teléfono" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><input type="tel" placeholder="Celular" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><input type="email" placeholder="Email" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><input type="text" placeholder="Empresa" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /></div>);
             case "mecard": return (<div className="space-y-2"><input type="text" placeholder="Nombre completo *" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><input type="tel" placeholder="Teléfono" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><input type="email" placeholder="Email" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /></div>);
+            case "ar":
+                return (
+                    <div className="space-y-3">
+                        <input type="text" placeholder="Título (ej. Pizza Margarita)" className={inputClass} maxLength={80} value={arData.title} onChange={(e) => setArData({ ...arData, title: e.target.value })} />
+                        <input type="url" placeholder="URL del modelo .glb (Android) *" className={inputClass} value={arData.glb ?? ""} onChange={(e) => setArData({ ...arData, glb: e.target.value })} />
+                        <input type="url" placeholder="URL del modelo .usdz (iPhone/iPad, opcional)" className={inputClass} value={arData.usdz ?? ""} onChange={(e) => setArData({ ...arData, usdz: e.target.value })} />
+                        <input type="url" placeholder="URL del póster .png/.jpg (opcional)" className={inputClass} value={arData.poster ?? ""} onChange={(e) => setArData({ ...arData, poster: e.target.value })} />
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#FF8A00]/25 bg-[#FF8A00]/10 px-3 py-2 text-xs text-neutral-300">
+                            <span>Al escanearlo, el móvil abre el modelo en AR. La URL es larga: con corrección <strong className="text-white">M</strong> el QR queda menos denso.</span>
+                            {errorLevel !== "M" && (
+                                <button type="button" onClick={() => setErrorLevel("M")} className="rounded-lg border border-[#FF8A00]/40 px-3 py-1.5 font-semibold text-[#FF8A00]">Usar M</button>
+                            )}
+                        </div>
+                        <p className="text-[11px] text-neutral-500">
+                            Los modelos se alojan donde tú quieras; este sitio no los descarga ni los guarda.{" "}
+                            <a href="/ar" target="_blank" rel="noopener" className="underline">Cómo funciona</a>
+                        </p>
+                    </div>
+                );
             case "location":
                 return (
                     <div className="space-y-3">

@@ -174,6 +174,13 @@ export const OtherIcon: FC<IconProps> = (props) => (
 );
 
 // Icon mapping
+export const ArIcon: FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M12 2.5l8 4.5v10l-8 4.5-8-4.5V7l8-4.5z" />
+        <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" />
+    </svg>
+);
+
 export const QR_TYPE_ICONS: Record<string, FC<IconProps>> = {
     url: UrlIcon,
     text: TextIcon,
@@ -187,6 +194,7 @@ export const QR_TYPE_ICONS: Record<string, FC<IconProps>> = {
     location: LocationIcon,
     event: EventIcon,
     bitcoin: BitcoinIcon,
+    ar: ArIcon,
 };
 
 export const QR_CATEGORY_ICONS: Record<string, FC<IconProps>> = {

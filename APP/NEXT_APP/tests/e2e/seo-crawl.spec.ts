@@ -8,7 +8,7 @@ const SITE_URL = "https://nicoholas.dev";
 // (legal). Si se agrega o quita una de estas páginas en el sitemap, este
 // número debe actualizarse a mano junto con sitemap.ts; las herramientas, en
 // cambio, se derivan de TOOL_SEO_SLUGS y no deben tocar este archivo nunca.
-const NON_TOOL_SITEMAP_PAGES = 6;
+const NON_TOOL_SITEMAP_PAGES = 7;
 const EXPECTED_SITEMAP_URL_COUNT = TOOL_SEO_SLUGS.length + NON_TOOL_SITEMAP_PAGES;
 
 test.describe("Sitemap y robots", () => {
