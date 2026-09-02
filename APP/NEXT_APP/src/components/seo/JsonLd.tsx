@@ -21,6 +21,11 @@ export async function JsonLd({ schema }: JsonLdProps) {
                 <script
                     key={index}
                     nonce={nonce}
+                    // El navegador borra el atributo `nonce` del DOM (ocultación
+                    // por CSP), así que React en dev lo compara contra "" y avisa
+                    // de hidratación en todas las páginas. El HTML servido lleva el
+                    // nonce real y un JSON-LD no se ejecuta: el aviso es benigno.
+                    suppressHydrationWarning
                     type="application/ld+json"
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(block) }}
                 />
