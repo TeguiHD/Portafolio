@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getDefaultToolBySlug } from "@/lib/tool-registry";
+import { useServerToolAccess } from "@/components/tools/ToolAccessProvider";
 
 export type ToolAccessType = "public" | "admin_only" | "private" | "loading" | "error" | "blocked";
 
@@ -23,11 +24,18 @@ export function useToolAccess(slug: string): ToolAccessResult {
     const fallbackTool = getDefaultToolBySlug(slug);
     const hasPublicFallback = Boolean(fallbackTool?.isPublic && fallbackTool.isActive);
 
+    // Decisión tomada en servidor por el layout de la herramienta (misma
+    // política, misma DB, mismo chequeo de rol — ver tool-access.server.ts).
+    // Si existe, el widget pinta en el primer render sin esperar un fetch.
+    // Si no, se conserva íntegro el camino fail-closed con fetch.
+    const serverAccess = useServerToolAccess();
+    const [useServerDecision, setUseServerDecision] = useState(Boolean(serverAccess));
+
     // SECURITY: Default to NOT authorized - fail-closed approach
-    const [isAuthorized, setIsAuthorized] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [accessType, setAccessType] = useState<ToolAccessType>("loading");
-    const [toolName, setToolName] = useState<string | undefined>();
+    const [isAuthorized, setIsAuthorized] = useState(serverAccess?.isAuthorized ?? false);
+    const [isLoading, setIsLoading] = useState(!serverAccess);
+    const [accessType, setAccessType] = useState<ToolAccessType>(serverAccess?.accessType ?? "loading");
+    const [toolName, setToolName] = useState<string | undefined>(serverAccess?.toolName);
     const [retryCount, setRetryCount] = useState(0);
 
     const allowPublicFallback = useCallback(() => {
@@ -148,11 +156,13 @@ export function useToolAccess(slug: string): ToolAccessResult {
     }, [allowPublicFallback, fallbackTool?.name, hasPublicFallback, retryCount, slug]);
 
     useEffect(() => {
+        if (useServerDecision) return;
         checkAccess();
-    }, [checkAccess]);
+    }, [checkAccess, useServerDecision]);
 
     const retryAccess = useCallback(() => {
         if (retryCount < MAX_RETRIES) {
+            setUseServerDecision(false);
             setRetryCount(prev => prev + 1);
             checkAccess();
         }

@@ -5,6 +5,7 @@ import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/redis";
 import { getDefaultToolBySlug } from "@/lib/tool-registry";
+import { resolveToolAccess } from "@/lib/tool-access.server";
 
 function buildToolPayload(tool: {
     id?: string;
@@ -106,96 +107,48 @@ export async function GET(
             degradedReason = "rate_limiter_unavailable";
         }
 
-        let tool = null;
-        try {
-            tool = await prisma.tool.findUnique({
-                where: { slug },
-                select: {
-                    id: true,
-                    slug: true,
-                    name: true,
-                    description: true,
-                    icon: true,
-                    category: true,
-                    config: true,
-                    isPublic: true,
-                    isActive: true,
-                },
-            });
-        } catch (dbError) {
-            console.error("Error loading tool metadata:", dbError);
-            if (!hasPublicFallback) {
-                throw dbError;
-            }
+        // La decisión vive en resolveToolAccess: es la misma que usa el layout
+        // de cada herramienta para pintar en el primer render. Aquí solo se
+        // combina con el rate-limit y se le da forma HTTP.
+        const decision = await resolveToolAccess(slug);
+        const reason = degradedReason ?? decision.degradedReason;
 
-            degradedReason = degradedReason || "database_unavailable";
+        switch (decision.status) {
+            case 400:
+                return NextResponse.json({ error: "Invalid tool identifier" }, { status: 400 });
+            case 404:
+                // Log potential probe attempt
+                console.warn(`[SECURITY] Tool probe attempt: ${slug} from IP: ${hashIP(ip)}`);
+                return NextResponse.json({ error: "Tool not found", allowed: false }, { status: 404 });
+            case 410:
+                // SECURITY: Disabled tools are completely blocked
+                return NextResponse.json({ error: "Tool is currently unavailable", allowed: false }, { status: 410 });
+            case 401:
+                return NextResponse.json({ error: "Authentication required", allowed: false }, { status: 401 });
+            case 403:
+                return NextResponse.json({ error: "Insufficient permissions", allowed: false }, { status: 403 });
+            case 500:
+                return NextResponse.json({ error: "Access verification failed", allowed: false }, { status: 500 });
         }
 
-        if (!tool) {
-            if (hasPublicFallback && fallbackTool) {
-                return buildPublicResponse(
-                    {
-                        ...fallbackTool,
-                        config: null,
-                    },
-                    {
-                        source: degradedReason ? "registry-degraded" : "registry",
-                        degradedReason,
-                    }
-                );
-            }
-
-            // Log potential probe attempt
-            console.warn(`[SECURITY] Tool probe attempt: ${slug} from IP: ${hashIP(ip)}`);
-            return NextResponse.json(
-                { error: "Tool not found", allowed: false },
-                { status: 404 }
-            );
-        }
-
-        // SECURITY: Disabled tools are completely blocked
-        if (!tool.isActive) {
-            return NextResponse.json(
-                { error: "Tool is currently unavailable", allowed: false },
-                { status: 410 }
-            );
-        }
-
-        if (tool.isPublic) {
-            return buildPublicResponse(tool, {
-                source: degradedReason ? "database-degraded" : "database",
-                degradedReason,
+        if (decision.accessType === "admin_only") {
+            return NextResponse.json({
+                tool: decision.tool,
+                allowed: true,
+                accessLevel: "admin",
+                degradedPublicAccess: Boolean(reason),
+                degradedReason: reason,
             });
         }
 
-        // SECURITY: Non-public tools require admin authentication
-        const session = await auth();
+        const source =
+            decision.source === "registry-failsafe"
+                ? decision.source
+                : reason
+                    ? decision.source.startsWith("registry") ? "registry-degraded" : "database-degraded"
+                    : decision.source;
 
-        // No session = unauthorized
-        if (!session?.user) {
-            return NextResponse.json(
-                { error: "Authentication required", allowed: false },
-                { status: 401 }
-            );
-        }
-
-        // SECURITY: Verify admin role (not just any logged-in user)
-        const userRole = (session.user as { role?: string })?.role;
-        if (userRole !== "admin" && userRole !== "ADMIN") {
-            console.warn(`[SECURITY] Unauthorized tool access attempt: ${slug} by user: ${session.user.email}`);
-            return NextResponse.json(
-                { error: "Insufficient permissions", allowed: false },
-                { status: 403 }
-            );
-        }
-
-        return NextResponse.json({
-            tool,
-            allowed: true,
-            accessLevel: "admin",
-            degradedPublicAccess: Boolean(degradedReason),
-            degradedReason,
-        });
+        return buildPublicResponse(decision.tool!, { source, degradedReason: reason });
     } catch (error) {
         console.error("Error fetching tool:", error);
 
