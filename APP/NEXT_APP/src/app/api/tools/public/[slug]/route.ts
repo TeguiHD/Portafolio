@@ -79,8 +79,6 @@ export async function GET(
 
     try {
         ({ slug } = await params);
-        const fallbackTool = getDefaultToolBySlug(slug);
-        const hasPublicFallback = Boolean(fallbackTool?.isPublic && fallbackTool.isActive);
 
         // SECURITY: Validate slug format (prevent injection)
         if (!slug || !/^[a-z0-9-]+$/.test(slug) || slug.length > 50) {
