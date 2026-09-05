@@ -35,6 +35,47 @@ const f = (n: number) => Number(n.toFixed(3));
  * la emite literal. Así el PNG y el SVG salen idénticos por construcción, y
  * un estilo nuevo se añade en un solo sitio.
  */
+/** Caja con esquinas redondeadas, compartida por módulos y patrones de búsqueda. */
+function roundedBoxPath(x: number, y: number, s: number, radius: number): string {
+    const r = Math.min(radius, s / 2);
+    const e = s - 2 * r;
+    return (
+        `M${f(x + r)} ${f(y)}h${f(e)}a${f(r)} ${f(r)} 0 0 1 ${f(r)} ${f(r)}v${f(e)}` +
+        `a${f(r)} ${f(r)} 0 0 1 ${f(-r)} ${f(r)}h${f(-e)}a${f(r)} ${f(r)} 0 0 1 ${f(-r)} ${f(-r)}` +
+        `v${f(-e)}a${f(r)} ${f(r)} 0 0 1 ${f(r)} ${f(-r)}z`
+    );
+}
+
+/**
+ * Caja de un patrón de búsqueda. Los tres tamaños (7, 5 y 3 módulos) se
+ * combinan con regla par-impar: el 5 abre un hueco en el 7 y el 3 vuelve a
+ * rellenar. Así se conserva la proporción 1:1:3:1:1 que todo lector busca,
+ * sea cual sea el estilo elegido.
+ */
+function eyeBoxPath(x: number, y: number, s: number, style: EyeStyle): string {
+    const cx = x + s / 2;
+    const cy = y + s / 2;
+    switch (style) {
+        case "circle": {
+            const r = s / 2;
+            return `M${f(x)} ${f(cy)}a${f(r)} ${f(r)} 0 1 0 ${f(s)} 0a${f(r)} ${f(r)} 0 1 0 ${f(-s)} 0z`;
+        }
+        case "diamond":
+            return `M${f(cx)} ${f(y)}L${f(x + s)} ${f(cy)}L${f(cx)} ${f(y + s)}L${f(x)} ${f(cy)}z`;
+        case "leaf": {
+            const r = s * 0.45;
+            return (
+                `M${f(x + r)} ${f(y)}h${f(s - r)}v${f(s - r)}a${f(r)} ${f(r)} 0 0 1 ${f(-r)} ${f(r)}` +
+                `h${f(-(s - r))}v${f(-(s - r))}a${f(r)} ${f(r)} 0 0 1 ${f(r)} ${f(-r)}z`
+            );
+        }
+        case "rounded":
+            return roundedBoxPath(x, y, s, s * 0.22);
+        default:
+            return `M${f(x)} ${f(y)}h${f(s)}v${f(s)}h${f(-s)}z`;
+    }
+}
+
 export function moduleShapePath(x: number, y: number, s: number, shape: Shape): string {
     const cx = x + s / 2;
     const cy = y + s / 2;
@@ -46,18 +87,11 @@ export function moduleShapePath(x: number, y: number, s: number, shape: Shape): 
         }
         case "dots":
         case "circle": {
-            const r = s / 2.2;
+            const r = s / 2;
             return `M${f(cx - r)} ${f(cy)}a${f(r)} ${f(r)} 0 1 0 ${f(2 * r)} 0a${f(r)} ${f(r)} 0 1 0 ${f(-2 * r)} 0z`;
         }
-        case "rounded": {
-            const r = s * 0.35;
-            const e = s - 2 * r;
-            return (
-                `M${f(x + r)} ${f(y)}h${f(e)}a${f(r)} ${f(r)} 0 0 1 ${f(r)} ${f(r)}v${f(e)}` +
-                `a${f(r)} ${f(r)} 0 0 1 ${f(-r)} ${f(r)}h${f(-e)}a${f(r)} ${f(r)} 0 0 1 ${f(-r)} ${f(-r)}` +
-                `v${f(-e)}a${f(r)} ${f(r)} 0 0 1 ${f(r)} ${f(-r)}z`
-            );
-        }
+        case "rounded":
+            return roundedBoxPath(x, y, s, s * 0.35);
         case "classy":
             // Redondeado en dos esquinas opuestas.
             return (
@@ -66,7 +100,7 @@ export function moduleShapePath(x: number, y: number, s: number, shape: Shape): 
                 `Q${f(x)} ${f(y)} ${f(x + s * 0.3)} ${f(y)}z`
             );
         case "diamond":
-            return `M${f(cx)} ${f(y + s * 0.1)}L${f(x + s * 0.9)} ${f(cy)}L${f(cx)} ${f(y + s * 0.9)}L${f(x + s * 0.1)} ${f(cy)}z`;
+            return `M${f(cx)} ${f(y)}L${f(x + s)} ${f(cy)}L${f(cx)} ${f(y + s)}L${f(x)} ${f(cy)}z`;
         case "leaf":
             return (
                 `M${f(x)} ${f(y)}L${f(x + s)} ${f(y)}Q${f(x + s)} ${f(y + s * 0.5)} ${f(x + s)} ${f(y + s)}` +
@@ -85,27 +119,45 @@ interface QRLayout {
 
 /** Matriz de módulos → dos paths (cuerpo y ojos) en coordenadas de `size`. */
 function buildLayout(options: RenderOptions): QRLayout {
-    const { text, size, style, eyeStyle, level, margin = 1 } = options;
+    // 4 módulos de margen: es la zona de silencio que exige la norma. Con menos,
+    // muchos lectores de móvil no encuentran el código sobre un fondo con dibujo.
+    const { text, size, style, eyeStyle, level, margin = 4 } = options;
     const qrData = QRCode.create(text, { errorCorrectionLevel: level });
     const moduleCount = qrData.modules.size;
     const modules = qrData.modules.data;
+    // Módulos de servicio: sincronismo, alineación e información de formato. El
+    // lector los usa para encontrar y medir la rejilla, así que van siempre en
+    // cuadrado sólido aunque se elija una forma decorativa para los datos.
+    const reserved: Uint8Array | undefined = qrData.modules.reservedBit;
     const tileSize = size / (moduleCount + 2 * margin);
     const offset = margin * tileSize;
 
-    const isEye = (row: number, col: number) =>
+    const inFinder = (row: number, col: number) =>
         (row < 7 && col < 7) || (row < 7 && col >= moduleCount - 7) || (row >= moduleCount - 7 && col < 7);
 
     let bodyPath = "";
-    let eyePath = "";
     for (let r = 0; r < moduleCount; r++) {
         for (let c = 0; c < moduleCount; c++) {
-            if (!modules[r * moduleCount + c]) continue;
+            const index = r * moduleCount + c;
+            if (!modules[index] || inFinder(r, c)) continue;
             const x = offset + c * tileSize;
             const y = offset + r * tileSize;
-            if (isEye(r, c)) eyePath += moduleShapePath(x, y, tileSize, eyeStyle);
-            else bodyPath += moduleShapePath(x, y, tileSize, style);
+            bodyPath += moduleShapePath(x, y, tileSize, reserved?.[index] ? "square" : style);
         }
     }
+
+    // Los tres buscadores se dibujan enteros, no módulo a módulo: dibujarlos
+    // como 49 piezas sueltas rompía la proporción que localiza el código.
+    let eyePath = "";
+    const corners: [number, number][] = [[0, 0], [0, moduleCount - 7], [moduleCount - 7, 0]];
+    for (const [row, col] of corners) {
+        const x = offset + col * tileSize;
+        const y = offset + row * tileSize;
+        eyePath += eyeBoxPath(x, y, tileSize * 7, eyeStyle);
+        eyePath += eyeBoxPath(x + tileSize, y + tileSize, tileSize * 5, eyeStyle);
+        eyePath += eyeBoxPath(x + tileSize * 2, y + tileSize * 2, tileSize * 3, eyeStyle);
+    }
+
     return { size, bodyPath, eyePath };
 }
 
@@ -133,9 +185,10 @@ export const renderQRToCanvas = async (canvas: HTMLCanvasElement, options: Rende
     const layout = buildLayout(options);
 
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
+    if (!ctx) throw new Error("Canvas no disponible");
 
-    const pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    // La resolución de exportación es explícita e independiente de la pantalla.
+    const pixelRatio = 1;
     canvas.width = size * pixelRatio;
     canvas.height = size * pixelRatio;
     ctx.scale(pixelRatio, pixelRatio);
@@ -155,9 +208,9 @@ export const renderQRToCanvas = async (canvas: HTMLCanvasElement, options: Rende
     }
     ctx.fill(new Path2D(layout.bodyPath));
 
-    // Los ojos siempre sólidos: es lo que los lectores localizan primero.
+    // Par-impar: marco relleno, hueco vacío, núcleo relleno.
     ctx.fillStyle = eyeColor;
-    ctx.fill(new Path2D(layout.eyePath));
+    ctx.fill(new Path2D(layout.eyePath), "evenodd");
 
     if (logo) {
         try {
@@ -226,7 +279,7 @@ export const renderQRToSVG = async (options: RenderOptions): Promise<string> => 
         (defs ? `<defs>${defs}</defs>` : "") +
         `<rect width="${size}" height="${size}" fill="${esc(bg)}"/>` +
         `<path d="${layout.bodyPath}" fill="${bodyFill}"/>` +
-        `<path d="${layout.eyePath}" fill="${esc(eyeColor)}"/>` +
+        `<path d="${layout.eyePath}" fill="${esc(eyeColor)}" fill-rule="evenodd"/>` +
         logoMarkup +
         `</svg>`
     );
