@@ -55,11 +55,11 @@ export function StudioCard({
     return (
         <section
             className={clsx(
-                "rounded-[28px] border border-white/10 bg-white/[0.035] p-4 sm:p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl",
+                "rounded-2xl border border-white/[0.08] bg-[#111923] p-4 sm:p-5",
                 className
             )}
             style={{
-                backgroundImage: `radial-gradient(circle at top right, ${accentColor}16, transparent 35%), linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))`,
+                backgroundImage: `linear-gradient(180deg, ${accentColor}05, transparent)`,
             }}
         >
             {(title || eyebrow || description || actions) && (
@@ -94,7 +94,7 @@ export function StudioStage({
     children,
 }: StudioStageProps) {
     return (
-        <div className={clsx("overflow-hidden rounded-[24px] border border-white/10 bg-[#08111f]/90", className)}>
+        <div className={clsx("overflow-hidden rounded-xl border border-white/10 bg-[#08111f]/90", className)}>
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                 <div>
                     <p className="text-sm font-medium text-white">{title}</p>

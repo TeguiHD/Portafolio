@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -702,14 +704,8 @@ export default function BackgroundRemoverPage() {
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,#154532_0%,#0F1724_38%,#08111f_100%)]">
-            <main className="mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <div className="mb-8 max-w-3xl">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">Quitar fondo</p>
-                    <h1 className="text-3xl font-bold text-white sm:text-4xl">Quitar fondo con ajuste manual sobre canvas</h1>
-                    <p className="mt-3 text-sm leading-6 text-neutral-400 sm:text-base">
-                        El recorte automático se procesa en tu navegador y luego puedes refinarlo con pincel para borrar restos o restaurar bordes antes de exportar.
-                    </p>
-                </div>
+            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
+                <ToolPageHeader slug="quitar-fondo" title={<>Quitar fondo con ajuste manual sobre canvas</>} description={<>El recorte automático se procesa en tu navegador y luego puedes refinarlo con pincel para borrar restos o restaurar bordes antes de exportar.</>} />
 
                 <StudioCard
                     title="Sube tu imagen"

@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -145,14 +147,9 @@ export default function FaviconGeneratorPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Generador de Favicons</h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Genera todos los tamaños de favicon para tu web. Descarga ZIP completo.
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="favicon" title={<>Generador de Favicons</>} description={<>Genera todos los tamaños de favicon para tu web. Descarga ZIP completo.</>} />
 
                 <ImageDropzone
                     onImageLoad={handleImageLoad}
@@ -183,7 +180,7 @@ export default function FaviconGeneratorPage() {
                         <button onClick={handleGenerate} disabled={isGenerating}
                             className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.01] disabled:opacity-50"
                             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}>
-                            {isGenerating ? "Generando..." : "⭐ Generar Favicons"}
+                            {isGenerating ? "Generando..." : "Generar Favicons"}
                         </button>
 
                         {/* Previews */}
@@ -215,7 +212,7 @@ export default function FaviconGeneratorPage() {
                                 <button onClick={handleDownloadZip}
                                     className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.01]"
                                     style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50` }}>
-                                    📦 Descargar ZIP (todos los tamaños + manifest)
+                                    Descargar ZIP (todos los tamaños + manifest)
                                 </button>
                             </div>
                         )}

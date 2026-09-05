@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -338,16 +340,9 @@ export default function ReverseShellPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                        Generador de Reverse Shells
-                    </h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Genera payloads de shell reversa para pruebas de penetración autorizadas
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="reverse-shell" title={<>Generador de Reverse Shells</>} description={<>Genera payloads de shell reversa para pruebas de penetración autorizadas</>} />
 
                 {/* Legal Disclaimer */}
                 <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4">

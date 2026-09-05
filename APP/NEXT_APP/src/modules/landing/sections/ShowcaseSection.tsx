@@ -1,155 +1,75 @@
-"use client";
-
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/components/ui/Button";
+import { ArrowUpRight, ShoppingBag, GraduationCap, Wrench } from "lucide-react";
+import { TOOL_COUNT } from "@/lib/tool-count";
 
+// Alcance documentado en /sobre-mi; las métricas comerciales requieren
+// fuente, periodo y autorización antes de publicarse.
 const projects = [
   {
-    id: "otec-intranet",
-    title: "Intranet OTEC ImpulsaTech",
-    category: "EdTech / Intranet",
-    metric: "100%",
-    metricLabel: "Digitalización OTEC",
-    desc: "Intranet corporativa para OTEC ImpulsaTech: gestión de cursos, alumnos y docentes. Landing institucional integrada.",
-    colSpan: "md:col-span-2",
-    bg: "bg-blue-950",
-    gradient: "from-blue-900 to-slate-900",
-    link: "https://impulsatech.cl/"
+    title: "FloresDyD",
+    category: "E-commerce a medida",
+    description: "De un emprendimiento sin presencia digital a una tienda con identidad propia, compras online y gestión de entregas.",
+    details: "Identidad visual, pagos, acceso con Google y carrito persistente para clientes y visitantes.",
+    evidence: "Sitio público",
+    href: "https://floresdyd.cl",
+    cta: "Visitar tienda",
+    external: true,
+    icon: ShoppingBag,
   },
   {
-    id: "floresdyd",
-    title: "Flores D&D",
-    category: "E-commerce",
-    metric: "+200%",
-    metricLabel: "Ventas Online",
-    desc: "E-commerce floral con catálogo dinámico, checkout integrado y entrega mismo día en Santiago.",
-    colSpan: "md:col-span-1",
-    bg: "bg-emerald-950",
-    gradient: "from-emerald-900 to-teal-950",
-    link: "https://floresdyd.cl"
+    title: "Intranet y aula virtual OTEC",
+    category: "Gestión de capacitación",
+    description: "Una plataforma interna para organizar cursos, estudiantes y actividades de un organismo técnico de capacitación.",
+    details: "Intranet, aula virtual y emisión de certificados de cursos y actividades.",
+    evidence: "Sistema privado · alcance documentado",
+    href: "/sobre-mi",
+    cta: "Conocer el proyecto",
+    external: false,
+    icon: GraduationCap,
   },
   {
-    id: "ml-forecast",
-    title: "Retail Forecast",
-    category: "AI / Python",
-    metric: "92%",
-    metricLabel: "Precisión Stock",
-    desc: "Modelo predictivo para evitar quiebres de stock usando Prophet y XGBoost.",
-    colSpan: "md:col-span-1",
-    bg: "bg-purple-950",
-    gradient: "from-purple-900 to-fuchsia-950"
+    title: "Herramientas de uso diario",
+    category: "Producto propio",
+    description: "Utilidades para resolver tareas de desarrollo y diseño: imágenes, códigos QR, datos y más.",
+    details: `${TOOL_COUNT} herramientas disponibles. Abre una, prueba tus propios datos y comprueba el resultado.`,
+    evidence: "Demo interactiva disponible",
+    href: "/herramientas",
+    cta: "Probar herramientas",
+    external: false,
+    icon: Wrench,
   },
-  {
-    id: "yoestoyaqui",
-    title: "Yo Estoy Aquí",
-    category: "Mobile App",
-    metric: "850+",
-    metricLabel: "Comercios Registrados",
-    desc: "App móvil que conecta PyMEs locales con su comunidad. Geolocalización, club de beneficios y portal de gestión.",
-    colSpan: "md:col-span-2",
-    bg: "bg-orange-950",
-    gradient: "from-orange-900 to-amber-950",
-    link: "https://yoestoyaqui.cl"
-  }
 ];
 
 export function ShowcaseSection() {
-  const [_isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   return (
-    <section id="casos" className="relative py-32 px-4 sm:px-6">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0F1724]/0 via-[#0F1724]/50 to-[#0F1724]/0 -z-10 [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]" />
-      <div className="max-w-7xl mx-auto">
-
-        <div className="mb-16">
-          <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
-            Impacto <span className="text-gray-500">Auditado</span>
-          </h2>
-          <p className="text-xl text-gray-400 max-w-2xl">
-            Casos de estudio donde la ingeniería generó valor comercial directo.
-            Sin métricas de vanidad.
-          </p>
-        </div>
-
-        {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {projects.map((proj, i) => {
-            const card = (
-              <motion.div
-                key={proj.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                viewport={{ once: true }}
-                className={cn(
-                  "group relative overflow-hidden rounded-3xl p-8 min-h-[300px] flex flex-col justify-between border border-white/5 hover:border-white/20 transition-all duration-500",
-                  proj.colSpan,
-                  proj.bg
-                )}
-              >
-                {/* Background Gradient */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${proj.gradient} opacity-50 group-hover:opacity-70 transition-opacity duration-500`} />
-
-                {/* Content */}
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-xs font-mono uppercase tracking-widest text-white/60 border border-white/10 px-2 py-1 rounded-full">
-                      {proj.category}
-                    </span>
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                      <ArrowUpRight className="w-4 h-4" />
-                    </div>
-                  </div>
-
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight">
-                    {proj.title}
-                  </h3>
-                  <p className="text-sm text-gray-300 max-w-md">
-                    {proj.desc}
-                  </p>
+    <section id="casos" aria-labelledby="projects-title" className="relative px-4 py-20 sm:px-6 md:py-28">
+      <div className="mx-auto max-w-7xl">
+        <p className="mb-4 text-sm font-medium text-teal-300">Trabajo que puedes conocer</p>
+        <h2 id="projects-title" className="text-3xl font-bold text-white md:text-5xl">De la necesidad al producto</h2>
+        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-neutral-400">Conoce qué construí, para qué sirve y qué puedes explorar en cada proyecto.</p>
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {projects.map((project) => {
+            const Icon = project.icon;
+            return (
+              <article key={project.title} className="flex flex-col rounded-3xl border border-white/10 bg-slate-900/80 p-6 sm:p-8">
+                <Icon aria-hidden="true" className="mb-6 h-8 w-8 text-teal-300" />
+                <p className="text-xs font-medium uppercase tracking-wider text-neutral-400">{project.category}</p>
+                <h3 className="mb-3 mt-2 text-2xl font-semibold text-white">{project.title}</h3>
+                <p className="text-sm leading-relaxed text-neutral-300">{project.description}</p>
+                <p className="mb-6 mt-3 text-sm leading-relaxed text-neutral-400">{project.details}</p>
+                <div className="mt-auto border-t border-white/10 pt-5">
+                  <p className="mb-3 text-xs text-teal-200">{project.evidence}</p>
+                  <Link href={project.href} target={project.external ? "_blank" : undefined} rel={project.external ? "noopener noreferrer" : undefined}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-white transition-colors hover:text-teal-200 focus-visible:outline-2 focus-visible:outline-teal-300">
+                    {project.cta}<ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+                    {project.external && <span className="sr-only">(se abre en otra pestaña)</span>}
+                  </Link>
                 </div>
-
-                {/* Metric */}
-                <div className="relative z-10 pt-8 mt-auto border-t border-white/10">
-                  <div className="text-4xl md:text-5xl font-bold text-white mb-1 tracking-tighter">
-                    {proj.metric}
-                  </div>
-                  <div className="text-xs text-gray-400 uppercase tracking-wider">
-                    {proj.metricLabel}
-                  </div>
-                </div>
-
-              </motion.div>
-            );
-
-            return proj.link ? (
-              <a key={proj.id} href={proj.link} target="_blank" rel="noopener noreferrer" className={proj.colSpan}>
-                {card}
-              </a>
-            ) : (
-              <div key={proj.id} className={proj.colSpan}>
-                {card}
-              </div>
+              </article>
             );
           })}
         </div>
-
-        <div className="mt-12 text-center">
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Route /projects does not exist yet so typed routes fail */}
-          <Link href={"/projects" as any}>
-            <span className="text-gray-500 hover:text-white transition-colors border-b border-transparent hover:border-white pb-0.5 cursor-pointer">
-              Ver archivo completo de casos
-            </span>
-          </Link>
-        </div>
-
+        <Link href="/sobre-mi" className="mt-8 inline-flex min-h-11 items-center rounded-lg text-sm text-neutral-300 underline underline-offset-4 hover:text-white focus-visible:outline-2 focus-visible:outline-teal-300">Conoce mi trayectoria y cómo trabajo</Link>
       </div>
     </section>
   );

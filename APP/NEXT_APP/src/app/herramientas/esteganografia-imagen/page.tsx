@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -209,19 +211,12 @@ export default function ImageSteganographyPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
+        <div className="tool-page">
             {/* Hidden canvas for pixel manipulation */}
             <canvas ref={canvasRef} className="hidden" />
 
-            <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                        Esteganografía en Imágenes
-                    </h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Oculta y extrae texto en imágenes PNG mediante LSB, sin subir archivos
-                    </p>
-                </div>
+            <main className="tool-main max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="esteganografia-imagen" title={<>Esteganografía en Imágenes</>} description={<>Oculta y extrae texto en imágenes PNG mediante LSB, sin subir archivos</>} />
 
                 {/* Mode Toggle */}
                 <div className="flex gap-2 bg-white/5 rounded-xl p-2 border border-white/10 mb-6">

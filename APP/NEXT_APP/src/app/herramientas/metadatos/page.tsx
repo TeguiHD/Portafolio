@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -645,16 +647,9 @@ export default function MetadataPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                        Metadatos EXIF y limpieza
-                    </h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Revisa datos EXIF, ubicación GPS y genera una copia limpia de la imagen
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="metadatos" title={<>Metadatos EXIF y limpieza</>} description={<>Revisa datos EXIF, ubicación GPS y genera una copia limpia de la imagen</>} />
 
                 {/* Upload Zone */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10 mb-6">
@@ -795,7 +790,7 @@ export default function MetadataPage() {
                                         className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
                                         style={{ background: `${ACCENT}40` }}
                                     >
-                                        ⬇️ Descargar
+                                        Descargar
                                     </button>
                                 </div>
                             </div>

@@ -1,29 +1,59 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
-import Link from "next/link";
+import { Suspense, useState, useRef, useMemo, useEffect, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useSearchParams } from "next/navigation";
+import { Box, QrCode, Download, Check, Upload, X, ArrowUpRight, ShieldCheck, LoaderCircle, AlertCircle, Palette, ScanLine } from "lucide-react";
 import { ColorPicker } from "@/components/ui/ColorPicker";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { ArModelEditor, arValidation } from "@/components/qr/ArModelEditor";
 import { renderQRToCanvas, renderQRToSVG, type QRStyle, type EyeStyle } from "@/utils/qr-renderer";
 import {
-    QR_TYPES, QR_CATEGORIES, QRType, QRCategory, getTypesByCategory,
+    QR_TYPES, type QRType,
     formatURL, formatEmail, formatPhone, formatSMS, formatWhatsApp,
     formatWiFi, formatVCard, formatMeCard, formatLocation, formatEvent, formatBitcoin,
-    EmailData, SMSData, WhatsAppData, WiFiData, VCardData, MeCardData, LocationData, EventData, BitcoinData, MapFormat,
+    type EmailData, type SMSData, type WhatsAppData, type WiFiData, type VCardData, type MeCardData, type LocationData, type EventData, type BitcoinData, type MapFormat,
     formatAR, type ARData,
 } from "@/utils/qr-data-formats";
 import { getTypeIconDataURL } from "@/utils/qr-type-icons";
-import { QR_TYPE_ICONS, QR_CATEGORY_ICONS, MAP_FORMAT_ICONS } from "@/components/qr/QRIcons";
+import { QR_TYPE_ICONS, MAP_FORMAT_ICONS } from "@/components/qr/QRIcons";
 
-type AccordionSection = "design" | null;
+const templates = [
+    { name: "Esencial", fg: "#111827", bg: "#ffffff", style: "square" as QRStyle },
+    { name: "Botánico", fg: "#14532d", bg: "#f0fdf4", style: "rounded" as QRStyle },
+    { name: "Editorial", fg: "#312e81", bg: "#f5f3ff", style: "dots" as QRStyle },
+    { name: "Terracota", fg: "#7c2d12", bg: "#fff7ed", style: "rounded" as QRStyle },
+];
+const shapeNames: Record<string, string> = { square: "Cuadrado", rounded: "Redondeado", dots: "Puntos", classy: "Esquinas", diamond: "Diamante", circle: "Círculo", leaf: "Hoja" };
+
+function luminance(hex: string) {
+    const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255).map((v) => v <= 0.04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+    return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+}
+function contrast(a: string, b: string) { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+function saveFile(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = filename;
+    document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+function QrInput({ label, ...props }: InputHTMLAttributes<HTMLInputElement> & { label?: string }) {
+    return <label className="studio-field">{label ?? props.placeholder ?? "Valor"}<input {...props} /></label>;
+}
+function QrTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+    return <label className="studio-field">{props.placeholder ?? "Contenido"}<textarea {...props} /></label>;
+}
 
 export default function QRGeneratorPage() {
-    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("qr");
-    const [qrType, setQrType] = useState<QRType>("url");
-    const [activeCategory, setActiveCategory] = useState<QRCategory>("basic");
+    return <Suspense fallback={<div className="p-8 text-sm text-slate-400">Cargando editor QR…</div>}><QRStudio /></Suspense>;
+}
 
+function QRStudio() {
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("qr");
+    const searchParams = useSearchParams();
+    const [qrType, setQrType] = useState<QRType>("url");
     const [urlData, setUrlData] = useState("https://nicoholas.dev");
     const [textData, setTextData] = useState("");
     const [emailData, setEmailData] = useState<EmailData>({ to: "" });
@@ -38,7 +68,7 @@ export default function QRGeneratorPage() {
     const [bitcoinData, setBitcoinData] = useState<BitcoinData>({ address: "" });
     const [arData, setArData] = useState<ARData>({ title: "", glb: "", usdz: "", poster: "" });
 
-    const [size, setSize] = useState(1080);
+    const [size, setSize] = useState(1024);
     const [fgColor, setFgColor] = useState("#000000");
     const [bgColor, setBgColor] = useState("#ffffff");
     const [eyeColor, setEyeColor] = useState("#000000");
@@ -51,13 +81,23 @@ export default function QRGeneratorPage() {
     const [gradientTo, setGradientTo] = useState("#00B8A9");
     const [gradientAngle, setGradientAngle] = useState(135);
 
-    const [openSection, setOpenSection] = useState<AccordionSection>("design");
-    const [isGenerated, setIsGenerated] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
 
+    const [renderedKey, setRenderedKey] = useState("");
+    const [generationError, setGenerationError] = useState<string | null>(null);
+    const [logoError, setLogoError] = useState<string | null>(null);
+    const [exporting, setExporting] = useState(false);
+    const [exportMessage, setExportMessage] = useState("");
+    const [filename, setFilename] = useState("mi-codigo-qr");
+    const [designTab, setDesignTab] = useState<"presets" | "custom">("presets");
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const logoRequest = useRef(0);
     const { trackImmediate } = useToolTracking("qr", { trackViewOnMount: true, debounceMs: 2000 });
-
+    const trackRef = useRef(trackImmediate);
+    useEffect(() => { trackRef.current = trackImmediate; }, [trackImmediate]);
+    useEffect(() => {
+        const type = searchParams.get("tipo");
+        if (QR_TYPES.some((item) => item.id === type)) setQrType(type as QRType);
+    }, [searchParams]);
     const qrContent = useMemo(() => {
         switch (qrType) {
             case "url": return formatURL(urlData);
@@ -88,142 +128,111 @@ export default function QRGeneratorPage() {
         [useGradient, fgColor, gradientTo, gradientAngle]
     );
 
-    // Generación en vivo: cualquier cambio de contenido o diseño re-renderiza el
-    // canvas tras 250 ms, sin botón. Todo ocurre en el navegador. El evento
-    // "generate" se registra como mucho una vez cada 5 s para no inundar analytics.
+
+    const arError = qrType === "ar" ? arValidation(arData) : null;
+    const renderOptions = useMemo(() => ({ text: qrContent, size, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: errorLevel, gradient, margin: 4 }), [qrContent, size, bgColor, fgColor, eyeColor, style, eyeStyle, activeLogo, errorLevel, gradient]);
+    const renderKey = JSON.stringify(renderOptions);
+    const canDownload = !!qrContent && !arError && !generationError && renderedKey === renderKey;
+    const updating = !!qrContent && !arError && renderedKey !== renderKey && !generationError;
+    const minimumContrast = Math.min(contrast(fgColor, bgColor), contrast(eyeColor, bgColor), ...(useGradient ? [contrast(gradientTo, bgColor)] : []));
+    const lowContrast = minimumContrast < 4.5 || luminance(fgColor) > luminance(bgColor);
     const lastGenerateTrack = useRef(0);
+
     useEffect(() => {
-        if (!qrContent || !canvasRef.current) {
-            setIsGenerated(false);
-            return;
-        }
+        setGenerationError(null);
+        setExportMessage("");
+        if (!qrContent || arError || isLoading || !isAuthorized) return;
         let cancelled = false;
-        setIsGenerating(true);
-        const timer = setTimeout(async () => {
-            if (!canvasRef.current) return;
-            await renderQRToCanvas(canvasRef.current, {
-                text: qrContent, size, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: errorLevel, gradient,
-            });
-            if (cancelled) return;
-            setIsGenerated(true);
-            setIsGenerating(false);
-            const now = Date.now();
-            if (now - lastGenerateTrack.current > 5000) {
-                lastGenerateTrack.current = now;
-                trackImmediate("generate", { type: qrType });
+        const timer = window.setTimeout(async () => {
+            try {
+                // Render aislado: un logo lento nunca puede sobreescribir un QR posterior.
+                const draft = document.createElement("canvas");
+                await renderQRToCanvas(draft, renderOptions);
+                if (cancelled || !canvasRef.current) return;
+                const canvas = canvasRef.current;
+                const context = canvas.getContext("2d");
+                if (!context) throw new Error("Canvas no disponible");
+                canvas.width = draft.width; canvas.height = draft.height;
+                context.drawImage(draft, 0, 0);
+                setRenderedKey(renderKey);
+                if (Date.now() - lastGenerateTrack.current > 5000) {
+                    lastGenerateTrack.current = Date.now();
+                    trackRef.current("generate", { type: qrType });
+                }
+            } catch {
+                if (!cancelled) setGenerationError("No se pudo generar este QR. Reduce el contenido o cambia la corrección de errores e inténtalo de nuevo.");
             }
         }, 250);
-        return () => {
-            cancelled = true;
-            clearTimeout(timer);
-        };
-        // trackImmediate se excluye a propósito: es estable y meterlo re-dispararía el efecto.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [qrContent, size, fgColor, bgColor, eyeColor, style, eyeStyle, activeLogo, errorLevel, gradient, qrType]);
+        return () => { cancelled = true; window.clearTimeout(timer); };
+    }, [renderKey, renderOptions, qrContent, arError, qrType, isLoading, isAuthorized]);
 
-    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => { setLogo(ev.target?.result as string); setUseTypeIcon(false); };
-            reader.readAsDataURL(file);
+    function selectType(type: QRType) {
+        setQrType(type);
+        const url = new URL(window.location.href);
+        url.searchParams.set("tipo", type);
+        window.history.replaceState(null, "", url);
+    }
+
+    async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        const request = ++logoRequest.current;
+        setLogoError(null);
+        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) {
+            setLogoError("Elige una imagen PNG, JPG o WebP de hasta 2 MB."); return;
         }
-    };
-
-    const downloadQR = () => {
-        if (!canvasRef.current || !isGenerated) return;
-        // toBlob evita construir un data URL base64 gigante en memoria.
-        canvasRef.current.toBlob((blob) => {
-            if (!blob) return;
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.download = `qr-${qrType}-${Date.now()}.png`;
-            link.href = url;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }, "image/png");
-        trackImmediate("download", { type: qrType, format: "png" });
-    };
-
-    const downloadSVG = async () => {
-        if (!qrContent || !isGenerated) return;
-        const svg = await renderQRToSVG({
-            text: qrContent, size, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: errorLevel, gradient,
-        });
-        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-        const link = document.createElement("a");
-        link.download = `qr-${qrType}-${Date.now()}.svg`;
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        trackImmediate("download", { type: qrType, format: "svg" });
-    };
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
+        try {
+            const bitmap = await createImageBitmap(file);
+            const draft = document.createElement("canvas");
+            const ratio = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+            draft.width = Math.max(1, Math.round(bitmap.width * ratio)); draft.height = Math.max(1, Math.round(bitmap.height * ratio));
+            draft.getContext("2d")!.drawImage(bitmap, 0, 0, draft.width, draft.height);
+            bitmap.close();
+            if (request !== logoRequest.current) return;
+            setLogo(draft.toDataURL("image/png")); setUseTypeIcon(false); setErrorLevel("H");
+        } catch { if (request === logoRequest.current) setLogoError("No pudimos leer esa imagen. Prueba con otro archivo."); }
     }
 
-    if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador QR"} />;
+    async function download(format: "png" | "svg") {
+        if (!canDownload || exporting || !canvasRef.current) return;
+        setExporting(true); setExportMessage("");
+        try {
+            const blob = format === "svg"
+                ? new Blob([await renderQRToSVG(renderOptions)], { type: "image/svg+xml;charset=utf-8" })
+                : await new Promise<Blob>((resolve, reject) => canvasRef.current!.toBlob((value) => value ? resolve(value) : reject(new Error("Export failed")), "image/png"));
+            saveFile(blob, `${filename.trim().replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80) || "mi-codigo-qr"}.${format}`);
+            setExportMessage(`Descarga ${format.toUpperCase()} preparada.`);
+            trackRef.current("download", { type: qrType, format });
+        } catch { setExportMessage("No pudimos preparar la descarga. Inténtalo de nuevo."); }
+        finally { setExporting(false); }
     }
 
-    const presetColors = [
-        { fg: "#000000", bg: "#ffffff" }, { fg: "#FFFFFF", bg: "#000000" },
-        { fg: "#1e3a8a", bg: "#dbeafe" }, { fg: "#166534", bg: "#dcfce7" },
-        { fg: "#9333ea", bg: "#faf5ff" }, { fg: "#FF8A00", bg: "#0F1724" },
-    ];
-    const inputClass = "w-full px-3 py-2.5 rounded-xl bg-[#0F1724] border border-white/10 text-white text-sm focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500";
-
-    const TypeIcon = QR_TYPE_ICONS[qrType];
-    const currentTypeConfig = QR_TYPES.find(t => t.id === qrType);
-
+    if (isLoading) return <div className="flex min-h-80 items-center justify-center gap-3 text-sm text-slate-400"><LoaderCircle className="animate-spin" size={20} />Cargando editor…</div>;
+    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador QR"} />;
+    const inputClass = "w-full rounded-lg border border-white/10 bg-[#0b111a] px-3 py-3 text-sm text-white placeholder:text-slate-500";
+    const currentTypeConfig = QR_TYPES.find((item) => item.id === qrType);
     const renderTypeForm = () => {
         switch (qrType) {
-            case "url": return <input type="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); }} placeholder="https://ejemplo.com" className={inputClass} />;
-            case "text": return <textarea value={textData} onChange={(e) => { setTextData(e.target.value); }} placeholder="Escribe cualquier texto..." className={`${inputClass} h-24 resize-none`} />;
-            case "email": return (<div className="space-y-2"><input type="email" placeholder="correo@ejemplo.com" className={inputClass} value={emailData.to} onChange={(e) => { setEmailData({ ...emailData, to: e.target.value }); }} /><input type="text" placeholder="Asunto" className={inputClass} value={emailData.subject || ""} onChange={(e) => { setEmailData({ ...emailData, subject: e.target.value }); }} /><textarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={emailData.body || ""} onChange={(e) => { setEmailData({ ...emailData, body: e.target.value }); }} /></div>);
-            case "phone": return <input type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); }} placeholder="+56 9 1234 5678" className={inputClass} />;
-            case "sms": return (<div className="space-y-2"><input type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); }} /><textarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); }} /></div>);
-            case "whatsapp": return (<div className="space-y-2"><input type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); }} /><textarea placeholder="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); }} /></div>);
-            case "wifi": return (<div className="space-y-2"><input type="text" placeholder="Nombre de red (SSID)" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><input type="password" placeholder="Contraseña" className={inputClass} value={wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} /><select className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></div>);
-            case "vcard": return (<div className="space-y-2"><select className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (Recomendado)</option><option value="2.1">vCard 2.1 (Legacy)</option></select><div className="grid grid-cols-2 gap-2"><input type="text" placeholder="Nombre *" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><input type="text" placeholder="Apellido" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><input type="tel" placeholder="Teléfono" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><input type="tel" placeholder="Celular" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><input type="email" placeholder="Email" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><input type="text" placeholder="Empresa" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /></div>);
-            case "mecard": return (<div className="space-y-2"><input type="text" placeholder="Nombre completo *" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><input type="tel" placeholder="Teléfono" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><input type="email" placeholder="Email" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /></div>);
-            case "ar":
-                return (
-                    <div className="space-y-3">
-                        <input type="text" placeholder="Título (ej. Pizza Margarita)" className={inputClass} maxLength={80} value={arData.title} onChange={(e) => setArData({ ...arData, title: e.target.value })} />
-                        <input type="url" placeholder="URL del modelo .glb (Android) *" className={inputClass} value={arData.glb ?? ""} onChange={(e) => setArData({ ...arData, glb: e.target.value })} />
-                        <input type="url" placeholder="URL del modelo .usdz (iPhone/iPad, opcional)" className={inputClass} value={arData.usdz ?? ""} onChange={(e) => setArData({ ...arData, usdz: e.target.value })} />
-                        <input type="url" placeholder="URL del póster .png/.jpg (opcional)" className={inputClass} value={arData.poster ?? ""} onChange={(e) => setArData({ ...arData, poster: e.target.value })} />
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#FF8A00]/25 bg-[#FF8A00]/10 px-3 py-2 text-xs text-neutral-300">
-                            <span>Al escanearlo, el móvil abre el modelo en AR. La URL es larga: con corrección <strong className="text-white">M</strong> el QR queda menos denso.</span>
-                            {errorLevel !== "M" && (
-                                <button type="button" onClick={() => setErrorLevel("M")} className="rounded-lg border border-[#FF8A00]/40 px-3 py-1.5 font-semibold text-[#FF8A00]">Usar M</button>
-                            )}
-                        </div>
-                        <p className="text-[11px] text-neutral-500">
-                            Los modelos se alojan donde tú quieras; este sitio no los descarga ni los guarda.{" "}
-                            <a href="/ar" target="_blank" rel="noopener" className="underline">Cómo funciona</a>
-                        </p>
-                    </div>
-                );
+            case "url": return <QrInput type="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); }} placeholder="https://ejemplo.com" className={inputClass} />;
+            case "text": return <QrTextarea value={textData} onChange={(e) => { setTextData(e.target.value); }} placeholder="Escribe cualquier texto..." className={`${inputClass} h-24 resize-none`} />;
+            case "email": return (<div className="space-y-2"><QrInput type="email" placeholder="correo@ejemplo.com" className={inputClass} value={emailData.to} onChange={(e) => { setEmailData({ ...emailData, to: e.target.value }); }} /><QrInput type="text" placeholder="Asunto" className={inputClass} value={emailData.subject || ""} onChange={(e) => { setEmailData({ ...emailData, subject: e.target.value }); }} /><QrTextarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={emailData.body || ""} onChange={(e) => { setEmailData({ ...emailData, body: e.target.value }); }} /></div>);
+            case "phone": return <QrInput type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); }} placeholder="+56 9 1234 5678" className={inputClass} />;
+            case "sms": return (<div className="space-y-2"><QrInput type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); }} /><QrTextarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); }} /></div>);
+            case "whatsapp": return (<div className="space-y-2"><QrInput type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); }} /><QrTextarea placeholder="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); }} /></div>);
+            case "wifi": return (<div className="space-y-2"><QrInput type="text" placeholder="Nombre de red (SSID)" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><QrInput type="password" placeholder="Contraseña" className={inputClass} value={wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} /><select aria-label="Seguridad de la red WiFi" className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></div>);
+            case "vcard": return (<div className="space-y-2"><select aria-label="Versión de vCard" className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (Recomendado)</option><option value="2.1">vCard 2.1 (Legacy)</option></select><div className="grid grid-cols-2 gap-2"><QrInput type="text" placeholder="Nombre *" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><QrInput type="text" placeholder="Apellido" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><QrInput type="tel" placeholder="Teléfono" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><QrInput type="tel" placeholder="Celular" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><QrInput type="email" placeholder="Email" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><QrInput type="text" placeholder="Empresa" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /></div>);
+            case "mecard": return (<div className="space-y-2"><QrInput type="text" placeholder="Nombre completo *" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><QrInput type="tel" placeholder="Teléfono" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><QrInput type="email" placeholder="Email" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /></div>);
+            case "ar": return <ArModelEditor data={arData} onChange={setArData} />;
             case "location":
                 return (
                     <div className="space-y-3">
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 flex-wrap" role="group" aria-label="Aplicación de mapas">
                             {(["google", "apple", "waze", "geo"] as MapFormat[]).map((f) => {
                                 const Icon = MAP_FORMAT_ICONS[f];
                                 const labels = { google: "Google Maps", apple: "Apple Maps", waze: "Waze", geo: "Universal" };
                                 return (
-                                    <button key={f} type="button" onClick={() => { setLocationData({ ...locationData, format: f }); }}
+                                    <button key={f} type="button" aria-pressed={locationData.format === f} onClick={() => { setLocationData({ ...locationData, format: f }); }}
                                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${locationData.format === f ? "bg-[#FF8A00]/20 border border-[#FF8A00] text-white" : "bg-white/5 border border-white/10 text-neutral-400"}`}>
                                         <Icon className="w-4 h-4" />
                                         <span>{labels[f]}</span>
@@ -231,248 +240,97 @@ export default function QRGeneratorPage() {
                                 );
                             })}
                         </div>
-                        <input type="text" placeholder="Dirección o nombre del lugar" className={inputClass} value={locationData.query || ""} onChange={(e) => { setLocationData({ ...locationData, query: e.target.value }); }} />
+                        <QrInput type="text" placeholder="Dirección o nombre del lugar" className={inputClass} value={locationData.query || ""} onChange={(e) => { setLocationData({ ...locationData, query: e.target.value }); }} />
                         <details className="text-xs">
                             <summary className="text-neutral-500 cursor-pointer hover:text-neutral-300">Coordenadas exactas (opcional)</summary>
                             <div className="grid grid-cols-2 gap-2 mt-2">
-                                <input type="number" step="any" placeholder="Latitud" className={inputClass} value={locationData.latitude || ""} onChange={(e) => { setLocationData({ ...locationData, latitude: parseFloat(e.target.value) || undefined }); }} />
-                                <input type="number" step="any" placeholder="Longitud" className={inputClass} value={locationData.longitude || ""} onChange={(e) => { setLocationData({ ...locationData, longitude: parseFloat(e.target.value) || undefined }); }} />
+                                <QrInput type="number" step="any" placeholder="Latitud" className={inputClass} value={locationData.latitude ?? ""} onChange={(e) => { setLocationData({ ...locationData, latitude: e.target.value === "" ? undefined : Number(e.target.value) }); }} />
+                                <QrInput type="number" step="any" placeholder="Longitud" className={inputClass} value={locationData.longitude ?? ""} onChange={(e) => { setLocationData({ ...locationData, longitude: e.target.value === "" ? undefined : Number(e.target.value) }); }} />
                             </div>
                         </details>
                     </div>
                 );
-            case "event": return (<div className="space-y-2"><input type="text" placeholder="Título *" className={inputClass} value={eventData.title} onChange={(e) => { setEventData({ ...eventData, title: e.target.value }); }} /><input type="text" placeholder="Lugar" className={inputClass} value={eventData.location || ""} onChange={(e) => { setEventData({ ...eventData, location: e.target.value }); }} /><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-neutral-500">Inicio *</label><input type="datetime-local" className={inputClass} value={eventData.startDate} onChange={(e) => { setEventData({ ...eventData, startDate: e.target.value }); }} /></div><div><label className="text-[10px] text-neutral-500">Fin</label><input type="datetime-local" className={inputClass} value={eventData.endDate || ""} onChange={(e) => { setEventData({ ...eventData, endDate: e.target.value }); }} /></div></div></div>);
-            case "bitcoin": return (<div className="space-y-2"><input type="text" placeholder="Dirección Bitcoin *" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); }} /><input type="number" step="0.00000001" placeholder="Cantidad (opcional)" className={inputClass} value={bitcoinData.amount || ""} onChange={(e) => { setBitcoinData({ ...bitcoinData, amount: e.target.value ? parseFloat(e.target.value) : undefined }); }} /></div>);
+            case "event": return (<div className="space-y-2"><QrInput type="text" placeholder="Título *" className={inputClass} value={eventData.title} onChange={(e) => { setEventData({ ...eventData, title: e.target.value }); }} /><QrInput type="text" placeholder="Lugar" className={inputClass} value={eventData.location || ""} onChange={(e) => { setEventData({ ...eventData, location: e.target.value }); }} /><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-neutral-500">Inicio *</label><QrInput type="datetime-local" label="Fecha y hora de inicio" className={inputClass} value={eventData.startDate} onChange={(e) => { setEventData({ ...eventData, startDate: e.target.value }); }} /></div><div><label className="text-[10px] text-neutral-500">Fin</label><QrInput type="datetime-local" label="Fecha y hora de fin" className={inputClass} value={eventData.endDate || ""} onChange={(e) => { setEventData({ ...eventData, endDate: e.target.value }); }} /></div></div></div>);
+            case "bitcoin": return (<div className="space-y-2"><QrInput type="text" placeholder="Dirección Bitcoin *" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); }} /><QrInput type="number" step="0.00000001" placeholder="Cantidad (opcional)" className={inputClass} value={bitcoinData.amount || ""} onChange={(e) => { setBitcoinData({ ...bitcoinData, amount: e.target.value ? parseFloat(e.target.value) : undefined }); }} /></div>);
             default: return null;
         }
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                {/* Header */}
-                <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF8A00]/20 to-[#00B8A9]/10 border border-[#FF8A00]/30 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-[#FF8A00]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Generador de Códigos QR</h1>
-                            <p className="text-sm text-neutral-400">Crea códigos QR profesionales gratis • Sin marcas de agua • Alta calidad</p>
-                        </div>
+        <div className="tool-page">
+            <main className="tool-main mx-auto max-w-7xl px-4 sm:px-8">
+                <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
+                    <div><p className="studio-eyebrow mb-3 text-teal-300">QR STUDIO</p><h1 className="text-2xl font-semibold text-white sm:text-3xl">Generador de Códigos QR</h1><p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">De un enlace a una experiencia 3D. Configura, personaliza y descarga un QR que se sienta tuyo.</p></div>
+                    <span className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-[11px] text-slate-400"><ShieldCheck size={14} aria-hidden="true" />QR generado en tu navegador</span>
+                </header>
+                <nav aria-label="Secciones del editor QR" className="sticky top-16 z-20 mb-5 flex gap-2 rounded-xl border border-white/10 bg-[#0d131d] p-2 lg:hidden">
+                    <a href="#qr-edit" className="studio-button flex-1">Editar contenido</a>
+                    <a href="#qr-preview" className="studio-button studio-button-primary flex-1">Ver QR y descargar</a>
+                </nav>
+                <div className="qr-workbench">
+                    <div id="qr-edit" className="min-w-0 scroll-mt-36 space-y-5">
+                        <section className="studio-panel">
+                            <div className="studio-panel-heading"><p className="studio-eyebrow mb-1">01 / EL DESTINO</p><h2 className="text-sm font-semibold text-white">¿Qué sucede al escanearlo?</h2></div>
+                            <div className="p-4 sm:p-5">
+                                <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label="Tipo de código QR">
+                                    {[...QR_TYPES.filter((item) => item.id === "ar"), ...QR_TYPES.filter((item) => item.id !== "ar")].map((type) => {
+                                        const Icon = QR_TYPE_ICONS[type.id];
+                                        return <button key={type.id} type="button" onClick={() => selectType(type.id)} aria-pressed={qrType === type.id} className={`flex min-h-14 items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-xs transition-colors ${qrType === type.id ? "border-teal-300/40 bg-teal-300/10 text-teal-200" : type.id === "ar" ? "border-violet-300/20 bg-violet-300/5 text-violet-200 hover:bg-violet-300/10" : "border-white/[0.06] text-slate-400 hover:border-white/15 hover:bg-white/5"}`}><Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span>{type.label}</span>{qrType === type.id && <Check size={12} aria-hidden="true" className="ml-auto shrink-0" />}</button>;
+                                    })}
+                                </div>
+                                <div className="mb-4 border-t border-white/[0.06] pt-4"><h3 className="text-sm font-medium text-white">{currentTypeConfig?.label === "URL" ? "El enlace que quieres compartir" : currentTypeConfig?.label}</h3><p className="mt-1 text-xs text-slate-500">{qrType === "ar" ? "Prepara los modelos y comprueba la experiencia antes de imprimir." : "El QR se actualiza mientras editas. No hace falta pulsar generar."}</p></div>
+                                {renderTypeForm()}
+                            </div>
+                        </section>
+                        <section className="studio-panel">
+                            <div className="studio-panel-heading flex items-center justify-between gap-3"><div><p className="studio-eyebrow mb-1">02 / TU IDENTIDAD</p><h2 className="text-sm font-semibold text-white">Diseño y marca</h2></div><Palette size={18} aria-hidden="true" className="text-slate-500" /></div>
+                            <div className="space-y-5 p-4 sm:p-5">
+                                <div role="group" aria-label="Opciones de diseño" className="flex gap-1 rounded-xl bg-black/15 p-1"><button type="button" aria-pressed={designTab === "presets"} onClick={() => setDesignTab("presets")} className="studio-segment flex-1">Estilos listos</button><button type="button" aria-pressed={designTab === "custom"} onClick={() => setDesignTab("custom")} className="studio-segment flex-1">Personalizar</button></div>
+                                {designTab === "presets" ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{templates.map((template) => <button key={template.name} type="button" aria-pressed={fgColor === template.fg && bgColor === template.bg && style === template.style && !useGradient} onClick={() => { setFgColor(template.fg); setBgColor(template.bg); setEyeColor(template.fg); setStyle(template.style); setEyeStyle("rounded"); setUseGradient(false); }} className="rounded-xl border border-white/10 p-2.5 text-xs text-slate-300 transition-colors hover:border-white/30"><span className="mb-2 flex h-16 items-center justify-center rounded-lg" style={{ background: template.bg, color: template.fg }}><QrCode size={38} strokeWidth={1.5} aria-hidden="true" /></span>{template.name}</button>)}</div> : <div className="space-y-5">
+                                    <div className="grid grid-cols-3 gap-3"><ColorPicker label="Fondo" color={bgColor} onChange={setBgColor} /><ColorPicker label="Cuerpo" color={fgColor} onChange={setFgColor} /><ColorPicker label="Ojos" color={eyeColor} onChange={setEyeColor} /></div>
+                                    <label className="flex min-h-11 items-center gap-3 text-xs text-slate-300"><input type="checkbox" checked={useGradient} onChange={(event) => setUseGradient(event.target.checked)} className="h-4 w-4 accent-teal-300" />Usar un degradado</label>
+                                    {useGradient && <div className="grid grid-cols-2 items-center gap-4"><ColorPicker label="Segundo color" color={gradientTo} onChange={setGradientTo} /><label className="studio-field">Ángulo: {gradientAngle}°<input type="range" min="0" max="360" step="15" value={gradientAngle} onChange={(event) => setGradientAngle(Number(event.target.value))} /></label></div>}
+                                    <div><p className="mb-2 text-xs text-slate-400">Forma del cuerpo</p><div className="flex flex-wrap gap-1" role="group" aria-label="Forma del cuerpo">{(["square", "rounded", "dots", "classy", "diamond"] as QRStyle[]).map((shape) => <button type="button" key={shape} aria-pressed={style === shape} onClick={() => setStyle(shape)} className="studio-segment">{shapeNames[shape]}</button>)}</div></div>
+                                    <div><p className="mb-2 text-xs text-slate-400">Forma de los ojos</p><div className="flex flex-wrap gap-1" role="group" aria-label="Forma de los ojos">{(["square", "rounded", "circle", "leaf", "diamond"] as EyeStyle[]).map((shape) => <button type="button" key={shape} aria-pressed={eyeStyle === shape} onClick={() => setEyeStyle(shape)} className="studio-segment">{shapeNames[shape]}</button>)}</div></div>
+                                </div>}
+                                <div className="border-t border-white/[0.06] pt-5"><p className="mb-3 text-xs font-medium text-slate-300">Logo central <span className="font-normal text-slate-500">/ opcional</span></p><div className="flex flex-wrap gap-2">
+                                    <label className="studio-button cursor-pointer focus-within:outline-2 focus-within:outline-teal-300"><Upload size={15} aria-hidden="true" />{logo ? "Cambiar logo" : "Subir logo"}<input type="file" aria-label="Subir logo" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} className="sr-only" /></label>
+                                    <button type="button" aria-pressed={useTypeIcon && !logo} onClick={() => { logoRequest.current++; setUseTypeIcon(!useTypeIcon); setLogo(null); setErrorLevel("H"); }} className="studio-button"><QrCode size={15} aria-hidden="true" />Icono del contenido</button>
+                                    {(logo || useTypeIcon) && <button type="button" onClick={() => { logoRequest.current++; setLogo(null); setUseTypeIcon(false); }} className="studio-button" aria-label="Quitar logo"><X size={15} />Quitar</button>}
+                                </div><p className="mt-2 text-[11px] text-slate-500">PNG, JPG o WebP · hasta 2 MB. Al añadir un logo se activa la corrección H.</p>{logoError && <p role="alert" className="mt-2 text-xs text-amber-200">{logoError}</p>}</div>
+                            </div>
+                        </section>
                     </div>
-                </div>
-
-                {/* Category Tabs */}
-                <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
-                    {QR_CATEGORIES.map((cat) => {
-                        const CatIcon = QR_CATEGORY_ICONS[cat.id];
-                        return (
-                            <button key={cat.id} onClick={() => { setActiveCategory(cat.id); const types = getTypesByCategory(cat.id); if (types.length) setQrType(types[0].id); }}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeCategory === cat.id ? "bg-[#FF8A00] text-white" : "bg-white/5 text-neutral-400 hover:bg-white/10 border border-white/10"}`}>
-                                <CatIcon className="w-4 h-4" />
-                                <span>{cat.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Type Pills */}
-                <div className="mb-6 flex gap-2 flex-wrap">
-                    {getTypesByCategory(activeCategory).map((type) => {
-                        const Icon = QR_TYPE_ICONS[type.id];
-                        return (
-                            <button key={type.id} onClick={() => { setQrType(type.id); }}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${qrType === type.id ? "bg-white/20 text-white border border-white/30" : "bg-white/5 text-neutral-400 hover:bg-white/10"}`}>
-                                <Icon className="w-3.5 h-3.5" />
-                                <span>{type.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left: Preview */}
-                    <div className="lg:col-span-4 order-1 lg:order-none">
-                        <div className="lg:sticky lg:top-20 space-y-4">
-                            <div className="p-4 rounded-2xl border border-white/10 bg-white/5">
-                                <div className="flex items-center justify-center">
-                                    <div className="w-full max-w-[280px] rounded-xl overflow-hidden shadow-2xl p-3" style={{ backgroundColor: bgColor }}>
-                                        <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: isGenerated ? "block" : "none", opacity: isGenerating ? 0.6 : 1, transition: "opacity 150ms ease-out" }} />
-                                        {!isGenerated && (
-                                            <div className="aspect-square flex flex-col items-center justify-center bg-neutral-200 rounded-lg gap-3">
-                                                {TypeIcon && <TypeIcon className="w-12 h-12 text-neutral-400" />}
-                                                <span className="text-neutral-500 text-xs text-center px-4">Escribe un enlace o texto y el QR aparece al instante</span>
-                                            </div>
-                                        )}
-                                    </div>
+                    <aside id="qr-preview" className="qr-preview min-w-0 scroll-mt-36 space-y-4" aria-label="Vista previa y descarga">
+                        <section className="studio-panel overflow-hidden">
+                            <div className="studio-panel-heading flex items-center justify-between gap-2"><h2 className="text-sm font-medium text-white">Tu código QR</h2><span role="status" className={`flex items-center gap-1.5 text-[11px] ${canDownload ? "text-teal-300" : "text-slate-400"}`}>{updating ? <LoaderCircle size={12} className="animate-spin" aria-hidden="true" /> : canDownload ? <span className="h-1.5 w-1.5 rounded-full bg-teal-300" /> : null}{updating ? "Actualizando…" : canDownload ? "Listo para descargar" : "Esperando contenido"}</span></div>
+                            <div className="relative flex min-h-[300px] items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(94,234,212,0.05),transparent_75%)] p-6 sm:p-8">
+                                <div className="aspect-square w-full max-w-[280px] overflow-hidden rounded-xl bg-white shadow-xl shadow-black/15">
+                                    <canvas ref={canvasRef} role="img" aria-label="Vista previa del código QR" className={`h-full w-full ${!canDownload && !updating ? "hidden" : "block"}`} style={{ opacity: canDownload ? 1 : .35 }} />
+                                    {!canDownload && !updating && <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center"><QrCode className="h-14 w-14 text-slate-300" strokeWidth={1} aria-hidden="true" /><p className="text-xs leading-relaxed text-slate-500">Completa el contenido para ver tu QR.</p></div>}
                                 </div>
                             </div>
-
-                            {isGenerated && (
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button onClick={downloadQR} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#00B8A9] to-[#00a89b] text-white font-semibold">
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                        PNG HD
-                                    </button>
-                                    <button onClick={downloadSVG} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/15 bg-white/5 text-white font-semibold hover:bg-white/10 transition-colors">
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                        SVG
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right: Controls */}
-                    <div className="lg:col-span-8 space-y-4">
-                        {/* Content Card */}
-                        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] overflow-hidden">
-                            <div className="px-5 py-4 border-b border-white/10 bg-gradient-to-r from-[#FF8A00]/10 to-transparent flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-[#FF8A00]/20 border border-[#FF8A00]/30 flex items-center justify-center">
-                                    {TypeIcon && <TypeIcon className="w-6 h-6 text-[#FF8A00]" />}
-                                </div>
-                                <div className="flex-1">
-                                    <h2 className="text-white font-semibold">{currentTypeConfig?.label}</h2>
-                                    <p className="text-xs text-neutral-400">{currentTypeConfig?.description}</p>
-                                </div>
+                            <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 py-3 text-center"><div><p className="text-[10px] text-slate-500">DIMENSIONES</p><p className="mt-1 text-xs text-white">{size} × {size}</p></div><div><p className="text-[10px] text-slate-500">FORMATO</p><p className="mt-1 text-xs text-white">PNG / SVG</p></div><div><p className="text-[10px] text-slate-500">MARGEN</p><p className="mt-1 text-xs text-white">4 módulos</p></div></div>
+                        </section>
+                        {(generationError || arError) && <p role="alert" className="flex items-start gap-2 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-xs leading-relaxed text-amber-200"><AlertCircle size={16} className="shrink-0" aria-hidden="true" />{generationError || arError}</p>}
+                        {lowContrast && <p role="status" className="rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-xs leading-relaxed text-amber-200">Estos colores pueden dificultar la lectura. Usa un cuerpo oscuro sobre fondo claro y prueba el QR con tu móvil antes de imprimir.</p>}
+                        <section className="studio-panel">
+                            <div className="studio-panel-heading"><p className="studio-eyebrow mb-1">03 / EL RESULTADO</p><h2 className="text-sm font-semibold text-white">Exportar tu QR</h2></div>
+                            <div className="space-y-4 p-4 sm:p-5">
+                                <label className="studio-field">Nombre del archivo<input value={filename} maxLength={80} onChange={(event) => setFilename(event.target.value)} /></label>
+                                <div className="grid grid-cols-2 gap-3"><div className="studio-field"><label htmlFor="qr-size">Resolución PNG</label><select id="qr-size" value={size} onChange={(event) => setSize(Number(event.target.value))}>{[256, 512, 1024, 2048].map((resolution) => <option key={resolution} value={resolution}>{resolution} px</option>)}</select></div><div className="studio-field"><label htmlFor="qr-level">Corrección de errores</label><select id="qr-level" value={errorLevel} onChange={(event) => setErrorLevel(event.target.value as "L" | "M" | "Q" | "H")}><option value="L">L · mínima</option><option value="M">M · equilibrada</option><option value="Q">Q · alta</option><option value="H">H · máxima</option></select></div></div>
+                                {qrType === "ar" && <p className="text-[11px] leading-relaxed text-slate-400">Las URLs 3D pueden generar un QR denso. Usa M para simplificarlo o H si incluyes un logo.</p>}
+                                {activeLogo && errorLevel !== "H" && <p className="text-xs text-amber-200">Con logo, recomendamos corrección H. Comprueba la lectura antes de distribuirlo.</p>}
+                                <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => download("png")} disabled={!canDownload || exporting} className="studio-button studio-button-primary"><Download size={15} aria-hidden="true" />Descargar PNG</button><button type="button" onClick={() => download("svg")} disabled={!canDownload || exporting} className="studio-button"><Download size={15} aria-hidden="true" />Descargar SVG</button></div>
+                                <p className="text-[11px] leading-relaxed text-slate-500">PNG para compartir. SVG para imprimir y escalar sin perder definición.</p>
+                                <p role="status" className="min-h-4 text-xs text-teal-200">{exportMessage}</p>
                             </div>
-                            <div className="p-5">{renderTypeForm()}</div>
-                        </div>
-
-                        {/* Logo */}
-                        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-                            <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2">
-                                <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                <span className="text-sm text-white font-medium">Logo Central</span>
-                                <span className="text-xs text-neutral-500">(opcional)</span>
-                            </div>
-                            <div className="p-4 flex flex-wrap gap-2">
-                                <button onClick={() => { setUseTypeIcon(!useTypeIcon); setLogo(null); }}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm ${useTypeIcon && !logo ? "border-[#FF8A00] bg-[#FF8A00]/10 text-white" : "border-white/10 text-neutral-400"}`}>
-                                    {TypeIcon && <TypeIcon className="w-4 h-4" />} Icono
-                                </button>
-                                <div className="relative">
-                                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                                    <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm ${logo ? "border-[#00B8A9] text-white" : "border-white/10 text-neutral-400"}`}>
-                                        {logo ? <img src={logo} className="w-4 h-4 object-contain" /> : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}
-                                        {logo ? "Cambiar" : "Subir"}
-                                    </div>
-                                </div>
-                                {(logo || useTypeIcon) && (
-                                    <button onClick={() => { setLogo(null); setUseTypeIcon(false); }} className="px-3 py-2 rounded-xl text-red-400 text-sm border border-red-500/30">
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Design Accordion */}
-                        <button onClick={() => setOpenSection(openSection === "design" ? null : "design")}
-                            className="w-full flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
-                            <div className="flex items-center gap-2">
-                                <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
-                                <span className="text-sm font-medium text-white">Personalizar Diseño</span>
-                            </div>
-                            <svg className={`w-4 h-4 text-neutral-400 transition-transform ${openSection === "design" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </button>
-                        {openSection === "design" && (
-                            <div className="p-5 rounded-2xl border border-white/10 bg-white/5 space-y-5">
-                                <div>
-                                    <label className="text-xs text-neutral-500 mb-2 block">Colores</label>
-                                    <div className="flex gap-2 mb-3">
-                                        {presetColors.map((p, i) => (
-                                            <button key={i} onClick={() => { setFgColor(p.fg); setBgColor(p.bg); setEyeColor(p.fg); }}
-                                                className={`w-8 h-8 rounded-lg border-2 ${fgColor === p.fg && bgColor === p.bg ? "border-[#FF8A00]" : "border-white/10"}`}
-                                                style={{ background: `linear-gradient(135deg, ${p.fg} 50%, ${p.bg} 50%)` }} />
-                                        ))}
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-3 relative z-20">
-                                        <ColorPicker label="Fondo" color={bgColor} onChange={(c) => { setBgColor(c); }} />
-                                        <ColorPicker label="Cuerpo" color={fgColor} onChange={(c) => { setFgColor(c); }} />
-                                        <ColorPicker label="Ojos" color={eyeColor} onChange={(c) => { setEyeColor(c); }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-xs text-neutral-500">Degradado del cuerpo</label>
-                                        {/* Área de toque de 44px por diseño; la píldora visual va dentro. */}
-                                        <button type="button" role="switch" aria-checked={useGradient} aria-label="Activar degradado"
-                                            onClick={() => setUseGradient(!useGradient)}
-                                            className="h-11 w-16 flex items-center justify-center -mr-2">
-                                            <span className={`relative h-6 w-11 rounded-full transition-colors ${useGradient ? "bg-[#FF8A00]" : "bg-white/15"}`}>
-                                                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${useGradient ? "translate-x-6" : "translate-x-1"}`} />
-                                            </span>
-                                        </button>
-                                    </div>
-                                    {useGradient && (
-                                        <div className="grid grid-cols-2 gap-3 relative z-10">
-                                            <ColorPicker label="Hasta" color={gradientTo} onChange={setGradientTo} />
-                                            <div>
-                                                <label className="text-xs text-neutral-500 mb-1 block">Ángulo: {gradientAngle}°</label>
-                                                <input type="range" min="0" max="360" step="15" value={gradientAngle} onChange={(e) => setGradientAngle(Number(e.target.value))}
-                                                    className="w-full h-2 rounded-full appearance-none bg-white/10 accent-[#FF8A00]" />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs text-neutral-500 mb-2 block">Cuerpo</label>
-                                        <div className="flex gap-1">
-                                            {[{ id: "square", icon: "■" }, { id: "rounded", icon: "▢" }, { id: "dots", icon: "●" }, { id: "classy", icon: "◢" }, { id: "diamond", icon: "◆" }].map((s) => (
-                                                <button key={s.id} onClick={() => { setStyle(s.id as QRStyle); }}
-                                                    className={`w-8 h-8 rounded-lg border text-xs ${style === s.id ? "border-[#FF8A00] text-[#FF8A00]" : "border-white/10 text-neutral-400"}`}>{s.icon}</button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-neutral-500 mb-2 block">Ojos</label>
-                                        <div className="flex gap-1">
-                                            {[{ id: "square", icon: "■" }, { id: "rounded", icon: "▢" }, { id: "circle", icon: "●" }, { id: "leaf", icon: "◠" }, { id: "diamond", icon: "◆" }].map((s) => (
-                                                <button key={s.id} onClick={() => { setEyeStyle(s.id as EyeStyle); }}
-                                                    className={`w-8 h-8 rounded-lg border text-xs ${eyeStyle === s.id ? "border-[#00B8A9] text-[#00B8A9]" : "border-white/10 text-neutral-400"}`}>{s.icon}</button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                    <div>
-                                        <label className="text-xs text-neutral-500 mb-1 block">Resolución: {size}px</label>
-                                        <input type="range" min="256" max="2048" step="128" value={size} onChange={(e) => { setSize(Number(e.target.value)); }}
-                                            className="w-full h-2 rounded-full appearance-none bg-white/10 accent-[#FF8A00]" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-neutral-500 mb-1 block">Corrección</label>
-                                        <select value={errorLevel} onChange={(e) => { setErrorLevel(e.target.value as "L" | "M" | "Q" | "H"); }}
-                                            className="w-full px-2 py-1.5 rounded-lg bg-[#0F1724] border border-white/10 text-white text-xs">
-                                            <option value="L">Bajo</option><option value="M">Medio</option><option value="Q">Alto</option><option value="H">Máximo</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Back Link */}
-                <div className="mt-8 text-center pb-8">
-                    <Link
-                        href="/herramientas"
-                        className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
+                        </section>
+                        <div className="flex gap-3 px-1 text-xs leading-relaxed text-slate-400"><ScanLine size={20} className="shrink-0 text-slate-500" aria-hidden="true" /><p>Prueba el resultado con la cámara de tu móvil. El contraste, el tamaño de impresión y el logo influyen en la lectura.</p></div>
+                        {qrType === "ar" && <a href="/ar" target="_blank" rel="noopener noreferrer" className="studio-button w-full"><Box size={15} aria-hidden="true" />Cómo funciona la realidad aumentada<ArrowUpRight size={14} aria-hidden="true" /></a>}
+                    </aside>
                 </div>
             </main>
-
-
         </div>
     );
 }

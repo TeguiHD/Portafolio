@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -115,21 +117,17 @@ export default function ImageConverterPage() {
     const activeFormat = FORMATS.find(f => f.id === outputFormat)!;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
+        <div className="tool-page">
             <canvas ref={canvasRef} className="hidden" />
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Conversor de Imágenes</h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Convierte entre PNG, JPG, WebP y más. 100% en tu navegador.
-                    </p>
-                </div>
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="convertir-imagen" title={<>Conversor de Imágenes</>} description={<>Convierte entre PNG, JPG, WebP y más. 100% en tu navegador.</>} />
 
                 {/* Format Selection */}
-                <div className="flex justify-center gap-3 mb-8">
+                <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Formato de salida">
                     {FORMATS.map((fmt) => (
                         <button
                             key={fmt.id}
+                            aria-pressed={outputFormat === fmt.id}
                             onClick={() => { setOutputFormat(fmt.id); setConvertedUrl(null); }}
                             className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${outputFormat === fmt.id
                                 ? "text-white ring-2 scale-[1.02]"
@@ -168,6 +166,7 @@ export default function ImageConverterPage() {
                                 </div>
                                 <input
                                     type="range"
+                                    aria-label="Calidad de conversión"
                                     min={10}
                                     max={100}
                                     value={quality}
@@ -193,7 +192,7 @@ export default function ImageConverterPage() {
                         {convertedUrl && (
                             <div className="bg-white/5 rounded-xl p-5 border border-white/10 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-white font-medium">✅ Conversión completada</h3>
+                                    <h3 className="text-white font-medium">Conversión completada</h3>
                                     {outputSize && sourceFile && (
                                         <div className="text-xs text-neutral-400">
                                             {(sourceFile.size / 1024).toFixed(0)} KB → {(outputSize / 1024).toFixed(0)} KB
@@ -211,7 +210,7 @@ export default function ImageConverterPage() {
                                     className="w-full py-2.5 rounded-xl font-medium text-white transition-all hover:scale-[1.01]"
                                     style={{ background: `${activeFormat.color}30`, border: `1px solid ${activeFormat.color}50` }}
                                 >
-                                    ⬇️ Descargar {activeFormat.name}
+                                    Descargar {activeFormat.name}
                                 </button>
                             </div>
                         )}

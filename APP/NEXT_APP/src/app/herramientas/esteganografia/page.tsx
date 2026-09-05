@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -176,14 +178,9 @@ export default function SteganographyPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Esteganografía Emoji</h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Oculta texto dentro de emojis o texto visible mediante caracteres invisibles
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="esteganografia" title={<>Esteganografía Emoji</>} description={<>Oculta texto dentro de emojis o texto visible mediante caracteres invisibles</>} />
 
                 {/* Mode Toggle */}
                 <div className="flex gap-2 bg-white/5 rounded-xl p-2 border border-white/10 mb-6">

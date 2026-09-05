@@ -28,8 +28,10 @@ export function ToolSeoContent({ slug }: ToolSeoContentProps) {
     return (
         <section
             aria-label={`Guía de ${entry.h1}`}
-            className="mx-auto w-full max-w-3xl px-4 pb-4 sm:px-6"
+            className="mx-auto w-full max-w-5xl px-4 pb-4 sm:px-6"
         >
+            <details className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
+            <summary className="mb-4 cursor-pointer text-sm font-medium text-white">Guía de uso y preguntas frecuentes</summary>
             <p className="text-base leading-relaxed text-neutral-300">{copy.intro}</p>
 
             <h2 className="mt-12 text-xl font-bold text-white sm:text-2xl">
@@ -84,6 +86,7 @@ export function ToolSeoContent({ slug }: ToolSeoContentProps) {
                     </div>
                 ))}
             </dl>
+            </details>
 
             {related.length > 0 && (
                 <>

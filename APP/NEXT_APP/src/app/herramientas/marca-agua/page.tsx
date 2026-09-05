@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -248,14 +250,8 @@ export default function WatermarkPage() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,#5b2a0c_0%,#0F1724_42%,#08111f_100%)]">
             <canvas ref={canvasRef} className="hidden" />
-            <main className="mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <div className="mb-8 max-w-3xl">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-orange-300">Marca de agua</p>
-                    <h1 className="text-3xl font-bold text-white sm:text-4xl">Marca de agua con texto o logo</h1>
-                    <p className="mt-3 text-sm leading-6 text-neutral-400 sm:text-base">
-                        Previsualiza en tiempo real texto o logotipo antes de exportar. El PNG final replica el resultado que ves en pantalla.
-                    </p>
-                </div>
+            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
+                <ToolPageHeader slug="marca-agua" title={<>Marca de agua con texto o logo</>} description={<>Previsualiza en tiempo real texto o logotipo antes de exportar. El PNG final replica el resultado que ves en pantalla.</>} />
 
                 <StudioCard
                     title="Imagen base"

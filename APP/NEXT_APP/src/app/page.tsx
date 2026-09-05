@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ShowcaseSection } from "@/modules/landing/sections/ShowcaseSection";
 import { HeroSection } from "@/modules/landing/sections/HeroSection";
 import { Navbar } from "@/modules/landing/layout/Navbar";
 import {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-const deferredSections: DeferredLandingSectionId[] = [
+const deferredSections: (DeferredLandingSectionId | "casos")[] = [
   "tools-belt",
   "vault",
   "casos",
@@ -29,13 +30,15 @@ export default function Home() {
       {/* 1. Hero: Impacto — loaded eagerly (LCP critical) */}
       <HeroSection />
 
-      {/* 2-7. Sections under the fold: deferred until near viewport */}
+      {/* Proyectos en HTML inicial; se difieren las secciones interactivas. */}
       {deferredSections.map((section) => (
-        <DeferredLandingSection key={section} section={section} />
+        section === "casos"
+          ? <ShowcaseSection key={section} />
+          : <DeferredLandingSection key={section} section={section} />
       ))}
 
       {/* Respaldo para crawlers que no ejecutan JS (GPTBot, ClaudeBot, CCBot...):
-          las secciones de arriba solo existen tras hidratar. */}
+          complementa las secciones interactivas que se cargan tras hidratar. */}
       <NoScriptLanding />
     </main>
   );

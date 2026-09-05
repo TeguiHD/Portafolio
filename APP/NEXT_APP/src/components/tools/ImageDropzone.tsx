@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, type DragEvent, type ChangeEvent } from "react";
+import { ImagePlus, Upload, X, RefreshCw, LoaderCircle, AlertCircle } from "lucide-react";
 
 // SECURITY(OWASP): Validate file type by magic bytes, not just extension
 const MAGIC_BYTES: Record<string, number[][]> = {
@@ -65,6 +66,8 @@ export function ImageDropzone({
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isValidating, setIsValidating] = useState(false);
+    const [selectedName, setSelectedName] = useState("");
+    const [selectedBytes, setSelectedBytes] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const acceptString = accept.map(t => {
@@ -99,16 +102,17 @@ export function ImageDropzone({
         // SECURITY(OWASP): Validate magic bytes
         setIsValidating(true);
         const isValid = await validateMagicBytes(file, accept);
-        setIsValidating(false);
 
         if (!isValid) {
-            setError("El archivo no parece ser una imagen válida (verificación de bytes mágicos fallida)");
+            setError("No pudimos reconocer esta imagen. Prueba con otro archivo o vuelve a exportarlo.");
             return null;
         }
 
-        return new Promise<string>((resolve) => {
+        return new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = () => reject(new Error("No pudimos leer el archivo."));
+            reader.onabort = () => reject(new Error("Lectura cancelada."));
             reader.readAsDataURL(file);
         });
     }, [accept, maxSize]);
@@ -120,6 +124,8 @@ export function ImageDropzone({
         // await files[0] sería undefined y los consumidores recibirían un File nulo.
         const files = Array.from(fileList);
 
+        setIsValidating(true);
+        try {
         if (multiple && onMultipleLoad) {
             const results: { file: File; dataUrl: string }[] = [];
             for (let i = 0; i < Math.min(files.length, 20); i++) {
@@ -129,8 +135,14 @@ export function ImageDropzone({
             if (results.length > 0) onMultipleLoad(results);
         } else {
             const dataUrl = await processFile(files[0]);
-            if (dataUrl) onImageLoad(files[0], dataUrl);
+            if (dataUrl) {
+                setSelectedName(files[0].name);
+                setSelectedBytes(files[0].size);
+                onImageLoad(files[0], dataUrl);
+            }
         }
+        } catch { setError("No pudimos leer la imagen. Inténtalo con otro archivo."); }
+        finally { setIsValidating(false); }
     }, [multiple, onMultipleLoad, onImageLoad, processFile]);
 
     const handleDrop = useCallback((e: DragEvent) => {
@@ -155,84 +167,28 @@ export function ImageDropzone({
         if (inputRef.current) inputRef.current.value = "";
     }, [handleFiles]);
 
-    if (currentImage) {
-        return (
-            <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: `${accentColor}30` }}>
-                <img
-                    src={currentImage}
-                    alt="Imagen seleccionada"
-                    className="w-full max-h-[400px] object-contain bg-[#0A0A0F]"
-                />
-                {onClear && (
-                    <button
-                        onClick={onClear}
-                        className="absolute top-3 right-3 p-2 rounded-full bg-black/70 hover:bg-black/90 text-white transition-colors"
-                        title="Quitar imagen"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                )}
-            </div>
-        );
-    }
-
     return (
-        <div>
-            <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={() => inputRef.current?.click()}
-                className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-8 sm:p-12 text-center transition-all duration-200 ${isDragging ? "scale-[1.01]" : "hover:scale-[1.005]"
-                    }`}
-                style={{
-                    borderColor: isDragging ? accentColor : `${accentColor}40`,
-                    background: isDragging ? `${accentColor}10` : `${accentColor}05`,
-                }}
-            >
-                <input
-                    ref={inputRef}
-                    type="file"
-                    accept={acceptString}
-                    onChange={handleChange}
-                    className="hidden"
-                    multiple={multiple}
-                />
-
-                {isValidating ? (
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: accentColor, borderTopColor: "transparent" }} />
-                        <p className="text-sm text-neutral-400">Validando imagen...</p>
+        <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className="min-w-0">
+            <input ref={inputRef} type="file" accept={acceptString} onChange={handleChange} aria-label="Seleccionar imagen" className="sr-only" tabIndex={-1} multiple={multiple} />
+            {currentImage ? (
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#111923]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2">
+                        <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-200">{selectedName || "Imagen de entrada"}</p>{selectedBytes > 0 && <p className="mt-0.5 text-[10px] text-slate-500">{(selectedBytes / 1024).toFixed(1)} KB · Original</p>}</div>
+                        <button type="button" onClick={() => inputRef.current?.click()} disabled={isValidating} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"><RefreshCw size={14} aria-hidden="true" />Cambiar</button>
+                        {onClear && <button type="button" onClick={() => { onClear(); setError(null); setSelectedName(""); setSelectedBytes(0); }} disabled={isValidating} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Quitar imagen"><X size={17} aria-hidden="true" /></button>}
                     </div>
-                ) : (
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${accentColor}15` }}>
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: accentColor }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p className="text-white font-medium">{label}</p>
-                            <p className="text-sm text-neutral-500 mt-1">
-                                {sublabel || `o haz clic para seleccionar${multiple ? " (múltiples)" : ""}`}
-                            </p>
-                        </div>
-                        <p className="text-xs text-neutral-600">
-                            Máx. {Math.round(maxSize / 1024 / 1024)}MB
-                        </p>
-                    </div>
-                )}
-            </div>
-            {error && (
-                <p className="mt-2 text-sm text-red-400 flex items-center gap-1.5">
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {error}
-                </p>
+                    <div className="bg-[#080e17] p-4"><img src={currentImage} alt="Imagen seleccionada" className="mx-auto max-h-[340px] w-full object-contain" /></div>
+                </div>
+            ) : (
+                <div className="relative flex min-h-[270px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed p-6 text-center transition-colors duration-150 sm:p-8" style={{ borderColor: isDragging ? accentColor : "#ffffff25", background: isDragging ? `${accentColor}10` : "#111923" }}>
+                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/5" style={{ background: `${accentColor}10`, color: accentColor }}>{isValidating ? <LoaderCircle size={26} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ImagePlus size={26} strokeWidth={1.5} aria-hidden="true" />}</span>
+                    <div><p className="text-sm font-medium text-white">{isDragging ? "Suelta la imagen para empezar" : label}</p><p className="mt-2 max-w-sm text-xs leading-relaxed text-slate-400">{sublabel || accept.map((type) => type.split("/")[1].toUpperCase()).join(" · ")}</p></div>
+                    <button type="button" onClick={() => inputRef.current?.click()} disabled={isValidating} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-slate-100 px-5 text-xs font-semibold text-slate-950 transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-teal-300"><Upload size={15} aria-hidden="true" />{isValidating ? "Preparando imagen…" : multiple ? "Seleccionar imágenes" : "Seleccionar imagen"}</button>
+                    <p className="text-[11px] text-slate-500">Hasta {Math.round(maxSize / 1024 / 1024)} MB por archivo{multiple ? " · hasta 20 imágenes" : ""}</p>
+                </div>
             )}
+            {isValidating && <p role="status" className="mt-2 text-xs text-slate-400">Leyendo y comprobando la imagen…</p>}
+            {error && <p role="alert" className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300/20 bg-amber-300/5 p-3 text-xs leading-relaxed text-amber-200"><AlertCircle size={15} className="shrink-0" aria-hidden="true" />{error}</p>}
         </div>
     );
 }

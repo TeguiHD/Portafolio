@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -93,14 +95,9 @@ export default function ImageCompressorPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Compresor de Imágenes</h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Reduce el peso de tus imágenes sin perder calidad visible. Ideal para SEO.
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="comprimir-imagen" title={<>Compresor de Imágenes</>} description={<>Reduce el peso de tus imágenes sin perder calidad visible. Ideal para SEO.</>} />
 
                 <ImageDropzone
                     onImageLoad={handleImageLoad}
@@ -125,7 +122,7 @@ export default function ImageCompressorPage() {
                                     <label className="text-sm text-neutral-300">Calidad</label>
                                     <span className="text-sm font-mono font-bold" style={{ color: ACCENT }}>{quality}%</span>
                                 </div>
-                                <input type="range" min={10} max={100} value={quality}
+                                <input type="range" aria-label="Calidad de compresión" min={10} max={100} value={quality}
                                     onChange={(e) => { setQuality(Number(e.target.value)); setCompressedUrl(null); }}
                                     className="w-full" />
                             </div>
@@ -161,14 +158,14 @@ export default function ImageCompressorPage() {
                         <button onClick={handleCompress} disabled={isCompressing}
                             className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.01] disabled:opacity-50"
                             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}>
-                            {isCompressing ? "Comprimiendo..." : "📦 Comprimir imagen"}
+                            {isCompressing ? "Comprimiendo..." : "Comprimir imagen"}
                         </button>
 
                         {/* Result */}
                         {compressedUrl && compressedSize !== null && (
                             <div className="bg-white/5 rounded-xl p-5 border border-white/10 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-white font-medium">✅ Compresión completada</h3>
+                                    <h3 className="text-white font-medium">Compresión completada</h3>
                                     <span className={`text-sm font-bold ${savings !== null && savings > 0 ? "text-green-400" : "text-yellow-400"}`}>
                                         {savings !== null && savings > 0 ? `-${savings}%` : `+${Math.abs(savings || 0)}%`}
                                     </span>
@@ -186,7 +183,7 @@ export default function ImageCompressorPage() {
                                 <button onClick={handleDownload}
                                     className="w-full py-2.5 rounded-xl font-medium text-white transition-all hover:scale-[1.01]"
                                     style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50` }}>
-                                    ⬇️ Descargar
+                                    Descargar
                                 </button>
                             </div>
                         )}

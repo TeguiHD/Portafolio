@@ -29,11 +29,6 @@ const SECTION_DEFINITIONS = {
     minHeightClass: "min-h-[72vh]",
     load: async () => (await import("./ForbiddenVaultSection")).ForbiddenVaultSection,
   },
-  casos: {
-    anchorId: "casos",
-    minHeightClass: "min-h-[72vh]",
-    load: async () => (await import("./ShowcaseSection")).ShowcaseSection,
-  },
   tecnologias: {
     anchorId: "tecnologias",
     minHeightClass: "min-h-[66vh]",

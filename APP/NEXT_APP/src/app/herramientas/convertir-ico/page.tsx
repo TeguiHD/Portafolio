@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -158,14 +160,9 @@ export default function IcoConverterPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Conversor a ICO</h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Convierte imágenes a formato .ico para favicons. Elige los tamaños.
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="convertir-ico" title={<>Conversor a ICO</>} description={<>Convierte imágenes a formato .ico para favicons. Elige los tamaños.</>} />
 
                 <ImageDropzone
                     onImageLoad={handleImageLoad}
@@ -235,13 +232,13 @@ export default function IcoConverterPage() {
                         {/* Result */}
                         {resultUrl && (
                             <div className="bg-white/5 rounded-xl p-5 border border-white/10 text-center space-y-3">
-                                <p className="text-white font-medium">✅ Archivo .ico generado</p>
+                                <p className="text-white font-medium">Archivo .ico generado</p>
                                 <button
                                     onClick={handleDownload}
                                     className="w-full py-2.5 rounded-xl font-medium text-white transition-all hover:scale-[1.01]"
                                     style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50` }}
                                 >
-                                    ⬇️ Descargar .ico
+                                    Descargar .ico
                                 </button>
                             </div>
                         )}

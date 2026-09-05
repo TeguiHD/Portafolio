@@ -105,13 +105,9 @@ export function HeroInteractive() {
     let timeoutHandle: number | null = null;
 
     let stopTyping: (() => void) | null = null;
-    let stopProjectsCounter: (() => void) | null = null;
-    let stopUptimeCounter: (() => void) | null = null;
 
     const startEnhancements = () => {
       stopTyping = startTypingAnimation();
-      stopProjectsCounter = startCounterAnimation("hero-counter-projects", 50, 2500);
-      stopUptimeCounter = startCounterAnimation("hero-counter-uptime", 99, 2000);
     };
 
     if (typeof idleWindow.requestIdleCallback === "function") {
@@ -135,8 +131,6 @@ export function HeroInteractive() {
       }
 
       stopTyping?.();
-      stopProjectsCounter?.();
-      stopUptimeCounter?.();
     };
   }, [enableEnhancements]);
 
@@ -238,57 +232,6 @@ function startTypingAnimation() {
     cursor?.classList.remove("animate-blink");
     if (timeoutId !== null) {
       window.clearTimeout(timeoutId);
-    }
-  };
-}
-
-// ─── Counter Animation ───────────────────────────────────────
-function startCounterAnimation(elementId: string, end: number, duration: number) {
-  const el = document.getElementById(elementId);
-  if (!el) return () => undefined;
-  const counterEl = el;
-
-  // Reset to 0 before animating
-  counterEl.textContent = "0";
-
-  let startTime: number | null = null;
-  let frameId: number | null = null;
-  let startTimeoutId: number | null = null;
-  let stopped = false;
-
-  function animate(timestamp: number) {
-    if (stopped) return;
-
-    if (document.hidden) {
-      frameId = requestAnimationFrame(animate);
-      return;
-    }
-
-    if (startTime === null) startTime = timestamp;
-
-    const progress = Math.min((timestamp - startTime) / duration, 1);
-    const value = Math.floor(progress * end);
-    counterEl.textContent = String(value);
-
-    if (progress < 1) {
-      frameId = requestAnimationFrame(animate);
-    }
-  }
-
-  // Start after 1 second
-  startTimeoutId = window.setTimeout(() => {
-    frameId = requestAnimationFrame(animate);
-  }, 1000);
-
-  return () => {
-    stopped = true;
-
-    if (startTimeoutId !== null) {
-      window.clearTimeout(startTimeoutId);
-    }
-
-    if (frameId !== null) {
-      cancelAnimationFrame(frameId);
     }
   };
 }

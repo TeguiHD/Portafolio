@@ -1,5 +1,6 @@
-import { Zap } from "lucide-react";
+import { Wrench } from "lucide-react";
 import Link from "next/link";
+import { TOOL_COUNT } from "@/lib/tool-count";
 
 /**
  * Server-rendered hero content — LCP critical.
@@ -55,59 +56,31 @@ export function HeroContent() {
           <span className="text-white font-semibold">Desarrollador Full Stack</span> que transforma{" "}
           <span className="text-blue-400 font-medium">problemas complejos</span> en{" "}
           <span className="text-emerald-400 font-medium">productos funcionales</span>.{" "}
-          Sin rodeos. Sin demoras.
+          Prueba mis herramientas gratuitas o conoce los sistemas que he construido.
         </p>
       </div>
 
       {/* CTAs */}
       <div className="flex flex-row flex-wrap items-center gap-3 sm:gap-4 mb-6 sm:mb-8 hero-fade-in" style={{ animationDelay: "0.4s" }}>
         <Link
-          href="/blog"
+          href="/herramientas"
           className="inline-flex flex-row items-center justify-center gap-2 rounded-full px-8 py-4 text-lg font-bold bg-white text-black hover:bg-gray-100 transition-all hover:scale-105 active:scale-95 md:animate-glow-pulse whitespace-nowrap"
         >
-          <Zap className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-          <span>Explorar Blog</span>
+          <Wrench className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+          <span>Usar herramientas</span>
         </Link>
         <Link
           href="#contact"
           className="rounded-full px-8 py-4 text-lg font-medium text-white hover:bg-white/5 border border-white/20 hover:border-white/40 transition-all"
         >
-          Agendar Reunión
+          Hablemos de tu proyecto
         </Link>
       </div>
 
-      {/* Stats — Server-rendered with final values (progressive enhancement) */}
-      <div className="grid grid-cols-3 gap-4 sm:gap-8 md:gap-12 max-w-xl hero-fade-in" style={{ animationDelay: "0.6s" }}>
-        <div className="group text-left">
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums" id="hero-counter-projects">50</span>
-            <span className="text-xl sm:text-2xl font-bold text-blue-400">+</span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <svg className="w-3 h-3 text-gray-600 group-hover:text-blue-400 transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-            <span className="text-xs font-mono text-gray-500 uppercase tracking-wider group-hover:text-gray-400 transition-colors">Proyectos</span>
-          </div>
-        </div>
-        <div className="group text-left">
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums" id="hero-counter-uptime">99</span>
-            <span className="text-xl sm:text-2xl font-bold text-blue-400">.9%</span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <svg className="w-3 h-3 text-gray-600 group-hover:text-blue-400 transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
-            <span className="text-xs font-mono text-gray-500 uppercase tracking-wider group-hover:text-gray-400 transition-colors">Uptime</span>
-          </div>
-        </div>
-        <div className="group text-left">
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums">&lt;24</span>
-            <span className="text-xl sm:text-2xl font-bold text-blue-400">h</span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <svg className="w-3 h-3 text-gray-600 group-hover:text-blue-400 transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            <span className="text-xs font-mono text-gray-500 uppercase tracking-wider group-hover:text-gray-400 transition-colors">Respuesta</span>
-          </div>
-        </div>
+      <div className="flex flex-wrap gap-3 text-sm text-neutral-300">
+        <Link href="/herramientas" className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-4 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-teal-300">{TOOL_COUNT} herramientas gratuitas</Link>
+        <Link href="#casos" className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-4 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-teal-300">Proyectos que puedes conocer</Link>
+        <Link href="/sobre-mi" className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-4 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-teal-300">Quién las construye</Link>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
@@ -269,22 +271,10 @@ export default function RandomPickerPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+        <div className="tool-page">
+            <main className="tool-main max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Sorteos y Ruleta</h1>
-                            <p className="text-sm text-neutral-400">Elige ganadores al azar o crea grupos aleatorios</p>
-                        </div>
-                    </div>
-                </div>
+                <ToolPageHeader slug="aleatorio" title={<>Sorteos y Ruleta</>} description={<>Elige ganadores al azar o crea grupos aleatorios</>} />
 
                 {/* Mode Toggle */}
                 <div className="flex gap-2 mb-6 p-1 rounded-xl bg-white/5 border border-white/10">

@@ -1,318 +1,92 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { TOOL_ICONS, CATEGORY_ICONS, CATEGORY_CONFIG } from "./ToolIcons";
-
-interface Tool {
-    id: string;
-    slug: string;
-    name: string;
-    description: string;
-    icon: string;
-    category: string;
-}
-
-interface ToolsGridProps {
-    tools: Tool[];
-}
+import { ArrowUpRight, Search, Star, Grid2X2, List, X, SlidersHorizontal } from "lucide-react";
+import { TOOL_ICONS, CATEGORY_CONFIG } from "./ToolIcons";
+import { useToolFavorites } from "@/hooks/useToolFavorites";
+import type { PublicToolCatalogEntry } from "@/lib/tool-registry";
 
 const CATEGORY_ORDER = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes"];
+const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /**
- * Bento: jerarquía por tamaño, todo visible en un solo scroll.
- * Las herramientas de mayor tráfico van grandes; el resto compacto, y
- * `grid-flow-dense` rellena los huecos para que no queden agujeros.
+ * Mosaico: las herramientas que más se usan ocupan más superficie, para que el
+ * catálogo se lea de un vistazo en vez de como una lista uniforme. Al filtrar
+ * todas vuelven al mismo tamaño: con pocos resultados la jerarquía estorba.
  */
-type TileSize = "hero" | "wide" | "sm";
+const HERO_TILES = new Set(["qr", "claves", "quitar-fondo", "json"]);
+const WIDE_TILES = new Set(["jwt", "regex", "comprimir-imagen", "subredes", "favicon", "impuestos"]);
 
-const TILE_SIZE: Record<string, TileSize> = {
-    qr: "hero",
-    claves: "hero",
-    "quitar-fondo": "hero",
-    json: "hero",
-    jwt: "wide",
-    regex: "wide",
-    "comprimir-imagen": "wide",
-    subredes: "wide",
-    favicon: "wide",
-    impuestos: "wide",
-};
-
-const SIZE_CLASS: Record<TileSize, string> = {
-    hero: "col-span-2 row-span-2",
-    wide: "col-span-2",
-    sm: "col-span-1",
-};
-
-const ArrowIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
-    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-    </svg>
-);
-
-export default function ToolsGrid({ tools }: ToolsGridProps) {
-    const [searchQuery, setSearchQuery] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [isSticky, setIsSticky] = useState(false);
-    const stickyRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const el = stickyRef.current;
-        if (!el) return;
-        const observer = new IntersectionObserver(
-            ([entry]) => setIsSticky(!entry.isIntersecting),
-            { threshold: 1, rootMargin: "-65px 0px 0px 0px" }
-        );
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, []);
-
-    const categoryCounts = useMemo(() => {
-        const counts: Record<string, number> = { all: tools.length };
-        for (const cat of CATEGORY_ORDER) counts[cat] = tools.filter((t) => t.category === cat).length;
-        return counts;
-    }, [tools]);
-
-    const filteredTools = useMemo(() => {
-        let result = tools;
-        if (selectedCategory) result = result.filter((t) => t.category === selectedCategory);
-        const q = searchQuery.trim().toLowerCase();
-        if (q) {
-            result = result.filter(
-                (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
-            );
-        }
-        return result;
-    }, [tools, searchQuery, selectedCategory]);
-
-    const isFiltering = Boolean(searchQuery.trim() || selectedCategory);
-
-    return (
-        <div>
-            <div ref={stickyRef} className="h-0" />
-
-            {/* Barra pegajosa: búsqueda + categorías */}
-            <div
-                className={`sticky top-16 z-40 -mx-4 px-4 transition-all duration-300 sm:-mx-6 sm:px-6 ${
-                    isSticky
-                        ? "border-b border-white/5 bg-[#0F1724]/95 py-3 shadow-lg shadow-black/20 backdrop-blur-xl"
-                        : "py-0"
-                }`}
-            >
-                <div className="relative mx-auto mb-3 max-w-xl">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-neutral-500">
-                        <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <input
-                        type="search"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Buscar entre las herramientas…"
-                        aria-label="Buscar herramientas"
-                        className="w-full rounded-xl border border-white/[0.08] bg-white/[0.06] py-2.5 pl-10 pr-10 text-sm text-white placeholder-neutral-500 transition-all focus:border-[#FF8A00]/30 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/40"
-                    />
-                    {searchQuery && (
-                        <button
-                            type="button"
-                            onClick={() => setSearchQuery("")}
-                            aria-label="Limpiar búsqueda"
-                            className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-neutral-500 transition-colors hover:text-white"
-                        >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-
-                <div className="scrollbar-hide -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0">
-                    <button
-                        type="button"
-                        onClick={() => setSelectedCategory(null)}
-                        aria-pressed={selectedCategory === null}
-                        className={`flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-200 ${
-                            selectedCategory === null
-                                ? "bg-white/[0.12] text-white ring-1 ring-white/20"
-                                : "bg-white/[0.04] text-neutral-400 hover:bg-white/[0.08] hover:text-neutral-200"
-                        }`}
-                    >
-                        Todas
-                        <span className="text-[10px] tabular-nums opacity-60">{categoryCounts.all}</span>
-                    </button>
-
-                    {CATEGORY_ORDER.map((category) => {
-                        const config = CATEGORY_CONFIG[category];
-                        const CategoryIcon = CATEGORY_ICONS[category];
-                        const count = categoryCounts[category];
-                        if (!count) return null;
-                        const isSelected = selectedCategory === category;
-                        return (
-                            <button
-                                key={category}
-                                type="button"
-                                onClick={() => setSelectedCategory(isSelected ? null : category)}
-                                aria-pressed={isSelected}
-                                className={`flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-200 ${
-                                    isSelected ? "ring-1" : "bg-white/[0.04] text-neutral-400 hover:bg-white/[0.08] hover:text-neutral-200"
-                                }`}
-                                style={
-                                    isSelected
-                                        ? {
-                                              backgroundColor: `${config.color}18`,
-                                              color: config.color,
-                                              // @ts-expect-error - CSS custom property
-                                              "--tw-ring-color": `${config.color}50`,
-                                          }
-                                        : undefined
-                                }
-                            >
-                                {CategoryIcon && <CategoryIcon className="h-3.5 w-3.5" aria-hidden="true" />}
-                                <span className="hidden min-[400px]:inline">{config.name}</span>
-                                <span className="min-[400px]:hidden">{config.name.slice(0, 4)}.</span>
-                                <span className="text-[10px] tabular-nums opacity-60">{count}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Encabezado de sección: es la señal de "hay 29" */}
-            <div className="mb-5 mt-8 flex items-end justify-between gap-4 px-1">
-                <h2 className="text-lg font-bold text-white sm:text-xl">
-                    {isFiltering ? "Resultados" : "Todas las herramientas"}
-                    <span className="ml-2 text-sm font-medium tabular-nums text-neutral-500">
-                        {filteredTools.length}
-                    </span>
-                </h2>
-                {isFiltering && (
-                    <button
-                        type="button"
-                        onClick={() => { setSearchQuery(""); setSelectedCategory(null); }}
-                        className="text-xs text-neutral-500 underline underline-offset-2 transition-colors hover:text-white"
-                    >
-                        Limpiar
-                    </button>
-                )}
-            </div>
-
-            {filteredTools.length > 0 ? (
-                <div className="grid grid-flow-row-dense grid-cols-2 auto-rows-[120px] gap-3 sm:grid-cols-4 sm:auto-rows-[150px] sm:gap-4 lg:grid-cols-6">
-                    {filteredTools.map((tool, index) => {
-                        const config = CATEGORY_CONFIG[tool.category] ?? CATEGORY_CONFIG["productividad"];
-                        const ToolIcon = TOOL_ICONS[tool.slug];
-                        const CategoryIcon = CATEGORY_ICONS[tool.category];
-                        // Al filtrar, todo pasa a compacto: una lista uniforme se escanea más rápido.
-                        const size: TileSize = isFiltering ? "wide" : (TILE_SIZE[tool.slug] ?? "sm");
-                        const isHero = size === "hero";
-                        const isWide = size === "wide";
-
-                        return (
-                            <Link
-                                key={tool.id}
-                                href={`/herramientas/${tool.slug}` as never}
-                                className={`tools-tile-enter group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.045] hover:shadow-2xl hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A00]/60 sm:p-5 ${SIZE_CLASS[size]}`}
-                                style={{ animationDelay: `${Math.min(index * 30, 600)}ms` }}
-                            >
-                                {/* Halo de categoría, solo en las grandes: sin blur, sin 3D */}
-                                {isHero && (
-                                    <div
-                                        aria-hidden="true"
-                                        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-[0.16] transition-opacity duration-500 group-hover:opacity-30"
-                                        style={{ background: `radial-gradient(closest-side, ${config.color}, transparent)` }}
-                                    />
-                                )}
-
-                                <div className="relative flex items-start justify-between">
-                                    <div
-                                        className={`flex shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${isHero ? "h-12 w-12" : "h-10 w-10"}`}
-                                        style={{ backgroundColor: `${config.color}14` }}
-                                    >
-                                        {ToolIcon ? (
-                                            <ToolIcon className={isHero ? "h-6 w-6" : "h-5 w-5"} style={{ color: config.color }} aria-hidden="true" />
-                                        ) : (
-                                            <DefaultToolIcon color={config.color} />
-                                        )}
-                                    </div>
-                                    {(isHero || isWide) && (
-                                        <ArrowIcon
-                                            className="h-5 w-5 -translate-x-1 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
-                                            style={{ color: config.color }}
-                                        />
-                                    )}
-                                </div>
-
-                                <div className="relative mt-auto pt-3">
-                                    <h3 className={`font-semibold text-white ${isHero ? "text-lg sm:text-xl" : isWide ? "text-[15px]" : "text-sm"}`}>
-                                        {tool.name}
-                                    </h3>
-                                    {size !== "sm" && (
-                                        <p
-                                            className={`mt-1 leading-relaxed text-neutral-400 ${
-                                                isHero ? "line-clamp-3 text-sm" : "line-clamp-2 text-[13px]"
-                                            }`}
-                                        >
-                                            {tool.description}
-                                        </p>
-                                    )}
-                                    {isHero && (
-                                        <span
-                                            className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide"
-                                            style={{ color: `${config.color}B0` }}
-                                        >
-                                            {CategoryIcon && <CategoryIcon className="h-3 w-3" aria-hidden="true" />}
-                                            {config.name}
-                                        </span>
-                                    )}
-                                </div>
-                            </Link>
-                        );
-                    })}
-                </div>
-            ) : (
-                <div className="py-20 text-center">
-                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.04]">
-                        <svg className="h-8 w-8 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <h3 className="mb-1.5 text-lg font-semibold text-white">Sin resultados</h3>
-                    <p className="mx-auto mb-6 max-w-xs text-sm text-neutral-500">
-                        No encontramos herramientas con esos filtros. Intenta con otro término.
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => { setSearchQuery(""); setSelectedCategory(null); }}
-                        className="rounded-lg border border-white/[0.1] bg-white/[0.06] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-white/[0.1]"
-                    >
-                        Limpiar filtros
-                    </button>
-                </div>
-            )}
-
-            <style jsx global>{`
-                .scrollbar-hide::-webkit-scrollbar { display: none; }
-                .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-                @keyframes toolsTileEnter {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .tools-tile-enter { animation: toolsTileEnter 0.35s ease-out both; }
-                @media (prefers-reduced-motion: reduce) {
-                    .tools-tile-enter { animation: none; }
-                }
-            `}</style>
-        </div>
-    );
+function tileClass(slug: string, uniform: boolean): string {
+    if (uniform) return "col-span-2";
+    if (HERO_TILES.has(slug)) return "col-span-2 sm:row-span-2";
+    if (WIDE_TILES.has(slug)) return "col-span-2 sm:col-span-4";
+    return "col-span-2";
 }
 
-function DefaultToolIcon({ color }: { color: string }) {
+export default function ToolsGrid({ tools }: { tools: PublicToolCatalogEntry[] }) {
+    const [query, setQuery] = useState("");
+    const [category, setCategory] = useState<string | null>(null);
+    const [onlyFavorites, setOnlyFavorites] = useState(false);
+    const [view, setView] = useState<"grid" | "list">("grid");
+    const { favorites, ready, sessionOnly, toggleFavorite } = useToolFavorites();
+    const favoriteCount = tools.filter((tool) => favorites.includes(tool.slug)).length;
+    const filtered = useMemo(() => tools.filter((tool) =>
+        (!category || tool.category === category) &&
+        (!onlyFavorites || favorites.includes(tool.slug)) &&
+        normalize(`${tool.name} ${tool.description} ${tool.category} ${tool.slug}`).includes(normalize(query.trim()))
+    ), [tools, category, onlyFavorites, favorites, query]);
+    const filtering = Boolean(query.trim() || category || onlyFavorites);
+    const clear = () => { setQuery(""); setCategory(null); setOnlyFavorites(false); };
+
     return (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color }} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
+        <section aria-label="Catálogo de herramientas">
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="relative min-w-0 flex-1 basis-60">
+                    <Search size={18} aria-hidden="true" className="absolute left-4 top-3.5 text-slate-500" />
+                    <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Buscar herramientas" placeholder="¿Qué necesitas hacer? Busca una herramienta…" className="h-12 w-full rounded-xl border border-white/10 bg-[#111923] pl-11 pr-12 text-sm text-white placeholder:text-slate-500" />
+                    {query && <button type="button" onClick={() => setQuery("")} aria-label="Limpiar búsqueda" className="studio-icon-button absolute right-1 top-0.5"><X size={16} /></button>}
+                </div>
+                <button type="button" disabled={!ready} onClick={() => setOnlyFavorites(!onlyFavorites)} aria-pressed={onlyFavorites} className={`studio-button h-12 ${onlyFavorites ? "border-amber-300/40 bg-amber-300/5 text-amber-200" : ""}`}><Star size={16} aria-hidden="true" className={onlyFavorites ? "fill-amber-300 text-amber-300" : ""} />Mis favoritas <span className="text-slate-400">{favoriteCount}</span></button>
+                <div className="flex rounded-xl border border-white/10 bg-[#111923] p-0.5" role="group" aria-label="Vista del catálogo">
+                    <button type="button" aria-label="Vista de cuadrícula" aria-pressed={view === "grid"} onClick={() => setView("grid")} className={`studio-icon-button ${view === "grid" ? "bg-white/10 text-white" : ""}`}><Grid2X2 size={17} /></button>
+                    <button type="button" aria-label="Vista de lista" aria-pressed={view === "list"} onClick={() => setView("list")} className={`studio-icon-button ${view === "list" ? "bg-white/10 text-white" : ""}`}><List size={18} /></button>
+                </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-1" role="group" aria-label="Filtrar por categoría">
+                <button type="button" onClick={() => setCategory(null)} aria-pressed={category === null} className="studio-segment">Todas <span className="ml-1 text-slate-500">{tools.length}</span></button>
+                {CATEGORY_ORDER.map((item) => {
+                    const count = tools.filter((tool) => tool.category === item).length;
+                    if (!count) return null;
+                    return <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(category === item ? null : item)} className="studio-segment">{CATEGORY_CONFIG[item].name}<span className="ml-1.5 text-[10px] text-slate-500">{count}</span></button>;
+                })}
+            </div>
+            <div className="mb-5 mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-5">
+                <h2 aria-live="polite" aria-atomic="true" className="text-sm font-medium text-slate-200">{onlyFavorites ? "Tus favoritas" : filtering ? "Resultados" : "Todas las herramientas"}<span className="ml-2 text-xs text-slate-500">{filtered.length}</span></h2>
+                {filtering ? <button type="button" onClick={clear} className="flex min-h-11 items-center gap-1.5 text-xs text-slate-400 hover:text-white"><X size={13} aria-hidden="true" />Limpiar filtros</button> : <span className="flex items-center gap-1.5 text-xs text-slate-500"><SlidersHorizontal size={13} aria-hidden="true" />Hechas para el trabajo diario</span>}
+            </div>
+            {filtered.length ? <div className={view === "grid" ? "grid grid-flow-row-dense auto-rows-[minmax(150px,auto)] grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6" : "grid gap-2"}>
+                {filtered.map((tool) => {
+                    const Icon = TOOL_ICONS[tool.slug] ?? Grid2X2;
+                    const config = CATEGORY_CONFIG[tool.category] ?? CATEGORY_CONFIG.productividad;
+                    const saved = favorites.includes(tool.slug);
+                    const hero = view === "grid" && !filtering && HERO_TILES.has(tool.slug);
+                    return <article key={tool.id} className={`group relative min-w-0 rounded-xl border border-white/[0.08] bg-[#111923] transition-colors duration-150 hover:border-white/20 hover:bg-[#151f2b] ${view === "grid" ? tileClass(tool.slug, filtering) : ""}`}>
+                        <Link href={`/herramientas/${tool.slug}`} className={`tools-tile-enter flex h-full min-w-0 gap-4 rounded-xl p-5 pr-16 ${view === "list" ? "items-center" : "flex-col"}`}>
+                            <span className={`flex shrink-0 items-center justify-center rounded-xl border border-white/5 ${hero ? "h-14 w-14" : "h-10 w-10"}`} style={{ backgroundColor: `${config.color}12`, color: config.color }}><Icon className={hero ? "h-7 w-7" : "h-5 w-5"} aria-hidden="true" /></span>
+                            <div className="min-w-0 flex-1">
+                                <h3 className={`font-semibold text-white ${hero ? "text-base" : "text-sm"}`}>{tool.name}</h3>
+                                <p className={`mt-2 text-xs leading-relaxed text-slate-400 ${view === "grid" && !hero ? "min-h-10" : ""}`}>{tool.description}</p>
+                                <span className="mt-4 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">{config.name}{tool.slug === "qr" && <span className="rounded bg-violet-400/10 px-1.5 py-0.5 text-violet-300">3D / AR</span>}</span>
+                            </div>
+                            <ArrowUpRight size={16} aria-hidden="true" className="absolute bottom-5 right-5 text-slate-600 transition-colors group-hover:text-teal-300" />
+                        </Link>
+                        <button type="button" disabled={!ready} onClick={() => toggleFavorite(tool.slug)} aria-label={`${saved ? "Quitar de" : "Añadir a"} favoritas: ${tool.name}`} aria-pressed={saved} className="studio-icon-button absolute right-2 top-2"><Star size={17} aria-hidden="true" className={saved ? "fill-amber-300 text-amber-300" : ""} /></button>
+                    </article>;
+                })}
+            </div> : <div className="studio-panel px-5 py-14 text-center"><Search className="mx-auto mb-4 h-8 w-8 text-slate-500" aria-hidden="true" /><h3 className="text-lg font-medium text-white">{onlyFavorites && !favoriteCount ? "Tu colección empieza aquí" : "Sin resultados"}</h3><p className="mx-auto mb-5 mt-2 max-w-sm text-sm text-slate-400">{onlyFavorites && !favoriteCount ? "Aún no tienes favoritas. Guarda las herramientas que más usas con la estrella." : "Prueba con otro nombre o selecciona una categoría diferente."}</p><button type="button" onClick={clear} className="studio-button">Ver todas las herramientas</button></div>}
+            <p role="status" className="mt-4 text-xs leading-relaxed text-slate-500">{sessionOnly ? "Tu navegador no permite guardar: las favoritas durarán mientras esta página siga abierta." : "Tus favoritas se guardan solo en este navegador. No necesitas una cuenta."}</p>
+        </section>
     );
 }

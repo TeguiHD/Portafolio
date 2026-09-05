@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -158,14 +160,9 @@ export default function JsonFormatterPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Formateador JSON</h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Formatea, valida y embellece JSON con colores y detección de errores.
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-5xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="json" title={<>Formateador JSON</>} description={<>Formatea, valida y embellece JSON con colores y detección de errores.</>} />
 
                 {/* Controls */}
                 <div className="flex flex-wrap items-center justify-center gap-3 mb-4">

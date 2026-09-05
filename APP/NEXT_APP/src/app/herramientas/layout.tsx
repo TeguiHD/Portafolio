@@ -1,18 +1,9 @@
-import { ToolsNavbar } from "@/components/tools/ToolsNavbar";
+import { ToolsWorkspace } from "@/components/tools/ToolsWorkspace";
 import { ToolsFooter } from "@/components/tools/ToolsFooter";
+import { getPublicTools } from "@/lib/public-tools.server";
+import "./tools.css";
 
-export default function ToolsLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <ToolsNavbar />
-            <div className="flex-1 pt-16">
-                {children}
-            </div>
-            <ToolsFooter />
-        </div>
-    );
+export default async function ToolsLayout({ children }: { children: React.ReactNode }) {
+    const tools = await getPublicTools();
+    return <ToolsWorkspace tools={tools}>{children}<ToolsFooter /></ToolsWorkspace>;
 }

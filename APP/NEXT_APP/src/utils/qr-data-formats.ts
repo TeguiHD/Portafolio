@@ -175,7 +175,7 @@ export interface LocationData {
     format: MapFormat;
 }
 export const formatLocation = (data: LocationData): string => {
-    const hasCoords = data.latitude && data.longitude;
+    const hasCoords = Number.isFinite(data.latitude) && Number.isFinite(data.longitude);
     const hasQuery = data.query && data.query.trim();
 
     if (!hasCoords && !hasQuery) return "";

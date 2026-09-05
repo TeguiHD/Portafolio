@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
@@ -215,22 +217,10 @@ export default function LinkGeneratorPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF8A00]/20 to-[#00B8A9]/10 border border-[#FF8A00]/30 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-[#FF8A00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Generador de Links</h1>
-                            <p className="text-sm text-neutral-400">Crea links para WhatsApp, correo y calendario</p>
-                        </div>
-                    </div>
-                </div>
+                <ToolPageHeader slug="enlaces" title={<>Generador de Links</>} description={<>Crea links para WhatsApp, correo y calendario</>} />
 
                 {/* Tab Navigation */}
                 <div className="flex gap-2 mb-6 p-1 rounded-xl bg-white/5 border border-white/10">

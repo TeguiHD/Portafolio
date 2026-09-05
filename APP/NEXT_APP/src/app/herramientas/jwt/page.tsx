@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -112,14 +114,9 @@ export default function JwtDecoderPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <div className="text-center mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Decodificador JWT</h1>
-                    <p className="text-neutral-400 text-sm sm:text-base">
-                        Decodifica tokens JWT y visualiza header, payload y firma. Sin envío a servidores.
-                    </p>
-                </div>
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+                <ToolPageHeader slug="jwt" title={<>Decodificador JWT</>} description={<>Decodifica tokens JWT y visualiza header, payload y firma. Sin envío a servidores.</>} />
 
                 {/* Security Notice */}
                 <div className="mb-6 p-3 rounded-xl bg-[#6366F1]/10 border border-[#6366F1]/20 text-center">

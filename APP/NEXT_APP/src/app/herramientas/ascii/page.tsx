@@ -755,10 +755,10 @@ export default function AsciiArtPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
+        <div className="tool-page">
             <canvas ref={canvasRef} className="hidden" />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+            <main className="tool-main max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
                 <div className="mb-4 sm:mb-6">
                     <div className="flex items-start justify-between gap-3">

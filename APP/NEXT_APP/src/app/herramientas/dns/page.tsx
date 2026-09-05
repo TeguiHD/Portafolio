@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -144,14 +146,8 @@ export default function DnsCheckerPage() {
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,#17345c_0%,#0F1724_35%,#08111f_100%)]">
-            <main className="mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <div className="mb-8 max-w-3xl">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-blue-300">DNS real</p>
-                    <h1 className="text-3xl font-bold text-white sm:text-4xl">Verificar DNS por resolvedor</h1>
-                    <p className="mt-3 text-sm leading-6 text-neutral-400 sm:text-base">
-                        Consulta varios resolvedores públicos desde backend, compara respuestas y detecta propagación parcial con datos reales.
-                    </p>
-                </div>
+            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
+                <ToolPageHeader slug="dns" title={<>Verificar DNS por resolvedor</>} description={<>Consulta varios resolvedores públicos desde backend, compara respuestas y detecta propagación parcial con datos reales.</>} />
 
                 <StudioCard
                     title="Consulta DNS"

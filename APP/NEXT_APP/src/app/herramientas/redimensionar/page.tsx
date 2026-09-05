@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -219,14 +221,8 @@ export default function ImageResizerPage() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,#2a1854_0%,#0F1724_40%,#08111f_100%)]">
             <canvas ref={canvasRef} className="hidden" />
-            <main className="mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <div className="mb-8 max-w-3xl">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-violet-300">Redimensionar</p>
-                    <h1 className="text-3xl font-bold text-white sm:text-4xl">Redimensionar imagen con control de lienzo</h1>
-                    <p className="mt-3 text-sm leading-6 text-neutral-400 sm:text-base">
-                        Define tamaño, ajuste, fondo y formato antes de exportar la imagen final.
-                    </p>
-                </div>
+            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
+                <ToolPageHeader slug="redimensionar" title={<>Redimensionar imagen con control de lienzo</>} description={<>Define tamaño, ajuste, fondo y formato antes de exportar la imagen final.</>} />
 
                 <StudioCard
                     title="Carga la imagen base"

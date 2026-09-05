@@ -1,263 +1,67 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useToolTracking } from "@/hooks/useDebounce";
+import { useMemo, useState } from "react";
+import { Copy, Download, ArrowLeftRight, FileText, ImageIcon, Check, X, AlertCircle } from "lucide-react";
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+import { ImageDropzone } from "@/components/tools/ImageDropzone";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { useToolTracking } from "@/hooks/useDebounce";
 import { decodeUtf8Base64, encodeUtf8Base64 } from "@/lib/base64-utf8";
 
 export default function ImageBase64Page() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("base64");
-    const [activeTab, setActiveTab] = useState<"image" | "text">("image");
-    const [input, setInput] = useState("");
-    const [output, setOutput] = useState("");
-    const [fileName, setFileName] = useState("");
-    const [copied, setCopied] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
     const { trackImmediate } = useToolTracking("base64", { trackViewOnMount: true });
+    const [tab, setTab] = useState<"text" | "image">("text");
+    const [mode, setMode] = useState<"encode" | "decode">("encode");
+    const [input, setInput] = useState("");
+    const [image, setImage] = useState<string | null>(null);
+    const [imageName, setImageName] = useState("");
+    const [feedback, setFeedback] = useState("");
+    const result = useMemo(() => {
+        if (tab === "image") return { output: image ?? "", error: "" };
+        if (!input) return { output: "", error: "" };
+        try { return { output: mode === "encode" ? encodeUtf8Base64(input) : decodeUtf8Base64(input), error: "" }; }
+        catch { return { output: "", error: "El contenido no es Base64 de texto UTF-8 válido. Revisa lo que pegaste o cambia a Codificar." }; }
+    }, [input, mode, tab, image]);
+    if (isLoading) return <div role="status" className="p-8 text-sm text-slate-400">Cargando conversor…</div>;
+    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor Base64"} />;
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
+    async function copy() {
+        try { await navigator.clipboard.writeText(result.output); setFeedback("Copiado al portapapeles."); trackImmediate("copy"); }
+        catch { setFeedback("No pudimos copiar. Selecciona el resultado y cópialo manualmente."); }
     }
-
-    if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor Base64"} />;
+    function download() {
+        const url = URL.createObjectURL(new Blob([result.output], { type: "text/plain;charset=utf-8" }));
+        const link = document.createElement("a"); link.href = url; link.download = tab === "image" ? "imagen-base64.txt" : mode === "encode" ? "texto-base64.txt" : "texto-decodificado.txt";
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000); trackImmediate("download");
     }
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setFileName(file.name);
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const result = ev.target?.result as string;
-                setInput(result);
-                setOutput(result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleTextConvert = (text: string, mode: "encode" | "decode") => {
-        setInput(text);
-        try {
-            // UTF-8 real: btoa/atob solo cubren Latin-1 y fallan con ñ, 中 o emojis.
-            setOutput(mode === "encode" ? encodeUtf8Base64(text) : decodeUtf8Base64(text));
-        } catch {
-            setOutput("Error: Texto inválido para decodificar");
-        }
-    };
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(output);
-        setCopied(true);
-        trackImmediate("copy_base64");
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Conversor Base64</h1>
-                            <p className="text-sm text-neutral-400">Codifica y decodifica texto e imágenes al instante</p>
-                        </div>
+        <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 sm:px-8">
+            <ToolPageHeader slug="base64" title="Conversor Base64" description="Codifica y decodifica texto UTF-8, o convierte una imagen a una URL de datos. Todo se procesa en tu navegador." />
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex rounded-xl border border-white/10 p-1" role="group" aria-label="Tipo de conversión"><button type="button" className="studio-segment flex items-center gap-2" aria-pressed={tab === "text"} onClick={() => { setTab("text"); setFeedback(""); }}><FileText size={15} aria-hidden="true" />Texto</button><button type="button" className="studio-segment flex items-center gap-2" aria-pressed={tab === "image"} onClick={() => { setTab("image"); setFeedback(""); }}><ImageIcon size={15} aria-hidden="true" />Imagen a Base64</button></div>
+                {tab === "text" && <div className="flex gap-1" role="group" aria-label="Operación"><button type="button" className="studio-segment" aria-pressed={mode === "encode"} onClick={() => { setMode("encode"); setFeedback(""); }}>Codificar</button><button type="button" className="studio-segment" aria-pressed={mode === "decode"} onClick={() => { setMode("decode"); setFeedback(""); }}>Decodificar</button></div>}
+            </div>
+            <div className="grid items-start gap-5 lg:grid-cols-2">
+                <section className="studio-panel overflow-hidden">
+                    <div className="studio-panel-heading flex items-center justify-between"><h2 className="text-sm font-medium text-white">{tab === "image" ? "Imagen original" : mode === "encode" ? "Texto original" : "Entrada Base64"}</h2>{tab === "text" && <button type="button" onClick={() => { setInput(""); setFeedback(""); }} className="studio-icon-button -my-3" aria-label="Limpiar entrada"><X size={16} /></button>}</div>
+                    <div className="p-4">
+                        {tab === "text" ? <><textarea aria-label="Entrada" value={input} maxLength={1_000_000} onChange={(event) => { setInput(event.target.value); setFeedback(""); }} placeholder={mode === "encode" ? "Escribe o pega tu texto. También admite ñ, tildes y emojis…" : "Pega aquí el texto Base64…"} className="min-h-[290px] w-full resize-y rounded-xl border border-white/[0.08] bg-[#0b111a] p-4 font-mono text-sm leading-relaxed text-slate-200 placeholder:text-slate-600" spellCheck={false} /><div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>{new TextEncoder().encode(input).byteLength.toLocaleString("es-CL")} bytes UTF-8 · máx. 1 M de caracteres</span><button type="button" className="min-h-11 text-teal-300" onClick={() => { setInput(mode === "encode" ? "Hola, mundo. ¡Diseña y crea! 🚀" : "SG9sYSwgbXVuZG8u"); setFeedback(""); }}>Cargar ejemplo</button></div></> : <ImageDropzone currentImage={image} onImageLoad={(file, data) => { setImage(data); setImageName(file.name); setFeedback(""); trackImmediate("convert", { mode: "image" }); }} onClear={() => { setImage(null); setImageName(""); setFeedback(""); }} maxSize={20 * 1024 * 1024} accentColor="#5eead4" />}
                     </div>
-
-                    {/* Info Banner */}
-                    <div className="mt-4 p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
-                        <div className="flex gap-3">
-                            <div className="shrink-0 mt-0.5">
-                                <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <div className="text-sm text-neutral-300">
-                                <p className="font-medium text-cyan-400 mb-1">¿Qué es Base64?</p>
-                                <p className="text-neutral-400">
-                                    Base64 es un sistema de codificación que convierte datos binarios en texto ASCII.
-                                    Es ideal para <span className="text-white">incrustar imágenes en HTML/CSS</span>,
-                                    <span className="text-white"> enviar archivos en JSON</span>, o
-                                    <span className="text-white"> almacenar datos en URLs</span> sin caracteres especiales.
-                                </p>
-                            </div>
-                        </div>
+                </section>
+                <section className="studio-panel overflow-hidden">
+                    <div className="studio-panel-heading flex items-center justify-between"><h2 className="text-sm font-medium text-white">{tab === "image" ? "URL de datos" : mode === "encode" ? "Resultado Base64" : "Texto decodificado"}</h2><span className="text-[11px] text-teal-300">{result.output ? "Resultado listo" : "Vista en vivo"}</span></div>
+                    <div className="space-y-4 p-4">
+                        {result.error ? <p role="alert" className="flex min-h-[290px] items-center justify-center gap-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-6 text-sm leading-relaxed text-amber-200"><AlertCircle size={20} className="shrink-0" aria-hidden="true" />{result.error}</p> : <textarea aria-label="Resultado" readOnly value={result.output} placeholder="Tu resultado aparecerá aquí." className="min-h-[290px] w-full resize-y rounded-xl border border-white/[0.08] bg-[#0b111a] p-4 font-mono text-sm leading-relaxed text-slate-300 placeholder:text-slate-600" spellCheck={false} />}
+                        <div className="flex flex-wrap gap-2"><button type="button" className="studio-button studio-button-primary" disabled={!result.output} onClick={copy}>{feedback.startsWith("Copiado") ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}Copiar resultado</button><button type="button" disabled={!result.output} onClick={download} className="studio-button"><Download size={15} aria-hidden="true" />Descargar .txt</button>{tab === "text" && <button type="button" disabled={!result.output} onClick={() => { setInput(result.output); setMode(mode === "encode" ? "decode" : "encode"); setFeedback(""); }} className="studio-button"><ArrowLeftRight size={15} aria-hidden="true" />Invertir</button>}</div>
+                        <p role="status" className="min-h-4 text-xs text-teal-200">{feedback}</p>
+                        {tab === "image" && imageName && <p className="break-all text-xs text-slate-400">Resultado de {imageName}. Incluye el prefijo data:image para usarlo en HTML o CSS.</p>}
                     </div>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8 backdrop-blur-sm">
-                    {/* Tabs */}
-                    <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-8 w-fit">
-                        <button
-                            onClick={() => { setActiveTab("image"); setInput(""); setOutput(""); }}
-                            className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "image"
-                                ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25"
-                                : "text-neutral-400 hover:text-white hover:bg-white/5"
-                                }`}
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            Imagen a Base64
-                        </button>
-                        <button
-                            onClick={() => { setActiveTab("text"); setInput(""); setOutput(""); }}
-                            className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "text"
-                                ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25"
-                                : "text-neutral-400 hover:text-white hover:bg-white/5"
-                                }`}
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            Texto Encoder/Decoder
-                        </button>
-                    </div>
-
-                    {activeTab === "image" ? (
-                        <div className="space-y-6">
-                            <div
-                                onClick={() => fileInputRef.current?.click()}
-                                className="border-2 border-dashed border-white/20 rounded-xl p-10 text-center cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all group"
-                            >
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={handleImageUpload}
-                                    accept="image/*"
-                                    className="hidden"
-                                />
-                                {input ? (
-                                    <div className="flex flex-col items-center">
-                                        <img src={input} alt="Preview" className="max-h-48 rounded-lg mb-4 shadow-xl" />
-                                        <p className="text-white font-medium">{fileName}</p>
-                                        <p className="text-sm text-neutral-400 mt-1">Clic para cambiar imagen</p>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center">
-                                        <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                            <svg className="w-8 h-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-white font-medium mb-1">Arrastra una imagen o haz clic para subir</p>
-                                        <p className="text-sm text-neutral-500">PNG, JPG, GIF, SVG, WEBP</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-neutral-400">Entrada</label>
-                                <textarea
-                                    value={input}
-                                    onChange={(e) => handleTextConvert(e.target.value, "encode")}
-                                    placeholder="Escribe texto para codificar..."
-                                    className="w-full h-64 bg-[#0F1724] border border-white/10 rounded-xl p-4 text-white font-mono text-sm focus:ring-2 focus:ring-accent-1 outline-none resize-none"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-neutral-400">Salida (Base64)</label>
-                                <textarea
-                                    value={output}
-                                    readOnly
-                                    className="w-full h-64 bg-[#0F1724] border border-white/10 rounded-xl p-4 text-neutral-400 font-mono text-sm outline-none resize-none"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Output Area for Image */}
-                    {activeTab === "image" && output && (
-                        <div className="mt-6 space-y-3">
-                            <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-white">Resultado Base64</span>
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                                        {(output.length / 1024).toFixed(1)} KB
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={handleCopy}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${copied
-                                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                                        : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20"
-                                        }`}
-                                >
-                                    {copied ? (
-                                        <>
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            ¡Copiado!
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                            </svg>
-                                            Copiar código
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                            <textarea
-                                value={output}
-                                readOnly
-                                className="w-full h-32 bg-[#0a0e17] border border-white/10 rounded-xl p-4 text-neutral-400 font-mono text-xs outline-none resize-none focus:border-cyan-500/30"
-                            />
-                            <p className="text-xs text-neutral-500">
-                                💡 Tip: Usa este código en <code className="text-cyan-400">src=&quot;data:image/...&quot;</code> para incrustar la imagen directamente en HTML
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Use Cases Section */}
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-3">
-                            <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                            </svg>
-                        </div>
-                        <h3 className="font-medium text-white text-sm mb-1">HTML/CSS Inline</h3>
-                        <p className="text-xs text-neutral-500">Incrusta imágenes sin archivos externos</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3">
-                            <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <h3 className="font-medium text-white text-sm mb-1">APIs y JSON</h3>
-                        <p className="text-xs text-neutral-500">Transmite datos binarios de forma segura</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                        <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-3">
-                            <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                            </svg>
-                        </div>
-                        <h3 className="font-medium text-white text-sm mb-1">Data URIs</h3>
-                        <p className="text-xs text-neutral-500">Almacena en localStorage o URLs</p>
-                    </div>
-                </div>
-            </main>
-        </div>
+                </section>
+            </div>
+            <p className="mt-6 max-w-3xl text-xs leading-relaxed text-slate-500">Base64 es una codificación, no un cifrado: cualquiera puede recuperar el contenido. Las imágenes codificadas suelen ocupar más que el archivo original; úsalo cuando necesites un recurso incrustado.</p>
+        </main></div>
     );
 }

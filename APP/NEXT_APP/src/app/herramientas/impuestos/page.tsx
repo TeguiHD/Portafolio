@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
@@ -150,22 +152,10 @@ export default function TaxCalculatorPage() {
     const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-lg focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500";
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Calculadora de IVA</h1>
-                            <p className="text-sm text-neutral-400">Calcula impuestos: agrega o quita IVA de cualquier monto</p>
-                        </div>
-                    </div>
-                </div>
+                <ToolPageHeader slug="impuestos" title={<>Calculadora de IVA</>} description={<>Calcula impuestos: agrega o quita IVA de cualquier monto</>} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left: Input */}

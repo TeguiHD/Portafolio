@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
@@ -149,22 +151,10 @@ export default function BinaryTranslatorPage() {
     const inputLimit = mode === "text-to-binary" ? MAX_TEXT_LENGTH : MAX_BINARY_LENGTH;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+        <div className="tool-page">
+            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Traductor Binario</h1>
-                            <p className="text-sm text-neutral-400">Convierte texto a binario y viceversa</p>
-                        </div>
-                    </div>
-                </div>
+                <ToolPageHeader slug="binario" title={<>Traductor Binario</>} description={<>Convierte texto a binario y viceversa</>} />
 
                 {/* Mode Toggle */}
                 <div className="flex gap-2 mb-6 p-1 rounded-xl bg-white/5 border border-white/10">

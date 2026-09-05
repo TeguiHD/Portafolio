@@ -1,5 +1,7 @@
 "use client";
 
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -273,18 +275,10 @@ export default function RegexTesterPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0F1724] via-[#1E293B] to-[#0F1724]">
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+        <div className="tool-page">
+            <main className="tool-main max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30 mb-3">
-                        <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                        </svg>
-                    </div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Regex Tester</h1>
-                    <p className="text-neutral-500 text-sm">Prueba expresiones regulares con protección anti-ReDoS</p>
-                </div>
+                <ToolPageHeader slug="regex" title={<>Regex Tester</>} description={<>Prueba expresiones regulares con protección anti-ReDoS</>} />
 
                 {/* AI Generation Section */}
                 <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl p-4 sm:p-5 border border-purple-500/30 mb-4">
