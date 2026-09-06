@@ -16,6 +16,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createHash, createHmac } from 'crypto'
 import { getRedisClient, isRedisAvailable, CACHE_KEYS } from '@/lib/redis'
+import { parseArParams } from '@/lib/ar-launch'
 
 // ============= SECURITY CONSTANTS =============
 const SECURITY_VERSION = '2.1.0'
@@ -280,7 +281,7 @@ function generateRequestId(): string {
  * - Development keeps unsafe-inline/unsafe-eval because dev tooling needs them.
  * - Production script-src removes unsafe-inline and blocks inline event handlers.
  */
-function buildCSP(nonce?: string): string {
+function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false): string {
     // Detect if running in development/localhost
     const isDev = process.env.NODE_ENV !== 'production' ||
         process.env.NEXTAUTH_URL?.includes('localhost') ||
@@ -303,6 +304,10 @@ function buildCSP(nonce?: string): string {
             'blob:',
             'https://static.cloudflareinsights.com',
         ].filter(Boolean)
+
+    // El visor 3D descomprime la malla con WebAssembly. Solo se concede en las
+    // rutas del visor, nunca en el resto del sitio.
+    if (modelOrigin) scriptSources.push("'wasm-unsafe-eval'")
 
     const directives = [
         // Default: Block everything not explicitly allowed
@@ -332,7 +337,7 @@ function buildCSP(nonce?: string): string {
         // Connections: explicit whitelist (+ localhost for dev)
         // https://cloudflareinsights.com is for Cloudflare RUM beacon data
         // https://staticimgly.com hosts the background-removal model assets used by the local image editor
-        `connect-src 'self' blob: https://api.openrouter.ai https://api.frankfurter.app https://cloudflareinsights.com https://*.cloudflareinsights.com https://staticimgly.com${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
+        `connect-src 'self' blob: https://api.openrouter.ai https://api.frankfurter.app https://cloudflareinsights.com https://*.cloudflareinsights.com https://staticimgly.com${modelOrigin ? ` ${modelOrigin} https://www.gstatic.com` : ''}${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
 
         // Forms: self + Overleaf (LaTeX editor "open in Overleaf" POST)
         "form-action 'self' https://www.overleaf.com",
@@ -341,7 +346,7 @@ function buildCSP(nonce?: string): string {
         "base-uri 'self'",
 
         // Frame ancestors: prevent clickjacking (allow self in dev for iframe testing)
-        isDev ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
+        (isDev || embeddedPreview) ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
 
         // Object/Embed: block all plugins (Flash, Java, etc)
         "object-src 'none'",
@@ -634,7 +639,14 @@ export async function proxy(request: NextRequest) {
     const clientIp = getClientIp(request)
     const userAgent = request.headers.get('user-agent')
     const nonce = generateNonce()
-    const csp = buildCSP(nonce)
+    // El origen del modelo se añade a la CSP solo en las dos rutas del visor y
+    // solo si parseArParams lo validó: HTTPS, sin credenciales y con extensión
+    // permitida. El servidor nunca descarga el modelo. El resto de rutas
+    // conserva su CSP intacta.
+    const isArViewer = pathname === '/ar' || pathname === '/ar/preview'
+    const arModel = isArViewer ? parseArParams(Object.fromEntries(request.nextUrl.searchParams)) : null
+    const modelOrigin = arModel?.glb ? new URL(arModel.glb).origin : undefined
+    const csp = buildCSP(nonce, modelOrigin, pathname === '/ar/preview')
     const earlySecurityHeaders = {
         ...staticSecurityHeaders,
         'Content-Security-Policy': csp,
@@ -832,6 +844,9 @@ export async function proxy(request: NextRequest) {
 
     // Dynamic CSP with nonce
     response.headers.set('Content-Security-Policy', csp)
+    // La vista previa se incrusta desde el editor del mismo origen. El resto
+    // del sitio mantiene DENY.
+    if (pathname === '/ar/preview') response.headers.set('X-Frame-Options', 'SAMEORIGIN')
 
     // Pass request ID to client for support/debug correlation.
     // The CSP nonce is intentionally kept request-side only (server components read it via headers()).
