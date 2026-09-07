@@ -62,8 +62,8 @@
     "latex.js": "^0.12.6",
     "lenis": "^1.3.16",
     "lucide-react": "^0.563.0",
-    "next": "^16.2.4",
-    "next-auth": "^5.0.0-beta.30",
+    "next": "^16.3.4",
+    "next-auth": "5.0.0-beta.32",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
@@ -104,34 +104,34 @@
   "pnpm": {
     "overrides": {
       "@hono/node-server": "1.19.13",
-      "hono": "4.12.15",
+      "hono": "^4.12.34",
       "lodash": "4.18.1",
       "lodash-es": "4.18.1",
       "brace-expansion": "2.0.1",
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
-      "postcss": "8.5.10",
+      "postcss": "^8.5.28",
       "markdown-it": "14.1.1",
-      "next>postcss": "8.5.10",
+      "next>postcss": "^8.5.28",
       "@typescript-eslint/typescript-estree>minimatch": "9.0.7",
       "glob>minimatch": "9.0.7",
       "editorconfig>minimatch": "9.0.7",
-      "protobufjs": "7.5.5"
+      "protobufjs": "^7.5.6"
     }
   },
   "overrides": {
     "@hono/node-server": "1.19.13",
-    "hono": "4.12.15",
+    "hono": "^4.12.34",
     "lodash": "4.18.1",
     "lodash-es": "4.18.1",
     "brace-expansion": "2.0.1",
     "flatted": "3.4.2",
     "picomatch": "4.0.4",
-    "postcss": "8.5.10",
+    "postcss": "^8.5.28",
     "markdown-it": "14.1.1",
     "next": {
-      ".": "^16.2.4",
-      "postcss": "8.5.10"
+      ".": "^16.3.4",
+      "postcss": "^8.5.28"
     },
     "@typescript-eslint/typescript-estree": {
       "minimatch": "9.0.7"
@@ -142,6 +142,6 @@
     "editorconfig": {
       "minimatch": "9.0.7"
     },
-    "protobufjs": "7.5.5"
+    "protobufjs": "^7.5.6"
   }
 }
