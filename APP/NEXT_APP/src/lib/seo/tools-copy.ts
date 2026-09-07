@@ -5,9 +5,8 @@
  * keywords) porque son cosas distintas y cambian a ritmos distintos: la
  * metadata la gobierna el auditor con reglas de longitud, esto es prosa.
  *
- * Formato answer-first en las FAQ: la respuesta directa primero, en 40-60
- * palabras, y el matiz después. Es el formato que los motores de respuesta
- * extraen y citan; una respuesta que empieza con "depende" no se cita nunca.
+ * FAQ con respuesta directa y límites explícitos. La claridad sirve al lector;
+ * ninguna estructura o longitud garantiza una cita en motores de respuesta.
  */
 
 export interface ToolCopyStep {
@@ -34,7 +33,7 @@ export interface ToolCopy {
 export const TOOLS_COPY: Record<string, ToolCopy> = {
     qr: {
         intro:
-            "Un código QR es un enlace que se puede mirar. Este generador crea códigos para URL, texto plano, redes WiFi, contactos, correos, eventos de calendario y coordenadas, y los exporta en PNG o SVG a la resolución que necesites. No lleva marca de agua, no caduca y no pasa por un acortador: el contenido queda codificado en el propio dibujo, así que el código funciona aunque este sitio deje de existir.",
+            "Este generador crea códigos QR para enlaces, texto, WiFi, contactos, eventos y experiencias de realidad aumentada. Personaliza el diseño y descarga el resultado en PNG o SVG, sin marca de agua. Los datos quedan codificados en el patrón; el QR no caduca por una suscripción. Los enlaces necesitan que su destino siga disponible. En el modo AR, el QR abre el visor de este sitio y los archivos 3D alojados en las URLs que indiques.",
         steps: [
             {
                 title: "Elige el tipo de contenido",
@@ -69,8 +68,12 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         ],
         faq: [
             {
+                question: "¿Cómo creo un QR con realidad aumentada?",
+                answer: "Elige Realidad aumentada, añade una URL HTTPS pública del modelo GLB o glTF y, para iPhone o iPad, un archivo USDZ. Prueba la vista 3D y descarga el QR. La herramienta enlaza un modelo existente: no convierte una fotografía en un objeto 3D. La disponibilidad de AR depende del móvil y de sus servicios.",
+            },
+            {
                 question: "¿Los códigos QR caducan?",
-                answer: "No. El contenido está codificado dentro del propio patrón, así que el código funciona indefinidamente mientras el destino siga existiendo. Lo que sí caduca son los QR de servicios que redirigen a través de sus servidores: si esa empresa cierra o cobra, el código deja de funcionar. Los de aquí no redirigen.",
+                answer: "El patrón no tiene una fecha de caducidad. Un QR de texto o WiFi conserva los datos que grabaste; un QR de enlace necesita que su destino siga disponible. Los QR de realidad aumentada dependen además del visor /ar de este sitio y del alojamiento del modelo. Comprueba esos destinos antes de imprimir.",
             },
             {
                 question: "¿Cuántos caracteres caben en un código QR?",

@@ -25,9 +25,34 @@
 .studio-segment { min-height: 44px; border-radius: 9px; padding: 10px 14px; font-size: 12px; color: #94a3b8; transition: background .15s; }
 .studio-segment[aria-pressed="true"] { background: #ffffff0f; color: #fff; box-shadow: inset 0 0 0 1px #ffffff14; }
 .studio-segment:hover { color: #fff; }
-.qr-workbench { display: grid; align-items: start; gap: 24px; }
-.qr-preview { position: static; }
-@media (min-width: 1024px) { .qr-workbench { grid-template-columns: minmax(0, 1fr) minmax(300px, .72fr); } .qr-preview { position: sticky; top: 88px; } }
+/* The document is the only scrolling ancestor, so previews can stick. */
+body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !important; }
+.tools-workspace nav[aria-label="Ruta de navegación"] { padding-inline: 1rem; }
+.qr-workbench { display: grid; align-items: start; gap: 16px; }
+.qr-preview { position: sticky; top: 72px; z-index: 20; display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px 12px; padding: 12px; box-shadow: 0 12px 28px #0003; }
+.qr-preview-image { grid-column: 1; grid-row: 1 / 3; width: 96px; }
+.qr-preview-heading { grid-column: 2; grid-row: 1; min-width: 0; }
+.qr-preview-actions { grid-column: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.qr-preview-actions .studio-button { padding: 8px; gap: 5px; }
+.qr-preview-feedback { grid-column: 1 / -1; }
+.qr-editor :is(input, textarea, select, button, summary) { scroll-margin-top: 230px; scroll-margin-bottom: 24px; }
+.qr-studio .studio-panel-heading { padding: 14px 20px; }
+.qr-type-button { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid #ffffff14; border-radius: 9px; font-size: 12px; color: #94a3b8; transition: background .15s, color .15s, border-color .15s; }
+.qr-type-button:hover, .qr-shape-button:hover { background: #ffffff08; color: white; }
+.qr-type-button[aria-pressed="true"], .qr-shape-button[aria-pressed="true"], .qr-preset[aria-pressed="true"] { border-color: #5eead466; background-color: #5eead410; color: #99f6e4; }
+.qr-shape-button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; min-height: 64px; gap: 7px; padding: 8px 2px; border: 1px solid #ffffff14; border-radius: 9px; color: #94a3b8; transition: background .15s, color .15s; }
+.qr-shape-button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.qr-export-options[open] > summary > svg:last-child, .tool-guide[open] > summary > svg:last-child { transform: rotate(180deg); }
+:is(.qr-export-options, .tool-guide) > summary::-webkit-details-marker { display: none; }
+@media (min-width: 640px) { .tools-workspace nav[aria-label="Ruta de navegación"] { padding-inline: 2rem; } }
+@media (min-width: 1024px) {
+    .qr-workbench { grid-template-columns: minmax(0, 1fr) minmax(280px, .65fr); column-gap: 24px; }
+    .qr-editor { grid-column: 1; grid-row: 1; }
+    .qr-preview { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: stretch; gap: 20px; top: 88px; padding: 20px; }
+    .qr-preview-image { width: min(100%, 280px, 40svh); margin-inline: auto; }
+    .qr-preview-actions .studio-button { padding: 10px; }
+    .qr-editor :is(input, textarea, select, button, summary) { scroll-margin-top: 100px; }
+}
 @media (max-width: 639px) { .tools-workspace .tool-main { padding-top: 1.5rem; } .tools-workspace :is(input, select, textarea) { font-size: 16px; } }
 @media (prefers-reduced-motion: reduce) { .tools-workspace *, .tools-workspace *::before, .tools-workspace *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 

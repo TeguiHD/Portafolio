@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useMotionActivity } from "../motion/LandingMotionProvider";
 import { useEffect, useState } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { Shield, Server, Activity, AlertTriangle } from "lucide-react";
@@ -9,28 +10,29 @@ import { Shield, Server, Activity, AlertTriangle } from "lucide-react";
 function generateHealthData() {
     return Array.from({ length: 20 }, (_, i) => ({
         time: i,
-        value: 30 + Math.random() * 40,
+        value: [38, 44, 41, 58, 52, 48, 61, 56, 45, 50, 62, 57, 53, 42, 48, 56, 51, 46, 49, 45][i],
     }));
 }
 
 // Simulated threat data
 const threatEvents = [
-    { ip: "192.168.1.54", type: "SQL Injection", time: "hace 2m" },
-    { ip: "10.0.0.123", type: "XSS Attempt", time: "hace 5m" },
-    { ip: "172.16.0.88", type: "Brute Force", time: "hace 8m" },
+    { ip: "192.168.1.54", type: "Inyección SQL", time: "hace 2 min" },
+    { ip: "10.0.0.123", type: "Intento de XSS", time: "hace 5 min" },
+    { ip: "172.16.0.88", type: "Fuerza bruta", time: "hace 8 min" },
 ];
 
 // Microservices status
 const microservices = [
-    { name: "Auth Service", status: "online" },
-    { name: "PDF Generator", status: "idle" },
-    { name: "AI Rate Limit", status: "online" },
-    { name: "Email Queue", status: "online" },
+    { name: "Autenticación", status: "online" },
+    { name: "Generador PDF", status: "idle" },
+    { name: "Control de uso IA", status: "online" },
+    { name: "Envío de correos", status: "online" },
 ];
 
 export function FloatingDashboard() {
     const [healthData, setHealthData] = useState(generateHealthData);
-    const [currentCpu, setCurrentCpu] = useState(45);
+    const { ref, active } = useMotionActivity();
+    const currentCpu = Math.round(healthData[healthData.length - 1].value);
     const [isMounted, setIsMounted] = useState(false);
 
     // Track client-side mount to prevent SSR animation mismatch
@@ -40,56 +42,44 @@ export function FloatingDashboard() {
 
     // Animate CPU chart
     useEffect(() => {
+        if (!active) return;
         const interval = setInterval(() => {
             setHealthData((prev) => {
                 const newValue = Math.max(20, Math.min(80, prev[prev.length - 1].value + (Math.random() - 0.5) * 15));
-                setCurrentCpu(Math.round(newValue));
                 return [...prev.slice(1), { time: prev[prev.length - 1].time + 1, value: newValue }];
             });
         }, 1500);
         return () => clearInterval(interval);
-    }, []);
+    }, [active]);
 
     return (
-        <motion.div
-            initial={isMounted ? { opacity: 0, x: 50, rotateY: -10 } : false}
-            animate={{ opacity: 1, x: 0, rotateY: -5 }}
-            transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-            className="relative hidden lg:block"
-            style={{ perspective: "1000px" }}
+        <div
+            ref={ref}
+            data-motion-active={active}
+            data-dashboard-demo
+            className="relative w-full"
         >
             {/* Main Panel - Glassmorphism */}
             <div
-                className="relative w-[420px] rounded-2xl overflow-hidden"
-                style={{
-                    transform: "rotateY(-8deg) rotateX(2deg)",
-                    transformStyle: "preserve-3d",
-                }}
+                className="relative w-full overflow-hidden rounded-2xl border border-white/15 bg-[#111827]/95 shadow-2xl shadow-black/20"
             >
-                {/* Glass background */}
-                <div className="absolute inset-0 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl" />
-
-                {/* Subtle glow */}
-                <div className="absolute -inset-1 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/10 rounded-2xl blur-xl -z-10" />
-
                 <div className="relative p-5 space-y-5">
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">
-                                System Monitor
+                            <span className="text-xs font-mono text-slate-300 uppercase tracking-wider">
+                                Monitor del sistema
                             </span>
                         </div>
-                        <span className="text-[10px] font-mono text-gray-600">LIVE</span>
                     </div>
 
-                    {/* Server Health */}
+                    {/* Estado del servidor */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Server className="w-4 h-4 text-blue-400" />
-                                <span className="text-sm font-medium text-white">Server Health</span>
+                                <span className="text-sm font-medium text-white">Estado del servidor</span>
                             </div>
                             <span className="text-sm font-mono text-blue-400">{currentCpu}% CPU</span>
                         </div>
@@ -109,29 +99,26 @@ export function FloatingDashboard() {
                         </div>
                     </div>
 
-                    {/* Threat Monitor */}
+                    {/* Eventos de seguridad */}
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
                             <Shield className="w-4 h-4 text-red-400" />
-                            <span className="text-sm font-medium text-white">Threat Monitor</span>
+                            <span className="text-sm font-medium text-white">Eventos de seguridad</span>
                         </div>
                         <div className="space-y-1.5">
                             {threatEvents.slice(0, 2).map((threat, i) => (
                                 <motion.div
                                     key={i}
-                                    initial={isMounted ? { opacity: 0, x: -10 } : false}
+                                    initial={isMounted && active ? { opacity: 0, x: -10 } : false}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.8 + i * 0.15 }}
-                                    className="flex items-center justify-between text-xs bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2"
+                                    transition={{ duration: active ? 0.3 : 0, delay: active ? 0.1 + i * 0.05 : 0 }}
+                                    className="flex items-center justify-between text-xs gap-2 bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2"
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle className="w-3 h-3 text-red-400" />
-                                        <span className="text-gray-400">
-                                            <span className="text-red-400 font-mono">{threat.ip}</span>
-                                            {" - "}{threat.type}
-                                        </span>
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <AlertTriangle className="w-3 h-3 shrink-0 text-red-400" />
+                                        <span className="min-w-0"><span className="block text-slate-200">{threat.type}</span><span className="mt-0.5 block font-mono text-[11px] text-slate-400">{threat.ip}</span></span>
                                     </div>
-                                    <span className="text-gray-600">{threat.time}</span>
+                                    <span className="text-slate-400 whitespace-nowrap">{threat.time}</span>
                                 </motion.div>
                             ))}
                         </div>
@@ -141,15 +128,15 @@ export function FloatingDashboard() {
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
                             <Activity className="w-4 h-4 text-emerald-400" />
-                            <span className="text-sm font-medium text-white">Microservices</span>
+                            <span className="text-sm font-medium text-white">Servicios</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             {microservices.map((service, i) => (
                                 <motion.div
                                     key={service.name}
-                                    initial={isMounted ? { opacity: 0, scale: 0.9 } : false}
+                                    initial={isMounted && active ? { opacity: 0, scale: 0.9 } : false}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: 1 + i * 0.1 }}
+                                    transition={{ duration: active ? 0.3 : 0, delay: active ? 0.1 + i * 0.05 : 0 }}
                                     className="flex items-center gap-2 text-xs bg-white/[0.02] border border-white/5 rounded-lg px-3 py-2"
                                 >
                                     <div
@@ -158,7 +145,7 @@ export function FloatingDashboard() {
                                             : "bg-yellow-500"
                                             }`}
                                     />
-                                    <span className="text-gray-400 truncate">{service.name}</span>
+                                    <span className="text-slate-300 truncate">{service.name}</span>
                                 </motion.div>
                             ))}
                         </div>
@@ -166,11 +153,6 @@ export function FloatingDashboard() {
                 </div>
             </div>
 
-            {/* Shadow/Reflection */}
-            <div
-                className="absolute -bottom-4 left-4 right-4 h-8 bg-gradient-to-t from-black/20 to-transparent blur-xl rounded-full"
-                style={{ transform: "rotateY(-8deg)" }}
-            />
-        </motion.div>
+        </div>
     );
 }

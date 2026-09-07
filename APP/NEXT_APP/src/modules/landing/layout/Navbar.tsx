@@ -18,6 +18,7 @@ const HIDE_THRESHOLD = 300;     // Allow hiding after 300px of total scroll
 type ScrollPhase = "expanded" | "compact" | "hidden";
 
 export function Navbar() {
+  const headerRef = useRef<HTMLElement>(null);
   const [phase, setPhase] = useState<ScrollPhase>("expanded");
   const [open, setOpen] = useState(false);
   const lastScrollY = useRef(0);
@@ -61,7 +62,7 @@ export function Navbar() {
       const delta = latest - prev;
       lastScrollY.current = latest;
 
-      if (suppressHideRef.current) {
+      if (suppressHideRef.current || headerRef.current?.contains(document.activeElement)) {
         setPhase(latest < COMPACT_THRESHOLD ? "expanded" : "compact");
         return;
       }
@@ -114,6 +115,8 @@ export function Navbar() {
   return (
     <>
       <header
+        ref={headerRef}
+        onFocusCapture={() => setPhase(window.scrollY < COMPACT_THRESHOLD ? "expanded" : "compact")}
         className={cn(
           "fixed left-0 right-0 z-50 flex justify-center px-4 pointer-events-none",
           "transition-all ease-[cubic-bezier(0.4,0,0.2,1)]",

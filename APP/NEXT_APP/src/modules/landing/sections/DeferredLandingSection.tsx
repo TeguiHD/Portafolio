@@ -45,11 +45,7 @@ const SECTION_DEFINITIONS = {
     minHeightClass: "min-h-[70vh]",
     load: async () => (await import("./ContactSection")).ContactSection,
   },
-  footer: {
-    anchorId: "site-footer",
-    minHeightClass: "min-h-[36vh]",
-    load: async () => (await import("./FooterSection")).FooterSection,
-  },
+
 } as const;
 
 export type DeferredLandingSectionId = keyof typeof SECTION_DEFINITIONS;

@@ -4,14 +4,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Lock, CreditCard, ShieldCheck, ChevronRight, TrendingUp, TrendingDown, FileText, Shield, Sparkles, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { useMotionActivity } from "../motion/LandingMotionProvider";
 
 const modules = [
     {
         id: "finance",
         title: "Control Financiero",
-        subtitle: "Dashboard & Proyecciones",
-        description: "Gestión de ingresos, egresos y previsión de flujo de caja con reportes en tiempo real.",
+        subtitle: "Ingresos, gastos y planificación",
+        description: "Centraliza movimientos y consulta proyecciones para entender cómo cambia tu flujo de caja.",
         icon: CreditCard,
         color: "text-emerald-500",
         colorRgb: "16, 185, 129",
@@ -22,8 +22,8 @@ const modules = [
     {
         id: "cv",
         title: "Optimizador CV",
-        subtitle: "Potenciado con IA",
-        description: "Análisis y mejora automática de currículums para maximizar oportunidades laborales.",
+        subtitle: "Revisión y estructura del documento",
+        description: "Revisa la estructura y claridad del currículum con sugerencias que puedes evaluar antes de aplicarlas.",
         icon: Sparkles,
         color: "text-purple-500",
         colorRgb: "168, 85, 247",
@@ -34,8 +34,8 @@ const modules = [
     {
         id: "audit",
         title: "Auditoría de Seguridad",
-        subtitle: "Logs & Control de Acceso",
-        description: "Trazabilidad completa de acciones y control de acceso basado en roles granulares.",
+        subtitle: "Roles, sesiones y registro de actividad",
+        description: "Consulta eventos y organiza permisos por rol para revisar quién puede acceder a cada área.",
         icon: ShieldCheck,
         color: "text-blue-500",
         colorRgb: "59, 130, 246",
@@ -68,12 +68,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
     ];
 
     useEffect(() => {
-        if (!isActive) {
-            setCurrentView(0);
-            setScanProgress(0);
-            setAiTyping("");
-            return;
-        }
+        if (!isActive) return;
 
         // Rotate views - slow pace for readability
         const viewInterval = setInterval(() => {
@@ -110,7 +105,8 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
 
     // OCR scan animation
     useEffect(() => {
-        if (!isActive || currentView !== 2) {
+        if (!isActive) return;
+        if (currentView !== 2) {
             setScanProgress(0);
             return;
         }
@@ -126,7 +122,7 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
             <div className="flex items-center justify-between mb-2 sm:mb-3">
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] sm:text-[11px] font-mono text-emerald-500/80 font-medium">EN VIVO</span>
+                    <span className="text-[9px] sm:text-[11px] font-mono text-emerald-500/80 font-medium">DEMO</span>
                 </div>
                 <div className="flex gap-1">
                     {["📈", "🤖", "📷"].map((icon, i) => (
@@ -221,8 +217,8 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                         <div className="flex-1 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-lg p-2 sm:p-3 border border-emerald-500/20">
                             <div className="flex items-center gap-1.5 mb-2">
                                 <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                    animate={{ rotate: isActive ? 360 : 0 }}
+                                    transition={{ duration: isActive ? 3 : 0, repeat: isActive ? Infinity : 0, ease: "linear" }}
                                 >
                                     <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                                 </motion.div>
@@ -232,8 +228,8 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                 {aiTyping}
                                 <motion.span
                                     className="inline-block w-1 h-3 bg-emerald-400 ml-0.5"
-                                    animate={{ opacity: [1, 0] }}
-                                    transition={{ duration: 0.5, repeat: Infinity }}
+                                    animate={{ opacity: isActive ? [1, 0] : 1 }}
+                                    transition={{ duration: isActive ? 0.5 : 0, repeat: isActive ? Infinity : 0 }}
                                 />
                             </p>
                         </div>
@@ -264,8 +260,8 @@ function FinanceDemo({ isActive, isWide }: { isActive: boolean; isWide?: boolean
                                     <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-gray-600" />
                                     <motion.div
                                         className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center"
-                                        animate={{ scale: [1, 1.2, 1] }}
-                                        transition={{ duration: 1, repeat: Infinity }}
+                                        animate={{ scale: isActive ? [1, 1.2, 1] : 1 }}
+                                        transition={{ duration: isActive ? 1 : 0, repeat: isActive ? Infinity : 0 }}
                                     >
                                         <Sparkles className="w-2.5 h-2.5 text-white" />
                                     </motion.div>
@@ -333,13 +329,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
     ];
 
     useEffect(() => {
-        if (!isActive) {
-            setPhase('analyzing');
-            setAnalysisProgress(0);
-            setHighlightedLine(-1);
-            setOverallScore(42);
-            return;
-        }
+        if (!isActive) return;
 
         // Slow deliberate cycle through phases
         const phaseInterval = setInterval(() => {
@@ -355,7 +345,8 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
 
     // Analysis progress animation
     useEffect(() => {
-        if (!isActive || phase !== 'analyzing') {
+        if (!isActive) return;
+        if (phase !== 'analyzing') {
             setAnalysisProgress(0);
             return;
         }
@@ -367,7 +358,8 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
 
     // Highlight lines during suggestions phase
     useEffect(() => {
-        if (!isActive || phase !== 'suggestions') {
+        if (!isActive) return;
+        if (phase !== 'suggestions') {
             setHighlightedLine(-1);
             return;
         }
@@ -381,6 +373,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
 
     // Score animation
     useEffect(() => {
+        if (!isActive) return;
         if (phase === 'optimized') {
             const interval = setInterval(() => {
                 setOverallScore(prev => prev < 98 ? prev + 2 : 98);
@@ -389,7 +382,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
         } else if (phase === 'analyzing') {
             setOverallScore(42);
         }
-    }, [phase]);
+    }, [isActive, phase]);
 
     return (
         <div className="absolute inset-0 p-3 sm:p-4 flex flex-col">
@@ -397,8 +390,8 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
             <div className="flex items-center justify-between mb-2 sm:mb-3">
                 <div className="flex items-center gap-2">
                     <motion.div
-                        animate={phase === 'analyzing' ? { rotate: 360 } : { rotate: 0 }}
-                        transition={{ duration: 2, repeat: phase === 'analyzing' ? Infinity : 0, ease: "linear" }}
+                        animate={isActive && phase === 'analyzing' ? { rotate: 360 } : { rotate: 0 }}
+                        transition={{ duration: isActive ? 2 : 0, repeat: isActive && phase === 'analyzing' ? Infinity : 0, ease: "linear" }}
                     >
                         <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
                     </motion.div>
@@ -500,7 +493,7 @@ function CVOptimizerDemo({ isActive, isWide }: { isActive: boolean; isWide?: boo
 
 // Security Demo Component  
 function SecurityDemo({ isActive }: { isActive: boolean }) {
-    const [logs, setLogs] = useState<string[]>([]);
+    const [logs, setLogs] = useState<string[]>(["[DEMO] Control de acceso basado en roles"]);
     const [_isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
@@ -519,10 +512,7 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
     ];
 
     useEffect(() => {
-        if (!isActive) {
-            setLogs([]);
-            return;
-        }
+        if (!isActive) return;
         const interval = setInterval(() => {
             setLogs(prev => {
                 const newLog = logTemplates[Math.floor(Math.random() * logTemplates.length)];
@@ -552,7 +542,7 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
                 <AnimatePresence mode="popLayout">
                     {logs.map((log, i) => (
                         <motion.div
-                            key={`${log}-${i}-${Date.now()}`}
+                            key={`${log}-${i}`}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0.3 }}
@@ -566,8 +556,8 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
                     <span className="text-green-500 text-[8px] sm:text-[10px]">$</span>
                     <motion.span
                         className="inline-block w-1.5 sm:w-2 h-3 sm:h-4 bg-blue-400 ml-1"
-                        animate={{ opacity: [1, 0] }}
-                        transition={{ duration: 0.5, repeat: Infinity }}
+                        animate={{ opacity: isActive ? [1, 0] : 1 }}
+                        transition={{ duration: isActive ? 0.5 : 0, repeat: isActive ? Infinity : 0 }}
                     />
                 </div>
             </div>
@@ -588,15 +578,16 @@ function SecurityDemo({ isActive }: { isActive: boolean }) {
 }
 
 // Subtle Restricted Overlay - Always visible but doesn't block view
-function RestrictedOverlay({ color: _color, colorRgb }: { color: string; colorRgb: string }) {
+function RestrictedOverlay({ colorRgb, isActive }: { colorRgb: string; isActive: boolean }) {
     const [scanLine, setScanLine] = useState(0);
 
     useEffect(() => {
+        if (!isActive) return;
         const interval = setInterval(() => {
             setScanLine(prev => (prev + 1) % 120);
         }, 180);
         return () => clearInterval(interval);
-    }, []);
+    }, [isActive]);
 
     return (
         <>
@@ -621,7 +612,7 @@ function RestrictedOverlay({ color: _color, colorRgb }: { color: string; colorRg
 }
 
 // Floating Lock Badge - Indicates restricted access subtly
-function RestrictedBadge({ color, colorRgb, isHovered }: { color: string; colorRgb: string; isHovered: boolean }) {
+function RestrictedBadge({ color, colorRgb, isHovered, isActive }: { color: string; colorRgb: string; isHovered: boolean; isActive: boolean }) {
     return (
         <motion.div
             className="absolute top-3 right-3 z-30"
@@ -642,9 +633,9 @@ function RestrictedBadge({ color, colorRgb, isHovered }: { color: string; colorR
             >
                 <motion.div
                     animate={{
-                        scale: [1, 1.2, 1],
+                        scale: isActive ? [1, 1.2, 1] : 1,
                     }}
-                    transition={{ duration: 2, repeat: Infinity }}
+                    transition={{ duration: isActive ? 2 : 0, repeat: isActive ? Infinity : 0 }}
                 >
                     <Lock className={`w-3 h-3 ${color}`} />
                 </motion.div>
@@ -656,7 +647,7 @@ function RestrictedBadge({ color, colorRgb, isHovered }: { color: string; colorR
                             exit={{ width: 0, opacity: 0 }}
                             className={`text-[9px] sm:text-[10px] font-medium ${color} whitespace-nowrap overflow-hidden`}
                         >
-                            Solo clientes
+                            Acceso privado
                         </motion.span>
                     )}
                 </AnimatePresence>
@@ -716,6 +707,7 @@ function InfoPanel({ mod, isVisible, isMobile: _isMobile }: { mod: typeof module
 
 // Module Card Component - Redesigned with always-visible demos
 function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: number; layout: 'pillar' | 'wide' | 'normal' }) {
+    const { ref, active: isActive } = useMotionActivity();
     const [isHovered, setIsHovered] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [_isMounted, setIsMounted] = useState(false);
@@ -739,6 +731,13 @@ function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: num
 
     return (
         <motion.div
+            ref={ref}
+            data-motion-active={isActive}
+            data-demo={mod.id}
+            tabIndex={0}
+            onFocus={() => setIsHovered(true)}
+            onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsHovered(false); }}
+            onKeyDown={(event) => { if (event.key === "Escape") setIsHovered(false); }}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -753,23 +752,23 @@ function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: num
             onMouseLeave={() => !isMobile && setIsHovered(false)}
             onClick={handleInteraction}
         >
-            {/* Demo always running in background */}
+            {/* Demo runs only when visible and motion is allowed */}
             <div className="absolute inset-0 z-0">
                 <div className="absolute inset-0 bg-[#0a0a0a]" />
                 {mod.id === "cv" ? (
-                    <CVOptimizerDemo isActive={true} isWide={isWide} />
+                    <CVOptimizerDemo isActive={isActive} isWide={isWide} />
                 ) : mod.id === "finance" ? (
-                    <FinanceDemo isActive={true} isWide={isWide} />
+                    <FinanceDemo isActive={isActive} isWide={isWide} />
                 ) : (
-                    <SecurityDemo isActive={true} />
+                    <SecurityDemo isActive={isActive} />
                 )}
             </div>
 
             {/* Subtle security overlay effect */}
-            <RestrictedOverlay color={mod.color} colorRgb={mod.colorRgb} />
+            <RestrictedOverlay colorRgb={mod.colorRgb} isActive={isActive} />
 
             {/* Floating badge */}
-            <RestrictedBadge color={mod.color} colorRgb={mod.colorRgb} isHovered={isHovered} />
+            <RestrictedBadge color={mod.color} colorRgb={mod.colorRgb} isHovered={isHovered} isActive={isActive} />
 
             {/* Blur overlay on hover/tap for readability */}
             <motion.div
@@ -814,8 +813,8 @@ function ModuleCard({ mod, index, layout }: { mod: typeof modules[0]; index: num
                 <div className="absolute bottom-2 left-0 right-0 z-20 flex justify-center">
                     <motion.div
                         className="inline-flex items-center justify-center px-2 py-1 bg-black/60 rounded-full"
-                        animate={{ opacity: [0.5, 0.8, 0.5] }}
-                        transition={{ duration: 2, repeat: Infinity }}
+                        animate={{ opacity: isActive ? [0.5, 0.8, 0.5] : 0.8 }}
+                        transition={{ duration: isActive ? 2 : 0, repeat: isActive ? Infinity : 0 }}
                     >
                         <span className="text-[8px] text-gray-400 text-center leading-none">Toca para más info</span>
                     </motion.div>
@@ -839,26 +838,23 @@ export function ForbiddenVaultSection() {
                     <div className="space-y-4">
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-950/30 border border-amber-500/20 text-amber-500 rounded-full text-xs font-bold tracking-wider uppercase">
                             <Lock className="w-3 h-3" />
-                            Zona Restringida
+                            Software de uso interno
                         </div>
                         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight">
                             Infraestructura <span className="text-amber-500">Privada</span>
                         </h2>
                         <p className="text-base sm:text-lg text-gray-400 max-w-xl">
-                            Módulos de alto rendimiento para gestión crítica. Solo clientes activos.
+                            El trabajo que ocurre detrás de una plataforma: organizar la operación, preparar documentos y administrar accesos desde un entorno propio.
                         </p>
                     </div>
 
-                    <Link href="#contact">
-                        <Button
-                            variant="outline"
-                            className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10 inline-flex items-center gap-2 whitespace-nowrap"
-                        >
-                            <span className="whitespace-nowrap">Solicitar Acceso</span>
+                    <Link href="#contact" className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-amber-500/30 px-6 py-3 text-amber-400 hover:bg-amber-500/10">
+                            <span className="whitespace-nowrap">Conversar sobre un sistema</span>
                             <ChevronRight className="w-4 h-4 shrink-0" />
-                        </Button>
                     </Link>
                 </div>
+
+                <p className="mb-4 text-xs leading-relaxed text-slate-400"><span className="font-medium text-amber-300">Vistas de demostración.</span> Los movimientos, documentos, puntuaciones y eventos que ves a continuación son simulados. El acceso a los sistemas reales es privado.</p>
 
                 {/* Desktop Grid - 3 columns */}
                 <div className="hidden sm:grid sm:grid-cols-3 gap-6">

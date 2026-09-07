@@ -481,3 +481,46 @@ a,
     min-height: 44px;
   }
 }
+
+/* Public landing polish: keep the shared administration components untouched. */
+/* Keep the document as the scroll container so the closing scene can stick. */
+body:has(.landing-experience) {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
+:is(.landing-experience, .tools-workspace) :is(a, button, input, textarea, select, [tabindex="0"]):focus-visible {
+  outline: 2px solid #5eead4;
+  outline-offset: 4px;
+}
+.landing-experience :is(a, button) {
+  -webkit-tap-highlight-color: transparent;
+}
+.landing-experience[data-motion="paused"] *,
+.landing-experience [data-motion-active="false"] * {
+  animation-play-state: paused !important;
+}
+.landing-experience[data-motion="paused"] .hero-fade-in {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+.closing-signature canvas { opacity: 0; }
+.closing-signature[data-scene-ready="true"] canvas { opacity: 1; }
+.closing-signature[data-scene-ready="true"] .closing-signature-fallback { visibility: hidden; }
+.landing-experience[data-motion-restricted="true"] .closing-scene { height: auto; padding-block: 2rem; }
+.landing-experience[data-motion-restricted="true"] .closing-scene > div { position: relative; top: auto; }
+.landing-experience[data-motion-restricted="true"] .closing-signature { height: 18rem; }
+@media (prefers-reduced-motion: reduce) {
+  .landing-experience *, .landing-experience *::before, .landing-experience *::after {
+    animation: none !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closing-scene { height: auto; padding-block: 2rem; }
+  .closing-scene > div { position: relative; top: auto; }
+  .closing-signature { height: 18rem; }
+}

@@ -131,10 +131,10 @@ export function TechnologiesSection() {
                     className="text-center mb-16 md:mb-20"
                 >
                     <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
-                        Main <span className="text-gray-500">Stack</span>
+                        Una base <span className="text-gray-500">para crecer</span>
                     </h2>
-                    <p className="text-gray-500 text-sm md:text-base max-w-md mx-auto">
-                        Tecnologías que uso para construir soluciones robustas y escalables
+                    <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
+                        Elijo las tecnologías según tu proyecto: una web ágil, procesos conectados y un sistema fácil de mantener.
                     </p>
                 </motion.div>
 

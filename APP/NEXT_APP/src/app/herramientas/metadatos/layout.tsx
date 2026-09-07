@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { buildToolMetadata } from "@/lib/seo/metadata";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
-import { AuthorBio } from "@/components/seo/AuthorBio";
 import { ToolSeoContent } from "@/components/seo/ToolSeoContent";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ToolAccessProvider } from "@/components/tools/ToolAccessProvider";
@@ -48,7 +47,6 @@ export default async function ToolLayout({
         {children}
       </ToolAccessProvider>
       <ToolSeoContent slug={SLUG} />
-      <AuthorBio />
     </>
   );
 }

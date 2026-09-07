@@ -8,6 +8,7 @@ import {
     type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
+import { useMotionActivity } from "../motion/LandingMotionProvider";
 import { TOOL_COUNT } from "@/lib/tool-count";
 import {
     Terminal,
@@ -382,7 +383,9 @@ function ToolCard({ tool, index, enableEntranceAnimation }: ToolCardProps) {
 }
 
 export function ToolsBeltSection() {
-    const [enableSectionMotion, setEnableSectionMotion] = useState(true);
+    const { ref, active, allowed } = useMotionActivity<HTMLElement>();
+    const [supportsMotion, setEnableSectionMotion] = useState(false);
+    const enableSectionMotion = supportsMotion && allowed;
     const [enableAdvancedHover, setEnableAdvancedHover] = useState(false);
 
     useEffect(() => {
@@ -451,7 +454,7 @@ export function ToolsBeltSection() {
     const standardTools = tools.filter((tool) => !tool.featured);
 
     return (
-        <section id="tools-belt" className="relative py-24 md:py-32 px-4 sm:px-6 overflow-hidden">
+        <section ref={ref} data-motion-active={active} id="tools-belt" className="relative py-24 md:py-32 px-4 sm:px-6 overflow-hidden">
             <div className="absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]">
                 <div
                     className={`absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[100px] ${
@@ -481,7 +484,6 @@ export function ToolsBeltSection() {
 
                         <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-4">
                             Herramientas
-                            <span className="block text-gray-500 text-3xl md:text-4xl lg:text-5xl font-light mt-1">de Producción</span>
                         </h2>
                         <p className="text-lg text-gray-400 max-w-xl">
                             Sin registro. Sin marcas de agua. Sin complicaciones.
@@ -515,7 +517,7 @@ export function ToolsBeltSection() {
                             key={tool.id}
                             tool={tool}
                             index={index}
-                            enableAdvancedHover={enableAdvancedHover}
+                            enableAdvancedHover={enableAdvancedHover && active}
                             enableEntranceAnimation={enableSectionMotion}
                         />
                     ))}

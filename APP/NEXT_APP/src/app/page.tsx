@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { ShowcaseSection } from "@/modules/landing/sections/ShowcaseSection";
+import { ClosingSignature } from "@/modules/landing/sections/ClosingSignature";
+import { FooterSection } from "@/modules/landing/sections/FooterSection";
 import { HeroSection } from "@/modules/landing/sections/HeroSection";
 import { Navbar } from "@/modules/landing/layout/Navbar";
 import {
@@ -7,6 +9,8 @@ import {
   type DeferredLandingSectionId,
 } from "@/modules/landing/sections/DeferredLandingSection";
 import { NoScriptLanding } from "@/components/seo/NoScriptLanding";
+import { VisualEnhancements } from "@/modules/landing/layout/VisualEnhancements";
+import { LandingMotionProvider } from "@/modules/landing/motion/LandingMotionProvider";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -19,11 +23,12 @@ const deferredSections: (DeferredLandingSectionId | "casos")[] = [
   "tecnologias",
   "architecture",
   "contact",
-  "footer",
 ];
 
 export default function Home() {
   return (
+    <LandingMotionProvider>
+    <VisualEnhancements />
     <main className="relative min-h-screen selection:bg-accent-success/30">
       <Navbar />
 
@@ -41,5 +46,8 @@ export default function Home() {
           complementa las secciones interactivas que se cargan tras hidratar. */}
       <NoScriptLanding />
     </main>
+    <ClosingSignature />
+    <FooterSection />
+    </LandingMotionProvider>
   );
 }

@@ -41,9 +41,10 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "generar qr personalizado",
             "código qr para wifi",
             "descargar qr en svg",
+            "qr con realidad aumentada",
         ],
         related: ["enlaces", "base64", "favicon"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-09-06",
     },
 
     claves: {

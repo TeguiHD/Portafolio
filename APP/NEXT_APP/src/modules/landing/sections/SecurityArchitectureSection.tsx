@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Shield, Lock, Globe, Database, FileKey, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useMotionActivity } from "../motion/LandingMotionProvider";
 
 const securityFeatures = [
     "CSP con nonces dinámicos",
@@ -25,6 +26,7 @@ const securityLogs = [
 ];
 
 export function SecurityArchitectureSection() {
+    const { ref, active } = useMotionActivity<HTMLElement>();
     const [_isMounted, setIsMounted] = useState(false);
     const [logs, setLogs] = useState(securityLogs);
 
@@ -33,6 +35,7 @@ export function SecurityArchitectureSection() {
     }, []);
 
     useEffect(() => {
+        if (!active) return;
         const interval = setInterval(() => {
             setLogs(prev => {
                 const nextLog = securityLogs[Math.floor(Math.random() * securityLogs.length)];
@@ -43,10 +46,10 @@ export function SecurityArchitectureSection() {
             });
         }, 2000);
         return () => clearInterval(interval);
-    }, []);
+    }, [active]);
 
     return (
-        <section id="architecture" className="relative py-24 px-4 sm:px-6 overflow-hidden">
+        <section ref={ref} data-motion-active={active} id="architecture" className="relative py-24 px-4 sm:px-6 overflow-hidden">
             <div className="max-w-7xl mx-auto">
 
                 {/* Header */}
@@ -64,7 +67,7 @@ export function SecurityArchitectureSection() {
                         </span>
                     </motion.h2>
                     <p className="text-xl text-text-secondary">
-                        Seguridad Defensiva por Diseño
+                        Seguridad defensiva por diseño. El monitor muestra eventos simulados.
                     </p>
                 </div>
 
@@ -151,7 +154,7 @@ export function SecurityArchitectureSection() {
                         {/* Live Logs Terminal */}
                         <div className="bg-[#0D1117] rounded-xl border border-white/10 overflow-hidden shadow-2xl">
                             <div className="bg-white/5 px-4 py-2 border-b border-white/5 flex items-center justify-between">
-                                <div className="text-xs font-mono text-gray-400">security-monitor — bash</div>
+                                <div className="text-xs font-mono text-gray-400">security-monitor — demostración</div>
                                 <div className="flex gap-1.5">
                                     <div className="w-2.5 h-2.5 rounded-full bg-red-500/50" />
                                     <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />

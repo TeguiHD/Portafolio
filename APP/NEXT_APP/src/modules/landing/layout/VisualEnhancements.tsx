@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useLandingMotion } from "../motion/LandingMotionProvider";
 
 const DropCursor = dynamic(() => import("@/components/DropCursor"), {
   ssr: false,
@@ -31,13 +32,14 @@ type NavigatorWithConnection = Navigator & {
 };
 
 export function VisualEnhancements() {
+  const { allowed } = useLandingMotion();
   const pathname = usePathname();
   const [isReady, setIsReady] = useState(false);
   const [showBackground, setShowBackground] = useState(false);
   const [showCursor, setShowCursor] = useState(false);
 
   useEffect(() => {
-    if (pathname !== "/") {
+    if (pathname !== "/" || !allowed) {
       setIsReady(false);
       setShowBackground(false);
       setShowCursor(false);
@@ -101,9 +103,9 @@ export function VisualEnhancements() {
         window.clearTimeout(timeoutHandle);
       }
     };
-  }, [pathname]);
+  }, [pathname, allowed]);
 
-  if (pathname !== "/" || !isReady) {
+  if (pathname !== "/" || !isReady || !allowed) {
     return null;
   }
 

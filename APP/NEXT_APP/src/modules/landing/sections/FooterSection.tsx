@@ -1,17 +1,10 @@
-"use client";
-
-import { useCallback } from "react";
 import { ThrottledLink } from "@/components/ui/ThrottledLink";
 import { ExternalLink } from "@/components/ui/ExternalLink";
 
 export function FooterSection() {
-  const handleEmailClick = useCallback(() => {
-    window.location.href = "mailto:contact@nicoholas.dev";
-  }, []);
-
   return (
-    <footer aria-label="Pie de página" className="border-t border-white/5 py-16 px-4 sm:px-6 bg-black">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
+    <footer id="site-footer" aria-label="Pie de página" className="border-t border-white/5 pt-12 pb-24 px-4 sm:px-6 bg-[#07090f]">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
 
         <div className="space-y-4">
           <ThrottledLink href="/" className="font-mono text-xl font-bold text-white block">
@@ -28,15 +21,15 @@ export function FooterSection() {
             <li><ThrottledLink href="/#hero" className="hover:text-white transition-colors">Inicio</ThrottledLink></li>
             <li><ThrottledLink href="/#casos" className="hover:text-white transition-colors">Proyectos</ThrottledLink></li>
             <li><ThrottledLink href="/#tools-belt" className="hover:text-white transition-colors">Herramientas</ThrottledLink></li>
-            <li><ThrottledLink href="/#vault" className="hover:text-white transition-colors">Admin</ThrottledLink></li>
+            <li><ThrottledLink href="/#vault" className="hover:text-white transition-colors">Sistemas privados</ThrottledLink></li>
           </ul>
         </nav>
 
         <nav aria-label="Enlaces legales">
           <h3 className="font-bold text-white mb-4 text-sm tracking-wider">LEGAL</h3>
           <ul className="space-y-2 text-sm text-gray-500">
-            <li><ThrottledLink href="/privacy" className="hover:text-white transition-colors">Privacidad</ThrottledLink></li>
-            <li><ThrottledLink href="/terms" className="hover:text-white transition-colors">Términos</ThrottledLink></li>
+            <li><ThrottledLink href="/privacidad" className="hover:text-white transition-colors">Privacidad</ThrottledLink></li>
+            <li><ThrottledLink href="/terminos" className="hover:text-white transition-colors">Términos</ThrottledLink></li>
           </ul>
         </nav>
 
@@ -46,19 +39,13 @@ export function FooterSection() {
             <li><ExternalLink href="https://github.com/TeguiHD" className="hover:text-white transition-colors">GitHub</ExternalLink></li>
             <li><ExternalLink href="https://linkedin.com/in/nicoholas-lopetegui" className="hover:text-white transition-colors">LinkedIn</ExternalLink></li>
             <li>
-              <button
-                type="button"
-                onClick={handleEmailClick}
-                className="hover:text-white transition-colors"
-              >
-                Email
-              </button>
+              <a href="mailto:contact@nicoholas.dev" className="hover:text-white transition-colors">Email</a>
             </li>
           </ul>
         </nav>
 
       </div>
-      <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/5 text-center text-xs text-gray-600">
+      <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-white/5 text-center text-xs text-gray-600">
         Hecho con ❤️ y código por Nicoholas.
       </div>
     </footer>

@@ -367,7 +367,7 @@ export default function RandomPickerPage() {
                         {mode === "roulette" ? (
                             <>
                                 {/* Wheel */}
-                                <div className="relative mb-6">
+                                <div className="relative mx-auto mb-6 w-full max-w-[300px] overflow-hidden">
                                     {/* Pointer */}
                                     <div className="absolute top-0 left-1/2 -translate-x-1/2 z-10">
                                         <div className="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-[#FF8A00]" />
@@ -378,13 +378,13 @@ export default function RandomPickerPage() {
                                             ref={wheelRef}
                                             width={300}
                                             height={300}
-                                            className="max-w-full"
+                                            className="h-auto w-full"
                                             style={{ transform: isMounted ? `rotate(${rotation}deg)` : undefined }}
                                         />
                                     </div>
 
                                     {names.length < 2 && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-[#0F1724]/80 rounded-full mx-auto w-[300px]">
+                                        <div className="absolute inset-0 flex items-center justify-center bg-[#0F1724]/80 rounded-full">
                                             <p className="text-neutral-400 text-sm text-center px-8">
                                                 Ingresa al menos 2 participantes
                                             </p>

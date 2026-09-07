@@ -89,7 +89,7 @@ export function BackgroundManager() {
     );
 
     return (
-        <div className="fixed inset-0 -z-50 transition-colors duration-[1500ms] ease-in-out pointer-events-none">
+        <div data-landing-background="true" className="fixed inset-0 -z-50 transition-colors duration-[1500ms] ease-in-out pointer-events-none">
             <div
                 className={`absolute inset-0 transition-colors duration-[1500ms] ${
                     sectionColors[activeSection] || "bg-black"

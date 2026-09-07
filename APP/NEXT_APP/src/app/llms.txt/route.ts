@@ -4,8 +4,8 @@ import { SITE_URL, SITE_NAME } from "@/lib/seo/metadata";
 /**
  * /llms.txt — mapa del sitio legible por modelos de lenguaje.
  *
- * Convención emergente (llmstxt.org) para que los motores de respuesta sepan
- * qué hay aquí y cómo citarlo sin tener que renderizar JavaScript. Se deriva
+ * Mapa textual complementario. No sustituye sitemap, HTML accesible ni
+ * controles de rastreo, y no garantiza su uso por motores de respuesta. Se deriva
  * del mismo registro que alimenta metadata y sitemap, así que no puede quedar
  * desincronizado.
  */
@@ -36,6 +36,7 @@ ${tools}
 
 - [Inicio](${SITE_URL}): portafolio, casos y contacto.
 - [Todas las herramientas](${SITE_URL}/herramientas): índice completo.
+- [QR con realidad aumentada](${SITE_URL}/ar): guía de formatos, compatibilidad, ejemplo y acceso al generador.
 - [Blog](${SITE_URL}/blog): panel en vivo con noticias técnicas, seguridad, mercado y actividad de GitHub.
 - [Privacidad](${SITE_URL}/privacidad)
 - [Términos](${SITE_URL}/terminos)

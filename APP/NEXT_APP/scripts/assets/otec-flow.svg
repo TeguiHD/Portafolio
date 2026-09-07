@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600">
+<defs><radialGradient id="glow"><stop stop-color="#175351"/><stop offset="1" stop-color="#0b121c"/></radialGradient></defs>
+<rect width="960" height="600" fill="url(#glow)"/>
+<g fill="none" stroke="#5eead4" stroke-opacity=".32" stroke-width="2"><path d="M480 265v55H220v62M480 320v62M480 320h260v62"/><circle cx="480" cy="320" r="6" fill="#5eead4"/></g>
+<g font-family="DejaVu Sans, sans-serif"><text x="60" y="66" fill="#5eead4" font-size="14" letter-spacing="3">GESTIÓN DE CAPACITACIÓN</text><text x="60" y="112" fill="#f1f5f9" font-size="30" font-weight="bold">Un espacio para enseñar y gestionar.</text>
+<rect x="315" y="175" width="330" height="90" rx="18" fill="#152b35" stroke="#5eead4" stroke-opacity=".5"/>
+<text x="480" y="213" text-anchor="middle" fill="#f1f5f9" font-size="22">Intranet OTEC</text><text x="480" y="241" text-anchor="middle" fill="#94a3b8" font-size="15">Acceso a la plataforma</text>
+<g fill="#101e2b" stroke="#94a3b8" stroke-opacity=".25"><rect x="100" y="382" width="240" height="108" rx="16"/><rect x="360" y="382" width="240" height="108" rx="16"/><rect x="620" y="382" width="240" height="108" rx="16"/></g>
+<g fill="#e2e8f0" font-size="20" text-anchor="middle"><text x="220" y="428">Cursos</text><text x="480" y="428">Aula virtual</text><text x="740" y="428">Certificados</text></g>
+<g fill="#94a3b8" font-size="14" text-anchor="middle"><text x="220" y="459">Organización y estudiantes</text><text x="480" y="459">Actividades de formación</text><text x="740" y="459">Emisión de documentos</text></g>
+<text x="60" y="555" fill="#94a3b8" font-size="13" letter-spacing="1">ESQUEMA DEL ALCANCE · NO ES UNA CAPTURA DE LA INTERFAZ</text></g></svg>

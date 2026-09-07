@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { Wrench } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 export function ToolsFooter() {
     const pathname = usePathname();
     return (
         <footer className="border-t border-white/10 bg-[#0F1724]/80 backdrop-blur-sm px-5 py-8 sm:px-10">
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-7xl">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                     {/* Brand + CTA */}
                     <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -18,7 +19,8 @@ export function ToolsFooter() {
                             Nicoholas Lopetegui
                         </Link>
                         <span className="hidden sm:block text-neutral-600">•</span>
-                        <p className="text-sm text-neutral-400">
+                        <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-neutral-400">
+                            <Wrench size={17} aria-hidden="true" className="text-teal-300" />
                             ¿Necesitas una herramienta personalizada?{" "}
                             <Link href="/#contact" className="text-accent-1 hover:underline">
                                 Contáctame

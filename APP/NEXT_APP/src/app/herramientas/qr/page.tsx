@@ -2,8 +2,8 @@
 
 import { Suspense, useState, useRef, useMemo, useEffect, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { useSearchParams } from "next/navigation";
-import { Box, QrCode, Download, Check, Upload, X, ArrowUpRight, ShieldCheck, LoaderCircle, AlertCircle, Palette, ScanLine } from "lucide-react";
-import { ColorPicker } from "@/components/ui/ColorPicker";
+import { Box, QrCode, Download, Check, Upload, X, ArrowUpRight, LoaderCircle, AlertCircle, Palette, ChevronDown, SlidersHorizontal, Link2 } from "lucide-react";
+import { QrColorField, QrShapePicker } from "@/components/qr/QrDesignControls";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
@@ -25,7 +25,6 @@ const templates = [
     { name: "Editorial", fg: "#312e81", bg: "#f5f3ff", style: "dots" as QRStyle },
     { name: "Terracota", fg: "#7c2d12", bg: "#fff7ed", style: "rounded" as QRStyle },
 ];
-const shapeNames: Record<string, string> = { square: "Cuadrado", rounded: "Redondeado", dots: "Puntos", classy: "Esquinas", diamond: "Diamante", circle: "Círculo", leaf: "Hoja" };
 
 function luminance(hex: string) {
     const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255).map((v) => v <= 0.04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
@@ -89,6 +88,7 @@ function QRStudio() {
     const [exportMessage, setExportMessage] = useState("");
     const [filename, setFilename] = useState("mi-codigo-qr");
     const [designTab, setDesignTab] = useState<"presets" | "custom">("presets");
+    const [showAllTypes, setShowAllTypes] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const logoRequest = useRef(0);
     const { trackImmediate } = useToolTracking("qr", { trackViewOnMount: true, debounceMs: 2000 });
@@ -211,7 +211,8 @@ function QRStudio() {
     if (isLoading) return <div className="flex min-h-80 items-center justify-center gap-3 text-sm text-slate-400"><LoaderCircle className="animate-spin" size={20} />Cargando editor…</div>;
     if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador QR"} />;
     const inputClass = "w-full rounded-lg border border-white/10 bg-[#0b111a] px-3 py-3 text-sm text-white placeholder:text-slate-500";
-    const currentTypeConfig = QR_TYPES.find((item) => item.id === qrType);
+    const primaryTypes: QRType[] = ["url", "wifi", "whatsapp", "ar"];
+    const visibleTypes = QR_TYPES.filter(item => showAllTypes || primaryTypes.includes(item.id) || item.id === qrType);
     const renderTypeForm = () => {
         switch (qrType) {
             case "url": return <QrInput type="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); }} placeholder="https://ejemplo.com" className={inputClass} />;
@@ -257,78 +258,78 @@ function QRStudio() {
     };
 
     return (
-        <div className="tool-page">
+        <div className="tool-page qr-studio">
             <main className="tool-main mx-auto max-w-7xl px-4 sm:px-8">
-                <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
-                    <div><p className="studio-eyebrow mb-3 text-teal-300">QR STUDIO</p><h1 className="text-2xl font-semibold text-white sm:text-3xl">Generador de Códigos QR</h1><p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">De un enlace a una experiencia 3D. Configura, personaliza y descarga un QR que se sienta tuyo.</p></div>
-                    <span className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-[11px] text-slate-400"><ShieldCheck size={14} aria-hidden="true" />QR generado en tu navegador</span>
+                <header className="mb-6">
+                    <h1 className="text-2xl font-semibold text-white sm:text-3xl">Generador de Códigos QR</h1>
+                    <p className="mt-2 text-sm text-slate-400">Elige el contenido, dale tu estilo y descárgalo.</p>
                 </header>
-                <nav aria-label="Secciones del editor QR" className="sticky top-16 z-20 mb-5 flex gap-2 rounded-xl border border-white/10 bg-[#0d131d] p-2 lg:hidden">
-                    <a href="#qr-edit" className="studio-button flex-1">Editar contenido</a>
-                    <a href="#qr-preview" className="studio-button studio-button-primary flex-1">Ver QR y descargar</a>
-                </nav>
                 <div className="qr-workbench">
-                    <div id="qr-edit" className="min-w-0 scroll-mt-36 space-y-5">
+                    <aside id="qr-preview" className="qr-preview studio-panel" aria-label="Vista previa y descarga">
+                        <div className="qr-preview-heading">
+                            <h2 className="text-sm font-medium text-white">Tu código QR</h2>
+                            <span role="status" className={`mt-1 flex items-center gap-1.5 text-[11px] ${canDownload ? "text-teal-300" : "text-slate-400"}`}>
+                                {updating ? <LoaderCircle size={12} className="animate-spin" aria-hidden="true" /> : canDownload ? <Check size={12} aria-hidden="true" /> : null}
+                                {updating ? "Actualizando…" : canDownload ? "Listo para descargar" : "Añade contenido"}
+                            </span>
+                        </div>
+                        <div className="qr-preview-image">
+                            <div className="aspect-square w-full overflow-hidden rounded-lg bg-white shadow-lg shadow-black/10">
+                                <canvas ref={canvasRef} role="img" aria-label="Vista previa del código QR" className={`h-full w-full ${!canDownload && !updating ? "hidden" : "block"}`} style={{ opacity: canDownload ? 1 : .35 }} />
+                                {!canDownload && !updating && <div className="flex aspect-square items-center justify-center"><QrCode className="h-12 w-12 text-slate-300" strokeWidth={1} aria-hidden="true" /><span className="sr-only">Completa el contenido para ver tu QR.</span></div>}
+                            </div>
+                        </div>
+                        <div className="qr-preview-actions">
+                            <button type="button" onClick={() => download("png")} disabled={!canDownload || exporting} aria-label="Descargar PNG" className="studio-button studio-button-primary"><Download size={15} aria-hidden="true" /><span className="hidden lg:inline">Descargar</span> PNG</button>
+                            <button type="button" onClick={() => download("svg")} disabled={!canDownload || exporting} aria-label="Descargar SVG" className="studio-button"><Download size={15} aria-hidden="true" />SVG</button>
+                        </div>
+                        {exportMessage && <p role="status" className="qr-preview-feedback text-xs text-teal-200">{exportMessage}</p>}
+                    </aside>
+                    <div id="qr-edit" className="qr-editor min-w-0 space-y-4">
                         <section className="studio-panel">
-                            <div className="studio-panel-heading"><p className="studio-eyebrow mb-1">01 / EL DESTINO</p><h2 className="text-sm font-semibold text-white">¿Qué sucede al escanearlo?</h2></div>
-                            <div className="p-4 sm:p-5">
-                                <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label="Tipo de código QR">
-                                    {[...QR_TYPES.filter((item) => item.id === "ar"), ...QR_TYPES.filter((item) => item.id !== "ar")].map((type) => {
+                            <div className="studio-panel-heading flex items-center gap-2"><Link2 size={16} aria-hidden="true" className="text-teal-300" /><h2 className="text-sm font-semibold text-white">Contenido</h2></div>
+                            <div className="space-y-4 p-4 sm:p-5">
+                                <div role="group" aria-label="Tipo de código QR" className="flex flex-wrap gap-2">
+                                    {visibleTypes.map(type => {
                                         const Icon = QR_TYPE_ICONS[type.id];
-                                        return <button key={type.id} type="button" onClick={() => selectType(type.id)} aria-pressed={qrType === type.id} className={`flex min-h-14 items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-xs transition-colors ${qrType === type.id ? "border-teal-300/40 bg-teal-300/10 text-teal-200" : type.id === "ar" ? "border-violet-300/20 bg-violet-300/5 text-violet-200 hover:bg-violet-300/10" : "border-white/[0.06] text-slate-400 hover:border-white/15 hover:bg-white/5"}`}><Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span>{type.label}</span>{qrType === type.id && <Check size={12} aria-hidden="true" className="ml-auto shrink-0" />}</button>;
+                                        return <button key={type.id} type="button" onClick={() => selectType(type.id)} aria-pressed={qrType === type.id} className="qr-type-button"><Icon className="h-4 w-4 shrink-0" aria-hidden="true" /><span>{type.label}</span></button>;
                                     })}
+                                    <button type="button" onClick={() => setShowAllTypes(!showAllTypes)} aria-expanded={showAllTypes} className="qr-type-button text-slate-400"><span>{showAllTypes ? "Menos tipos" : "Más tipos"}</span><ChevronDown size={14} aria-hidden="true" className={showAllTypes ? "rotate-180" : ""} /></button>
                                 </div>
-                                <div className="mb-4 border-t border-white/[0.06] pt-4"><h3 className="text-sm font-medium text-white">{currentTypeConfig?.label === "URL" ? "El enlace que quieres compartir" : currentTypeConfig?.label}</h3><p className="mt-1 text-xs text-slate-500">{qrType === "ar" ? "Prepara los modelos y comprueba la experiencia antes de imprimir." : "El QR se actualiza mientras editas. No hace falta pulsar generar."}</p></div>
                                 {renderTypeForm()}
+                                {(generationError || arError) && <p role="alert" className="flex items-start gap-2 text-xs leading-relaxed text-amber-200"><AlertCircle size={16} className="shrink-0" aria-hidden="true" />{generationError || arError}</p>}
                             </div>
                         </section>
                         <section className="studio-panel">
-                            <div className="studio-panel-heading flex items-center justify-between gap-3"><div><p className="studio-eyebrow mb-1">02 / TU IDENTIDAD</p><h2 className="text-sm font-semibold text-white">Diseño y marca</h2></div><Palette size={18} aria-hidden="true" className="text-slate-500" /></div>
+                            <div className="studio-panel-heading flex items-center gap-2"><Palette size={16} aria-hidden="true" className="text-teal-300" /><h2 className="text-sm font-semibold text-white">Personalización</h2></div>
                             <div className="space-y-5 p-4 sm:p-5">
                                 <div role="group" aria-label="Opciones de diseño" className="flex gap-1 rounded-xl bg-black/15 p-1"><button type="button" aria-pressed={designTab === "presets"} onClick={() => setDesignTab("presets")} className="studio-segment flex-1">Estilos listos</button><button type="button" aria-pressed={designTab === "custom"} onClick={() => setDesignTab("custom")} className="studio-segment flex-1">Personalizar</button></div>
-                                {designTab === "presets" ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{templates.map((template) => <button key={template.name} type="button" aria-pressed={fgColor === template.fg && bgColor === template.bg && style === template.style && !useGradient} onClick={() => { setFgColor(template.fg); setBgColor(template.bg); setEyeColor(template.fg); setStyle(template.style); setEyeStyle("rounded"); setUseGradient(false); }} className="rounded-xl border border-white/10 p-2.5 text-xs text-slate-300 transition-colors hover:border-white/30"><span className="mb-2 flex h-16 items-center justify-center rounded-lg" style={{ background: template.bg, color: template.fg }}><QrCode size={38} strokeWidth={1.5} aria-hidden="true" /></span>{template.name}</button>)}</div> : <div className="space-y-5">
-                                    <div className="grid grid-cols-3 gap-3"><ColorPicker label="Fondo" color={bgColor} onChange={setBgColor} /><ColorPicker label="Cuerpo" color={fgColor} onChange={setFgColor} /><ColorPicker label="Ojos" color={eyeColor} onChange={setEyeColor} /></div>
-                                    <label className="flex min-h-11 items-center gap-3 text-xs text-slate-300"><input type="checkbox" checked={useGradient} onChange={(event) => setUseGradient(event.target.checked)} className="h-4 w-4 accent-teal-300" />Usar un degradado</label>
-                                    {useGradient && <div className="grid grid-cols-2 items-center gap-4"><ColorPicker label="Segundo color" color={gradientTo} onChange={setGradientTo} /><label className="studio-field">Ángulo: {gradientAngle}°<input type="range" min="0" max="360" step="15" value={gradientAngle} onChange={(event) => setGradientAngle(Number(event.target.value))} /></label></div>}
-                                    <div><p className="mb-2 text-xs text-slate-400">Forma del cuerpo</p><div className="flex flex-wrap gap-1" role="group" aria-label="Forma del cuerpo">{(["square", "rounded", "dots", "classy", "diamond"] as QRStyle[]).map((shape) => <button type="button" key={shape} aria-pressed={style === shape} onClick={() => setStyle(shape)} className="studio-segment">{shapeNames[shape]}</button>)}</div></div>
-                                    <div><p className="mb-2 text-xs text-slate-400">Forma de los ojos</p><div className="flex flex-wrap gap-1" role="group" aria-label="Forma de los ojos">{(["square", "rounded", "circle", "leaf", "diamond"] as EyeStyle[]).map((shape) => <button type="button" key={shape} aria-pressed={eyeStyle === shape} onClick={() => setEyeStyle(shape)} className="studio-segment">{shapeNames[shape]}</button>)}</div></div>
+                                {designTab === "presets" ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{templates.map(template => <button key={template.name} type="button" aria-pressed={fgColor === template.fg && bgColor === template.bg && style === template.style && !useGradient} onClick={() => { setFgColor(template.fg); setBgColor(template.bg); setEyeColor(template.fg); setStyle(template.style); setEyeStyle("rounded"); setUseGradient(false); }} className="qr-preset rounded-xl border border-white/10 p-2 text-xs text-slate-300 transition-colors hover:border-white/30"><span className="mb-2 flex h-12 items-center justify-center rounded-lg" style={{ background: template.bg, color: template.fg }}><QrCode size={32} strokeWidth={1.5} aria-hidden="true" /></span>{template.name}</button>)}</div> : <div className="space-y-5">
+                                    <div className="grid gap-3 sm:grid-cols-3"><QrColorField label="Fondo" color={bgColor} onChange={setBgColor} /><QrColorField label="Cuerpo" color={fgColor} onChange={setFgColor} /><QrColorField label="Ojos" color={eyeColor} onChange={setEyeColor} /></div>
+                                    <label className="flex min-h-11 items-center gap-3 text-xs text-slate-300"><input type="checkbox" checked={useGradient} onChange={event => setUseGradient(event.target.checked)} className="h-4 w-4 accent-teal-300" />Degradado</label>
+                                    {useGradient && <div className="grid grid-cols-2 items-center gap-4"><QrColorField label="Segundo color" color={gradientTo} onChange={setGradientTo} /><label className="studio-field">Ángulo: {gradientAngle}°<input type="range" min="0" max="360" step="15" value={gradientAngle} onChange={event => setGradientAngle(Number(event.target.value))} /></label></div>}
+                                    <QrShapePicker<QRStyle> label="Forma del cuerpo" value={style} options={["square", "rounded", "dots", "classy", "diamond"]} onChange={setStyle} />
+                                    <QrShapePicker<EyeStyle> label="Forma de los ojos" value={eyeStyle} options={["square", "rounded", "circle", "leaf", "diamond"]} onChange={setEyeStyle} eye />
                                 </div>}
-                                <div className="border-t border-white/[0.06] pt-5"><p className="mb-3 text-xs font-medium text-slate-300">Logo central <span className="font-normal text-slate-500">/ opcional</span></p><div className="flex flex-wrap gap-2">
+                                {lowContrast && <p role="status" className="text-xs leading-relaxed text-amber-200">Contraste bajo. Elige un cuerpo oscuro sobre un fondo claro para facilitar la lectura.</p>}
+                                <div className="border-t border-white/[0.06] pt-4"><p className="mb-3 text-xs font-medium text-slate-300">Logo <span className="font-normal text-slate-500">· opcional</span></p><div className="flex flex-wrap gap-2">
                                     <label className="studio-button cursor-pointer focus-within:outline-2 focus-within:outline-teal-300"><Upload size={15} aria-hidden="true" />{logo ? "Cambiar logo" : "Subir logo"}<input type="file" aria-label="Subir logo" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} className="sr-only" /></label>
                                     <button type="button" aria-pressed={useTypeIcon && !logo} onClick={() => { logoRequest.current++; setUseTypeIcon(!useTypeIcon); setLogo(null); setErrorLevel("H"); }} className="studio-button"><QrCode size={15} aria-hidden="true" />Icono del contenido</button>
                                     {(logo || useTypeIcon) && <button type="button" onClick={() => { logoRequest.current++; setLogo(null); setUseTypeIcon(false); }} className="studio-button" aria-label="Quitar logo"><X size={15} />Quitar</button>}
-                                </div><p className="mt-2 text-[11px] text-slate-500">PNG, JPG o WebP · hasta 2 MB. Al añadir un logo se activa la corrección H.</p>{logoError && <p role="alert" className="mt-2 text-xs text-amber-200">{logoError}</p>}</div>
+                                </div><p className="mt-2 text-[11px] text-slate-500">PNG, JPG o WebP · hasta 2 MB</p>{logoError && <p role="alert" className="mt-2 text-xs text-amber-200">{logoError}</p>}</div>
                             </div>
                         </section>
-                    </div>
-                    <aside id="qr-preview" className="qr-preview min-w-0 scroll-mt-36 space-y-4" aria-label="Vista previa y descarga">
-                        <section className="studio-panel overflow-hidden">
-                            <div className="studio-panel-heading flex items-center justify-between gap-2"><h2 className="text-sm font-medium text-white">Tu código QR</h2><span role="status" className={`flex items-center gap-1.5 text-[11px] ${canDownload ? "text-teal-300" : "text-slate-400"}`}>{updating ? <LoaderCircle size={12} className="animate-spin" aria-hidden="true" /> : canDownload ? <span className="h-1.5 w-1.5 rounded-full bg-teal-300" /> : null}{updating ? "Actualizando…" : canDownload ? "Listo para descargar" : "Esperando contenido"}</span></div>
-                            <div className="relative flex min-h-[300px] items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(94,234,212,0.05),transparent_75%)] p-6 sm:p-8">
-                                <div className="aspect-square w-full max-w-[280px] overflow-hidden rounded-xl bg-white shadow-xl shadow-black/15">
-                                    <canvas ref={canvasRef} role="img" aria-label="Vista previa del código QR" className={`h-full w-full ${!canDownload && !updating ? "hidden" : "block"}`} style={{ opacity: canDownload ? 1 : .35 }} />
-                                    {!canDownload && !updating && <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center"><QrCode className="h-14 w-14 text-slate-300" strokeWidth={1} aria-hidden="true" /><p className="text-xs leading-relaxed text-slate-500">Completa el contenido para ver tu QR.</p></div>}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 py-3 text-center"><div><p className="text-[10px] text-slate-500">DIMENSIONES</p><p className="mt-1 text-xs text-white">{size} × {size}</p></div><div><p className="text-[10px] text-slate-500">FORMATO</p><p className="mt-1 text-xs text-white">PNG / SVG</p></div><div><p className="text-[10px] text-slate-500">MARGEN</p><p className="mt-1 text-xs text-white">4 módulos</p></div></div>
-                        </section>
-                        {(generationError || arError) && <p role="alert" className="flex items-start gap-2 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-xs leading-relaxed text-amber-200"><AlertCircle size={16} className="shrink-0" aria-hidden="true" />{generationError || arError}</p>}
-                        {lowContrast && <p role="status" className="rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-xs leading-relaxed text-amber-200">Estos colores pueden dificultar la lectura. Usa un cuerpo oscuro sobre fondo claro y prueba el QR con tu móvil antes de imprimir.</p>}
-                        <section className="studio-panel">
-                            <div className="studio-panel-heading"><p className="studio-eyebrow mb-1">03 / EL RESULTADO</p><h2 className="text-sm font-semibold text-white">Exportar tu QR</h2></div>
-                            <div className="space-y-4 p-4 sm:p-5">
-                                <label className="studio-field">Nombre del archivo<input value={filename} maxLength={80} onChange={(event) => setFilename(event.target.value)} /></label>
-                                <div className="grid grid-cols-2 gap-3"><div className="studio-field"><label htmlFor="qr-size">Resolución PNG</label><select id="qr-size" value={size} onChange={(event) => setSize(Number(event.target.value))}>{[256, 512, 1024, 2048].map((resolution) => <option key={resolution} value={resolution}>{resolution} px</option>)}</select></div><div className="studio-field"><label htmlFor="qr-level">Corrección de errores</label><select id="qr-level" value={errorLevel} onChange={(event) => setErrorLevel(event.target.value as "L" | "M" | "Q" | "H")}><option value="L">L · mínima</option><option value="M">M · equilibrada</option><option value="Q">Q · alta</option><option value="H">H · máxima</option></select></div></div>
-                                {qrType === "ar" && <p className="text-[11px] leading-relaxed text-slate-400">Las URLs 3D pueden generar un QR denso. Usa M para simplificarlo o H si incluyes un logo.</p>}
+                        <details className="studio-panel qr-export-options">
+                            <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 text-sm text-slate-300 sm:px-5"><SlidersHorizontal size={16} aria-hidden="true" />Opciones de exportación<ChevronDown size={16} aria-hidden="true" className="ml-auto" /></summary>
+                            <div className="space-y-4 border-t border-white/[0.06] p-4 sm:p-5">
+                                <label className="studio-field">Nombre del archivo<input value={filename} maxLength={80} onChange={event => setFilename(event.target.value)} /></label>
+                                <div className="grid gap-3 sm:grid-cols-2"><div className="studio-field"><label htmlFor="qr-size">Resolución PNG</label><select id="qr-size" value={size} onChange={event => setSize(Number(event.target.value))}>{[256, 512, 1024, 2048].map(resolution => <option key={resolution} value={resolution}>{resolution} px</option>)}</select></div><div className="studio-field"><label htmlFor="qr-level">Corrección de errores</label><select id="qr-level" value={errorLevel} onChange={event => setErrorLevel(event.target.value as "L" | "M" | "Q" | "H")}><option value="L">L · mínima</option><option value="M">M · equilibrada</option><option value="Q">Q · alta</option><option value="H">H · máxima</option></select></div></div>
+                                <p className="text-xs text-slate-400">PNG para compartir; SVG para imprimir a cualquier tamaño.</p>
                                 {activeLogo && errorLevel !== "H" && <p className="text-xs text-amber-200">Con logo, recomendamos corrección H. Comprueba la lectura antes de distribuirlo.</p>}
-                                <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => download("png")} disabled={!canDownload || exporting} className="studio-button studio-button-primary"><Download size={15} aria-hidden="true" />Descargar PNG</button><button type="button" onClick={() => download("svg")} disabled={!canDownload || exporting} className="studio-button"><Download size={15} aria-hidden="true" />Descargar SVG</button></div>
-                                <p className="text-[11px] leading-relaxed text-slate-500">PNG para compartir. SVG para imprimir y escalar sin perder definición.</p>
-                                <p role="status" className="min-h-4 text-xs text-teal-200">{exportMessage}</p>
                             </div>
-                        </section>
-                        <div className="flex gap-3 px-1 text-xs leading-relaxed text-slate-400"><ScanLine size={20} className="shrink-0 text-slate-500" aria-hidden="true" /><p>Prueba el resultado con la cámara de tu móvil. El contraste, el tamaño de impresión y el logo influyen en la lectura.</p></div>
-                        {qrType === "ar" && <a href="/ar" target="_blank" rel="noopener noreferrer" className="studio-button w-full"><Box size={15} aria-hidden="true" />Cómo funciona la realidad aumentada<ArrowUpRight size={14} aria-hidden="true" /></a>}
-                    </aside>
+                        </details>
+                        {qrType === "ar" && <a href="/ar" target="_blank" rel="noopener noreferrer" className="studio-button"><Box size={15} aria-hidden="true" />Guía de realidad aumentada<ArrowUpRight size={14} aria-hidden="true" /></a>}
+                    </div>
                 </div>
             </main>
         </div>

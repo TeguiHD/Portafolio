@@ -3,21 +3,20 @@ import { TOOLS_SEO } from "@/lib/seo/tools-content";
 import { SITE_URL } from "@/lib/seo/metadata";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const now = new Date();
+    // Use editorial dates only when a significant content update is known.
+    const publicRefresh = new Date("2026-09-06");
 
     const core: MetadataRoute.Sitemap = [
-        { url: SITE_URL, lastModified: now, changeFrequency: "monthly", priority: 1.0 },
+        { url: SITE_URL, lastModified: publicRefresh, changeFrequency: "monthly", priority: 1.0 },
         {
             url: `${SITE_URL}/herramientas`,
-            lastModified: now,
             changeFrequency: "weekly",
             priority: 0.9,
         },
-        { url: `${SITE_URL}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
-        { url: `${SITE_URL}/ar`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+        { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.6 },
+        { url: `${SITE_URL}/ar`, lastModified: publicRefresh, changeFrequency: "monthly", priority: 0.6 },
         {
             url: `${SITE_URL}/sobre-mi`,
-            lastModified: now,
             changeFrequency: "monthly",
             priority: 0.7,
         },
@@ -31,8 +30,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }));
 
     const legal: MetadataRoute.Sitemap = [
-        { url: `${SITE_URL}/privacidad`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-        { url: `${SITE_URL}/terminos`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+        { url: `${SITE_URL}/privacidad`, changeFrequency: "yearly", priority: 0.3 },
+        { url: `${SITE_URL}/terminos`, changeFrequency: "yearly", priority: 0.3 },
     ];
 
     return [...core, ...tools, ...legal];
