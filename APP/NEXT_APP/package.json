@@ -107,7 +107,7 @@
       "hono": "^4.12.34",
       "lodash": "4.18.1",
       "lodash-es": "4.18.1",
-      "brace-expansion": "2.0.1",
+      "brace-expansion": "^2.1.2",
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
       "postcss": "^8.5.28",
@@ -116,7 +116,15 @@
       "@typescript-eslint/typescript-estree>minimatch": "9.0.7",
       "glob>minimatch": "9.0.7",
       "editorconfig>minimatch": "9.0.7",
-      "protobufjs": "^7.5.6"
+      "protobufjs": "^7.5.6",
+      "browserslist": "^4.28.7",
+      "deepmerge-ts": "^8.0.0",
+      "fast-uri": "^3.1.4",
+      "ip-address": "^10.3.1",
+      "js-yaml": "^4.3.0",
+      "linkify-it": "^5.0.1",
+      "mysql2": "^3.22.0",
+      "ws": "^8.21.0"
     }
   },
   "overrides": {
@@ -124,7 +132,7 @@
     "hono": "^4.12.34",
     "lodash": "4.18.1",
     "lodash-es": "4.18.1",
-    "brace-expansion": "2.0.1",
+    "brace-expansion": "^2.1.2",
     "flatted": "3.4.2",
     "picomatch": "4.0.4",
     "postcss": "^8.5.28",
@@ -142,6 +150,14 @@
     "editorconfig": {
       "minimatch": "9.0.7"
     },
-    "protobufjs": "^7.5.6"
+    "protobufjs": "^7.5.6",
+    "browserslist": "^4.28.7",
+    "deepmerge-ts": "^8.0.0",
+    "fast-uri": "^3.1.4",
+    "ip-address": "^10.3.1",
+    "js-yaml": "^4.3.0",
+    "linkify-it": "^5.0.1",
+    "mysql2": "^3.22.0",
+    "ws": "^8.21.0"
   }
 }

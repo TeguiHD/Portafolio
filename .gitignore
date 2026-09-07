@@ -141,3 +141,16 @@ APP/NEXT_APP/test-strip.js
 
 # Mockups de brainstorming (locales)
 .superpowers/
+
+# Credenciales de despliegue: contienen usuario, host y contraseña del VPS en
+# claro. Nunca deben versionarse.
+/deploy-unblock.sh
+/README-MEJORAS-SEGURIDAD-VPS.md
+
+# Capturas sueltas de sesiones de prueba
+/flow-*.png
+/orb-*.png
+/cv-av*.png
+/grid*.png
+/p[0-9]*.png
+/shot*.txt

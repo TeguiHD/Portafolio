@@ -9,6 +9,9 @@ services:
     image: portfolio_web:latest
     container_name: portfolio_web
     restart: unless-stopped
+    # El VPS comparte 897 MiB con asistencia y sicove: sin tope, un pico
+    # de este contenedor puede tumbar datos de produccion ajenos.
+    mem_limit: 384m
     ports:
       - "127.0.0.1:3000:3000"
     secrets:
@@ -73,9 +76,15 @@ services:
   # PostgreSQL Database
   # ============================================
   db:
-    image: postgres:18.1
+    # Debe coincidir con los datos del volumen. El servidor tiene datos en
+    # formato 15: subir de version mayor exige volcado y restauracion, no
+    # cambiar este numero. Ver docs/MIGRACION-POSTGRES.md.
+    image: postgres:15-alpine
     container_name: portfolio-db
     restart: unless-stopped
+    # El VPS comparte 897 MiB con asistencia y sicove: sin tope, un pico
+    # de este contenedor puede tumbar datos de produccion ajenos.
+    mem_limit: 192m
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -98,9 +107,12 @@ services:
   # AOF enabled for fast recovery; noeviction avoids silently dropping security keys.
   # ============================================
   redis:
-    image: redis:8-alpine
+    image: redis:7-alpine
     container_name: portfolio_redis
     restart: unless-stopped
+    # El VPS comparte 897 MiB con asistencia y sicove: sin tope, un pico
+    # de este contenedor puede tumbar datos de produccion ajenos.
+    mem_limit: 96m
     command: >
       redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy noeviction --appendonly yes --appendfsync everysec --save "" --rename-command FLUSHALL "" --rename-command FLUSHDB ""
     volumes:
@@ -124,6 +136,9 @@ services:
     image: ghcr.io/outerbase/studio:latest
     container_name: portfolio_outerbase
     restart: unless-stopped
+    # El VPS comparte 897 MiB con asistencia y sicove: sin tope, un pico
+    # de este contenedor puede tumbar datos de produccion ajenos.
+    mem_limit: 128m
     ports:
       - "127.0.0.1:8080:8080"
     environment:
@@ -144,6 +159,9 @@ services:
     image: nginx:alpine
     container_name: portfolio_nginx
     restart: unless-stopped
+    # El VPS comparte 897 MiB con asistencia y sicove: sin tope, un pico
+    # de este contenedor puede tumbar datos de produccion ajenos.
+    mem_limit: 64m
     ports:
       - "80:80"
       - "443:443"
