@@ -4,14 +4,18 @@
  * Tests verify Redis key structure, TTLs, and enforcement mechanics directly.
  * They do not require a running Next.js dev server — they interact with Redis.
  *
- * Prerequisites: REDIS_URL must be set (defaults to redis://localhost:6379).
+ * Prerequisites: REDIS_URL debe estar definido. No hay valor de reserva a proposito.
  */
 import { expect, test } from '@playwright/test'
 import { createClient } from 'redis'
 
 async function getTestRedis() {
     // Use REDIS_URL from environment (includes password if set)
-    const url = process.env.REDIS_URL ?? 'redis://:QmvhAZgeRHjRqvTNnujER7qMjwRjo@localhost:6379'
+    // SEGURIDAD: sin valor de reserva. Una contrasena incrustada aqui acaba
+    // publicada en el repositorio y sobrevive a cualquier cambio de
+    // visibilidad, porque queda en el historial.
+    const url = process.env.REDIS_URL
+    if (!url) throw new Error('REDIS_URL no esta definido: exportalo antes de ejecutar esta suite')
     const client = createClient({ url })
     await client.connect()
     return client
