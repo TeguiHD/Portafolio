@@ -138,3 +138,6 @@ deploy_package/
 APP/NEXT_APP/test-latex.js
 APP/NEXT_APP/test-regex.js
 APP/NEXT_APP/test-strip.js
+
+# Mockups de brainstorming (locales)
+.superpowers/

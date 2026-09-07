@@ -4,9 +4,10 @@ import { SITE_URL } from "@/lib/seo/metadata";
 const PRIVATE_PATHS = ["/admin/", "/api/", "/acceso", "/portal/", "/aprobar", "/cotizacion/"];
 
 /**
- * Crawlers de modelos de lenguaje y motores de respuesta.
- * Se permiten de forma explícita: es la vía por la que el sitio aparece
- * citado en ChatGPT, Claude, Perplexity y AI Overviews de Google.
+ * Se conserva la política explícita de acceso a crawlers del sitio.
+ * La lista incluye agentes de búsqueda y de entrenamiento con fines distintos.
+ * Permitir rastreo no garantiza indexación ni citas en respuestas de IA;
+ * Google Search y sus funciones de IA se gestionan mediante Googlebot.
  */
 const AI_CRAWLERS = [
     "GPTBot",

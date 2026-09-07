@@ -28,12 +28,12 @@ test.describe("Página de autor (E-A-T)", () => {
         expect(xml).toContain(`<loc>${SITE_URL}/sobre-mi</loc>`);
     });
 
-    test("las herramientas firman con el autor y enlazan a /sobre-mi", async ({
+    test("las herramientas conservan el enlace al autor sin una tarjeta adicional", async ({
         page,
     }) => {
         await page.goto("/herramientas/qr");
         const bio = page.locator('[data-testid="author-bio"]');
-        await expect(bio).toBeVisible();
-        await expect(bio.locator('a[href="/sobre-mi"]')).toBeVisible();
+        await expect(bio).toHaveCount(0);
+        await expect(page.locator("footer").getByRole("link", { name: "Nicoholas Lopetegui" })).toBeVisible();
     });
 });

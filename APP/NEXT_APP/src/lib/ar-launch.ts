@@ -63,8 +63,9 @@ export function parseArParams(sp: Record<string, string | string[] | undefined>)
     return { title: title || "Modelo 3D", glb, usdz, poster };
 }
 
-export function detectPlatform(userAgent: string): ArPlatform {
-    if (/iPhone|iPad|iPod/i.test(userAgent)) return "ios";
+export function detectPlatform(userAgent: string, maxTouchPoints = 0): ArPlatform {
+    // iPadOS may request the desktop site with a Macintosh user agent.
+    if (/iPhone|iPad|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && maxTouchPoints > 1)) return "ios";
     if (/Android/i.test(userAgent)) return "android";
     return "other";
 }

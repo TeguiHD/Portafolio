@@ -25,6 +25,7 @@ test("QR actualizable y PNG de resolución exacta incluso en pantalla Retina", a
     await page.getByLabel("https://ejemplo.com", { exact: true }).fill("https://example.com/catalogo");
     await waitForQR(page);
     expect(await decodeCanvas(page)).toBe("https://example.com/catalogo");
+    await page.getByText("Opciones de exportación", { exact: true }).click();
     await page.getByLabel("Resolución PNG", { exact: true }).selectOption("512");
     await waitForQR(page);
     await page.getByLabel("Nombre del archivo").fill("catalogo-2026");
@@ -58,6 +59,7 @@ test("AR accesible por enlace directo, valida modelos y exporta un destino utili
     await page.getByLabel("Modelo 3D · GLB / glTF", { exact: true }).fill("http://example.com/objeto.glb");
     await expect(page.getByRole("button", { name: "Descargar PNG", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "Usar modelo de ejemplo", exact: true }).click();
+    await page.getByText("Opciones de exportación", { exact: true }).click();
     await page.getByLabel("Corrección de errores").selectOption("M");
     await waitForQR(page);
     const decoded = await decodeCanvas(page);
@@ -108,7 +110,7 @@ test("navegación móvil por teclado y favoritas compartidas con el catálogo", 
     await expect(page.locator("#tools-sidebar").getByRole("link", { name: "Formateador JSON", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(search).not.toBeVisible();
-    await page.getByRole("link", { name: "Ver QR y descargar", exact: true }).click();
+    await page.getByRole("button", { name: "Personalizar", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Tu código QR", exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
 });
