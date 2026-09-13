@@ -80,3 +80,26 @@ test("quitar fondo: con movimiento reducido no queda ninguna animación activa",
     const animadas = await page.evaluate(() => Array.from(document.querySelectorAll(".mesa, .mesa *")).filter(element => getComputedStyle(element).animationName !== "none").length);
     expect(animadas).toBe(0);
 });
+
+test("recortar: modos en el carril, proporciones en el pie, pasos hasta listo y sin panel lateral", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/herramientas/recortar-imagen");
+    await page.getByLabel("Seleccionar imagen", { exact: true }).setInputFiles(await fixture(page));
+    const rail = page.getByRole("toolbar", { name: "Herramientas de recorte" });
+    await expect(rail.getByRole("button", { name: "Recortar", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: /^16:9:/ }).click();
+    await expect(page.getByRole("button", { name: /^16:9:/ })).toHaveAttribute("aria-pressed", "true");
+    const nodos = page.getByRole("list", { name: "Progreso del recorte" }).locator(".mesa-nodo");
+    await expect(nodos.nth(2)).toHaveAttribute("data-estado", "listo");
+    await expect(page.getByRole("button", { name: /Descargar/ })).toBeEnabled();
+    await expect(page.getByLabel("Zoom", { exact: true })).toBeVisible();
+    await rail.getByRole("button", { name: "Marcar sujeto", exact: true }).click();
+    await expect(page.getByLabel("Margen", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Zoom", { exact: true })).toHaveCount(0);
+    expect(await page.locator('section[aria-label="Editor de recorte"] aside').count()).toBe(0);
+    const railBox = (await rail.boundingBox())!;
+    const escenario = (await page.locator(".mesa-escenario").boundingBox())!;
+    expect(railBox.x).toBeGreaterThanOrEqual(escenario.x + escenario.width - 1);
+    await page.setViewportSize({ width: 375, height: 850 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+});

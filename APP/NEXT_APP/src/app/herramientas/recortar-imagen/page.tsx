@@ -2,8 +2,8 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Brush, Crop, Download, Eraser, Grid2X2, ImagePlus, LoaderCircle, RotateCcw, RotateCw, Scan, ZoomIn } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { LoaderCircle } from "lucide-react";
 import Cropper, { type Area } from "react-easy-crop";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
@@ -12,6 +12,11 @@ import { ImageDropzone } from "@/components/tools/ImageDropzone";
 import { SubjectBrush, type SubjectBrushHandle } from "@/components/tools/SubjectBrush";
 import { getSubjectAlpha } from "@/lib/subject-mask";
 import { bboxFromAlpha, bboxFromMask, fitCropToSubject, scaleRect, type Rect } from "@/lib/crop-geometry";
+import { MesaBoton, MesaGrupo, MesaRail, MesaSeparador } from "@/components/tools/mesa/MesaRail";
+import { MesaPasos, type EstadoPaso } from "@/components/tools/mesa/MesaPasos";
+import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
+import { MesaCabecera } from "@/components/tools/mesa/MesaCabecera";
+import { IconoCuadricula, IconoDescargar, IconoEncuadre, IconoGirar, IconoGoma, IconoImagen, IconoPincel, IconoRestablecer, IconoSubir, IconoVarita } from "@/components/tools/mesa/MesaIcons";
 import {
     canvasToObjectUrl,
     loadImageSource,
@@ -19,6 +24,12 @@ import {
     sanitizeFileBaseName,
     triggerDownload,
 } from "@/lib/tools/image-processing";
+
+const PASOS = [
+    { id: "subir", etiqueta: "Subir", icono: <IconoSubir /> },
+    { id: "encuadrar", etiqueta: "Encuadrar", icono: <IconoEncuadre /> },
+    { id: "listo", etiqueta: "Listo", icono: <IconoDescargar /> },
+];
 
 const ACCENT = "#EC4899";
 
@@ -105,6 +116,7 @@ export default function ImageCropperPage() {
     const croppedUrlRef = useRef<string | null>(null);
     const sourceVersion = useRef(0);
     const [showGrid, setShowGrid] = useState(true);
+    const [descargado, setDescargado] = useState(false);
 
     // Modo "Marcar sujeto": pincel + segmentación para encajar el recorte al objeto.
     const [mode, setMode] = useState<"crop" | "subject">("crop");
@@ -142,6 +154,7 @@ export default function ImageCropperPage() {
         setMode("crop");
         setInitialArea(null);
         setSubjectLabel(null);
+        setDescargado(false);
 
         void loadImageSource(dataUrl).then((image) => {
             if (version === sourceVersion.current) setImageDimensions({ width: image.naturalWidth, height: image.naturalHeight });
@@ -170,6 +183,7 @@ export default function ImageCropperPage() {
         if (!sourceImage || !croppedAreaPixels || mode !== "crop") return;
         let cancelled = false;
         setCroppedUrl(null);
+        setDescargado(false);
         setIsCropping(true);
         const timer = window.setTimeout(async () => {
             try {
@@ -191,10 +205,12 @@ export default function ImageCropperPage() {
     const handleDownload = useCallback(() => {
         if (!croppedUrl || !sourceFile) return;
         triggerDownload(croppedUrl, `${sanitizeFileBaseName(sourceFile.name)}_recorte.png`);
+        setDescargado(true);
     }, [croppedUrl, sourceFile]);
 
     const handleResetCrop = useCallback(() => {
         setInitialArea(null);
+        setDescargado(false);
         setCroppedUrl(null);
         setCrop({ x: 0, y: 0 });
         setZoom(1);
@@ -269,7 +285,11 @@ export default function ImageCropperPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Recortador de Imágenes"} />;
     }
 
-    const iconButton = "group inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:cursor-not-allowed disabled:opacity-40";
+    const estadosPasos: EstadoPaso[] = !imageDimensions ? ["activo", "pendiente", "pendiente"]
+        : croppedUrl && mode === "crop" ? ["listo", "listo", "listo"]
+        : ["listo", "activo", "pendiente"];
+    const pista = mode === "subject" ? "Pinta sobre lo que quieres conservar" : subjectLabel ?? "Arrastra para encuadrar · flechas para ajustar";
+    const rotacionVisible = rotation > 180 ? rotation - 360 : rotation;
 
     return (
         <div className="tool-page">
@@ -278,22 +298,15 @@ export default function ImageCropperPage() {
                 {!sourceImage ? (
                     <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a recortar" sublabel="PNG, JPG o WebP · procesamiento local" />
                 ) : (
-                    <section aria-label="Editor de recorte" className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c131d] shadow-2xl shadow-black/20">
-                        <div className="flex items-center justify-between gap-2 border-b border-white/10 p-2 sm:px-4">
-                            <div className="flex items-center gap-1" role="group" aria-label="Modo de edición">
-                                <button type="button" aria-label="Recortar" title="Recortar" aria-pressed={mode === "crop"} onClick={() => setMode("crop")} className={`${iconButton} ${mode === "crop" ? "bg-pink-400/10 text-pink-300" : ""}`}><Crop className="h-5 w-5" /></button>
-                                <button type="button" aria-label="Marcar sujeto" title="Marcar sujeto" aria-pressed={mode === "subject"} onClick={() => setMode("subject")} className={`${iconButton} ${mode === "subject" ? "bg-pink-400/10 text-pink-300" : ""}`}><Brush className="h-5 w-5 motion-safe:transition-transform motion-safe:group-hover:-rotate-12" /></button>
-                                <span className="mx-1 h-5 w-px bg-white/10" />
-                                <button type="button" aria-label="Restablecer encuadre" title="Restablecer encuadre" onClick={handleResetCrop} className={iconButton}><RotateCcw className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:-rotate-45" /></button>
-                                <button type="button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear} className={iconButton}><ImagePlus className="h-4 w-4" /></button>
-                            </div>
-                            <button type="button" aria-label="Descargar recorte PNG" onClick={handleDownload} disabled={!croppedUrl || isCropping || mode !== "crop"} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-pink-300 px-3 text-sm font-semibold text-[#26101e] transition-colors hover:bg-pink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-40 sm:px-4">
-                                {isCropping && mode === "crop" ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" /> : <Download className="h-4 w-4" />}<span><span className="hidden sm:inline">Descargar </span>PNG</span>
+                    <section aria-label="Editor de recorte" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
+                        <MesaCabecera nombre={sourceFile?.name ?? "Imagen"} detalle={croppedAreaPixels ? `${Math.round(croppedAreaPixels.width)} × ${Math.round(croppedAreaPixels.height)} px` : imageDimensions ? `${imageDimensions.width} × ${imageDimensions.height} px` : undefined}>
+                            <button type="button" aria-label="Descargar recorte PNG" onClick={handleDownload} disabled={!croppedUrl || isCropping || mode !== "crop"} className="studio-button studio-button-primary">
+                                {isCropping && mode === "crop" ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <IconoDescargar listo={descargado} />}<span><span className="hidden sm:inline">Descargar </span>PNG</span>
                             </button>
-                        </div>
-                        <div className="grid lg:grid-cols-[minmax(0,1fr)_280px]">
-                            <div className="min-w-0">
-                                <div className="relative h-[min(52vh,460px)] min-h-[280px] overflow-hidden bg-[#070b11] sm:min-h-[340px]" aria-label={mode === "subject" ? "Pinta sobre el sujeto" : "Área de recorte interactiva"}>
+                        </MesaCabecera>
+                        <div className="mesa-cuerpo">
+                            <div className="mesa-columna">
+                                <MesaEscenario fondo="dark" pista={pista} className="h-[min(56vh,520px)] min-h-[280px] sm:min-h-[360px]">
                                     {mode === "subject" ? (
                                         <SubjectBrush ref={brushRef} imageSrc={sourceImage} brushSize={brushSize} accentColor={ACCENT} />
                                     ) : imageDimensions ? (
@@ -303,37 +316,39 @@ export default function ImageCropperPage() {
                                             onRotationChange={(value) => { setRotation(value); setCroppedUrl(null); }}
                                             onCropComplete={onCropComplete} />
                                     ) : <div className="flex h-full items-center justify-center"><LoaderCircle className="h-6 w-6 text-pink-300 motion-safe:animate-spin" /></div>}
-                                </div>
-                                <div className="flex min-h-12 items-center justify-between gap-3 border-t border-white/10 px-4 text-xs text-slate-400">
-                                    <span className="min-w-0 truncate">{mode === "subject" ? "Pinta sobre lo que quieres conservar" : "Arrastra para encuadrar · usa las flechas para ajustar"}</span>
-                                    {mode === "crop" && <button type="button" onClick={() => setShowGrid(!showGrid)} aria-label="Mostrar cuadrícula" title="Mostrar cuadrícula" aria-pressed={showGrid} className={iconButton}><Grid2X2 className="h-4 w-4" /></button>}
+                                </MesaEscenario>
+                                <MesaPasos etiqueta="Progreso del recorte" pasos={PASOS} estados={estadosPasos} />
+                                <div className="mesa-pie">
+                                    <div className="mesa-chips" role="group" aria-label="Proporción">
+                                        {PRESETS.map((preset, index) => <button key={preset.name} type="button" className="mesa-chip" title={preset.label} aria-label={`${preset.name}: ${preset.label}`} aria-pressed={selectedPreset === index} onClick={() => { setSelectedPreset(index); setCroppedUrl(null); }}>{preset.name}</button>)}
+                                    </div>
+                                    {mode === "crop" ? <>
+                                        <div className="mesa-rango"><label htmlFor="crop-zoom">Zoom</label><input id="crop-zoom" type="range" min={1} max={5} step={0.05} value={zoom} onChange={(event) => { setZoom(Number(event.target.value)); setCroppedUrl(null); }} /><output htmlFor="crop-zoom">{zoom.toFixed(1)}×</output></div>
+                                        <div className="mesa-rango"><label htmlFor="crop-rotation">Rotación</label><input id="crop-rotation" type="range" min={-180} max={180} step={1} value={rotacionVisible} onChange={(event) => { setRotation((Number(event.target.value) + 360) % 360); setCroppedUrl(null); }} /><output htmlFor="crop-rotation">{rotacionVisible}°</output></div>
+                                    </> : <>
+                                        <div className="mesa-rango"><label htmlFor="subject-brush">Tamaño del pincel</label><input id="subject-brush" type="range" min={0.02} max={0.15} step={0.01} value={brushSize} onChange={(event) => setBrushSize(Number(event.target.value))} /><output htmlFor="subject-brush">{Math.round(brushSize * 100)}</output></div>
+                                        <div className="mesa-rango"><label htmlFor="subject-padding">Margen</label><input id="subject-padding" type="range" min={0} max={0.3} step={0.01} value={paddingRatio} onChange={(event) => setPaddingRatio(Number(event.target.value))} /><output htmlFor="subject-padding">{Math.round(paddingRatio * 100)}%</output></div>
+                                    </>}
+                                    <span className="mesa-pie-estado" role="status">{subjectBusy ? <><LoaderCircle className="h-3 w-3 motion-safe:animate-spin" aria-hidden="true" />{subjectLabel}</> : croppedUrl ? "Recorte listo" : isCropping ? "Actualizando…" : ""}</span>
                                 </div>
                             </div>
-                            <aside aria-label="Ajustes del recorte" className="space-y-5 border-t border-white/10 bg-white/[0.02] p-4 lg:border-l lg:border-t-0 lg:p-5">
-                                <fieldset>
-                                    <legend className="mb-3 text-xs font-medium text-slate-300">Proporción</legend>
-                                    <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-3">
-                                        {PRESETS.map((preset, index) => <button key={preset.name} type="button" title={preset.label} aria-label={`${preset.name}: ${preset.label}`} aria-pressed={selectedPreset === index} onClick={() => { setSelectedPreset(index); setInitialArea(null); setCroppedUrl(null); }} className={`min-h-10 cursor-pointer rounded-lg border px-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300 ${selectedPreset === index ? "border-pink-300/50 bg-pink-300/10 text-pink-200" : "border-white/10 text-slate-400 hover:bg-white/5 hover:text-white"}`}>{preset.name}</button>)}
-                                    </div>
-                                </fieldset>
+                            <MesaRail etiqueta="Herramientas de recorte">
+                                <MesaGrupo etiqueta="Modo de edición">
+                                    <MesaBoton pista="Recortar" pulsado={mode === "crop"} onClick={() => setMode("crop")}><IconoEncuadre /></MesaBoton>
+                                    <MesaBoton pista="Marcar sujeto" pulsado={mode === "subject"} onClick={() => setMode("subject")}><IconoPincel /></MesaBoton>
+                                </MesaGrupo>
+                                <MesaSeparador />
                                 {mode === "crop" ? <>
-                                    <label className="block text-xs text-slate-300"><span className="mb-3 flex items-center justify-between"><span className="flex items-center gap-2"><ZoomIn className="h-4 w-4 text-slate-500" />Zoom</span><output className="font-mono text-pink-200">{zoom.toFixed(1)}×</output></span><input type="range" min={1} max={5} step={0.01} value={zoom} onChange={(event) => { setZoom(Number(event.target.value)); setCroppedUrl(null); }} className="h-5 w-full cursor-pointer accent-pink-300" /></label>
-                                    <label className="block text-xs text-slate-300"><span className="mb-3 flex items-center justify-between"><span className="flex items-center gap-2"><RotateCw className="h-4 w-4 text-slate-500" />Rotación</span><output className="font-mono text-pink-200">{rotation}°</output></span><input type="range" min={0} max={360} step={1} value={rotation} onChange={(event) => { setRotation(Number(event.target.value)); setCroppedUrl(null); }} className="h-5 w-full cursor-pointer accent-pink-300" /></label>
-                                    <button type="button" onClick={() => { setRotation((rotation + 90) % 360); setCroppedUrl(null); }} className="flex min-h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 text-xs text-slate-300 transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300"><RotateCw className="h-4 w-4" />Girar 90°</button>
-                                    <div className="border-t border-white/10 pt-4">
-                                        <div className="mb-3 flex items-center justify-between text-xs"><span className="text-slate-400">Resultado</span><span className="font-mono text-slate-300">{croppedAreaPixels ? `${Math.round(croppedAreaPixels.width)} × ${Math.round(croppedAreaPixels.height)}` : "—"}</span></div>
-                                        <div className="flex h-28 items-center justify-center overflow-hidden rounded-lg border border-white/5 bg-black/20" aria-live="polite">
-                                            {croppedUrl ? <img src={croppedUrl} alt="Recorte listo para descargar" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-500">Actualizando recorte…</span>}
-                                        </div>
-                                    </div>
+                                    <MesaBoton pista="Mostrar cuadrícula" pulsado={showGrid} onClick={() => setShowGrid(!showGrid)}><IconoCuadricula /></MesaBoton>
+                                    <MesaBoton pista="Girar 90°" onClick={() => { setRotation((rotation + 90) % 360); setCroppedUrl(null); }}><IconoGirar /></MesaBoton>
+                                    <MesaBoton pista="Restablecer encuadre" onClick={handleResetCrop}><IconoRestablecer /></MesaBoton>
                                 </> : <>
-                                    <label className="block text-xs text-slate-300">Tamaño del pincel<input type="range" min={0.02} max={0.15} step={0.01} value={brushSize} onChange={(event) => setBrushSize(Number(event.target.value))} className="mt-3 h-5 w-full cursor-pointer accent-pink-300" /></label>
-                                    <label className="block text-xs text-slate-300">Margen <span className="float-right font-mono text-pink-200">{Math.round(paddingRatio * 100)}%</span><input type="range" min={0} max={0.3} step={0.01} value={paddingRatio} onChange={(event) => setPaddingRatio(Number(event.target.value))} className="mt-3 h-5 w-full cursor-pointer accent-pink-300" /></label>
-                                    <button type="button" onClick={handleSnapToSubject} disabled={subjectBusy || !imageDimensions} className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-pink-300 px-3 text-sm font-semibold text-[#26101e] hover:bg-pink-200 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40">{subjectBusy ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" /> : <Scan className="h-4 w-4" />}Ajustar al sujeto</button>
-                                    <button type="button" onClick={() => brushRef.current?.clear()} disabled={subjectBusy} className="flex min-h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-40"><Eraser className="h-4 w-4" />Limpiar trazos</button>
+                                    <MesaBoton pista="Encajar al sujeto" disabled={subjectBusy || !imageDimensions} onClick={() => { void handleSnapToSubject(); }}><IconoVarita /></MesaBoton>
+                                    <MesaBoton pista="Limpiar trazos" disabled={subjectBusy} onClick={() => brushRef.current?.clear()}><IconoGoma /></MesaBoton>
                                 </>}
-                                {subjectLabel && <p role="status" className="text-xs leading-5 text-slate-400">{subjectLabel}</p>}
-                            </aside>
+                                <MesaSeparador />
+                                <MesaBoton pista="Cambiar imagen" onClick={handleClear}><IconoImagen /></MesaBoton>
+                            </MesaRail>
                         </div>
                     </section>
                 )}
