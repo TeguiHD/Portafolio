@@ -288,7 +288,7 @@ export default function ImageCropperPage() {
                                 <button type="button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear} className={iconButton}><ImagePlus className="h-4 w-4" /></button>
                             </div>
                             <button type="button" aria-label="Descargar recorte PNG" onClick={handleDownload} disabled={!croppedUrl || isCropping || mode !== "crop"} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-pink-300 px-3 text-sm font-semibold text-[#26101e] transition-colors hover:bg-pink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-40 sm:px-4">
-                                {isCropping && mode === "crop" ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" /> : <Download className="h-4 w-4" />}<span className="hidden sm:inline">Descargar</span> PNG
+                                {isCropping && mode === "crop" ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" /> : <Download className="h-4 w-4" />}<span><span className="hidden sm:inline">Descargar </span>PNG</span>
                             </button>
                         </div>
                         <div className="grid lg:grid-cols-[minmax(0,1fr)_280px]">

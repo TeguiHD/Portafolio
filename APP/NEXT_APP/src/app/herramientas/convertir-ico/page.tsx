@@ -166,13 +166,13 @@ export default function IcoConverterPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor a ICO"} />;
     }
 
-    return <div className="tool-page"><main className="tool-main mx-auto max-w-5xl px-4 pb-12 sm:px-6">
+    return <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
         <ToolPageHeader slug="convertir-ico" title="Convertir a ICO" description="Un icono, todos sus tamaños. Listo para descargar al subir tu imagen." />
         {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o imagen" /> : <section aria-label="Editor de iconos ICO" className="studio-panel overflow-hidden">
             <div className="flex items-center gap-3 border-b border-white/10 p-3">
                 <button type="button" className="studio-icon-button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear}><ImagePlus size={18} aria-hidden="true" /></button>
                 <span className="min-w-0 flex-1 truncate text-xs text-slate-300">{sourceFile?.name}</span>
-                <button type="button" className="studio-button studio-button-primary" onClick={handleDownload} disabled={!resultUrl || isConverting} aria-label="Descargar ICO"><Download size={16} aria-hidden="true" /><span className="hidden sm:inline">Descargar</span> ICO</button>
+                <button type="button" className="studio-button studio-button-primary" onClick={handleDownload} disabled={!resultUrl || isConverting} aria-label="Descargar ICO"><Download size={16} aria-hidden="true" /><span><span className="hidden sm:inline">Descargar </span>ICO</span></button>
             </div>
             <div className="grid md:grid-cols-[1fr_280px]">
                 <div className="p-5">

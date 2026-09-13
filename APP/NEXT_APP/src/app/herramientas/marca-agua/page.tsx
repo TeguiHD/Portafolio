@@ -260,7 +260,7 @@ export default function WatermarkPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 p-3">
                     <button type="button" className="studio-icon-button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear}><ImagePlus size={18} aria-hidden="true" /></button>
                     <p className="min-w-0 flex-1 truncate text-xs text-slate-300">{sourceFile?.name}</p>
-                    <button type="button" className="studio-button studio-button-primary" aria-label="Descargar PNG con marca de agua" disabled={!resultUrl || isRenderingPreview} onClick={handleDownload}><Download size={16} aria-hidden="true" /><span className="hidden sm:inline">Descargar</span> PNG</button>
+                    <button type="button" className="studio-button studio-button-primary" aria-label="Descargar PNG con marca de agua" disabled={!resultUrl || isRenderingPreview} onClick={handleDownload}><Download size={16} aria-hidden="true" /><span><span className="hidden sm:inline">Descargar </span>PNG</span></button>
                 </div>
                 <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
                     <div className="min-w-0 p-4 lg:sticky lg:top-20 lg:self-start">
