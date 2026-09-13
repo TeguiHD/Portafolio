@@ -188,7 +188,7 @@ export function ImageTransformStudio({ mode }: { mode: StudioMode }) {
                 {decoding && <p role="status" className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-400"><LoaderCircle className="h-4 w-4 motion-safe:animate-spin" />Abriendo imagen…</p>}
             </> : <section aria-label="Editor de imagen" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": config.accent } as CSSProperties}>
                 <MesaCabecera nombre={source.file.name} detalle={`${source.image.naturalWidth} × ${source.image.naturalHeight} · ${formatBytes(source.file.size)}`}>
-                    <button type="button" onClick={download} disabled={!currentResult} className="studio-button studio-button-primary"><IconoDescargar listo={descargado} /><span><span className="hidden sm:inline">Descargar </span>{FORMATS.find((item) => item.value === format)?.label}</span></button>
+                    <button type="button" onClick={download} disabled={!currentResult} className="studio-button studio-button-primary"><IconoDescargar listo={descargado} /><span>Descargar</span></button>
                 </MesaCabecera>
                 <div className="mesa-cuerpo mesa-cuerpo-panel">
                     <div className="mesa-columna">
