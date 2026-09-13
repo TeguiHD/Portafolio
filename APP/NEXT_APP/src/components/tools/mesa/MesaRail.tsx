@@ -43,7 +43,7 @@ export function MesaBoton({ pista, atajo, pulsado, tono, listo, onMantener, clas
             data-tip={tip}
             aria-pressed={pulsado}
             data-listo={listo ? "true" : undefined}
-            onPointerDown={event => { onPointerDown?.(event); if (event.button === 0) cambiar(true); }}
+            onPointerDown={event => { onPointerDown?.(event); if (onMantener && event.button === 0) { event.preventDefault(); cambiar(true); } }}
             onPointerUp={event => { onPointerUp?.(event); cambiar(false); }}
             onPointerCancel={event => { onPointerCancel?.(event); cambiar(false); }}
             onPointerLeave={event => { onPointerLeave?.(event); cambiar(false); }}

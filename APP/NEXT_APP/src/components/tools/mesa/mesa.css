@@ -56,7 +56,7 @@
 .mesa-muestras { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .mesa-muestra { display: inline-block; width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; box-shadow: inset 0 0 0 1px var(--mesa-linea2); background-clip: padding-box; transition: transform .15s, border-color .15s, box-shadow .15s; }
 .mesa-muestra:hover { transform: scale(1.1); }
-.mesa-muestra[aria-pressed="true"] { border-color: var(--mesa-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mesa-acento) 20%, transparent); }
+.mesa-muestra[aria-pressed="true"], .mesa-muestra[data-activo="true"] { border-color: var(--mesa-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mesa-acento) 20%, transparent); }
 .mesa-muestra:focus-visible, .mesa-muestra:has(:focus-visible) { outline: 2px solid var(--mesa-acento); outline-offset: 2px; }
 .mesa-muestra-transparente { background: repeating-conic-gradient(#3a4452 0 25%, #1c2330 0 50%) 0 0 / 10px 10px; }
 .mesa-muestra-propio { position: relative; overflow: hidden; background: conic-gradient(#fb7185, #fbbf24, #86efac, #67e8f9, #a78bfa, #fb7185); }

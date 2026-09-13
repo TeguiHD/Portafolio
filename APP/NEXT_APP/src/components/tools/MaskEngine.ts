@@ -16,6 +16,8 @@ export class MaskHistory {
     get canUndo() { return this.position > 0; }
     get canRedo() { return this.position < this.snapshots.length - 1; }
     get current() { return this.snapshots[this.position]; }
+    /** Número de retoques aplicados sobre el recorte inicial. */
+    get cambios() { return this.position; }
 
     push(alpha: Uint8ClampedArray) {
         if (alpha.length !== this.current.length) throw new Error("La máscara cambió de tamaño.");
