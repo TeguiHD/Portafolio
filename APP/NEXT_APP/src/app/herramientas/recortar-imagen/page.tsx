@@ -3,12 +3,12 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { Brush, Crop, Download, Eraser, Grid2X2, ImagePlus, LoaderCircle, RotateCcw, RotateCw, Scan, ZoomIn } from "lucide-react";
 import Cropper, { type Area } from "react-easy-crop";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
-import { StudioCard, StudioChip, StudioMetric, StudioStage } from "@/components/tools/ImageStudio";
+
 import { SubjectBrush, type SubjectBrushHandle } from "@/components/tools/SubjectBrush";
 import { getSubjectAlpha } from "@/lib/subject-mask";
 import { bboxFromAlpha, bboxFromMask, fitCropToSubject, scaleRect, type Rect } from "@/lib/crop-geometry";
@@ -23,7 +23,7 @@ import {
 const ACCENT = "#EC4899";
 
 const PRESETS: { name: string; aspect: number; label: string }[] = [
-    { name: "Libre", aspect: 0, label: "Libre" },
+    { name: "Original", aspect: 0, label: "Proporción original" },
     { name: "1:1", aspect: 1, label: "Cuadrado" },
     { name: "16:9", aspect: 16 / 9, label: "YouTube" },
     { name: "9:16", aspect: 9 / 16, label: "Stories" },
@@ -103,6 +103,8 @@ export default function ImageCropperPage() {
     const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const croppedUrlRef = useRef<string | null>(null);
+    const sourceVersion = useRef(0);
+    const [showGrid, setShowGrid] = useState(true);
 
     // Modo "Marcar sujeto": pincel + segmentación para encajar el recorte al objeto.
     const [mode, setMode] = useState<"crop" | "subject">("crop");
@@ -114,15 +116,21 @@ export default function ImageCropperPage() {
     const [initialArea, setInitialArea] = useState<Area | null>(null);
     const brushRef = useRef<SubjectBrushHandle | null>(null);
 
-    const aspect = PRESETS[selectedPreset].aspect || undefined;
+    const aspect = PRESETS[selectedPreset].aspect || (imageDimensions ? imageDimensions.width / imageDimensions.height : 4 / 3);
 
     useEffect(() => {
         return () => {
+            sourceVersion.current += 1;
             revokeObjectUrl(croppedUrlRef.current);
         };
     }, []);
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
+        const version = ++sourceVersion.current;
+        revokeObjectUrl(croppedUrlRef.current);
+        croppedUrlRef.current = null;
+        setImageDimensions(null);
+        setSubjectBusy(false);
         setSourceImage(dataUrl);
         setSourceFile(file);
         setCroppedUrl(null);
@@ -136,11 +144,13 @@ export default function ImageCropperPage() {
         setSubjectLabel(null);
 
         void loadImageSource(dataUrl).then((image) => {
-            setImageDimensions({ width: image.naturalWidth, height: image.naturalHeight });
-        });
+            if (version === sourceVersion.current) setImageDimensions({ width: image.naturalWidth, height: image.naturalHeight });
+        }).catch(() => { if (version === sourceVersion.current) setError("No se pudo leer la imagen"); });
     }, []);
 
     const handleClear = useCallback(() => {
+        sourceVersion.current += 1;
+        setSubjectBusy(false);
         setSourceImage(null);
         setSourceFile(null);
         setCroppedUrl(null);
@@ -155,22 +165,28 @@ export default function ImageCropperPage() {
         setCroppedAreaPixels(croppedAreaPixels);
     }, []);
 
-    const handleCrop = useCallback(async () => {
-        if (!sourceImage || !croppedAreaPixels) return;
+    // Export only the latest settled frame; changing or clearing the image cancels stale work.
+    useEffect(() => {
+        if (!sourceImage || !croppedAreaPixels || mode !== "crop") return;
+        let cancelled = false;
+        setCroppedUrl(null);
         setIsCropping(true);
-        setError(null);
-
-        try {
-            const url = await getCroppedImg(sourceImage, croppedAreaPixels, rotation);
-            revokeObjectUrl(croppedUrlRef.current);
-            croppedUrlRef.current = url;
-            setCroppedUrl(url);
-        } catch (cropError) {
-            setError(cropError instanceof Error ? cropError.message : "No se pudo generar el recorte");
-        } finally {
-            setIsCropping(false);
-        }
-    }, [croppedAreaPixels, rotation, sourceImage]);
+        const timer = window.setTimeout(async () => {
+            try {
+                const url = await getCroppedImg(sourceImage, croppedAreaPixels, rotation);
+                if (cancelled) { revokeObjectUrl(url); return; }
+                revokeObjectUrl(croppedUrlRef.current);
+                croppedUrlRef.current = url;
+                setCroppedUrl(url);
+                setError(null);
+            } catch (cropError) {
+                if (!cancelled) setError(cropError instanceof Error ? cropError.message : "No se pudo generar el recorte");
+            } finally {
+                if (!cancelled) setIsCropping(false);
+            }
+        }, 180);
+        return () => { cancelled = true; window.clearTimeout(timer); };
+    }, [croppedAreaPixels, rotation, sourceImage, mode, crop.x, crop.y, zoom, aspect]);
 
     const handleDownload = useCallback(() => {
         if (!croppedUrl || !sourceFile) return;
@@ -189,6 +205,7 @@ export default function ImageCropperPage() {
 
     const handleSnapToSubject = useCallback(async () => {
         if (!sourceImage || !imageDimensions) return;
+        const version = sourceVersion.current;
         setSubjectBusy(true);
         setError(null);
         setSubjectLabel("Preparando imagen");
@@ -198,7 +215,8 @@ export default function ImageCropperPage() {
 
         try {
             try {
-                const subject = await getSubjectAlpha(sourceImage, 512, (label) => setSubjectLabel(label));
+                const subject = await getSubjectAlpha(sourceImage, 512, (label) => { if (version === sourceVersion.current) setSubjectLabel(label); });
+                if (version !== sourceVersion.current) return;
                 const mask = brush?.hasStrokes() ? brush.getMask(subject.width, subject.height) : null;
                 // Pincel ∩ segmentación; si la segmentación no ve nada dentro del
                 // trazo, vale la pincelada sola.
@@ -211,6 +229,7 @@ export default function ImageCropperPage() {
                 usedFallback = true;
             }
 
+            if (version !== sourceVersion.current) return;
             if (!bbox && brush?.hasStrokes()) {
                 const gw = Math.min(512, imageDimensions.width);
                 const gh = Math.max(1, Math.round((gw * imageDimensions.height) / imageDimensions.width));
@@ -226,10 +245,7 @@ export default function ImageCropperPage() {
                 return;
             }
 
-            // "Libre" no fija aspecto y react-easy-crop cae a su 4:3 por defecto:
-            // calculamos con ese mismo aspecto efectivo para que el encaje coincida
-            // exactamente con la caja que mostrará el cropper.
-            const fitted = fitCropToSubject(bbox, imageDimensions, { aspect: aspect ?? 4 / 3, paddingRatio });
+            const fitted = fitCropToSubject(bbox, imageDimensions, { aspect, paddingRatio });
             setInitialArea(fitted);
             setSnapKey((k) => k + 1);
             setCroppedUrl(null);
@@ -237,7 +253,7 @@ export default function ImageCropperPage() {
             setMode("crop");
             setSubjectLabel(usedFallback ? "Encaje por pincelada (segmentación no disponible)" : "Encaje ajustado al sujeto");
         } finally {
-            setSubjectBusy(false);
+            if (version === sourceVersion.current) setSubjectBusy(false);
         }
     }, [sourceImage, imageDimensions, aspect, paddingRatio]);
 
@@ -253,270 +269,75 @@ export default function ImageCropperPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Recortador de Imágenes"} />;
     }
 
+    const iconButton = "group inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:cursor-not-allowed disabled:opacity-40";
+
     return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,#4f1238_0%,#0F1724_40%,#08111f_100%)]">
-            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <ToolPageHeader slug="recortar-imagen" title={<>Recortar imagen con vista previa fiel</>} description={<>Ajusta proporción, encuadre y rotación y exporta exactamente el resultado que ves en pantalla.</>} />
-
+        <div className="tool-page">
+            <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
+                <ToolPageHeader slug="recortar-imagen" title="Recortar imagen" description="Encuadra, gira y descarga. Tu recorte se actualiza al instante." />
                 {!sourceImage ? (
-                    <StudioCard
-                        title="Carga tu imagen"
-                        description="Sube una imagen y empieza a recortar con formatos listos para redes, producto o uso libre."
-                        eyebrow="Entrada"
-                        accentColor={ACCENT}
-                    >
-                        <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-                            <ImageDropzone
-                                onImageLoad={handleImageLoad}
-                                accentColor={ACCENT}
-                                label="Arrastra la imagen a recortar"
-                                sublabel="PNG, JPG, WebP · trabajo local en el navegador"
-                            />
-                            <div className="grid grid-cols-2 gap-3">
-                                <StudioMetric label="Formatos" value={`${PRESETS.length} opciones`} accentColor={ACCENT} />
-                                <StudioMetric label="Salida" value="PNG" accentColor={ACCENT} />
-                                <StudioMetric label="Controles" value="Zoom y rotación" accentColor={ACCENT} />
-                                <StudioMetric label="Modo" value="Vista previa" accentColor={ACCENT} />
-                            </div>
-                        </div>
-                    </StudioCard>
+                    <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a recortar" sublabel="PNG, JPG o WebP · procesamiento local" />
                 ) : (
-                    <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
-                        <StudioCard
-                            title="Área de recorte"
-                            description="Mueve el encuadre libremente. La exportación usa el mismo cálculo de rotación que ves aquí."
-                            eyebrow="Composición"
-                            accentColor={ACCENT}
-                        >
-                            <div className="grid grid-cols-2 gap-3">
-                                <StudioMetric
-                                    label="Original"
-                                    value={imageDimensions ? `${imageDimensions.width} × ${imageDimensions.height}` : "Cargando"}
-                                    accentColor={ACCENT}
-                                />
-                                <StudioMetric
-                                    label="Salida estimada"
-                                    value={croppedAreaPixels ? `${Math.round(croppedAreaPixels.width)} × ${Math.round(croppedAreaPixels.height)}` : "Define el marco"}
-                                    accentColor={ACCENT}
-                                />
-                                <StudioMetric label="Zoom" value={`${zoom.toFixed(1)}x`} accentColor={ACCENT} />
-                                <StudioMetric label="Rotación" value={`${rotation}°`} accentColor={ACCENT} />
+                    <section aria-label="Editor de recorte" className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c131d] shadow-2xl shadow-black/20">
+                        <div className="flex items-center justify-between gap-2 border-b border-white/10 p-2 sm:px-4">
+                            <div className="flex items-center gap-1" role="group" aria-label="Modo de edición">
+                                <button type="button" aria-label="Recortar" title="Recortar" aria-pressed={mode === "crop"} onClick={() => setMode("crop")} className={`${iconButton} ${mode === "crop" ? "bg-pink-400/10 text-pink-300" : ""}`}><Crop className="h-5 w-5" /></button>
+                                <button type="button" aria-label="Marcar sujeto" title="Marcar sujeto" aria-pressed={mode === "subject"} onClick={() => setMode("subject")} className={`${iconButton} ${mode === "subject" ? "bg-pink-400/10 text-pink-300" : ""}`}><Brush className="h-5 w-5 motion-safe:transition-transform motion-safe:group-hover:-rotate-12" /></button>
+                                <span className="mx-1 h-5 w-px bg-white/10" />
+                                <button type="button" aria-label="Restablecer encuadre" title="Restablecer encuadre" onClick={handleResetCrop} className={iconButton}><RotateCcw className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:-rotate-45" /></button>
+                                <button type="button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear} className={iconButton}><ImagePlus className="h-4 w-4" /></button>
                             </div>
-
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                {PRESETS.map((preset, index) => (
-                                    <button
-                                        key={preset.name}
-                                        onClick={() => setSelectedPreset(index)}
-                                        className="rounded-2xl border px-3 py-2 text-left transition-all"
-                                        style={selectedPreset === index
-                                            ? { borderColor: `${ACCENT}70`, backgroundColor: `${ACCENT}14` }
-                                            : { borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" }}
-                                    >
-                                        <p className="text-xs font-semibold text-white">{preset.name}</p>
-                                        <p className="mt-1 text-[11px] text-neutral-500">{preset.label}</p>
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="mt-4 flex flex-wrap items-center gap-2">
-                                {([["crop", "Recortar"], ["subject", "Marcar sujeto"]] as const).map(([id, label]) => (
-                                    <button
-                                        key={id}
-                                        type="button"
-                                        onClick={() => setMode(id)}
-                                        aria-pressed={mode === id}
-                                        className="rounded-full border px-4 py-2 text-sm font-semibold transition-all"
-                                        style={mode === id
-                                            ? { borderColor: `${ACCENT}70`, backgroundColor: `${ACCENT}22`, color: "#fff" }
-                                            : { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.03)", color: "#d4d4d4" }}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                                {subjectLabel && !subjectBusy && <span className="text-xs text-neutral-500">{subjectLabel}</span>}
-                            </div>
-
-                            <div className="mt-4">
-                                <StudioStage
-                                    title={mode === "subject" ? "Marca el sujeto" : "Área interactiva"}
-                                    subtitle={aspect ? `${PRESETS[selectedPreset].name} · ${PRESETS[selectedPreset].label}` : "Aspecto libre"}
-                                    accentColor={ACCENT}
-                                    badge={croppedAreaPixels ? `${Math.round(croppedAreaPixels.width)}×${Math.round(croppedAreaPixels.height)}` : undefined}
-                                >
-                                    <div className="relative h-[420px] w-full overflow-hidden rounded-2xl bg-black sm:h-[520px]">
-                                        {mode === "subject" ? (
-                                            <SubjectBrush ref={brushRef} imageSrc={sourceImage} brushSize={brushSize} accentColor={ACCENT} />
-                                        ) : (
-                                        <Cropper
-                                            key={snapKey}
-                                            initialCroppedAreaPixels={initialArea ?? undefined}
-                                            image={sourceImage}
-                                            crop={crop}
-                                            zoom={zoom}
-                                            rotation={rotation}
-                                            aspect={aspect}
-                                            minZoom={1}
-                                            maxZoom={5}
-                                            showGrid
-                                            onCropChange={setCrop}
-                                            onZoomChange={setZoom}
-                                            onRotationChange={setRotation}
-                                            onCropComplete={onCropComplete}
-                                        />
-                                        )}
-                                    </div>
-                                </StudioStage>
-                            </div>
-
-                            {mode === "subject" && (
-                                <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <p className="text-sm text-neutral-300">
-                                        Pinta por encima de lo que quieres conservar. No hace falta precisión: la segmentación afina los bordes
-                                        y el encuadre respeta el formato elegido.
-                                    </p>
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        <label className="block text-xs text-neutral-400">
-                                            Pincel
-                                            <input type="range" min={0.02} max={0.15} step={0.01} value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="mt-2 w-full" />
-                                        </label>
-                                        <label className="block text-xs text-neutral-400">
-                                            Margen: {Math.round(paddingRatio * 100)}%
-                                            <input type="range" min={0} max={0.3} step={0.01} value={paddingRatio} onChange={(e) => setPaddingRatio(Number(e.target.value))} className="mt-2 w-full" />
-                                        </label>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={handleSnapToSubject}
-                                            disabled={subjectBusy}
-                                            className="rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all disabled:opacity-60"
-                                            style={{ background: `linear-gradient(135deg, ${ACCENT}, #F472B6)` }}
-                                        >
-                                            {subjectBusy ? `${subjectLabel ?? "Detectando sujeto"}…` : "Ajustar recorte al sujeto"}
-                                        </button>
-                                        <button type="button" onClick={() => brushRef.current?.clear()} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-300 transition-colors hover:text-white">
-                                            Limpiar trazos
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </StudioCard>
-
-                        <div className="space-y-6">
-                            <StudioCard
-                                title="Ajustes finos"
-                                description="Define el encuadre final antes de exportar."
-                                eyebrow="Controles"
-                                accentColor={ACCENT}
-                            >
-                                <div className="space-y-4">
-                                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <label className="text-sm font-medium text-white">Zoom</label>
-                                            <StudioChip accentColor={ACCENT} active>{zoom.toFixed(1)}x</StudioChip>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min={1}
-                                            max={5}
-                                            step={0.1}
-                                            value={zoom}
-                                            onChange={(event) => setZoom(Number(event.target.value))}
-                                            className="mt-3 w-full"
-                                        />
-                                    </div>
-
-                                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <label className="text-sm font-medium text-white">Rotación</label>
-                                            <StudioChip accentColor={ACCENT} active>{rotation}°</StudioChip>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min={0}
-                                            max={360}
-                                            step={1}
-                                            value={rotation}
-                                            onChange={(event) => setRotation(Number(event.target.value))}
-                                            className="mt-3 w-full"
-                                        />
-                                    </div>
-                                </div>
-                            </StudioCard>
-
-                            <StudioCard
-                                title="Preview de salida"
-                                description="La tarjeta usa un fondo checkerboard para revisar bordes y transparencia del PNG."
-                                eyebrow="Exportación"
-                                accentColor={ACCENT}
-                            >
-                                <StudioStage
-                                    title="Último recorte"
-                                    subtitle={croppedUrl ? "Listo para descargar" : "Genera una exportación para revisar el resultado"}
-                                    accentColor={ACCENT}
-                                    badge={croppedUrl ? "PNG" : undefined}
-                                    checkerboard
-                                >
-                                    {croppedUrl ? (
-                                        <img src={croppedUrl} alt="Recorte exportado" className="max-h-[320px] w-full rounded-2xl object-contain" />
-                                    ) : (
-                                        <div className="flex min-h-[240px] w-full flex-col items-center justify-center text-center">
-                                            <p className="text-sm text-neutral-500">Tu resultado aparecerá aquí cuando exportes.</p>
-                                        </div>
-                                    )}
-                                </StudioStage>
-
-                                <div className="mt-4 space-y-3">
-                                    <button
-                                        onClick={handleCrop}
-                                        disabled={isCropping || !croppedAreaPixels}
-                                        className="w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
-                                        style={{ background: `linear-gradient(135deg, ${ACCENT}, #F472B6)` }}
-                                    >
-                                        {isCropping ? "Exportando recorte..." : "Generar recorte"}
-                                    </button>
-                                    <button
-                                        onClick={handleDownload}
-                                        disabled={!croppedUrl}
-                                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        Descargar PNG
-                                    </button>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button
-                                            onClick={handleResetCrop}
-                                            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-300 transition-all hover:bg-white/5"
-                                        >
-                                            Resetear encuadre
-                                        </button>
-                                        <button
-                                            onClick={handleClear}
-                                            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-300 transition-all hover:bg-white/5"
-                                        >
-                                            Otra imagen
-                                        </button>
-                                    </div>
-                                </div>
-                            </StudioCard>
+                            <button type="button" aria-label="Descargar recorte PNG" onClick={handleDownload} disabled={!croppedUrl || isCropping || mode !== "crop"} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-pink-300 px-3 text-sm font-semibold text-[#26101e] transition-colors hover:bg-pink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-40 sm:px-4">
+                                {isCropping && mode === "crop" ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" /> : <Download className="h-4 w-4" />}<span className="hidden sm:inline">Descargar</span> PNG
+                            </button>
                         </div>
-                    </div>
+                        <div className="grid lg:grid-cols-[minmax(0,1fr)_280px]">
+                            <div className="min-w-0">
+                                <div className="relative h-[min(52vh,460px)] min-h-[280px] overflow-hidden bg-[#070b11] sm:min-h-[340px]" aria-label={mode === "subject" ? "Pinta sobre el sujeto" : "Área de recorte interactiva"}>
+                                    {mode === "subject" ? (
+                                        <SubjectBrush ref={brushRef} imageSrc={sourceImage} brushSize={brushSize} accentColor={ACCENT} />
+                                    ) : imageDimensions ? (
+                                        <Cropper key={snapKey} image={sourceImage} crop={crop} zoom={zoom} rotation={rotation} aspect={aspect} initialCroppedAreaPixels={initialArea ?? undefined} maxZoom={5} showGrid={showGrid}
+                                            onCropChange={(value) => { setCrop(value); setCroppedUrl(null); }}
+                                            onZoomChange={(value) => { setZoom(value); setCroppedUrl(null); }}
+                                            onRotationChange={(value) => { setRotation(value); setCroppedUrl(null); }}
+                                            onCropComplete={onCropComplete} />
+                                    ) : <div className="flex h-full items-center justify-center"><LoaderCircle className="h-6 w-6 text-pink-300 motion-safe:animate-spin" /></div>}
+                                </div>
+                                <div className="flex min-h-12 items-center justify-between gap-3 border-t border-white/10 px-4 text-xs text-slate-400">
+                                    <span className="min-w-0 truncate">{mode === "subject" ? "Pinta sobre lo que quieres conservar" : "Arrastra para encuadrar · usa las flechas para ajustar"}</span>
+                                    {mode === "crop" && <button type="button" onClick={() => setShowGrid(!showGrid)} aria-label="Mostrar cuadrícula" title="Mostrar cuadrícula" aria-pressed={showGrid} className={iconButton}><Grid2X2 className="h-4 w-4" /></button>}
+                                </div>
+                            </div>
+                            <aside aria-label="Ajustes del recorte" className="space-y-5 border-t border-white/10 bg-white/[0.02] p-4 lg:border-l lg:border-t-0 lg:p-5">
+                                <fieldset>
+                                    <legend className="mb-3 text-xs font-medium text-slate-300">Proporción</legend>
+                                    <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-3">
+                                        {PRESETS.map((preset, index) => <button key={preset.name} type="button" title={preset.label} aria-label={`${preset.name}: ${preset.label}`} aria-pressed={selectedPreset === index} onClick={() => { setSelectedPreset(index); setInitialArea(null); setCroppedUrl(null); }} className={`min-h-10 cursor-pointer rounded-lg border px-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300 ${selectedPreset === index ? "border-pink-300/50 bg-pink-300/10 text-pink-200" : "border-white/10 text-slate-400 hover:bg-white/5 hover:text-white"}`}>{preset.name}</button>)}
+                                    </div>
+                                </fieldset>
+                                {mode === "crop" ? <>
+                                    <label className="block text-xs text-slate-300"><span className="mb-3 flex items-center justify-between"><span className="flex items-center gap-2"><ZoomIn className="h-4 w-4 text-slate-500" />Zoom</span><output className="font-mono text-pink-200">{zoom.toFixed(1)}×</output></span><input type="range" min={1} max={5} step={0.01} value={zoom} onChange={(event) => { setZoom(Number(event.target.value)); setCroppedUrl(null); }} className="h-5 w-full cursor-pointer accent-pink-300" /></label>
+                                    <label className="block text-xs text-slate-300"><span className="mb-3 flex items-center justify-between"><span className="flex items-center gap-2"><RotateCw className="h-4 w-4 text-slate-500" />Rotación</span><output className="font-mono text-pink-200">{rotation}°</output></span><input type="range" min={0} max={360} step={1} value={rotation} onChange={(event) => { setRotation(Number(event.target.value)); setCroppedUrl(null); }} className="h-5 w-full cursor-pointer accent-pink-300" /></label>
+                                    <button type="button" onClick={() => { setRotation((rotation + 90) % 360); setCroppedUrl(null); }} className="flex min-h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 text-xs text-slate-300 transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300"><RotateCw className="h-4 w-4" />Girar 90°</button>
+                                    <div className="border-t border-white/10 pt-4">
+                                        <div className="mb-3 flex items-center justify-between text-xs"><span className="text-slate-400">Resultado</span><span className="font-mono text-slate-300">{croppedAreaPixels ? `${Math.round(croppedAreaPixels.width)} × ${Math.round(croppedAreaPixels.height)}` : "—"}</span></div>
+                                        <div className="flex h-28 items-center justify-center overflow-hidden rounded-lg border border-white/5 bg-black/20" aria-live="polite">
+                                            {croppedUrl ? <img src={croppedUrl} alt="Recorte listo para descargar" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-500">Actualizando recorte…</span>}
+                                        </div>
+                                    </div>
+                                </> : <>
+                                    <label className="block text-xs text-slate-300">Tamaño del pincel<input type="range" min={0.02} max={0.15} step={0.01} value={brushSize} onChange={(event) => setBrushSize(Number(event.target.value))} className="mt-3 h-5 w-full cursor-pointer accent-pink-300" /></label>
+                                    <label className="block text-xs text-slate-300">Margen <span className="float-right font-mono text-pink-200">{Math.round(paddingRatio * 100)}%</span><input type="range" min={0} max={0.3} step={0.01} value={paddingRatio} onChange={(event) => setPaddingRatio(Number(event.target.value))} className="mt-3 h-5 w-full cursor-pointer accent-pink-300" /></label>
+                                    <button type="button" onClick={handleSnapToSubject} disabled={subjectBusy || !imageDimensions} className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-pink-300 px-3 text-sm font-semibold text-[#26101e] hover:bg-pink-200 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40">{subjectBusy ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" /> : <Scan className="h-4 w-4" />}Ajustar al sujeto</button>
+                                    <button type="button" onClick={() => brushRef.current?.clear()} disabled={subjectBusy} className="flex min-h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-40"><Eraser className="h-4 w-4" />Limpiar trazos</button>
+                                </>}
+                                {subjectLabel && <p role="status" className="text-xs leading-5 text-slate-400">{subjectLabel}</p>}
+                            </aside>
+                        </div>
+                    </section>
                 )}
-
-                {error && (
-                    <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                        {error}
-                    </div>
-                )}
-
-                <div className="mt-8 text-center">
-                    <Link href="/herramientas" className="inline-flex items-center gap-2 text-sm text-neutral-400 transition-colors hover:text-white">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
+                {error && <div role="alert" className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</div>}
             </main>
         </div>
     );

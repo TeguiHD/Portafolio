@@ -1,233 +1,166 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowDownToLine, Check, Code2, ImagePlus, LoaderCircle, Package, Smartphone } from "lucide-react";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
-
-import { useState, useCallback, useRef } from "react";
-import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
-import { imageBitmapFromSource } from "@/lib/tools/image-processing";
+import { canvasToBlob, drawImageToCanvas, loadImageSource, revokeObjectUrl, triggerDownload } from "@/lib/tools/image-processing";
 
-const ACCENT = "#06B6D4";
-
+const ACCENT = "#67E8F9";
 const FAVICON_SIZES = [
-    { size: 16, name: "favicon-16x16.png", desc: "Favicon estándar" },
-    { size: 32, name: "favicon-32x32.png", desc: "Favicon HiDPI" },
+    { size: 16, name: "favicon-16x16.png", desc: "Navegador" },
+    { size: 32, name: "favicon-32x32.png", desc: "Retina" },
     { size: 48, name: "favicon-48x48.png", desc: "Windows" },
     { size: 64, name: "favicon-64x64.png", desc: "Safari" },
-    { size: 128, name: "icon-128x128.png", desc: "Chrome Web Store" },
-    { size: 180, name: "apple-touch-icon.png", desc: "Apple Touch" },
-    { size: 192, name: "android-chrome-192x192.png", desc: "Android Chrome" },
-    { size: 512, name: "android-chrome-512x512.png", desc: "PWA Splash" },
+    { size: 128, name: "icon-128x128.png", desc: "Chrome" },
+    { size: 180, name: "apple-touch-icon.png", desc: "Apple" },
+    { size: 192, name: "android-chrome-192x192.png", desc: "Android" },
+    { size: 512, name: "android-chrome-512x512.png", desc: "PWA" },
 ];
-
-async function generateFaviconPng(img: ImageBitmap, size: number): Promise<Blob> {
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d")!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, 0, 0, size, size);
-
-    return new Promise((resolve) => {
-        canvas.toBlob((b) => resolve(b!), "image/png");
-    });
-}
-
-export default function FaviconGeneratorPage() {
-    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("favicon");
-    const [sourceImage, setSourceImage] = useState<string | null>(null);
-    const [sourceFile, setSourceFile] = useState<File | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [generatedPreviews, setGeneratedPreviews] = useState<{ size: number; url: string; blob: Blob }[]>([]);
-    const zipUrlRef = useRef<string | null>(null);
-
-    const handleImageLoad = useCallback((file: File, dataUrl: string) => {
-        setSourceImage(dataUrl);
-        setSourceFile(file);
-        setGeneratedPreviews([]);
-    }, []);
-
-    const handleClear = useCallback(() => {
-        setSourceImage(null);
-        setSourceFile(null);
-        setGeneratedPreviews([]);
-        generatedPreviews.forEach(p => URL.revokeObjectURL(p.url));
-        if (zipUrlRef.current) URL.revokeObjectURL(zipUrlRef.current);
-    }, [generatedPreviews]);
-
-    const handleGenerate = useCallback(async () => {
-        if (!sourceImage) return;
-        setIsGenerating(true);
-
-        try {
-            // Una sola decodificación (createImageBitmap) reutilizada en los 8 tamaños.
-            const bitmap = await imageBitmapFromSource(sourceFile, sourceImage);
-            const previews: { size: number; url: string; blob: Blob }[] = [];
-            for (const { size } of FAVICON_SIZES) {
-                const blob = await generateFaviconPng(bitmap, size);
-                previews.push({ size, url: URL.createObjectURL(blob), blob });
-            }
-            bitmap.close();
-            setGeneratedPreviews(previews);
-        } catch {
-            // Error handled
-        } finally {
-            setIsGenerating(false);
-        }
-    }, [sourceImage, sourceFile]);
-
-    const handleDownloadZip = useCallback(async () => {
-        if (!sourceImage) return;
-
-        try {
-            const JSZip = (await import("jszip")).default;
-            const zip = new JSZip();
-
-            // Reutiliza los PNG ya generados; si no los hay, decodifica una vez.
-            const ready = new Map(generatedPreviews.map((p) => [p.size, p.blob]));
-            const bitmap = ready.size === FAVICON_SIZES.length ? null : await imageBitmapFromSource(sourceFile, sourceImage);
-            for (const { size, name } of FAVICON_SIZES) {
-                zip.file(name, ready.get(size) ?? (await generateFaviconPng(bitmap!, size)));
-            }
-            bitmap?.close();
-
-            // Add manifest.json
-            const manifest = {
-                name: "App",
-                icons: FAVICON_SIZES.filter(s => [192, 512].includes(s.size)).map(s => ({
-                    src: `/${s.name}`,
-                    sizes: `${s.size}x${s.size}`,
-                    type: "image/png",
-                })),
-            };
-            zip.file("site.webmanifest", JSON.stringify(manifest, null, 2));
-
-            // Add HTML snippet
-            const htmlSnippet = `<!-- Favicons generados por nicoholas.dev/herramientas/favicon -->
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+const HTML_SNIPPET = `<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">`;
-            zip.file("INSTRUCCIONES.html", htmlSnippet);
+type FaviconPreview = { size: number; url: string; blob: Blob };
 
-            const content = await zip.generateAsync({ type: "blob" });
-            if (zipUrlRef.current) URL.revokeObjectURL(zipUrlRef.current);
-            const url = URL.createObjectURL(content);
-            zipUrlRef.current = url;
+export default function FaviconGeneratorPage() {
+    const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("favicon");
+    const [source, setSource] = useState<{ id: number; file: File; url: string; image: HTMLImageElement } | null>(null);
+    const [padding, setPadding] = useState(8);
+    const [background, setBackground] = useState("#ffffff");
+    const [transparent, setTransparent] = useState(true);
+    const [generated, setGenerated] = useState<{ key: string; items: FaviconPreview[] } | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [decoding, setDecoding] = useState(false);
+    const [packing, setPacking] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const sourceVersion = useRef(0);
+    const previewsRef = useRef<FaviconPreview[]>([]);
+    const zipUrlRef = useRef<string | null>(null);
+    const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const key = JSON.stringify([source?.id, padding, background, transparent]);
+    const previews = generated?.key === key ? generated.items : [];
 
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = "favicons.zip";
-            link.click();
-        } catch {
-            // Error handled
-        }
-    }, [sourceImage, sourceFile, generatedPreviews]);
-
-    const handleDownloadSingle = useCallback((url: string, name: string) => {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = name;
-        link.click();
+    const clearUrls = useCallback(() => {
+        previewsRef.current.forEach((item) => revokeObjectUrl(item.url));
+        previewsRef.current = [];
+        revokeObjectUrl(zipUrlRef.current);
+        zipUrlRef.current = null;
     }, []);
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
+    const handleImageLoad = useCallback((file: File, url: string) => {
+        const version = ++sourceVersion.current;
+        clearUrls();
+        setSource(null);
+        setGenerated(null);
+        setError(null);
+        setDecoding(true);
+        setPacking(false);
+        void loadImageSource(url).then((image) => {
+            if (version === sourceVersion.current) setSource({ id: version, file, url, image });
+        }).catch(() => {
+            if (version === sourceVersion.current) setError("No se pudo leer la imagen. Prueba con otro archivo.");
+        }).finally(() => { if (version === sourceVersion.current) setDecoding(false); });
+    }, [clearUrls]);
 
-    if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de Favicons"} />;
-    }
+    const handleClear = useCallback(() => {
+        sourceVersion.current += 1;
+        clearUrls();
+        setSource(null);
+        setGenerated(null);
+        setError(null);
+        setPacking(false);
+    }, [clearUrls]);
 
-    return (
-        <div className="tool-page">
-            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="favicon" title={<>Generador de Favicons</>} description={<>Genera todos los tamaños de favicon para tu web. Descarga ZIP completo.</>} />
+    useEffect(() => () => {
+        sourceVersion.current += 1;
+        clearUrls();
+        if (copyTimer.current) clearTimeout(copyTimer.current);
+    }, [clearUrls]);
 
-                <ImageDropzone
-                    onImageLoad={handleImageLoad}
-                    currentImage={sourceImage}
-                    onClear={handleClear}
-                    accentColor={ACCENT}
-                    label="Arrastra tu logo o ícono"
-                    sublabel="Se recomienda imagen cuadrada (512×512 o mayor)"
-                />
+    useEffect(() => {
+        if (!source) return;
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            const next: FaviconPreview[] = [];
+            try {
+                for (const { size } of FAVICON_SIZES) {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = canvas.height = size;
+                    const context = canvas.getContext("2d");
+                    if (!context) throw new Error("No se pudo generar el icono.");
+                    if (!transparent) { context.fillStyle = background; context.fillRect(0, 0, size, size); }
+                    const inset = size * padding / 100;
+                    context.translate(inset, inset);
+                    context.imageSmoothingEnabled = true;
+                    context.imageSmoothingQuality = "high";
+                    drawImageToCanvas(context, source.image, { width: size - inset * 2, height: size - inset * 2, fitMode: "contain" });
+                    const blob = await canvasToBlob(canvas, "image/png");
+                    if (cancelled) return;
+                    next.push({ size, blob, url: URL.createObjectURL(blob) });
+                }
+                previewsRef.current.forEach((item) => revokeObjectUrl(item.url));
+                previewsRef.current = next;
+                setGenerated({ key, items: next });
+                setError(null);
+            } catch (cause) {
+                if (!cancelled) setError(cause instanceof Error ? cause.message : "No se pudieron generar los favicons.");
+            } finally {
+                if (cancelled || next.length !== FAVICON_SIZES.length) next.forEach((item) => revokeObjectUrl(item.url));
+            }
+        }, 180);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [source, padding, background, transparent, key]);
 
-                {sourceImage && (
-                    <div className="mt-6 space-y-4">
-                        {/* Sizes Info */}
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                            <h3 className="text-sm text-neutral-300 mb-3">Se generarán {FAVICON_SIZES.length} tamaños:</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                                {FAVICON_SIZES.map(({ size, name, desc }) => (
-                                    <div key={size} className="bg-white/5 rounded-lg p-2">
-                                        <span className="font-mono" style={{ color: ACCENT }}>{size}×{size}</span>
-                                        <p className="text-neutral-500 truncate">{desc}</p>
-                                        <p className="text-neutral-600 truncate">{name}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+    const handleDownloadZip = async () => {
+        if (!previews.length || packing) return;
+        const version = sourceVersion.current;
+        setPacking(true);
+        try {
+            const JSZip = (await import("jszip")).default;
+            const zip = new JSZip();
+            for (const item of previews) zip.file(FAVICON_SIZES.find((entry) => entry.size === item.size)!.name, item.blob);
+            zip.file("site.webmanifest", JSON.stringify({ name: "App", icons: FAVICON_SIZES.filter((entry) => [192, 512].includes(entry.size)).map((entry) => ({ src: `/${entry.name}`, sizes: `${entry.size}x${entry.size}`, type: "image/png" })) }, null, 2));
+            zip.file("INSTRUCCIONES.html", HTML_SNIPPET);
+            const blob = await zip.generateAsync({ type: "blob" });
+            if (version !== sourceVersion.current) return;
+            revokeObjectUrl(zipUrlRef.current);
+            const url = URL.createObjectURL(blob);
+            zipUrlRef.current = url;
+            triggerDownload(url, "favicons.zip");
+        } catch {
+            if (version === sourceVersion.current) setError("No se pudo crear el ZIP. Puedes descargar cada tamaño por separado.");
+        } finally { if (version === sourceVersion.current) setPacking(false); }
+    };
 
-                        {/* Generate */}
-                        <button onClick={handleGenerate} disabled={isGenerating}
-                            className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.01] disabled:opacity-50"
-                            style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}>
-                            {isGenerating ? "Generando..." : "Generar Favicons"}
-                        </button>
+    const copySnippet = async () => {
+        try {
+            await navigator.clipboard.writeText(HTML_SNIPPET);
+            setCopied(true);
+            if (copyTimer.current) clearTimeout(copyTimer.current);
+            copyTimer.current = setTimeout(() => setCopied(false), 1800);
+        } catch { setError("No se pudo copiar. Selecciona el código para copiarlo manualmente."); }
+    };
 
-                        {/* Previews */}
-                        {generatedPreviews.length > 0 && (
-                            <div className="space-y-4">
-                                {/* Preview Row */}
-                                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                                    <h3 className="text-sm text-neutral-300 mb-3">Vista previa:</h3>
-                                    <div className="flex items-end gap-4 flex-wrap">
-                                        {generatedPreviews.map(({ size, url }) => {
-                                            const displaySize = Math.min(size, 80);
-                                            const faviconInfo = FAVICON_SIZES.find(f => f.size === size)!;
-                                            return (
-                                                <button key={size}
-                                                    onClick={() => handleDownloadSingle(url, faviconInfo.name)}
-                                                    className="flex flex-col items-center gap-1 hover:scale-105 transition-transform cursor-pointer"
-                                                    title={`Descargar ${faviconInfo.name}`}>
-                                                    <img src={url} alt={`${size}px`}
-                                                        style={{ width: displaySize, height: displaySize }}
-                                                        className="rounded border border-white/20" />
-                                                    <span className="text-[10px] text-neutral-500 font-mono">{size}px</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+    if (isLoading) return <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="Cargando herramienta"><LoaderCircle className="h-6 w-6 text-slate-400 motion-safe:animate-spin" /></div>;
+    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de Favicons"} />;
 
-                                {/* Download All */}
-                                <button onClick={handleDownloadZip}
-                                    className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.01]"
-                                    style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50` }}>
-                                    Descargar ZIP (todos los tamaños + manifest)
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <div className="mt-8 text-center">
-                    <Link href="/herramientas" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
+    return <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
+        <ToolPageHeader slug="favicon" title="Favicons, listos para tu web" description="Sube tu logo. Ocho tamaños, un manifest y todo en un ZIP." />
+        {!source ? <><ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o icono" sublabel="PNG, JPG o WebP · conserva la proporción original" />{decoding && <p role="status" className="mt-4 text-center text-sm text-slate-400">Abriendo imagen…</p>}</> : <section aria-label="Estudio de favicons" className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c131d]">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 p-3 sm:px-5"><div className="flex min-w-0 items-center gap-3"><button type="button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear} className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 text-slate-400 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-cyan-300"><ImagePlus className="h-4 w-4" /></button><span className="truncate text-sm text-slate-300">{source.file.name}</span></div><button type="button" disabled={!previews.length || packing} onClick={handleDownloadZip} className="flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-cyan-200 px-4 text-sm font-semibold text-cyan-950 hover:bg-cyan-100 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40">{packing ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" /> : <Package className="h-4 w-4" />}Descargar ZIP</button></div>
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="space-y-6 p-5 sm:p-8">
+                    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#080e17]"><div className="flex h-12 items-center gap-3 border-b border-white/10 bg-white/[0.03] px-4"><div className="flex gap-1.5" aria-hidden="true"><span className="h-2 w-2 rounded-full bg-white/20" /><span className="h-2 w-2 rounded-full bg-white/20" /><span className="h-2 w-2 rounded-full bg-white/20" /></div><div className="flex h-9 items-center gap-2 rounded-t-lg bg-white/5 px-4 text-xs text-slate-300"><img src={previews.find((item) => item.size === 32)?.url ?? source.url} width={16} height={16} alt="Favicon en una pestaña" className="object-contain" />Tu página</div></div><div className="flex min-h-44 items-center justify-center gap-7"><div className="flex h-24 w-24 items-center justify-center rounded-[24px] border border-white/10 bg-white/5 shadow-xl"><img src={previews.find((item) => item.size === 180)?.url ?? source.url} alt="Icono en pantalla de inicio" className="h-20 w-20 object-contain" /></div><div className="space-y-2 text-xs text-slate-400"><Smartphone className="h-5 w-5 text-cyan-200" /><p>Tu marca, en cada pantalla.</p></div></div></div>
+                    <div className="grid grid-cols-4 gap-2" aria-label="Descargar tamaños individuales">{FAVICON_SIZES.map((item) => { const preview = previews.find((entry) => entry.size === item.size); return <button key={item.size} type="button" disabled={!preview} title={`Descargar ${item.name}`} aria-label={`Descargar ${item.size} × ${item.size}`} onClick={() => preview && triggerDownload(preview.url, item.name)} className="group flex min-w-0 cursor-pointer flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-1 py-4 transition-colors hover:border-cyan-200/40 hover:bg-cyan-200/5 focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-40">{preview ? <img src={preview.url} alt="" className="h-8 w-8 object-contain" /> : <LoaderCircle className="h-8 w-8 text-slate-500 motion-safe:animate-spin" />}<span className="font-mono text-xs text-slate-200">{item.size}px</span><span className="flex items-center gap-1 text-[10px] text-slate-500"><ArrowDownToLine className="h-3 w-3 transition-colors group-hover:text-cyan-200" />{item.desc}</span></button>; })}</div>
+                    <p role="status" className="flex items-center gap-2 text-xs text-slate-400">{previews.length ? <Check className="h-4 w-4 text-cyan-200" /> : <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" />}{previews.length ? "8 PNG + manifest + código HTML" : "Generando tamaños…"}</p>
                 </div>
-            </main>
-        </div>
-    );
+                <aside aria-label="Ajustes de favicon" className="space-y-5 border-t border-white/10 bg-white/[0.02] p-5 lg:border-l lg:border-t-0"><label className="block text-xs text-slate-300"><span className="mb-3 flex justify-between"><span>Margen interior</span><output className="font-mono text-cyan-200">{padding}%</output></span><input type="range" min={0} max={30} value={padding} onChange={(event) => setPadding(Number(event.target.value))} className="h-5 w-full cursor-pointer accent-cyan-200" /></label><label className="flex cursor-pointer items-center gap-3 text-xs text-slate-300"><input type="checkbox" checked={transparent} onChange={(event) => setTransparent(event.target.checked)} className="h-4 w-4 accent-cyan-200" />Fondo transparente</label>{!transparent && <label className="flex items-center justify-between text-xs text-slate-300">Color de fondo<input type="color" value={background} onChange={(event) => setBackground(event.target.value)} className="h-10 w-12 cursor-pointer rounded bg-transparent" /></label>}<div className="border-t border-white/10 pt-5"><Code2 className="mb-3 h-5 w-5 text-slate-500" /><p className="text-xs leading-5 text-slate-400">Copia los archivos a la raíz de tu web y añade las etiquetas HTML al encabezado.</p><button type="button" onClick={copySnippet} className="mt-3 flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/10 text-xs text-slate-200 transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-cyan-300">{copied ? <Check className="h-4 w-4" /> : <Code2 className="h-4 w-4" />}{copied ? "Copiado" : "Copiar etiquetas HTML"}</button></div></aside>
+            </div>
+        </section>}
+        {source && <details className="mt-4 rounded-xl border border-white/10 p-4"><summary className="cursor-pointer text-xs text-slate-400">Ver etiquetas HTML</summary><pre className="mt-3 overflow-x-auto text-xs leading-6 text-slate-300">{HTML_SNIPPET}</pre></details>}
+        {error && <p role="alert" className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}
+    </main></div>;
 }

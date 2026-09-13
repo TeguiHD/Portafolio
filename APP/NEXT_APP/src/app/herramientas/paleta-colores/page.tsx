@@ -2,12 +2,12 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useCallback, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Copy, Download, ImagePlus, LoaderCircle } from "lucide-react";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
-import { StudioCard, StudioChip, StudioMetric, StudioStage } from "@/components/tools/ImageStudio";
+import { sanitizeFileBaseName, triggerDownload } from "@/lib/tools/image-processing";
 
 const ACCENT = "#EC4899";
 
@@ -20,7 +20,7 @@ interface ColorInfo {
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
-    return "#" + [r, g, b].map(value => value.toString(16).padStart(2, "0")).join("");
+    return "#" + [r, g, b].map(value => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("");
 }
 
 function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
@@ -112,7 +112,7 @@ function extractPalette(imageData: ImageData, numColors = 6): ColorInfo[] {
             existing.b = Math.round((existing.b * existing.count + b) / (existing.count + 1));
             existing.count += 1;
         } else {
-            colorMap.set(key, { r: qr, g: qg, b: qb, count: 1 });
+            colorMap.set(key, { r, g, b, count: 1 });
         }
     }
 
@@ -130,13 +130,23 @@ function extractPalette(imageData: ImageData, numColors = 6): ColorInfo[] {
         if (!tooSimilar) filtered.push(color);
     }
 
-    const totalCount = filtered.reduce((sum, color) => sum + color.count, 0);
-    return filtered.map(color => ({
+    // Count every sampled pixel against its nearest swatch, not just the winning bins.
+    const counts = filtered.map(() => 0);
+    for (const sample of sorted) {
+        let nearest = 0;
+        let distance = Infinity;
+        filtered.forEach((color, index) => {
+            const delta = (sample.r - color.r) ** 2 + (sample.g - color.g) ** 2 + (sample.b - color.b) ** 2;
+            if (delta < distance) { nearest = index; distance = delta; }
+        });
+        counts[nearest] += sample.count;
+    }
+    return filtered.map((color, index) => ({
         hex: rgbToHex(color.r, color.g, color.b),
         rgb: { r: color.r, g: color.g, b: color.b },
         hsl: rgbToHsl(color.r, color.g, color.b),
-        count: color.count,
-        percentage: Math.round((color.count / totalCount) * 100),
+        count: counts[index],
+        percentage: Math.round((counts[index] / pixels.length) * 100),
     }));
 }
 
@@ -147,36 +157,55 @@ export default function ColorPalettePage() {
     const [numColors, setNumColors] = useState(6);
     const [selectedColorIndex, setSelectedColorIndex] = useState(0);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [extracting, setExtracting] = useState(false);
+    const [fileName, setFileName] = useState("paleta");
+    const extractionVersion = useRef(0);
+    const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        extractionVersion.current += 1;
+        if (copyTimer.current) clearTimeout(copyTimer.current);
+    }, []);
 
     const extractFromImage = useCallback((imageUrl: string, colors: number) => {
+        const version = ++extractionVersion.current;
+        setExtracting(true);
+        setError(null);
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
+            if (version !== extractionVersion.current) return;
             const canvas = document.createElement("canvas");
             const scale = Math.min(320 / img.naturalWidth, 320 / img.naturalHeight, 1);
-            canvas.width = Math.round(img.naturalWidth * scale);
-            canvas.height = Math.round(img.naturalHeight * scale);
+            canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
             const context = canvas.getContext("2d");
 
-            if (!context) return;
+            if (!context) { setError("No se pudo analizar la imagen."); setExtracting(false); return; }
 
             context.drawImage(img, 0, 0, canvas.width, canvas.height);
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
             const nextPalette = extractPalette(imageData, colors);
             setPalette(nextPalette);
             setSelectedColorIndex(0);
+            setExtracting(false);
+            if (!nextPalette.length) setError("La imagen no contiene píxeles visibles para extraer una paleta.");
         };
+        img.onerror = () => { if (version === extractionVersion.current) { setError("No se pudo leer esta imagen."); setExtracting(false); } };
         img.src = imageUrl;
     }, []);
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
-        void file;
+        setFileName(sanitizeFileBaseName(file.name));
         setSourceImage(dataUrl);
         setPalette([]);
         extractFromImage(dataUrl, numColors);
     }, [extractFromImage, numColors]);
 
     const handleClear = useCallback(() => {
+        extractionVersion.current += 1;
+        setExtracting(false);
+        setError(null);
         setSourceImage(null);
         setPalette([]);
         setSelectedColorIndex(0);
@@ -190,10 +219,20 @@ export default function ColorPalettePage() {
     }, [extractFromImage, sourceImage]);
 
     const copyValue = useCallback(async (value: string, token: string) => {
-        await navigator.clipboard.writeText(value);
-        setCopiedToken(token);
-        setTimeout(() => setCopiedToken(null), 1600);
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopiedToken(token);
+            if (copyTimer.current) clearTimeout(copyTimer.current);
+            copyTimer.current = setTimeout(() => setCopiedToken(null), 1600);
+        } catch { setError("No se pudo copiar. Puedes seleccionar y copiar los valores manualmente."); }
     }, []);
+
+    const css = `:root {\n${palette.map((color, index) => `  --palette-${index + 1}: ${color.hex};`).join("\n")}\n}`;
+    const downloadPalette = () => {
+        const url = URL.createObjectURL(new Blob([css], { type: "text/css" }));
+        triggerDownload(url, `${fileName}_paleta.css`);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
 
     if (isLoading) {
         return (
@@ -211,184 +250,31 @@ export default function ColorPalettePage() {
     const harmony = activeColor ? buildHarmony(activeColor) : [];
 
     return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,#5a123a_0%,#0F1724_40%,#08111f_100%)]">
-            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <ToolPageHeader slug="paleta-colores" title={<>Extraer paleta desde imagen</>} description={<>Obtén los colores dominantes de una imagen, revisa sus valores y copia variantes listas para diseño o interfaz.</>} />
-
-                <StudioCard
-                    title="Imagen fuente"
-                    description="La extracción se hace en local y prioriza los colores más representativos de la imagen."
-                    eyebrow="Entrada"
-                    accentColor={ACCENT}
-                >
-                    <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                        <ImageDropzone
-                            onImageLoad={handleImageLoad}
-                            currentImage={sourceImage}
-                            onClear={handleClear}
-                            accentColor={ACCENT}
-                            label="Arrastra una imagen para extraer su paleta"
-                        />
-                        <div className="grid grid-cols-2 gap-3">
-                            <StudioMetric label="Colores" value={`${numColors} muestras`} accentColor={ACCENT} />
-                            <StudioMetric label="Modo" value="Extracción local" accentColor={ACCENT} />
-                            <StudioMetric label="Salida" value="HEX · RGB · HSL" accentColor={ACCENT} />
-                            <StudioMetric label="Uso" value="Diseño y UI" accentColor={ACCENT} />
+        <div className="tool-page">
+            <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
+                <ToolPageHeader slug="paleta-colores" title="Los colores de tu imagen" description="Extrae una paleta y llévala a tu diseño en HEX, RGB, HSL o CSS." />
+                {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra una imagen para extraer su paleta" /> : (
+                    <section aria-label="Estudio de color" className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c131d]">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-3 sm:px-5">
+                            <div className="flex items-center gap-3"><button type="button" onClick={handleClear} aria-label="Cambiar imagen" title="Cambiar imagen" className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-white/10 text-slate-400 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300"><ImagePlus className="h-4 w-4" /></button><div className="flex gap-1" role="group" aria-label="Cantidad de colores">{[4, 6, 8, 10].map((count) => <button key={count} type="button" aria-label={`${count} colores`} aria-pressed={numColors === count} onClick={() => handleColorCount(count)} className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-pink-300 ${numColors === count ? "bg-pink-300/10 text-pink-200" : "text-slate-400 hover:bg-white/5"}`}>{count}</button>)}</div></div>
+                            <button type="button" onClick={downloadPalette} disabled={!palette.length || extracting} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-pink-300 px-4 text-sm font-semibold text-pink-950 hover:bg-pink-200 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40"><Download className="h-4 w-4" />CSS</button>
                         </div>
-                    </div>
-                </StudioCard>
-
-                {sourceImage && palette.length > 0 && activeColor && (
-                    <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                        <StudioCard
-                            title="Análisis de color"
-                            description="Haz clic en cualquier tarjeta para revisar tono, rol y armonías relacionadas."
-                            eyebrow="Análisis"
-                            accentColor={ACCENT}
-                        >
-                            <div className="grid gap-4 lg:grid-cols-2">
-                                <StudioStage title="Imagen" subtitle="Fuente" accentColor={ACCENT}>
-                                    <img src={sourceImage} alt="Imagen analizada" className="max-h-[360px] w-full rounded-2xl object-contain" />
-                                </StudioStage>
-                                <StudioStage title="Color activo" subtitle={getToneName(activeColor.hsl)} accentColor={ACCENT} badge={getRole(selectedColorIndex)}>
-                                    <div className="flex w-full flex-col items-center gap-4">
-                                        <div className="h-44 w-full max-w-[320px] rounded-[28px] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.35)]" style={{ backgroundColor: activeColor.hex }} />
-                                        <div className="flex flex-wrap justify-center gap-2">
-                                            <StudioChip accentColor={ACCENT} active>{activeColor.hex.toUpperCase()}</StudioChip>
-                                            <StudioChip accentColor={ACCENT}>{activeColor.percentage}%</StudioChip>
-                                            <StudioChip accentColor={ACCENT}>{`H${activeColor.hsl.h} S${activeColor.hsl.s} L${activeColor.hsl.l}`}</StudioChip>
-                                        </div>
-                                    </div>
-                                </StudioStage>
+                        <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
+                            <div className="min-w-0"><div className="relative flex h-[min(48vh,440px)] min-h-[260px] items-center justify-center bg-[#070b11] p-6"><img src={sourceImage} alt="Imagen analizada" className="max-h-full max-w-full object-contain" />{extracting && <span role="status" className="absolute bottom-4 flex items-center gap-2 rounded-full bg-[#0a111b]/90 px-3 py-2 text-xs text-slate-300"><LoaderCircle className="h-4 w-4 motion-safe:animate-spin" />Extrayendo colores…</span>}</div>
+                                {palette.length > 0 && <div className="grid" style={{ gridTemplateColumns: `repeat(${palette.length}, minmax(0, 1fr))` }}>{palette.map((color, index) => <button key={color.hex} type="button" onClick={() => setSelectedColorIndex(index)} aria-label={`Seleccionar ${color.hex}, ${color.percentage}%`} aria-pressed={selectedColorIndex === index} title={`${color.hex.toUpperCase()} · ${color.percentage}%`} className="group relative flex h-20 min-w-0 cursor-pointer items-end justify-center p-2 outline-none transition-all hover:brightness-110 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white sm:h-28" style={{ backgroundColor: color.hex }}><span className="rounded bg-black/65 px-1.5 py-1 font-mono text-[9px] text-white sm:text-[10px]">{palette.length <= 6 ? color.hex.toUpperCase() : `${color.percentage}%`}</span>{selectedColorIndex === index && <Check className="absolute left-1/2 top-3 h-5 w-5 -translate-x-1/2 rounded-full bg-black/65 p-0.5 text-white" />}</button>)}</div>}
                             </div>
-
-                            <div className="mt-6 flex items-center justify-between gap-3">
-                                <span className="text-sm text-neutral-400">Cantidad de colores</span>
-                                <div className="flex flex-wrap gap-2">
-                                    {[4, 6, 8, 10].map(count => (
-                                        <button
-                                            key={count}
-                                            onClick={() => handleColorCount(count)}
-                                            className="rounded-full px-3 py-2 text-xs font-semibold transition-all"
-                                            style={numColors === count
-                                                ? { backgroundColor: `${ACCENT}24`, color: "white", boxShadow: `0 0 0 1px ${ACCENT}` }
-                                                : { backgroundColor: "rgba(255,255,255,0.05)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }}
-                                        >
-                                            {count}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="mt-4 flex h-16 overflow-hidden rounded-2xl border border-white/10">
-                                {palette.map((color, index) => (
-                                    <button
-                                        key={color.hex}
-                                        onClick={() => setSelectedColorIndex(index)}
-                                        className="relative transition-transform hover:scale-y-105"
-                                        style={{ backgroundColor: color.hex, flex: color.percentage }}
-                                        title={`${color.hex} · ${color.percentage}%`}
-                                    >
-                                        {selectedColorIndex === index && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/80" />}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="mt-5 flex gap-3 overflow-x-auto pb-1">
-                                {palette.map((color, index) => (
-                                    <button
-                                        key={`${color.hex}-${index}`}
-                                        onClick={() => setSelectedColorIndex(index)}
-                                        className="min-w-[188px] rounded-[24px] border p-3 text-left transition-all"
-                                        style={selectedColorIndex === index
-                                            ? { borderColor: `${ACCENT}70`, backgroundColor: `${ACCENT}14` }
-                                            : { borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" }}
-                                    >
-                                        <div className="h-20 rounded-2xl" style={{ backgroundColor: color.hex }} />
-                                        <div className="mt-3 flex items-start justify-between gap-3">
-                                            <div>
-                                                <p className="text-sm font-semibold text-white">{getRole(index)}</p>
-                                                <p className="mt-1 text-xs text-neutral-500">{getToneName(color.hsl)}</p>
-                                            </div>
-                                            <StudioChip accentColor={ACCENT} active={selectedColorIndex === index}>{color.percentage}%</StudioChip>
-                                        </div>
-                                        <p className="mt-3 font-mono text-sm text-white">{color.hex.toUpperCase()}</p>
-                                    </button>
-                                ))}
-                            </div>
-                        </StudioCard>
-
-                        <div className="space-y-6">
-                            <StudioCard
-                                title="Detalle del color"
-                                description="Copia valores listos para diseño o desarrollo."
-                                eyebrow="Inspector"
-                                accentColor={ACCENT}
-                            >
-                                <div className="space-y-3">
-                                    {[
-                                        { label: "HEX", value: activeColor.hex.toUpperCase(), token: "hex" },
-                                        { label: "RGB", value: `rgb(${activeColor.rgb.r}, ${activeColor.rgb.g}, ${activeColor.rgb.b})`, token: "rgb" },
-                                        { label: "HSL", value: `hsl(${activeColor.hsl.h}, ${activeColor.hsl.s}%, ${activeColor.hsl.l}%)`, token: "hsl" },
-                                    ].map(item => (
-                                        <button
-                                            key={item.token}
-                                            onClick={() => copyValue(item.value, item.token)}
-                                            className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-left transition-all hover:bg-black/30"
-                                        >
-                                            <div>
-                                                <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">{item.label}</p>
-                                                <p className="mt-1 font-mono text-sm text-white">{item.value}</p>
-                                            </div>
-                                            <span className="text-xs text-neutral-400">{copiedToken === item.token ? "copiado" : "copiar"}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </StudioCard>
-
-                            <StudioCard
-                                title="Armonías"
-                                description="Variaciones automáticas útiles para construir acentos, fondos o sistemas cromáticos."
-                                eyebrow="Extensión"
-                                accentColor={ACCENT}
-                            >
-                                <div className="grid grid-cols-2 gap-3">
-                                    {harmony.map((item, index) => (
-                                        <button
-                                            key={`${item.label}-${index}`}
-                                            onClick={() => copyValue(item.swatch, `harmony-${index}`)}
-                                            className="rounded-[22px] border border-white/10 bg-black/20 p-3 text-left transition-all hover:bg-black/30"
-                                        >
-                                            <div className="h-16 rounded-2xl" style={{ backgroundColor: item.swatch }} />
-                                            <p className="mt-3 text-sm font-semibold text-white">{item.label}</p>
-                                            <p className="mt-1 font-mono text-xs text-neutral-400">{item.swatch}</p>
-                                        </button>
-                                    ))}
-                                </div>
-                            </StudioCard>
-
-                            <StudioCard
-                                title="Variables CSS"
-                                description="Snippet directo para llevar la paleta a tu sistema de diseño."
-                                eyebrow="Export"
-                                accentColor={ACCENT}
-                            >
-                                <pre className="overflow-x-auto rounded-2xl border border-white/10 bg-black/20 p-4 text-xs text-neutral-300">
-                                    {palette.map((color, index) => `--palette-${index + 1}: ${color.hex};`).join("\n")}
-                                </pre>
-                            </StudioCard>
+                            <aside aria-label="Detalle del color" className="space-y-4 border-t border-white/10 bg-white/[0.02] p-5 lg:border-l lg:border-t-0">
+                                {activeColor && <><div className="flex items-center gap-3"><div className="h-12 w-12 rounded-xl border border-white/10" style={{ backgroundColor: activeColor.hex }} /><div><p className="text-sm font-medium text-white">{getToneName(activeColor.hsl)}</p><p className="mt-1 text-xs text-slate-400">{getRole(selectedColorIndex)} · {activeColor.percentage}%</p></div></div>
+                                    <div className="space-y-2">{[{ label: "HEX", value: activeColor.hex.toUpperCase(), token: "hex" }, { label: "RGB", value: `rgb(${activeColor.rgb.r}, ${activeColor.rgb.g}, ${activeColor.rgb.b})`, token: "rgb" }, { label: "HSL", value: `hsl(${activeColor.hsl.h}, ${activeColor.hsl.s}%, ${activeColor.hsl.l}%)`, token: "hsl" }].map((item) => <button key={item.token} type="button" onClick={() => copyValue(item.value, item.token)} aria-label={`Copiar ${item.label}: ${item.value}`} className="group flex min-h-14 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2 text-left transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300"><span className="min-w-0"><span className="block text-[10px] text-slate-500">{item.label}</span><span className="mt-1 block break-all font-mono text-xs text-slate-200">{item.value}</span></span>{copiedToken === item.token ? <Check className="h-4 w-4 shrink-0 text-pink-200" /> : <Copy className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-slate-200" />}</button>)}</div>
+                                    <div className="border-t border-white/10 pt-4"><p className="mb-3 text-xs text-slate-400">Armonías · pulsa para copiar</p><div className="grid grid-cols-4 gap-2">{harmony.map((item, index) => <button key={item.label} type="button" title={item.label} aria-label={`Copiar ${item.label}: ${item.swatch}`} onClick={() => copyValue(item.swatch, `harmony-${index}`)} className="flex h-11 cursor-pointer items-center justify-center rounded-lg border border-white/10 focus-visible:ring-2 focus-visible:ring-white" style={{ backgroundColor: item.swatch }}>{copiedToken === `harmony-${index}` && <Check className="h-4 w-4 rounded bg-black/60 text-white" />}</button>)}</div></div>
+                                    <button type="button" onClick={() => copyValue(css, "css")} className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/10 text-xs text-slate-200 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300">{copiedToken === "css" ? <Check className="h-4 w-4 text-pink-200" /> : <Copy className="h-4 w-4" />}Copiar paleta CSS</button>
+                                </>}
+                            </aside>
                         </div>
-                    </div>
+                    </section>
                 )}
-
-                <div className="mt-8 text-center">
-                    <Link href="/herramientas" className="inline-flex items-center gap-2 text-sm text-neutral-400 transition-colors hover:text-white">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
+                {copiedToken && <p role="status" className="sr-only">Color copiado</p>}
+                {error && <p role="alert" className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}
             </main>
         </div>
     );

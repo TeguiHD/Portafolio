@@ -2,12 +2,12 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useState, useRef, useCallback } from "react";
-import Link from "next/link";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Check, Download, ImagePlus, LoaderCircle } from "lucide-react";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
-import { imageBitmapFromSource } from "@/lib/tools/image-processing";
+import { imageBitmapFromSource, canvasToBlob, drawImageToCanvas } from "@/lib/tools/image-processing";
 
 const ACCENT = "#F59E0B";
 
@@ -31,11 +31,9 @@ async function generateIco(img: ImageBitmap, sizes: number[]): Promise<Blob> {
         // Draw image scaled to the target size with high-quality interpolation
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(img, 0, 0, size, size);
+        drawImageToCanvas(ctx, img, { width: size, height: size, fitMode: "contain" });
 
-        const blob = await new Promise<Blob>((resolve) => {
-            canvas.toBlob((b) => resolve(b!), "image/png");
-        });
+        const blob = await canvasToBlob(canvas, "image/png");
         const buffer = await blob.arrayBuffer();
         pngBlobs.push({ size, data: buffer });
     }
@@ -96,6 +94,7 @@ export default function IcoConverterPage() {
     const [selectedSizes, setSelectedSizes] = useState<number[]>([16, 32, 48]);
     const [resultUrl, setResultUrl] = useState<string | null>(null);
     const [isConverting, setIsConverting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const resultUrlRef = useRef<string | null>(null);
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
@@ -118,24 +117,32 @@ export default function IcoConverterPage() {
         setResultUrl(null);
     };
 
-    const handleConvert = useCallback(async () => {
-        if (!sourceImage || selectedSizes.length === 0) return;
+    useEffect(() => () => { if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current); }, []);
+    useEffect(() => {
+        setResultUrl(null);
+        setError(null);
+        if (!sourceImage || !selectedSizes.length) { setIsConverting(false); return; }
+        let active = true;
         setIsConverting(true);
-
-        try {
-            // Una sola decodificación para todos los tamaños del ICO.
-            const bitmap = await imageBitmapFromSource(sourceFile, sourceImage);
-            const blob = await generateIco(bitmap, selectedSizes);
-            bitmap.close();
-            if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
-            const url = URL.createObjectURL(blob);
-            resultUrlRef.current = url;
-            setResultUrl(url);
-        } catch {
-            // Error handled
-        } finally {
-            setIsConverting(false);
-        }
+        const timer = setTimeout(async () => {
+            let bitmap: ImageBitmap | null = null;
+            try {
+                bitmap = await imageBitmapFromSource(sourceFile, sourceImage);
+                if (!active) return;
+                const blob = await generateIco(bitmap, selectedSizes);
+                if (!active) return;
+                if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
+                const url = URL.createObjectURL(blob);
+                resultUrlRef.current = url;
+                setResultUrl(url);
+            } catch {
+                if (active) setError("No se pudo generar el icono. Prueba con otra imagen.");
+            } finally {
+                bitmap?.close();
+                if (active) setIsConverting(false);
+            }
+        }, 180);
+        return () => { active = false; clearTimeout(timer); };
     }, [sourceImage, sourceFile, selectedSizes]);
 
     const handleDownload = useCallback(() => {
@@ -159,101 +166,27 @@ export default function IcoConverterPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor a ICO"} />;
     }
 
-    return (
-        <div className="tool-page">
-            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="convertir-ico" title={<>Conversor a ICO</>} description={<>Convierte imágenes a formato .ico para favicons. Elige los tamaños.</>} />
-
-                <ImageDropzone
-                    onImageLoad={handleImageLoad}
-                    currentImage={sourceImage}
-                    onClear={handleClear}
-                    accentColor={ACCENT}
-                    label="Arrastra tu imagen"
-                    sublabel="PNG, JPG, WebP → ICO"
-                />
-
-                {sourceImage && (
-                    <div className="mt-6 space-y-4">
-                        {/* Size Selection */}
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                            <h3 className="text-sm text-neutral-300 mb-3">Tamaños incluidos en el .ico:</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {ICO_SIZES.map(size => (
-                                    <button
-                                        key={size}
-                                        onClick={() => toggleSize(size)}
-                                        className={`px-3 py-2 rounded-lg text-sm font-mono transition-all ${selectedSizes.includes(size)
-                                            ? "text-white ring-2"
-                                            : "bg-white/5 text-neutral-500 border border-white/10 hover:bg-white/10"
-                                            }`}
-                                        style={selectedSizes.includes(size) ? {
-                                            background: `${ACCENT}20`,
-                                            boxShadow: `0 0 0 2px ${ACCENT}`,
-                                        } : undefined}
-                                    >
-                                        {size}×{size}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Preview */}
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                            <h3 className="text-sm text-neutral-300 mb-3">Vista previa de tamaños:</h3>
-                            <div className="flex items-end gap-4 flex-wrap">
-                                {selectedSizes.map(size => {
-                                    const displaySize = Math.min(size, 64);
-                                    return (
-                                        <div key={size} className="flex flex-col items-center gap-1">
-                                            <img
-                                                src={sourceImage}
-                                                alt={`${size}px`}
-                                                style={{ width: displaySize, height: displaySize }}
-                                                className="rounded border border-white/20 object-cover"
-                                            />
-                                            <span className="text-[10px] text-neutral-500 font-mono">{size}px</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Convert */}
-                        <button
-                            onClick={handleConvert}
-                            disabled={isConverting || selectedSizes.length === 0}
-                            className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.01] disabled:opacity-50"
-                            style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
-                        >
-                            {isConverting ? "Generando ICO..." : `Generar .ico (${selectedSizes.length} tamaños)`}
-                        </button>
-
-                        {/* Result */}
-                        {resultUrl && (
-                            <div className="bg-white/5 rounded-xl p-5 border border-white/10 text-center space-y-3">
-                                <p className="text-white font-medium">Archivo .ico generado</p>
-                                <button
-                                    onClick={handleDownload}
-                                    className="w-full py-2.5 rounded-xl font-medium text-white transition-all hover:scale-[1.01]"
-                                    style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50` }}
-                                >
-                                    Descargar .ico
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <div className="mt-8 text-center">
-                    <Link href="/herramientas" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
+    return <div className="tool-page"><main className="tool-main mx-auto max-w-5xl px-4 pb-12 sm:px-6">
+        <ToolPageHeader slug="convertir-ico" title="Convertir a ICO" description="Un icono, todos sus tamaños. Listo para descargar al subir tu imagen." />
+        {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o imagen" /> : <section aria-label="Editor de iconos ICO" className="studio-panel overflow-hidden">
+            <div className="flex items-center gap-3 border-b border-white/10 p-3">
+                <button type="button" className="studio-icon-button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear}><ImagePlus size={18} aria-hidden="true" /></button>
+                <span className="min-w-0 flex-1 truncate text-xs text-slate-300">{sourceFile?.name}</span>
+                <button type="button" className="studio-button studio-button-primary" onClick={handleDownload} disabled={!resultUrl || isConverting} aria-label="Descargar ICO"><Download size={16} aria-hidden="true" /><span className="hidden sm:inline">Descargar</span> ICO</button>
+            </div>
+            <div className="grid md:grid-cols-[1fr_280px]">
+                <div className="p-5">
+                    <div className="mb-5 flex min-h-[240px] items-center justify-center rounded-xl border border-white/5 bg-[#080e17]"><img src={sourceImage} alt="Vista previa del icono" className="h-40 w-40 object-contain" /></div>
+                    <div className="flex min-h-20 flex-wrap items-end justify-center gap-4">{selectedSizes.map(size => <div key={size} className="flex flex-col items-center gap-2"><img src={sourceImage} alt="" width={Math.min(size, 64)} height={Math.min(size, 64)} className="aspect-square object-contain" /><span className="text-[10px] font-mono text-slate-400">{size}px</span></div>)}</div>
                 </div>
-            </main>
-        </div>
-    );
+                <aside aria-label="Tamaños del icono" className="border-t border-white/10 p-5 md:border-l md:border-t-0">
+                    <h2 className="mb-4 text-sm font-medium text-white">Tamaños incluidos</h2>
+                    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Elegir tamaños ICO">{ICO_SIZES.map(size => <button type="button" key={size} onClick={() => toggleSize(size)} aria-pressed={selectedSizes.includes(size)} className="studio-segment inline-flex items-center justify-center gap-2 border border-white/10 font-mono">{selectedSizes.includes(size) && <Check size={12} aria-hidden="true" />}{size}×{size}</button>)}</div>
+                    <p role="status" className="mt-5 flex items-center gap-2 text-xs leading-relaxed text-slate-400">{isConverting ? <><LoaderCircle size={14} className="motion-safe:animate-spin" aria-hidden="true" />Actualizando…</> : resultUrl ? `${selectedSizes.length} tamaños · un archivo ICO` : "Selecciona al menos un tamaño."}</p>
+                    <p className="mt-3 text-xs leading-relaxed text-slate-400">Tu imagen conserva su proporción y transparencia.</p>
+                </aside>
+            </div>
+        </section>}
+        {error && <p role="alert" className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-200">{error}</p>}
+    </main></div>;
 }

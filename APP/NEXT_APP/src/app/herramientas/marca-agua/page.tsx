@@ -3,11 +3,10 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { Download, ImagePlus, LoaderCircle, Type, Image as ImageIcon, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, Move, Grid2X2 } from "lucide-react";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
-import { StudioCard, StudioChip, StudioMetric, StudioStage } from "@/components/tools/ImageStudio";
 import {
     canvasToObjectUrl,
     loadImageSource,
@@ -21,13 +20,13 @@ const ACCENT = "#F97316";
 type WatermarkPosition = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right" | "tile";
 type WatermarkMode = "text" | "logo";
 
-const POSITIONS: { id: WatermarkPosition; name: string }[] = [
-    { id: "center", name: "Centro" },
-    { id: "top-left", name: "↖ Arriba-izq" },
-    { id: "top-right", name: "↗ Arriba-der" },
-    { id: "bottom-left", name: "↙ Abajo-izq" },
-    { id: "bottom-right", name: "↘ Abajo-der" },
-    { id: "tile", name: "🔁 Mosaico" },
+const POSITIONS: { id: WatermarkPosition; name: string; icon: typeof Move }[] = [
+    { id: "center", name: "Centro", icon: Move },
+    { id: "top-left", name: "Arriba izquierda", icon: ArrowUpLeft },
+    { id: "top-right", name: "Arriba derecha", icon: ArrowUpRight },
+    { id: "bottom-left", name: "Abajo izquierda", icon: ArrowDownLeft },
+    { id: "bottom-right", name: "Abajo derecha", icon: ArrowDownRight },
+    { id: "tile", name: "Mosaico", icon: Grid2X2 },
 ];
 
 function getPlacement(
@@ -69,6 +68,7 @@ export default function WatermarkPage() {
     const [logoScale, setLogoScale] = useState(22);
     const [resultUrl, setResultUrl] = useState<string | null>(null);
     const [isRenderingPreview, setIsRenderingPreview] = useState(false);
+    const [showOriginal, setShowOriginal] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const resultUrlRef = useRef<string | null>(null);
@@ -103,16 +103,19 @@ export default function WatermarkPage() {
     useEffect(() => {
         if (!sourceImage || !canvasRef.current) {
             setResultUrl(null);
+            setIsRenderingPreview(false);
             return;
         }
 
         if (mode === "text" && !text.trim()) {
             setResultUrl(null);
+            setIsRenderingPreview(false);
             return;
         }
 
         if (mode === "logo" && !logoImage) {
             setResultUrl(null);
+            setIsRenderingPreview(false);
             return;
         }
 
@@ -120,6 +123,7 @@ export default function WatermarkPage() {
 
         const renderPreview = async () => {
             setIsRenderingPreview(true);
+            setResultUrl(null);
             setError(null);
 
             try {
@@ -127,7 +131,7 @@ export default function WatermarkPage() {
                 const logo = mode === "logo" && logoImage ? await loadImageSource(logoImage) : null;
                 const canvas = canvasRef.current;
 
-                if (!canvas) return;
+                if (!canvas || !isActive) return;
 
                 canvas.width = image.naturalWidth;
                 canvas.height = image.naturalHeight;
@@ -142,7 +146,7 @@ export default function WatermarkPage() {
                 context.globalAlpha = opacity / 100;
 
                 if (mode === "text") {
-                    const sanitizedText = text.replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF]/g, "").slice(0, 200);
+                    const sanitizedText = text.slice(0, 200);
                     context.fillStyle = color;
                     context.font = `600 ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
                     context.textBaseline = "middle";
@@ -247,227 +251,48 @@ export default function WatermarkPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Marca de Agua"} />;
     }
 
-    return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,#5b2a0c_0%,#0F1724_42%,#08111f_100%)]">
-            <canvas ref={canvasRef} className="hidden" />
-            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <ToolPageHeader slug="marca-agua" title={<>Marca de agua con texto o logo</>} description={<>Previsualiza en tiempo real texto o logotipo antes de exportar. El PNG final replica el resultado que ves en pantalla.</>} />
-
-                <StudioCard
-                    title="Imagen base"
-                    description="Sube la imagen principal y, si quieres, un logotipo para usarlo como marca de agua visual."
-                    eyebrow="Entrada"
-                    accentColor={ACCENT}
-                >
-                    <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                        <ImageDropzone
-                            onImageLoad={handleImageLoad}
-                            currentImage={sourceImage}
-                            onClear={handleClear}
-                            accentColor={ACCENT}
-                            label="Arrastra la imagen a proteger"
-                        />
-                        <div className="grid grid-cols-2 gap-3">
-                            <StudioMetric label="Modo" value={mode === "text" ? "Texto" : "Logo"} accentColor={ACCENT} />
-                            <StudioMetric label="Vista previa" value={isRenderingPreview ? "actualizando" : "lista"} accentColor={ACCENT} />
-                            <StudioMetric label="Exportación" value="PNG" accentColor={ACCENT} />
-                            <StudioMetric label="Composición" value="Texto o logotipo" accentColor={ACCENT} />
-                        </div>
-                    </div>
-                </StudioCard>
-
-                {sourceImage && (
-                    <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                        <StudioCard
-                            title="Comparativa"
-                            description="La derecha muestra la composición final con la marca aplicada."
-                            eyebrow="Preview"
-                            accentColor={ACCENT}
-                        >
-                            <div className="grid gap-4 lg:grid-cols-2">
-                                <StudioStage title="Original" subtitle="Sin marca" accentColor={ACCENT}>
-                                    <img src={sourceImage} alt="Original" className="max-h-[360px] w-full rounded-2xl object-contain" />
-                                </StudioStage>
-                                <StudioStage title="Salida final" subtitle="Vista previa" accentColor={ACCENT} badge={mode === "text" ? "texto" : "logo"}>
-                                    {resultUrl ? (
-                                        <img src={resultUrl} alt="Imagen con marca" className="max-h-[360px] w-full rounded-2xl object-contain" />
-                                    ) : (
-                                        <div className="flex min-h-[260px] w-full flex-col items-center justify-center text-center">
-                                            {isRenderingPreview ? (
-                                                <>
-                                                    <div className="mb-4 h-10 w-10 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: ACCENT, borderTopColor: "transparent" }} />
-                                                    <p className="text-sm text-orange-300">Actualizando vista previa...</p>
-                                                </>
-                                            ) : (
-                                                <p className="text-sm text-neutral-500">Define texto o sube un logo para activar la vista previa.</p>
-                                            )}
-                                        </div>
-                                    )}
-                                </StudioStage>
-                            </div>
-                        </StudioCard>
-
-                        <div className="space-y-6">
-                            <StudioCard
-                                title="Tipo de marca"
-                                description="Alterna entre marca textual o sello gráfico."
-                                eyebrow="Modo"
-                                accentColor={ACCENT}
-                            >
-                                <div className="grid grid-cols-2 gap-3">
-                                    {(["text", "logo"] as const).map(item => (
-                                        <button
-                                            key={item}
-                                            onClick={() => setMode(item)}
-                                            className="rounded-2xl border px-4 py-3 text-left transition-all"
-                                            style={mode === item
-                                                ? { borderColor: `${ACCENT}70`, backgroundColor: `${ACCENT}14` }
-                                                : { borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" }}
-                                        >
-                                            <p className="text-sm font-semibold text-white">{item === "text" ? "Texto" : "Logo"}</p>
-                                            <p className="mt-1 text-xs text-neutral-500">{item === "text" ? "Texto sobre la imagen" : "Logotipo con transparencia"}</p>
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {mode === "text" ? (
-                                    <div className="mt-4 space-y-4">
-                                        <label className="block rounded-2xl border border-white/10 bg-black/20 p-4">
-                                            <span className="mb-2 block text-sm font-medium text-white">Texto</span>
-                                            <input
-                                                type="text"
-                                                value={text}
-                                                maxLength={200}
-                                                onChange={(event) => setText(event.target.value)}
-                                                className="w-full bg-transparent text-white outline-none"
-                                                placeholder="© Tu Marca"
-                                            />
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <label className="text-sm font-medium text-white">Tamaño</label>
-                                                    <span className="font-mono text-sm text-orange-300">{fontSize}px</span>
-                                                </div>
-                                                <input type="range" min={12} max={120} value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))} className="mt-3 w-full" />
-                                            </div>
-                                            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <label className="text-sm font-medium text-white">Color</label>
-                                                    <input type="color" value={color} onChange={(event) => setColor(event.target.value)} className="h-10 w-12 rounded-xl border border-white/10 bg-transparent" />
-                                                </div>
-                                                <p className="mt-3 font-mono text-sm text-neutral-400">{color.toUpperCase()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="mt-4 space-y-4">
-                                        <ImageDropzone
-                                            onImageLoad={handleLogoLoad}
-                                            currentImage={logoImage}
-                                            onClear={() => setLogoImage(null)}
-                                            accentColor={ACCENT}
-                                            label="Arrastra el logo o isotipo"
-                                            sublabel="PNG recomendado para conservar transparencia"
-                                            maxSize={10 * 1024 * 1024}
-                                        />
-                                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <label className="text-sm font-medium text-white">Escala del logo</label>
-                                                <span className="font-mono text-sm text-orange-300">{logoScale}%</span>
-                                            </div>
-                                            <input type="range" min={8} max={45} value={logoScale} onChange={(event) => setLogoScale(Number(event.target.value))} className="mt-3 w-full" />
-                                        </div>
-                                    </div>
-                                )}
-                            </StudioCard>
-
-                            <StudioCard
-                                title="Composición"
-                                description="Controla visibilidad, rotación y patrón de repetición."
-                                eyebrow="Ajustes"
-                                accentColor={ACCENT}
-                            >
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <label className="text-sm font-medium text-white">Opacidad</label>
-                                            <span className="font-mono text-sm text-orange-300">{opacity}%</span>
-                                        </div>
-                                        <input type="range" min={5} max={100} value={opacity} onChange={(event) => setOpacity(Number(event.target.value))} className="mt-3 w-full" />
-                                    </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <label className="text-sm font-medium text-white">Rotación</label>
-                                            <span className="font-mono text-sm text-orange-300">{rotation}°</span>
-                                        </div>
-                                        <input type="range" min={-45} max={45} value={rotation} onChange={(event) => setRotation(Number(event.target.value))} className="mt-3 w-full" />
-                                    </div>
-                                </div>
-
-                                <div className="mt-4 grid gap-2">
-                                    {POSITIONS.map(item => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setPosition(item.id)}
-                                            className="rounded-2xl border px-4 py-3 text-left transition-all"
-                                            style={position === item.id
-                                                ? { borderColor: `${ACCENT}70`, backgroundColor: `${ACCENT}14` }
-                                                : { borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" }}
-                                        >
-                                            <div className="flex items-center justify-between gap-3">
-                                                <p className="text-sm font-semibold text-white">{item.name}</p>
-                                                <StudioChip accentColor={ACCENT} active={position === item.id}>{position === item.id ? "activo" : "posición"}</StudioChip>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {position === "tile" && (
-                                    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <label className="text-sm font-medium text-white">Espaciado del mosaico</label>
-                                            <span className="font-mono text-sm text-orange-300">{spacing}px</span>
-                                        </div>
-                                        <input type="range" min={40} max={280} value={spacing} onChange={(event) => setSpacing(Number(event.target.value))} className="mt-3 w-full" />
-                                    </div>
-                                )}
-                            </StudioCard>
-
-                            <StudioCard
-                                title="Exportación"
-                                description="Descarga la versión final cuando la vista previa quede como necesitas."
-                                eyebrow="Salida"
-                                accentColor={ACCENT}
-                            >
-                                <button
-                                    onClick={handleDownload}
-                                    disabled={!resultUrl}
-                                    className="w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
-                                    style={{ background: `linear-gradient(135deg, ${ACCENT}, #FB923C)` }}
-                                >
-                                    Descargar PNG con marca de agua
-                                </button>
-                            </StudioCard>
-                        </div>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                        {error}
-                    </div>
-                )}
-
-                <div className="mt-8 text-center">
-                    <Link href="/herramientas" className="inline-flex items-center gap-2 text-sm text-neutral-400 transition-colors hover:text-white">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
+    const field = "studio-field";
+    return <div className="tool-page">
+        <canvas ref={canvasRef} className="hidden" />
+        <main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+            <ToolPageHeader slug="marca-agua" title="Marca de agua" description="Tu firma, tu logo y el acabado que buscas. Vista previa en vivo." />
+            {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a proteger" /> : <section aria-label="Editor de marca de agua" className="studio-panel overflow-hidden">
+                <div className="flex items-center gap-3 border-b border-white/10 p-3">
+                    <button type="button" className="studio-icon-button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear}><ImagePlus size={18} aria-hidden="true" /></button>
+                    <p className="min-w-0 flex-1 truncate text-xs text-slate-300">{sourceFile?.name}</p>
+                    <button type="button" className="studio-button studio-button-primary" aria-label="Descargar PNG con marca de agua" disabled={!resultUrl || isRenderingPreview} onClick={handleDownload}><Download size={16} aria-hidden="true" /><span className="hidden sm:inline">Descargar</span> PNG</button>
                 </div>
-            </main>
-        </div>
-    );
+                <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="min-w-0 p-4 lg:sticky lg:top-20 lg:self-start">
+                        <div className="mb-3 flex gap-1" role="group" aria-label="Comparar marca de agua">
+                            <button type="button" className="studio-segment" aria-pressed={!showOriginal} onClick={() => setShowOriginal(false)}>Resultado</button>
+                            <button type="button" className="studio-segment" aria-pressed={showOriginal} onClick={() => setShowOriginal(true)}>Original</button>
+                        </div>
+                        <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-white/5 bg-[#080e17] p-3 sm:min-h-[380px]">
+                            <img src={showOriginal || !resultUrl ? sourceImage : resultUrl} alt={showOriginal ? "Imagen original" : "Imagen con marca de agua"} className="max-h-[480px] w-full object-contain" />
+                        </div>
+                        <p role="status" className="mt-3 flex min-h-5 items-center gap-2 text-xs text-slate-400">{isRenderingPreview ? <><LoaderCircle size={14} className="motion-safe:animate-spin" aria-hidden="true" />Actualizando…</> : resultUrl ? "Lista para descargar · PNG original" : mode === "logo" ? "Añade tu logo para continuar." : "Escribe el texto de tu marca."}</p>
+                    </div>
+                    <aside aria-label="Ajustes de marca de agua" className="space-y-5 border-t border-white/10 p-4 lg:border-l lg:border-t-0">
+                        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de marca">
+                            {(["text", "logo"] as const).map(item => <button type="button" key={item} className="studio-segment inline-flex items-center justify-center gap-2" aria-pressed={mode === item} onClick={() => setMode(item)}>{item === "text" ? <Type size={16} aria-hidden="true" /> : <ImageIcon size={16} aria-hidden="true" />}{item === "text" ? "Texto" : "Logo"}</button>)}
+                        </div>
+                        {mode === "text" ? <>
+                            <label className={field}>Texto de la marca<input type="text" value={text} maxLength={200} onChange={event => setText(event.target.value)} placeholder="Tu marca" /></label>
+                            <label className={field}><span className="flex justify-between">Tamaño del texto<output>{fontSize}px</output></span><input type="range" aria-label="Tamaño del texto" min={12} max={120} value={fontSize} onChange={event => setFontSize(Number(event.target.value))} /></label>
+                            <label className="flex items-center justify-between text-xs text-slate-300">Color del texto<input type="color" value={color} onChange={event => setColor(event.target.value)} className="h-11 w-12 cursor-pointer rounded-lg bg-transparent" /></label>
+                        </> : <>
+                            <ImageDropzone onImageLoad={handleLogoLoad} currentImage={logoImage} onClear={() => setLogoImage(null)} accentColor={ACCENT} label="Añade tu logo" sublabel="PNG con transparencia" maxSize={10 * 1024 * 1024} />
+                            <label className={field}><span className="flex justify-between">Escala del logo<output>{logoScale}%</output></span><input type="range" aria-label="Escala del logo" min={8} max={45} value={logoScale} onChange={event => setLogoScale(Number(event.target.value))} /></label>
+                        </>}
+                        <label className={field}><span className="flex justify-between">Opacidad<output>{opacity}%</output></span><input type="range" aria-label="Opacidad" min={5} max={100} value={opacity} onChange={event => setOpacity(Number(event.target.value))} /></label>
+                        <label className={field}><span className="flex justify-between">Rotación<output>{rotation}°</output></span><input type="range" aria-label="Rotación" min={-45} max={45} value={rotation} onChange={event => setRotation(Number(event.target.value))} /></label>
+                        <fieldset><legend className="mb-3 text-xs text-slate-300">Posición</legend><div className="grid grid-cols-3 gap-2">{POSITIONS.map(({ id, name, icon: Icon }) => <button type="button" key={id} onClick={() => setPosition(id)} aria-label={name} title={name} aria-pressed={position === id} className="studio-segment flex flex-col items-center justify-center gap-2 border border-white/5"><Icon size={19} aria-hidden="true" /><span className="text-[9px]">{name}</span></button>)}</div></fieldset>
+                        {position === "tile" && <label className={field}><span className="flex justify-between">Espaciado<output>{spacing}px</output></span><input type="range" aria-label="Espaciado del mosaico" min={40} max={280} value={spacing} onChange={event => setSpacing(Number(event.target.value))} /></label>}
+                    </aside>
+                </div>
+            </section>}
+            {error && <p role="alert" className="mt-4 rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs text-rose-300">{error}</p>}
+        </main>
+    </div>;
 }
