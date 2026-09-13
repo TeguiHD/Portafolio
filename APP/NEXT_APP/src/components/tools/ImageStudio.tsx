@@ -55,7 +55,7 @@ export function StudioCard({
     return (
         <section
             className={clsx(
-                "rounded-2xl border border-white/[0.08] bg-[#111923] p-4 sm:p-5",
+                "studio-card rounded-2xl border border-white/[0.08] bg-[#111923] p-4 sm:p-5",
                 className
             )}
             style={{
@@ -63,18 +63,18 @@ export function StudioCard({
             }}
         >
             {(title || eyebrow || description || actions) && (
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         {eyebrow && (
                             <p
-                                className="mb-1 text-[11px] font-semibold uppercase tracking-[0.24em]"
+                                className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
                                 style={{ color: accentColor }}
                             >
                                 {eyebrow}
                             </p>
                         )}
-                        {title && <h2 className="text-lg font-semibold text-white sm:text-xl">{title}</h2>}
-                        {description && <p className="mt-1 text-sm leading-6 text-neutral-400">{description}</p>}
+                        {title && <h2 className="text-sm font-semibold text-white sm:text-base">{title}</h2>}
+                        {description && <p className="mt-1 text-xs leading-relaxed text-slate-400">{description}</p>}
                     </div>
                     {actions}
                 </div>
@@ -123,12 +123,12 @@ export function StudioMetric({ label, value, accentColor, className }: StudioMet
     return (
         <div
             className={clsx(
-                "rounded-2xl border border-white/10 bg-black/20 px-4 py-3",
+                "min-w-0 rounded-lg border border-white/[0.06] bg-black/10 px-3 py-2",
                 className
             )}
             style={{ boxShadow: `inset 0 1px 0 ${accentColor}12` }}
         >
-            <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
+            <p className="text-[10px] text-slate-400">{label}</p>
             <div className="mt-1 text-sm font-medium text-white">{value}</div>
         </div>
     );

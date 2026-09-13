@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, type DragEvent, type ChangeEvent } from "react";
+import { useState, useRef, useCallback, type DragEvent, type ChangeEvent, type ClipboardEvent, type CSSProperties } from "react";
 import { ImagePlus, Upload, X, RefreshCw, LoaderCircle, AlertCircle } from "lucide-react";
 
 // SECURITY(OWASP): Validate file type by magic bytes, not just extension
@@ -28,7 +28,11 @@ async function validateMagicBytes(file: File, acceptedTypes: string[]): Promise<
         if (!signatures || signatures.length === 0) continue;
 
         for (const sig of signatures) {
-            if (sig.every((byte, i) => bytes[i] === byte)) return true;
+            if (sig.every((byte, i) => bytes[i] === byte)) {
+                // RIFF is also used by WAV and AVI; WebP has a second signature.
+                if (type === "image/webp" && ![0x57, 0x45, 0x42, 0x50].every((byte, i) => bytes[i + 8] === byte)) continue;
+                return true;
+            }
         }
     }
 
@@ -69,6 +73,7 @@ export function ImageDropzone({
     const [selectedName, setSelectedName] = useState("");
     const [selectedBytes, setSelectedBytes] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
+    const reading = useRef(false);
 
     const acceptString = accept.map(t => {
         // Map MIME types to extensions for input accept attribute
@@ -117,8 +122,9 @@ export function ImageDropzone({
         });
     }, [accept, maxSize]);
 
-    const handleFiles = useCallback(async (fileList: FileList | null) => {
-        if (!fileList || fileList.length === 0) return;
+    const handleFiles = useCallback(async (fileList: FileList | File[] | null) => {
+        if (!fileList || fileList.length === 0 || reading.current) return;
+        reading.current = true;
         // Instantánea: el FileList del input es "vivo" y el onChange limpia
         // input.value justo después de llamar aquí, así que tras el primer
         // await files[0] sería undefined y los consumidores recibirían un File nulo.
@@ -142,7 +148,7 @@ export function ImageDropzone({
             }
         }
         } catch { setError("No pudimos leer la imagen. Inténtalo con otro archivo."); }
-        finally { setIsValidating(false); }
+        finally { reading.current = false; setIsValidating(false); }
     }, [multiple, onMultipleLoad, onImageLoad, processFile]);
 
     const handleDrop = useCallback((e: DragEvent) => {
@@ -158,6 +164,7 @@ export function ImageDropzone({
 
     const handleDragLeave = useCallback((e: DragEvent) => {
         e.preventDefault();
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
         setIsDragging(false);
     }, []);
 
@@ -167,8 +174,15 @@ export function ImageDropzone({
         if (inputRef.current) inputRef.current.value = "";
     }, [handleFiles]);
 
+    const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+        const images = Array.from(event.clipboardData.files).filter(file => file.type.startsWith("image/"));
+        if (!images.length) return;
+        event.preventDefault();
+        void handleFiles(images);
+    };
+
     return (
-        <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className="min-w-0">
+        <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onPaste={handlePaste} className="image-dropzone min-w-0" style={{ "--drop-accent": accentColor } as CSSProperties}>
             <input ref={inputRef} type="file" accept={acceptString} onChange={handleChange} aria-label="Seleccionar imagen" className="sr-only" tabIndex={-1} multiple={multiple} />
             {currentImage ? (
                 <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#111923]">
@@ -180,11 +194,11 @@ export function ImageDropzone({
                     <div className="bg-[#080e17] p-4"><img src={currentImage} alt="Imagen seleccionada" className="mx-auto max-h-[340px] w-full object-contain" /></div>
                 </div>
             ) : (
-                <div className="relative flex min-h-[270px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed p-6 text-center transition-colors duration-150 sm:p-8" style={{ borderColor: isDragging ? accentColor : "#ffffff25", background: isDragging ? `${accentColor}10` : "#111923" }}>
-                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/5" style={{ background: `${accentColor}10`, color: accentColor }}>{isValidating ? <LoaderCircle size={26} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ImagePlus size={26} strokeWidth={1.5} aria-hidden="true" />}</span>
+                <div tabIndex={0} role="group" aria-label="Área para soltar o pegar una imagen" onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); inputRef.current?.click(); } }} className={`image-dropzone-empty group relative flex min-h-[280px] flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border border-dashed p-6 text-center transition-colors duration-200 sm:p-8 ${isDragging ? "is-dragging" : ""}`} style={{ borderColor: isDragging ? accentColor : "#ffffff25", backgroundColor: isDragging ? `${accentColor}10` : "#101822" }}>
+                    <span className="dropzone-glyph relative flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 shadow-lg" style={{ background: `${accentColor}10`, color: accentColor }}>{isValidating ? <LoaderCircle size={28} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ImagePlus size={28} strokeWidth={1.5} aria-hidden="true" />}</span>
                     <div><p className="text-sm font-medium text-white">{isDragging ? "Suelta la imagen para empezar" : label}</p><p className="mt-2 max-w-sm text-xs leading-relaxed text-slate-400">{sublabel || accept.map((type) => type.split("/")[1].toUpperCase()).join(" · ")}</p></div>
                     <button type="button" onClick={() => inputRef.current?.click()} disabled={isValidating} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-slate-100 px-5 text-xs font-semibold text-slate-950 transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-teal-300"><Upload size={15} aria-hidden="true" />{isValidating ? "Preparando imagen…" : multiple ? "Seleccionar imágenes" : "Seleccionar imagen"}</button>
-                    <p className="text-[11px] text-slate-500">Hasta {Math.round(maxSize / 1024 / 1024)} MB por archivo{multiple ? " · hasta 20 imágenes" : ""}</p>
+                    <p className="text-[11px] text-slate-400">O pega con Ctrl / ⌘ V · hasta {Math.round(maxSize / 1024 / 1024)} MB{multiple ? " · 20 imágenes" : ""}</p>
                 </div>
             )}
             {isValidating && <p role="status" className="mt-2 text-xs text-slate-400">Leyendo y comprobando la imagen…</p>}

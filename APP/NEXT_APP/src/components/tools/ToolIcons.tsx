@@ -268,7 +268,8 @@ export const StegoIcon: FC<IconProps> = (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         <path d="M9 12l2 2 4-4" />
-        <text x="5" y="10" fontSize="4" stroke="none" fill="currentColor">🔒</text>
+        <rect x="5" y="7" width="4" height="3.5" rx=".7" />
+        <path d="M6 7V6a1 1 0 0 1 2 0v1" />
     </svg>
 );
 
@@ -481,4 +482,3 @@ export const CATEGORY_CONFIG: Record<string, {
         iconBg: "from-[#F97316]/20 to-[#F97316]/10",
     },
 };
-

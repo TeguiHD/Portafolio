@@ -99,11 +99,11 @@ export function fillCanvasSurface(
 export type DrawableImage = HTMLImageElement | ImageBitmap;
 
 export function drawableWidth(image: DrawableImage): number {
-    return "naturalWidth" in image ? drawableWidth(image) : image.width;
+    return "naturalWidth" in image ? image.naturalWidth : image.width;
 }
 
 export function drawableHeight(image: DrawableImage): number {
-    return "naturalHeight" in image ? drawableHeight(image) : image.height;
+    return "naturalHeight" in image ? image.naturalHeight : image.height;
 }
 
 export function drawImageToCanvas(

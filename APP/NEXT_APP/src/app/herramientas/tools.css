@@ -1,6 +1,6 @@
 .tools-workspace { color-scheme: dark; --studio-accent: #5eead4; }
 .tools-workspace .tool-page { background: #0b1017; min-width: 0; }
-.tools-workspace .tool-main { padding-top: 2rem; padding-bottom: 3rem; }
+.tools-workspace .tool-main { padding-top: 1.25rem; padding-bottom: 3rem; }
 .tools-workspace nav[aria-label="Ruta de navegación"] { max-width: 80rem; padding-top: 1.25rem; }
 .tools-workspace .tool-main h1 { letter-spacing: -0.035em; }
 .tools-workspace :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 3px; }
@@ -10,7 +10,7 @@
 .tools-workspace select { min-height: 44px; }
 .tools-workspace input[type="range"] { min-height: 24px; accent-color: var(--studio-accent); }
 .tools-workspace :is(input, select, textarea) { max-width: 100%; }
-.tools-workspace .studio-icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 10px; color: #94a3b8; }
+.tools-workspace .studio-icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 10px; color: #94a3b8; transition: background .18s, color .18s, box-shadow .18s; }
 .tools-workspace .studio-icon-button:hover { color: #fff; background: #ffffff0a; }
 .studio-panel { border: 1px solid #ffffff14; border-radius: 16px; background: #111923; }
 .studio-panel-heading { border-bottom: 1px solid #ffffff10; padding: 18px 20px; }
@@ -25,6 +25,38 @@
 .studio-segment { min-height: 44px; border-radius: 9px; padding: 10px 14px; font-size: 12px; color: #94a3b8; transition: background .15s; }
 .studio-segment[aria-pressed="true"] { background: #ffffff0f; color: #fff; box-shadow: inset 0 0 0 1px #ffffff14; }
 .studio-segment:hover { color: #fff; }
+.tools-workspace :is(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 3px; }
+.tools-workspace input[type="range"] { cursor: ew-resize; }
+.tools-workspace :is(button, a) { -webkit-tap-highlight-color: transparent; }
+.tools-workspace ::selection { color: #f0fdfa; background: #0f766e; }
+.tools-category-tabs { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+.tools-category-tabs .studio-segment { white-space: nowrap; }
+.tools-sidebar-link[aria-current="page"] { box-shadow: inset 2px 0 #5eead4; }
+.tools-sidebar-link svg, .tool-glyph svg { transition: transform .25s ease, color .2s; }
+.tools-sidebar-link:hover svg { transform: translateX(2px); }
+.tool-tile:focus-within { border-color: #5eead480; }
+.tool-artwork { width: calc(100% + 40px); height: 146px; margin: -4px -28px 0 -12px; color: #94a3b8; display: grid; place-items: center; background: radial-gradient(ellipse at center, #5eead40a, transparent 70%); }
+.tool-artwork svg { max-width: 340px; }
+.tool-artwork-json { background: radial-gradient(ellipse at center, #a5b4fc10, transparent 70%); }
+.tool-artwork .art-divider, .tool-artwork .art-crop, .tool-artwork .art-code { transform-box: fill-box; transform-origin: center; transition: transform .6s cubic-bezier(.2,.7,.2,1); }
+.tool-artwork .art-background { transition: opacity .6s; }
+.tool-tile:is(:hover, :focus-within) .art-divider { transform: translateX(-35px); }
+.tool-tile:is(:hover, :focus-within) .art-background { opacity: .15; }
+.tool-tile:is(:hover, :focus-within) .art-crop { transform: scale(.88); }
+.tool-tile:is(:hover, :focus-within) .art-code { transform: rotate(-4deg); }
+.tool-tile:is(:hover, :focus-within) .tool-glyph svg, .tool-page-heading:hover .tool-glyph svg { transform: rotate(-7deg); }
+.art-scan { opacity: 0; }
+.tool-tile:is(:hover, :focus-within) .art-scan { animation: tool-scan 1.6s ease-in-out 2; }
+.tool-tile:is(:hover, :focus-within) .art-lines { animation: tool-lines .8s ease-out; }
+.image-dropzone-empty { background-image: radial-gradient(ellipse at top, #5eead407, transparent 65%); }
+.image-dropzone-empty::before, .image-dropzone-empty::after { content: ""; position: absolute; width: 64px; height: 64px; left: calc(50% - 32px); top: 32px; border: 1px solid #ffffff0c; border-radius: 16px; transform: rotate(-14deg); pointer-events: none; transition: transform .3s; }
+.image-dropzone-empty::after { transform: rotate(12deg); }
+.image-dropzone-empty:is(:hover, :focus-within, .is-dragging)::before { transform: translateX(-9px) rotate(-22deg); }
+.image-dropzone-empty:is(:hover, :focus-within, .is-dragging)::after { transform: translateX(9px) rotate(20deg); }
+.dropzone-glyph { transition: transform .25s; z-index: 1; }
+.image-dropzone-empty:is(:hover, :focus-within, .is-dragging) .dropzone-glyph { transform: translateY(-3px); }
+@keyframes tool-scan { 0%, 100% { transform: translateY(-43px); opacity: 0; } 15%, 85% { opacity: 1; } 50% { transform: translateY(43px); } }
+@keyframes tool-lines { from { opacity: .35; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
 /* The document is the only scrolling ancestor, so previews can stick. */
 body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !important; }
 .tools-workspace nav[aria-label="Ruta de navegación"] { padding-inline: 1rem; }
@@ -54,6 +86,6 @@ body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !i
     .qr-editor :is(input, textarea, select, button, summary) { scroll-margin-top: 100px; }
 }
 @media (max-width: 639px) { .tools-workspace .tool-main { padding-top: 1.5rem; } .tools-workspace :is(input, select, textarea) { font-size: 16px; } }
-@media (prefers-reduced-motion: reduce) { .tools-workspace *, .tools-workspace *::before, .tools-workspace *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: reduce) { .tools-workspace *, .tools-workspace *::before, .tools-workspace *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } .tools-workspace :is(.tool-glyph svg, .art-crop, .art-code, .art-divider, .dropzone-glyph, .tools-sidebar-link svg) { transform: none !important; } }
 
 @media (min-width: 1280px) { .tools-workspace .studio-icon-button.tools-nav-toggle { display: none; } }
