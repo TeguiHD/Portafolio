@@ -121,3 +121,25 @@ test("comprimir: pasos hasta listo, comparar manteniendo muestra el original y e
     await page.setViewportSize({ width: 375, height: 850 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
 });
+
+for (const caso of [
+    { ruta: "/herramientas/favicon", lista: "Progreso del favicon", boton: "Descargar ZIP" },
+    { ruta: "/herramientas/convertir-ico", lista: "Progreso del icono", boton: "Descargar ICO" },
+    { ruta: "/herramientas/marca-agua", lista: "Progreso de la marca", boton: "Descargar PNG con marca de agua" },
+    { ruta: "/herramientas/paleta-colores", lista: "Progreso de la paleta", boton: "CSS" },
+]) {
+    test(`${caso.ruta}: pasos hasta listo y el icono de descarga marca la descarga`, async ({ page }) => {
+        await page.goto(caso.ruta);
+        await page.getByLabel("Seleccionar imagen", { exact: true }).setInputFiles(await fixture(page));
+        const nodos = page.getByRole("list", { name: caso.lista }).locator(".mesa-nodo");
+        await expect(nodos.nth(2)).toHaveAttribute("data-estado", "listo", { timeout: 20_000 });
+        const download = page.getByRole("button", { name: caso.boton, exact: true });
+        await expect(download).toBeEnabled();
+        const event = page.waitForEvent("download");
+        await download.click();
+        await event;
+        await expect(download.locator(".mesa-ico-descargar")).toHaveAttribute("data-listo", "true");
+        await page.setViewportSize({ width: 375, height: 850 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+    });
+}

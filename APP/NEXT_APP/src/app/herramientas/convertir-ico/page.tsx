@@ -2,8 +2,13 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Check, Download, ImagePlus, LoaderCircle } from "lucide-react";
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from "react";
+import { Check } from "lucide-react";
+import { MesaBoton, MesaRail } from "@/components/tools/mesa/MesaRail";
+import { MesaPasos, type EstadoPaso } from "@/components/tools/mesa/MesaPasos";
+import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
+import { MesaCabecera } from "@/components/tools/mesa/MesaCabecera";
+import { IconoDescargar, IconoImagen, IconoSubir, IconoVarita } from "@/components/tools/mesa/MesaIcons";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
@@ -13,6 +18,11 @@ const ACCENT = "#F59E0B";
 
 // ICO sizes commonly needed
 const ICO_SIZES = [16, 32, 48, 64, 128, 256];
+const PASOS = [
+    { id: "subir", etiqueta: "Subir", icono: <IconoSubir /> },
+    { id: "generar", etiqueta: "Generar ICO", icono: <IconoVarita /> },
+    { id: "listo", etiqueta: "Listo", icono: <IconoDescargar /> },
+];
 
 /**
  * Generates an ICO file from a canvas.
@@ -93,6 +103,7 @@ export default function IcoConverterPage() {
     const [sourceFile, setSourceFile] = useState<File | null>(null);
     const [selectedSizes, setSelectedSizes] = useState<number[]>([16, 32, 48]);
     const [resultUrl, setResultUrl] = useState<string | null>(null);
+    const [urlDescargada, setUrlDescargada] = useState<string | null>(null);
     const [isConverting, setIsConverting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const resultUrlRef = useRef<string | null>(null);
@@ -152,6 +163,7 @@ export default function IcoConverterPage() {
         link.href = resultUrl;
         link.download = `${baseName}.ico`;
         link.click();
+        setUrlDescargada(resultUrl);
     }, [resultUrl, sourceFile]);
 
     if (isLoading) {
@@ -166,23 +178,28 @@ export default function IcoConverterPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor a ICO"} />;
     }
 
+    const estadosPasos: EstadoPaso[] = !sourceImage ? ["activo", "pendiente", "pendiente"] : resultUrl ? ["listo", "listo", "listo"] : error ? ["listo", "error", "pendiente"] : !selectedSizes.length ? ["listo", "pendiente", "pendiente"] : ["listo", "activo", "pendiente"];
+
     return <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
         <ToolPageHeader slug="convertir-ico" title="Convertir a ICO" description="Un icono, todos sus tamaños. Listo para descargar al subir tu imagen." />
-        {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o imagen" /> : <section aria-label="Editor de iconos ICO" className="studio-panel overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-white/10 p-3">
-                <button type="button" className="studio-icon-button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear}><ImagePlus size={18} aria-hidden="true" /></button>
-                <span className="min-w-0 flex-1 truncate text-xs text-slate-300">{sourceFile?.name}</span>
-                <button type="button" className="studio-button studio-button-primary" onClick={handleDownload} disabled={!resultUrl || isConverting} aria-label="Descargar ICO"><Download size={16} aria-hidden="true" /><span><span className="hidden sm:inline">Descargar </span>ICO</span></button>
-            </div>
-            <div className="grid md:grid-cols-[1fr_280px]">
-                <div className="p-5">
-                    <div className="mb-5 flex min-h-[240px] items-center justify-center rounded-xl border border-white/5 bg-[#080e17]"><img src={sourceImage} alt="Vista previa del icono" className="h-40 w-40 object-contain" /></div>
-                    <div className="flex min-h-20 flex-wrap items-end justify-center gap-4">{selectedSizes.map(size => <div key={size} className="flex flex-col items-center gap-2"><img src={sourceImage} alt="" width={Math.min(size, 64)} height={Math.min(size, 64)} className="aspect-square object-contain" /><span className="text-[10px] font-mono text-slate-400">{size}px</span></div>)}</div>
+        {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o imagen" /> : <section aria-label="Editor de iconos ICO" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
+            <MesaCabecera nombre={sourceFile?.name ?? "Imagen"}>
+                <button type="button" className="studio-button studio-button-primary" onClick={handleDownload} disabled={!resultUrl || isConverting} aria-label="Descargar ICO"><IconoDescargar listo={!!resultUrl && urlDescargada === resultUrl} /><span><span className="hidden sm:inline">Descargar </span>ICO</span></button>
+            </MesaCabecera>
+            <div className="mesa-cuerpo mesa-cuerpo-panel">
+                <div className="mesa-columna">
+                    <MesaEscenario fondo="dark" pista={isConverting ? "Generando el icono" : resultUrl ? `${selectedSizes.length} ${selectedSizes.length === 1 ? "tamaño" : "tamaños"} · un archivo ICO` : selectedSizes.length ? undefined : "Elige al menos un tamaño"} className="p-5">
+                        <div className="mb-5 flex min-h-[240px] items-center justify-center rounded-xl border border-white/5 bg-[#080e17]"><img src={sourceImage} alt="Vista previa del icono" className="h-40 w-40 object-contain" /></div>
+                        <div className="flex min-h-20 flex-wrap items-end justify-center gap-4">{selectedSizes.map(size => <div key={size} className="flex flex-col items-center gap-2"><img src={sourceImage} alt="" width={Math.min(size, 64)} height={Math.min(size, 64)} className="rounded-sm object-contain" style={{ width: Math.min(size, 64), height: Math.min(size, 64) }} /><span className="text-[10px] text-slate-500">{size}px</span></div>)}</div>
+                    </MesaEscenario>
+                    <MesaPasos etiqueta="Progreso del icono" pasos={PASOS} estados={estadosPasos} />
                 </div>
-                <aside aria-label="Tamaños del icono" className="border-t border-white/10 p-5 md:border-l md:border-t-0">
+                <MesaRail etiqueta="Herramientas del icono">
+                    <MesaBoton pista="Cambiar imagen" onClick={handleClear}><IconoImagen /></MesaBoton>
+                </MesaRail>
+                <aside aria-label="Tamaños del icono" className="mesa-panel p-5">
                     <h2 className="mb-4 text-sm font-medium text-white">Tamaños incluidos</h2>
-                    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Elegir tamaños ICO">{ICO_SIZES.map(size => <button type="button" key={size} onClick={() => toggleSize(size)} aria-pressed={selectedSizes.includes(size)} className="studio-segment inline-flex items-center justify-center gap-2 border border-white/10 font-mono">{selectedSizes.includes(size) && <Check size={12} aria-hidden="true" />}{size}×{size}</button>)}</div>
-                    <p role="status" className="mt-5 flex items-center gap-2 text-xs leading-relaxed text-slate-400">{isConverting ? <><LoaderCircle size={14} className="motion-safe:animate-spin" aria-hidden="true" />Actualizando…</> : resultUrl ? `${selectedSizes.length} tamaños · un archivo ICO` : "Selecciona al menos un tamaño."}</p>
+                    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Elegir tamaños ICO">{ICO_SIZES.map(size => <button type="button" key={size} onClick={() => toggleSize(size)} aria-pressed={selectedSizes.includes(size)} className="studio-segment inline-flex items-center justify-center gap-2 border border-white/10">{selectedSizes.includes(size) && <Check size={14} aria-hidden="true" />}{size}×{size}</button>)}</div>
                     <p className="mt-3 text-xs leading-relaxed text-slate-400">Tu imagen conserva su proporción y transparencia.</p>
                 </aside>
             </div>

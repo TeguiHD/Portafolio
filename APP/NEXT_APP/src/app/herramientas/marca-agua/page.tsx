@@ -2,8 +2,13 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, ImagePlus, LoaderCircle, Type, Image as ImageIcon, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, Move, Grid2X2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { Type, Image as ImageIcon, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, Move, Grid2X2 } from "lucide-react";
+import { MesaBoton, MesaRail, MesaSeparador } from "@/components/tools/mesa/MesaRail";
+import { MesaPasos, type EstadoPaso } from "@/components/tools/mesa/MesaPasos";
+import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
+import { MesaCabecera } from "@/components/tools/mesa/MesaCabecera";
+import { IconoDescargar, IconoImagen, IconoOjo, IconoSubir, IconoVarita } from "@/components/tools/mesa/MesaIcons";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
@@ -19,6 +24,11 @@ const ACCENT = "#F97316";
 
 type WatermarkPosition = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right" | "tile";
 type WatermarkMode = "text" | "logo";
+const PASOS = [
+    { id: "subir", etiqueta: "Subir", icono: <IconoSubir /> },
+    { id: "marcar", etiqueta: "Marcar", icono: <IconoVarita /> },
+    { id: "listo", etiqueta: "Listo", icono: <IconoDescargar /> },
+];
 
 const POSITIONS: { id: WatermarkPosition; name: string; icon: typeof Move }[] = [
     { id: "center", name: "Centro", icon: Move },
@@ -67,8 +77,9 @@ export default function WatermarkPage() {
     const [logoImage, setLogoImage] = useState<string | null>(null);
     const [logoScale, setLogoScale] = useState(22);
     const [resultUrl, setResultUrl] = useState<string | null>(null);
+    const [urlDescargada, setUrlDescargada] = useState<string | null>(null);
     const [isRenderingPreview, setIsRenderingPreview] = useState(false);
-    const [showOriginal, setShowOriginal] = useState(false);
+    const [comparando, setComparando] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const resultUrlRef = useRef<string | null>(null);
@@ -237,6 +248,7 @@ export default function WatermarkPage() {
     const handleDownload = useCallback(() => {
         if (!resultUrl || !sourceFile) return;
         triggerDownload(resultUrl, `${sanitizeFileBaseName(sourceFile.name)}_watermark.png`);
+        setUrlDescargada(resultUrl);
     }, [resultUrl, sourceFile]);
 
     if (isLoading) {
@@ -252,28 +264,28 @@ export default function WatermarkPage() {
     }
 
     const field = "studio-field";
+    const estadosPasos: EstadoPaso[] = !sourceImage ? ["activo", "pendiente", "pendiente"] : resultUrl ? ["listo", "listo", "listo"] : error ? ["listo", "error", "pendiente"] : ["listo", "activo", "pendiente"];
     return <div className="tool-page">
         <canvas ref={canvasRef} className="hidden" />
         <main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
             <ToolPageHeader slug="marca-agua" title="Marca de agua" description="Tu firma, tu logo y el acabado que buscas. Vista previa en vivo." />
-            {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a proteger" /> : <section aria-label="Editor de marca de agua" className="studio-panel overflow-hidden">
-                <div className="flex items-center gap-3 border-b border-white/10 p-3">
-                    <button type="button" className="studio-icon-button" aria-label="Cambiar imagen" title="Cambiar imagen" onClick={handleClear}><ImagePlus size={18} aria-hidden="true" /></button>
-                    <p className="min-w-0 flex-1 truncate text-xs text-slate-300">{sourceFile?.name}</p>
-                    <button type="button" className="studio-button studio-button-primary" aria-label="Descargar PNG con marca de agua" disabled={!resultUrl || isRenderingPreview} onClick={handleDownload}><Download size={16} aria-hidden="true" /><span><span className="hidden sm:inline">Descargar </span>PNG</span></button>
-                </div>
-                <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className="min-w-0 p-4 lg:sticky lg:top-20 lg:self-start">
-                        <div className="mb-3 flex gap-1" role="group" aria-label="Comparar marca de agua">
-                            <button type="button" className="studio-segment" aria-pressed={!showOriginal} onClick={() => setShowOriginal(false)}>Resultado</button>
-                            <button type="button" className="studio-segment" aria-pressed={showOriginal} onClick={() => setShowOriginal(true)}>Original</button>
-                        </div>
-                        <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-white/5 bg-[#080e17] p-3 sm:min-h-[380px]">
-                            <img src={showOriginal || !resultUrl ? sourceImage : resultUrl} alt={showOriginal ? "Imagen original" : "Imagen con marca de agua"} className="max-h-[480px] w-full object-contain" />
-                        </div>
-                        <p role="status" className="mt-3 flex min-h-5 items-center gap-2 text-xs text-slate-400">{isRenderingPreview ? <><LoaderCircle size={14} className="motion-safe:animate-spin" aria-hidden="true" />Actualizando…</> : resultUrl ? "Lista para descargar · PNG original" : mode === "logo" ? "Añade tu logo para continuar." : "Escribe el texto de tu marca."}</p>
+            {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a proteger" /> : <section aria-label="Editor de marca de agua" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
+                <MesaCabecera nombre={sourceFile?.name ?? "Imagen"}>
+                    <button type="button" className="studio-button studio-button-primary" aria-label="Descargar PNG con marca de agua" disabled={!resultUrl || isRenderingPreview} onClick={handleDownload}><IconoDescargar listo={!!resultUrl && urlDescargada === resultUrl} /><span><span className="hidden sm:inline">Descargar </span>PNG</span></button>
+                </MesaCabecera>
+                <div className="mesa-cuerpo mesa-cuerpo-panel">
+                    <div className="mesa-columna">
+                        <MesaEscenario fondo="dark" pista={comparando ? "Original" : isRenderingPreview ? "Actualizando" : resultUrl ? "Lista para descargar · PNG original" : "Escribe tu marca o añade un logo"} className="flex min-h-[260px] items-center justify-center p-3 sm:min-h-[380px]">
+                            <img src={comparando || !resultUrl ? sourceImage : resultUrl} alt={comparando ? "Imagen original" : "Imagen con marca de agua"} className="max-h-[480px] w-full object-contain" />
+                        </MesaEscenario>
+                        <MesaPasos etiqueta="Progreso de la marca" pasos={PASOS} estados={estadosPasos} />
                     </div>
-                    <aside aria-label="Ajustes de marca de agua" className="space-y-5 border-t border-white/10 p-4 lg:border-l lg:border-t-0">
+                    <MesaRail etiqueta="Herramientas de la marca">
+                        <MesaBoton pista="Comparar con el original" pulsado={comparando} onMantener={setComparando}><IconoOjo /></MesaBoton>
+                        <MesaSeparador />
+                        <MesaBoton pista="Cambiar imagen" onClick={handleClear}><IconoImagen /></MesaBoton>
+                    </MesaRail>
+                    <aside aria-label="Ajustes de marca de agua" className="mesa-panel space-y-5 p-4">
                         <div className="grid grid-cols-2 gap-2" role="group" aria-label="Tipo de marca">
                             {(["text", "logo"] as const).map(item => <button type="button" key={item} className="studio-segment inline-flex items-center justify-center gap-2" aria-pressed={mode === item} onClick={() => setMode(item)}>{item === "text" ? <Type size={16} aria-hidden="true" /> : <ImageIcon size={16} aria-hidden="true" />}{item === "text" ? "Texto" : "Logo"}</button>)}
                         </div>

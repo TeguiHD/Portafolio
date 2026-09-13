@@ -2,14 +2,24 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Copy, Download, ImagePlus, LoaderCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { Check, Copy, LoaderCircle } from "lucide-react";
+import { MesaBoton, MesaRail, MesaSeparador } from "@/components/tools/mesa/MesaRail";
+import { MesaPasos, type EstadoPaso } from "@/components/tools/mesa/MesaPasos";
+import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
+import { MesaCabecera } from "@/components/tools/mesa/MesaCabecera";
+import { IconoCopiar, IconoDescargar, IconoGota, IconoImagen, IconoSubir } from "@/components/tools/mesa/MesaIcons";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
 import { sanitizeFileBaseName, triggerDownload } from "@/lib/tools/image-processing";
 
 const ACCENT = "#EC4899";
+const PASOS = [
+    { id: "subir", etiqueta: "Subir", icono: <IconoSubir /> },
+    { id: "extraer", etiqueta: "Extraer", icono: <IconoGota /> },
+    { id: "listo", etiqueta: "Listo", icono: <IconoDescargar /> },
+];
 
 interface ColorInfo {
     hex: string;
@@ -160,6 +170,7 @@ export default function ColorPalettePage() {
     const [error, setError] = useState<string | null>(null);
     const [extracting, setExtracting] = useState(false);
     const [fileName, setFileName] = useState("paleta");
+    const [cssDescargado, setCssDescargado] = useState<string | null>(null);
     const extractionVersion = useRef(0);
     const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     useEffect(() => () => {
@@ -231,6 +242,7 @@ export default function ColorPalettePage() {
     const downloadPalette = () => {
         const url = URL.createObjectURL(new Blob([css], { type: "text/css" }));
         triggerDownload(url, `${fileName}_paleta.css`);
+        setCssDescargado(css);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
 
@@ -249,25 +261,34 @@ export default function ColorPalettePage() {
     const activeColor = palette[selectedColorIndex] || null;
     const harmony = activeColor ? buildHarmony(activeColor) : [];
 
+    const estadosPasos: EstadoPaso[] = !sourceImage ? ["activo", "pendiente", "pendiente"] : palette.length ? ["listo", "listo", "listo"] : error ? ["listo", "error", "pendiente"] : ["listo", "activo", "pendiente"];
+
     return (
         <div className="tool-page">
             <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
                 <ToolPageHeader slug="paleta-colores" title="Los colores de tu imagen" description="Extrae una paleta y llévala a tu diseño en HEX, RGB, HSL o CSS." />
                 {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra una imagen para extraer su paleta" /> : (
-                    <section aria-label="Estudio de color" className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c131d]">
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-3 sm:px-5">
-                            <div className="flex items-center gap-3"><button type="button" onClick={handleClear} aria-label="Cambiar imagen" title="Cambiar imagen" className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-white/10 text-slate-400 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300"><ImagePlus className="h-4 w-4" /></button><div className="flex gap-1" role="group" aria-label="Cantidad de colores">{[4, 6, 8, 10].map((count) => <button key={count} type="button" aria-label={`${count} colores`} aria-pressed={numColors === count} onClick={() => handleColorCount(count)} className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-pink-300 ${numColors === count ? "bg-pink-300/10 text-pink-200" : "text-slate-400 hover:bg-white/5"}`}>{count}</button>)}</div></div>
-                            <button type="button" onClick={downloadPalette} disabled={!palette.length || extracting} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-pink-300 px-4 text-sm font-semibold text-pink-950 hover:bg-pink-200 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40"><Download className="h-4 w-4" />CSS</button>
-                        </div>
-                        <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
-                            <div className="min-w-0"><div className="relative flex h-[min(48vh,440px)] min-h-[260px] items-center justify-center bg-[#070b11] p-6"><img src={sourceImage} alt="Imagen analizada" className="max-h-full max-w-full object-contain" />{extracting && <span role="status" className="absolute bottom-4 flex items-center gap-2 rounded-full bg-[#0a111b]/90 px-3 py-2 text-xs text-slate-300"><LoaderCircle className="h-4 w-4 motion-safe:animate-spin" />Extrayendo colores…</span>}</div>
+                    <section aria-label="Estudio de color" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
+                        <MesaCabecera nombre={fileName} detalle={palette.length ? `${palette.length} colores` : undefined}>
+                            <div className="mesa-chips" role="group" aria-label="Cantidad de colores">{[4, 6, 8, 10].map((count) => <button key={count} type="button" className="mesa-chip" aria-label={`${count} colores`} aria-pressed={numColors === count} onClick={() => handleColorCount(count)}>{count}</button>)}</div>
+                            <button type="button" onClick={downloadPalette} disabled={!palette.length || extracting} className="studio-button studio-button-primary"><IconoDescargar listo={palette.length > 0 && cssDescargado === css} />CSS</button>
+                        </MesaCabecera>
+                        <div className="mesa-cuerpo mesa-cuerpo-panel">
+                            <div className="mesa-columna">
+                                <MesaEscenario fondo="dark" pista={extracting ? "Extrayendo colores" : palette.length ? "Pulsa un color para ver sus valores" : undefined} className="min-w-0"><div className="relative flex h-[min(48vh,440px)] min-h-[260px] items-center justify-center bg-[#070b11] p-6"><img src={sourceImage} alt="Imagen analizada" className="max-h-full max-w-full object-contain" />{extracting && <span role="status" className="absolute bottom-4 flex items-center gap-2 rounded-full bg-[#0a111b]/90 px-3 py-2 text-xs text-slate-300"><LoaderCircle className="h-4 w-4 motion-safe:animate-spin" />Extrayendo colores…</span>}</div>
                                 {palette.length > 0 && <div className="grid" style={{ gridTemplateColumns: `repeat(${palette.length}, minmax(0, 1fr))` }}>{palette.map((color, index) => <button key={color.hex} type="button" onClick={() => setSelectedColorIndex(index)} aria-label={`Seleccionar ${color.hex}, ${color.percentage}%`} aria-pressed={selectedColorIndex === index} title={`${color.hex.toUpperCase()} · ${color.percentage}%`} className="group relative flex h-20 min-w-0 cursor-pointer items-end justify-center p-2 outline-none transition-all hover:brightness-110 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white sm:h-28" style={{ backgroundColor: color.hex }}><span className="rounded bg-black/65 px-1.5 py-1 font-mono text-[9px] text-white sm:text-[10px]">{palette.length <= 6 ? color.hex.toUpperCase() : `${color.percentage}%`}</span>{selectedColorIndex === index && <Check className="absolute left-1/2 top-3 h-5 w-5 -translate-x-1/2 rounded-full bg-black/65 p-0.5 text-white" />}</button>)}</div>}
+                            </MesaEscenario>
+                                <MesaPasos etiqueta="Progreso de la paleta" pasos={PASOS} estados={estadosPasos} />
                             </div>
-                            <aside aria-label="Detalle del color" className="space-y-4 border-t border-white/10 bg-white/[0.02] p-5 lg:border-l lg:border-t-0">
+                            <MesaRail etiqueta="Herramientas de la paleta">
+                                <MesaBoton pista={copiedToken === "css" ? "CSS copiado" : "Copiar paleta CSS"} listo={copiedToken === "css"} disabled={!palette.length} onClick={() => { void copyValue(css, "css"); }}><IconoCopiar /></MesaBoton>
+                                <MesaSeparador />
+                                <MesaBoton pista="Cambiar imagen" onClick={handleClear}><IconoImagen /></MesaBoton>
+                            </MesaRail>
+                            <aside aria-label="Detalle del color" className="mesa-panel space-y-4 p-5">
                                 {activeColor && <><div className="flex items-center gap-3"><div className="h-12 w-12 rounded-xl border border-white/10" style={{ backgroundColor: activeColor.hex }} /><div><p className="text-sm font-medium text-white">{getToneName(activeColor.hsl)}</p><p className="mt-1 text-xs text-slate-400">{getRole(selectedColorIndex)} · {activeColor.percentage}%</p></div></div>
                                     <div className="space-y-2">{[{ label: "HEX", value: activeColor.hex.toUpperCase(), token: "hex" }, { label: "RGB", value: `rgb(${activeColor.rgb.r}, ${activeColor.rgb.g}, ${activeColor.rgb.b})`, token: "rgb" }, { label: "HSL", value: `hsl(${activeColor.hsl.h}, ${activeColor.hsl.s}%, ${activeColor.hsl.l}%)`, token: "hsl" }].map((item) => <button key={item.token} type="button" onClick={() => copyValue(item.value, item.token)} aria-label={`Copiar ${item.label}: ${item.value}`} className="group flex min-h-14 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2 text-left transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300"><span className="min-w-0"><span className="block text-[10px] text-slate-500">{item.label}</span><span className="mt-1 block break-all font-mono text-xs text-slate-200">{item.value}</span></span>{copiedToken === item.token ? <Check className="h-4 w-4 shrink-0 text-pink-200" /> : <Copy className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-slate-200" />}</button>)}</div>
                                     <div className="border-t border-white/10 pt-4"><p className="mb-3 text-xs text-slate-400">Armonías · pulsa para copiar</p><div className="grid grid-cols-4 gap-2">{harmony.map((item, index) => <button key={item.label} type="button" title={item.label} aria-label={`Copiar ${item.label}: ${item.swatch}`} onClick={() => copyValue(item.swatch, `harmony-${index}`)} className="flex h-11 cursor-pointer items-center justify-center rounded-lg border border-white/10 focus-visible:ring-2 focus-visible:ring-white" style={{ backgroundColor: item.swatch }}>{copiedToken === `harmony-${index}` && <Check className="h-4 w-4 rounded bg-black/60 text-white" />}</button>)}</div></div>
-                                    <button type="button" onClick={() => copyValue(css, "css")} className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/10 text-xs text-slate-200 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-pink-300">{copiedToken === "css" ? <Check className="h-4 w-4 text-pink-200" /> : <Copy className="h-4 w-4" />}Copiar paleta CSS</button>
                                 </>}
                             </aside>
                         </div>
