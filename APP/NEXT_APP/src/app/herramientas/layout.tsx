@@ -3,6 +3,7 @@ import { ToolsWorkspace } from "@/components/tools/ToolsWorkspace";
 import { ToolsFooter } from "@/components/tools/ToolsFooter";
 import { getPublicTools } from "@/lib/public-tools.server";
 import "./tools.css";
+import "@/components/tools/mesa/mesa.css";
 
 export const metadata: Metadata = {
     icons: {
