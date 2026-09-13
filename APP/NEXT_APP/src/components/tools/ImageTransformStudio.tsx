@@ -1,12 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, Check, ImagePlus, Link2, LoaderCircle, Maximize2, SlidersHorizontal, Unlink2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { Check, Link2, LoaderCircle, Maximize2, SlidersHorizontal, Unlink2 } from "lucide-react";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
 import { useToolAccess } from "@/hooks/useToolAccess";
+import { MesaBoton, MesaRail, MesaSeparador } from "@/components/tools/mesa/MesaRail";
+import { MesaPasos, type EstadoPaso } from "@/components/tools/mesa/MesaPasos";
+import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
+import { MesaCabecera } from "@/components/tools/mesa/MesaCabecera";
+import { IconoAjustes, IconoDescargar, IconoImagen, IconoOjo, IconoSubir } from "@/components/tools/mesa/MesaIcons";
 import { canvasToBlob, drawImageToCanvas, loadImageSource, revokeObjectUrl, sanitizeFileBaseName, triggerDownload, type DrawFitMode, type ExportMimeType } from "@/lib/tools/image-processing";
+
+const PASOS = [
+    { id: "subir", etiqueta: "Subir", icono: <IconoSubir /> },
+    { id: "procesar", etiqueta: "Procesar", icono: <IconoAjustes /> },
+    { id: "listo", etiqueta: "Listo", icono: <IconoDescargar /> },
+];
 
 type StudioMode = "convertir-imagen" | "comprimir-imagen" | "redimensionar";
 const CONFIG = {
@@ -51,7 +62,8 @@ export function ImageTransformStudio({ mode }: { mode: StudioMode }) {
     const [fit, setFit] = useState<DrawFitMode>("contain");
     const [fill, setFill] = useState(false);
     const [background, setBackground] = useState("#ffffff");
-    const [original, setOriginal] = useState(false);
+    const [comparando, setComparando] = useState(false);
+    const [descargado, setDescargado] = useState(false);
     const [result, setResult] = useState<{ key: string; url: string; size: number; width: number; height: number; mime: string } | null>(null);
     const [exportError, setExportError] = useState<{ key: string; message: string } | null>(null);
     const sourceVersion = useRef(0);
@@ -68,7 +80,8 @@ export function ImageTransformStudio({ mode }: { mode: StudioMode }) {
         setSource(null);
         setResult(null);
         setExportError(null);
-        setOriginal(false);
+        setComparando(false);
+        setDescargado(false);
         revokeObjectUrl(resultUrl.current);
         resultUrl.current = null;
         void loadImageSource(url).then((image) => {
@@ -134,6 +147,7 @@ export function ImageTransformStudio({ mode }: { mode: StudioMode }) {
                 revokeObjectUrl(resultUrl.current);
                 resultUrl.current = url;
                 setResult({ key, url, size: blob.size, width: outputWidth, height: outputHeight, mime: blob.type });
+                setDescargado(false);
                 setExportError(null);
             } catch (cause) {
                 if (!cancelled) setExportError({ key, message: cause instanceof Error ? cause.message : "No se pudo exportar la imagen." });
@@ -156,11 +170,15 @@ export function ImageTransformStudio({ mode }: { mode: StudioMode }) {
         if (!currentResult || !source) return;
         const extension = FORMATS.find((item) => item.value === currentResult.mime)?.ext ?? "png";
         triggerDownload(currentResult.url, `${sanitizeFileBaseName(source.file.name)}_${config.suffix}.${extension}`);
+        setDescargado(true);
     };
     const savings = source && currentResult ? Math.round((1 - currentResult.size / source.file.size) * 100) : null;
 
     if (isLoading) return <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="Cargando herramienta"><LoaderCircle className="h-6 w-6 text-slate-400 motion-safe:animate-spin" /></div>;
     if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || config.title} />;
+
+    const estadosPasos: EstadoPaso[] = !source ? ["activo", "pendiente", "pendiente"] : currentResult ? ["listo", "listo", "listo"] : error ? ["listo", "error", "pendiente"] : ["listo", "activo", "pendiente"];
+    const pista = !source ? undefined : comparando ? "Original" : processing ? "Procesando en tu dispositivo" : currentResult ? `${currentResult.width} × ${currentResult.height} · ${formatBytes(currentResult.size)}` : undefined;
 
     return <div className="tool-page">
         <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
@@ -168,26 +186,29 @@ export function ImageTransformStudio({ mode }: { mode: StudioMode }) {
             {!source ? <>
                 <ImageDropzone onImageLoad={handleLoad} accentColor={config.accent} label="Arrastra tu imagen aquí" sublabel="PNG, JPG o WebP · tus archivos permanecen en tu dispositivo" />
                 {decoding && <p role="status" className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-400"><LoaderCircle className="h-4 w-4 motion-safe:animate-spin" />Abriendo imagen…</p>}
-            </> : <section aria-label="Editor de imagen" className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c131d] shadow-2xl shadow-black/20">
-                <div className="flex items-center justify-between gap-3 border-b border-white/10 p-3 sm:px-4">
-                    <div className="flex min-w-0 items-center gap-3"><button type="button" aria-label="Cambiar imagen" title="Cambiar imagen" className={actionClass} onClick={handleClear}><ImagePlus className="h-4 w-4" /></button><div className="min-w-0"><p className="truncate text-xs font-medium text-slate-200 sm:text-sm">{source.file.name}</p><p className="mt-1 text-[11px] font-mono text-slate-500">{source.image.naturalWidth} × {source.image.naturalHeight} · {formatBytes(source.file.size)}</p></div></div>
-                    <button type="button" onClick={download} disabled={!currentResult} className="inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-[#0a111b] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-40 sm:px-4" style={{ backgroundColor: config.accent }}><ArrowDownToLine className="h-4 w-4" /><span className="hidden sm:inline">Descargar</span><span className="sm:hidden">Guardar</span></button>
-                </div>
-                <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
-                    <div className="min-w-0">
-                        <div className="relative flex h-[min(50vh,480px)] min-h-[270px] items-center justify-center overflow-hidden bg-[#070b11] p-6" style={{ backgroundImage: "repeating-conic-gradient(#ffffff05 0% 25%, transparent 0% 50%)", backgroundSize: "24px 24px" }}>
-                            <img src={original || !currentResult ? source.url : currentResult.url} alt={original ? "Imagen original" : "Vista previa del resultado"} className="max-h-full max-w-full object-contain shadow-lg" />
-                            <div className="absolute left-3 top-3 flex rounded-lg border border-white/10 bg-[#0a111b]/90 p-1 backdrop-blur-sm" role="group" aria-label="Comparar imagen">
-                                {[[true, "Original"], [false, "Resultado"]].map(([value, label]) => <button key={String(label)} type="button" aria-pressed={original === value} onClick={() => setOriginal(value as boolean)} className={`min-h-9 cursor-pointer rounded-md px-3 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-white/50 ${original === value ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}>{label}</button>)}
+            </> : <section aria-label="Editor de imagen" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": config.accent } as CSSProperties}>
+                <MesaCabecera nombre={source.file.name} detalle={`${source.image.naturalWidth} × ${source.image.naturalHeight} · ${formatBytes(source.file.size)}`}>
+                    <button type="button" onClick={download} disabled={!currentResult} className="studio-button studio-button-primary"><IconoDescargar listo={descargado} /><span><span className="hidden sm:inline">Descargar </span>{FORMATS.find((item) => item.value === format)?.label}</span></button>
+                </MesaCabecera>
+                <div className="mesa-cuerpo mesa-cuerpo-panel">
+                    <div className="mesa-columna">
+                        <MesaEscenario fondo="transparent" pista={pista} className="flex h-[min(50vh,480px)] min-h-[270px] items-center justify-center p-6">
+                            <div className="mesa-lienzo flex max-h-full max-w-full items-center justify-center">
+                                <img src={comparando || !currentResult ? source.url : currentResult.url} alt={comparando ? "Imagen original" : "Vista previa del resultado"} className="max-h-[calc(min(50vh,480px)-48px)] max-w-full object-contain" />
                             </div>
-                            {processing && <span role="status" className="absolute bottom-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#0a111b]/90 px-3 py-2 text-xs text-slate-300"><LoaderCircle className="h-3.5 w-3.5 motion-safe:animate-spin" />Actualizando…</span>}
-                        </div>
-                        <div aria-live="polite" className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-t border-white/10 px-4 py-3 text-xs text-slate-400">
-                            <span className="inline-flex items-center gap-2">{currentResult ? <Check className="h-4 w-4" style={{ color: config.accent }} /> : <SlidersHorizontal className="h-4 w-4" />}{currentResult ? `${currentResult.width} × ${currentResult.height} · ${formatBytes(currentResult.size)}` : "La vista previa se actualiza automáticamente"}</span>
-                            {savings !== null && <span style={{ color: savings > 0 ? config.accent : "#94a3b8" }}>{savings > 0 ? `${savings}% menos peso` : savings === 0 ? "Mismo peso" : `${Math.abs(savings)}% más peso`}</span>}
+                        </MesaEscenario>
+                        <MesaPasos etiqueta="Progreso de la imagen" pasos={PASOS} estados={estadosPasos} />
+                        <div className="mesa-pie" aria-live="polite">
+                            <span className="inline-flex items-center gap-2">{currentResult ? <Check className="h-4 w-4" style={{ color: config.accent }} /> : <SlidersHorizontal className="h-4 w-4" />}{currentResult ? `${currentResult.width} × ${currentResult.height} · ${formatBytes(currentResult.size)}` : processing ? "Procesando…" : "Ajusta los parámetros"}</span>
+                            {savings !== null && <span className="mesa-pie-estado" style={{ color: savings > 0 ? config.accent : "#94a3b8" }}>{savings > 0 ? `${savings}% menos peso` : savings === 0 ? "Mismo peso" : `${Math.abs(savings)}% más peso`}</span>}
                         </div>
                     </div>
-                    <aside aria-label="Ajustes de imagen" className="space-y-5 border-t border-white/10 bg-white/[0.02] p-5 lg:border-l lg:border-t-0">
+                    <MesaRail etiqueta="Herramientas de imagen">
+                        <MesaBoton pista="Comparar con el original" pulsado={comparando} onMantener={setComparando}><IconoOjo /></MesaBoton>
+                        <MesaSeparador />
+                        <MesaBoton pista="Cambiar imagen" onClick={handleClear}><IconoImagen /></MesaBoton>
+                    </MesaRail>
+                    <aside aria-label="Ajustes de imagen" className="mesa-panel space-y-5 p-5">
                         {mode === "redimensionar" && <>
                             <label className="block text-xs text-slate-300"><span className="mb-2 block">Tamaños rápidos</span><select className={fieldClass} value="" onChange={(event) => { const preset = PRESETS[Number(event.target.value)]; setWidth(preset.width); setHeight(preset.height); setLocked(false); }}><option value="" disabled>Elegir un formato</option>{PRESETS.map((preset, index) => <option key={preset.label} value={index}>{preset.label} · {preset.width} × {preset.height}</option>)}</select></label>
                             <div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-xs text-slate-400"><span className="mb-2 block">Ancho (px)</span><input className={fieldClass} type="number" min={1} max={16000} value={width || ""} onChange={(event) => updateDimension("width", Number(event.target.value))} /></label><button type="button" title="Mantener proporción" aria-label="Mantener proporción" aria-pressed={locked} onClick={() => { const next = !locked; setLocked(next); if (next) setHeight(Math.max(1, Math.round(width * source.image.naturalHeight / source.image.naturalWidth))); }} className={actionClass} style={locked ? { color: config.accent } : undefined}>{locked ? <Link2 className="h-4 w-4" /> : <Unlink2 className="h-4 w-4" />}</button><label className="min-w-0 flex-1 text-xs text-slate-400"><span className="mb-2 block">Alto (px)</span><input className={fieldClass} type="number" min={1} max={16000} value={height || ""} onChange={(event) => updateDimension("height", Number(event.target.value))} /></label></div>

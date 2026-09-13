@@ -103,3 +103,21 @@ test("recortar: modos en el carril, proporciones en el pie, pasos hasta listo y 
     await page.setViewportSize({ width: 375, height: 850 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
 });
+
+test("comprimir: pasos hasta listo, comparar manteniendo muestra el original y el panel sigue a la derecha", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/herramientas/comprimir-imagen");
+    await page.getByLabel("Seleccionar imagen", { exact: true }).setInputFiles(await fixture(page));
+    const nodos = page.getByRole("list", { name: "Progreso de la imagen" }).locator(".mesa-nodo");
+    await expect(nodos.nth(2)).toHaveAttribute("data-estado", "listo");
+    await expect(page.getByRole("img", { name: "Vista previa del resultado" })).toBeVisible();
+    const soltar = await mantener(page, "Comparar con el original");
+    await expect(page.getByRole("img", { name: "Imagen original" })).toBeVisible();
+    await soltar();
+    await expect(page.getByRole("img", { name: "Vista previa del resultado" })).toBeVisible();
+    const rail = (await page.getByRole("toolbar", { name: "Herramientas de imagen" }).boundingBox())!;
+    const panel = (await page.getByRole("complementary", { name: "Ajustes de imagen" }).boundingBox())!;
+    expect(panel.x).toBeGreaterThanOrEqual(rail.x + rail.width - 1);
+    await page.setViewportSize({ width: 375, height: 850 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+});
