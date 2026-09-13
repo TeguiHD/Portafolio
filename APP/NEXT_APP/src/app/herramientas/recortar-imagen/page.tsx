@@ -306,7 +306,7 @@ export default function ImageCropperPage() {
                         </MesaCabecera>
                         <div className="mesa-cuerpo">
                             <div className="mesa-columna">
-                                <MesaEscenario fondo="dark" pista={pista} className="h-[min(56vh,520px)] min-h-[280px] sm:min-h-[360px]">
+                                <MesaEscenario fondo="dark" pista={pista} className="h-[min(50vh,520px)] min-h-[280px] sm:min-h-[360px]">
                                     {mode === "subject" ? (
                                         <SubjectBrush ref={brushRef} imageSrc={sourceImage} brushSize={brushSize} accentColor={ACCENT} />
                                     ) : imageDimensions ? (
