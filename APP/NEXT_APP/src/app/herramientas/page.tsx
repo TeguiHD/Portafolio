@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ToolWorkflows } from "@/components/tools/ToolWorkflows";
 import { getPublicTools } from "@/lib/public-tools.server";
-import { ArrowUpRight, Box, Layers3, ScanLine } from "lucide-react";
+import { Layers3 } from "lucide-react";
 import ToolsGrid from "@/components/tools/ToolsGrid";
 import { TOOL_SEO_SLUGS } from "@/lib/seo/tools-content";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -30,29 +30,14 @@ export default async function ToolsPage() {
             <JsonLd schema={breadcrumbSchema(TOOLS_HUB_TRAIL)} />
             <Breadcrumbs trail={TOOLS_HUB_TRAIL} />
             <main className="tool-main max-w-7xl mx-auto px-4 sm:px-8 pb-12">
-                <header className="mb-8 flex flex-wrap items-end justify-between gap-5">
+                <header className="tools-hub-heading mb-7 flex flex-wrap items-end justify-between gap-5">
                     <div>
-                        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-300">CREA · TRANSFORMA · RESUELVE</p>
-                        <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Tu espacio de herramientas.</h1>
-                        <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">Un lugar para pasar de la idea al resultado. Utilidades de diseño y desarrollo, sin registro ni marcas de agua.</p>
+                        <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" />TU CAJA DE HERRAMIENTAS</p>
+                        <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-[44px] sm:leading-tight">Hazlo. <span className="text-slate-400">Y sigue creando.</span></h1>
+                        <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">Imágenes, código y utilidades. Sin registro ni marcas de agua.</p>
                     </div>
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-slate-400"><Layers3 size={14} aria-hidden="true" />{combinedTools.length} herramientas</span>
                 </header>
-                <section aria-label="Herramienta destacada" className="mb-9 grid overflow-hidden rounded-2xl border border-violet-300/20 bg-[#141828] sm:grid-cols-[1fr_240px]">
-                    <div className="p-6 sm:p-7">
-                        <span className="mb-3 inline-flex items-center gap-2 text-xs font-medium text-violet-300"><Box size={15} aria-hidden="true" />QR + REALIDAD AUMENTADA</span>
-                        <h2 className="text-2xl font-semibold tracking-tight text-white">Haz que tu producto salga de la pantalla.</h2>
-                        <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">Crea un QR para explorar un objeto 3D y abrirlo en el espacio real desde un móvil compatible. Ideal para productos, cartas y catálogos.</p>
-                        <Link href="/herramientas/qr?tipo=ar" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-violet-200 px-4 text-sm font-semibold text-violet-950 transition-colors hover:bg-violet-100">Crear una experiencia AR<ArrowUpRight size={16} aria-hidden="true" /></Link>
-                    </div>
-                    <div aria-hidden="true" className="relative hidden items-center justify-center overflow-hidden border-l border-white/5 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.18),transparent_70%)] sm:flex">
-                        <div className="absolute h-40 w-40 rounded-full border border-violet-300/10" />
-                        <div className="absolute h-56 w-56 rounded-full border border-violet-300/10" />
-                        <Box className="h-24 w-24 text-violet-200" strokeWidth={0.8} />
-                        <ScanLine className="absolute bottom-5 right-5 h-8 w-8 text-violet-300/50" strokeWidth={1} />
-                    </div>
-                </section>
-
                 {/* Tools Grid */}
                 <ToolsGrid tools={combinedTools} />
                 <div className="mt-12"><ToolWorkflows tools={combinedTools} /></div>
