@@ -1,0 +1,46 @@
+/* Mazo de sistemas privados (#vault): tres cartas en abanico que giran al pulsar. */
+
+.p-mazo-cab { display: grid; gap: 24px; align-items: end; }
+@media (min-width: 900px) { .p-mazo-cab { grid-template-columns: 1fr auto; } .p-mazo-cab .p-cab { margin-bottom: 0; } }
+
+.p-mazo-escena { perspective: 1600px; position: relative; margin-top: 24px; }
+.p-mazo { position: relative; transform-style: preserve-3d; }
+
+/* Columna en pantallas estrechas; abanico a partir de 640 px. */
+.p-mazo { display: grid; gap: 18px; justify-items: center; }
+@media (min-width: 640px) {
+  .p-mazo-escena { height: 470px; }
+  .p-mazo { position: absolute; inset: 0; display: block; }
+  .p-carta-pos { position: absolute; left: 50%; top: 30px; margin-left: -150px; }
+}
+
+.p-carta-pos { width: 300px; height: 380px; transform-origin: 50% 130%; will-change: transform; }
+.p-carta {
+  position: relative; width: 100%; height: 100%; transform-style: preserve-3d; cursor: pointer; border-radius: 20px;
+  transition: transform 0.6s var(--p-ease);
+}
+.p-carta:focus-visible { outline: 2px solid var(--tono); outline-offset: 4px; }
+.p-carta-pos:hover .p-carta:not(.volteada) { transform: translateY(-14px); }
+.p-carta.volteada { transform: rotateY(180deg); }
+
+.p-cara {
+  position: absolute; inset: 0; border-radius: 20px; border: 1px solid var(--p-linea2);
+  background: linear-gradient(180deg, #151f2b, #0c121a); backface-visibility: hidden; padding: 16px;
+  display: flex; flex-direction: column; box-shadow: 0 30px 60px -30px #000; overflow: hidden;
+}
+.p-dorso { transform: rotateY(180deg); }
+
+.p-cara-cab { display: flex; align-items: center; gap: 10px; }
+.p-cara-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: 0 0 auto; background: color-mix(in srgb, var(--tono) 14%, transparent); color: var(--tono); }
+.p-cara h3 { font-size: 15px; color: #fff; }
+.p-cara-cab small { display: block; color: var(--p-mut); font-size: 11px; margin-top: 2px; }
+
+.p-cara-demo {
+  margin-top: 12px; flex: 1; min-height: 0; border-radius: 12px; border: 1px solid var(--p-linea);
+  background: #0a111b; overflow: hidden; display: flex; flex-direction: column;
+}
+.p-cara-demo > * { flex: 1; min-height: 0; }
+.p-cara-pie { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--p-mut); }
+.p-cara-pie span { color: var(--tono); font-weight: 600; }
+.p-cara-pie em { font-style: normal; }
+.p-dorso-txt { color: var(--p-mut); font-size: 13px; line-height: 1.6; margin-top: 14px; }
