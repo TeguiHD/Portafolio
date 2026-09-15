@@ -1,10 +1,14 @@
 import { test, expect } from "@playwright/test";
+import { irASeccion } from "./portada-utils";
 
 test("el coverflow fija la sección y cambia de proyecto con scroll y con los puntos", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   await expect(page.locator("#projects-title")).toHaveText("De la necesidad al producto");
   await expect(page.locator("#casos article")).toHaveCount(3);
+  // Como una persona que baja: primero cargan la cinta y el mazo, así la maquetación ya no se mueve al llegar a los proyectos.
+  await irASeccion(page, "tools-belt");
+  await irASeccion(page, "vault");
   await page.evaluate(() => document.getElementById("casos")!.scrollIntoView({ block: "start" }));
   await page.waitForFunction(() => window.scrollY > 1000);
   await expect(page.locator('#casos article[aria-current="true"] h3')).toHaveText("FloresDyD");
@@ -12,10 +16,14 @@ test("el coverflow fija la sección y cambia de proyecto con scroll y con los pu
   await expect(page.locator('#casos article[aria-current="true"] h3')).toHaveText("Herramientas de uso diario", { timeout: 10_000 });
   await page.getByRole("button", { name: "Ver FloresDyD" }).click();
   await expect(page.locator('#casos article[aria-current="true"] h3')).toHaveText("FloresDyD", { timeout: 10_000 });
-  // Lenis ignora la rueda mientras anima el salto al punto: se espera a que el scroll se asiente.
-  await page.waitForFunction(() => new Promise((res) => { const y = window.scrollY; setTimeout(() => res(Math.abs(window.scrollY - y) < 1), 400); }));
+  // Avanzar con la rueda dentro de la sección fijada cambia el panel activo (la rueda pasa por Lenis).
+  await page.waitForFunction(() => new Promise((res) => { const y = window.scrollY; setTimeout(() => res(Math.abs(window.scrollY - y) < 1), 600); }));
+  await page.waitForTimeout(800);
   await page.mouse.move(700, 500);
-  await page.mouse.wheel(0, 700);
+  for (let i = 0; i < 4; i++) {
+    await page.mouse.wheel(0, 250);
+    await page.waitForTimeout(150);
+  }
   await expect(page.locator('#casos article[aria-current="true"] h3')).not.toHaveText("FloresDyD", { timeout: 10_000 });
   await expect(page.locator("#casos")).not.toContainText(/200%|92%|850\+|Auditado/);
   await expect(page.locator("#casos").getByRole("heading", { level: 3, name: "FloresDyD" })).toBeVisible();

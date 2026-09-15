@@ -87,7 +87,9 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
     }
     const y = st.start + ((st.end - st.start) * i) / (casos.length - 1);
     const l = lenisRef.current;
-    if (l) l.scrollTo(y);
+    // Con duración explícita Lenis termina la animación y vuelve a aceptar scroll nativo;
+    // en modo lerp se queda "suavizando" y revierte cualquier salto programático posterior.
+    if (l) l.scrollTo(y, { duration: 0.9 });
     else window.scrollTo({ top: y, behavior: "smooth" });
   }
 
