@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type Lenis from "lenis";
 import { usePortadaNivel, type Nivel } from "./nivel";
+import { usePrimeraInteraccion } from "./interaccionInicial";
 import type { Motor } from "./motor";
 
 interface Portada {
@@ -28,20 +29,23 @@ export function usePortada() {
  */
 export function PortadaMotion({ children }: { children: ReactNode }) {
   const nivel = usePortadaNivel();
+  const interactuado = usePrimeraInteraccion();
+  // En nivel completo el motor llega tras hidratar; en nivel medio, tras la primera interacción.
+  const tocaCargar = nivel === "completo" || (nivel === "medio" && interactuado);
   const [motor, setMotor] = useState<Motor | null>(null);
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const [listo, setListo] = useState(false);
   const progreso = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (nivel === "estatico" || motor) return;
+    if (!tocaCargar || motor) return;
     let vivo = true;
     import("./motor")
       .then((m) => m.cargarMotor())
       .then((m) => { if (vivo) setMotor(m); })
       .catch(() => { /* sin motor la portada queda estática pero completa */ });
     return () => { vivo = false; };
-  }, [nivel, motor]);
+  }, [tocaCargar, motor]);
 
   useEffect(() => {
     if (!motor || nivel !== "completo") {
