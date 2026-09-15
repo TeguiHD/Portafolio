@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Demostraciones de los sistemas privados (finanzas, CV, auditoría), extraídas de
- * ForbiddenVaultSection para que el mazo de la portada las reutilice tal cual.
+ * Demostraciones de los sistemas privados (finanzas, CV, auditoría) que usa el
+ * mazo de la portada (src/modules/landing/portada/secciones/Mazo.tsx).
  */
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";

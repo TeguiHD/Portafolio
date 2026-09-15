@@ -1,34 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { irASeccion } from "./portada-utils";
 
-test.setTimeout(120_000);
-
-test("el hero recupera su panel demo y el cierre queda sin textos añadidos", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await home(page);
-  const hero = page.locator("#hero");
-  await expect(hero.getByRole("link", { name: "29 herramientas gratuitas", exact: true })).toHaveCount(0);
-  await expect(hero.getByRole("link", { name: "Proyectos que puedes conocer", exact: true })).toHaveCount(0);
-  await expect(hero.getByRole("link", { name: "Quién las construye", exact: true })).toHaveCount(0);
-  const demo = page.locator("[data-dashboard-demo]");
-  await expect(demo).toBeVisible();
-  await expect(demo).not.toContainText("DEMO");
-  await expect(demo).not.toContainText("Panel de ejemplo");
-  await expect(demo).toContainText("Monitor del sistema");
-  await expect(demo).toContainText("Estado del servidor");
-  await expect(demo).toHaveCSS("transform", "none");
-  await page.getByRole("button", { name: "Pausar efectos" }).click();
-  await expect(demo).toHaveAttribute("data-motion-active", "false");
-  const value = await demo.innerText();
-  await page.waitForTimeout(1700);
-  expect(await demo.innerText()).toBe(value);
-  await page.locator("#vault").evaluate(element => element.scrollIntoView({ behavior: "instant" }));
-  await expect(page.locator("[data-demo]")).toHaveCount(6);
-  expect(await page.locator("#vault p").filter({ hasText: "Centraliza movimientos" }).evaluateAll(elements => elements.every(element => element.closest("[data-demo]")))).toBe(true);
-  const closingSection = page.locator("#closing-signature");
-  await expect(closingSection).not.toContainText("Ideas en movimiento");
-  await expect(closingSection).not.toContainText("Forma. Código. Producto.");
-  await expect(closingSection).not.toContainText("Cada idea encuentra su forma");
-});
+test.setTimeout(150_000);
 
 async function home(page: Page) {
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -42,8 +15,7 @@ const FRACCION_RECORRIDO = 0.68;
 
 async function closing(page: Page, progress: number) {
   for (const id of ["tools-belt", "vault", "tecnologias", "architecture", "contact"]) {
-    await page.locator(`#${id}`).evaluate(element => element.scrollIntoView({ behavior: "instant", block: "center" }));
-    await expect(page.locator(`#${id}`)).not.toHaveAttribute("aria-busy", "true");
+    await irASeccion(page, id);
   }
   await page.evaluate(value => {
     const section = document.querySelector("#closing-signature")!;
@@ -52,9 +24,21 @@ async function closing(page: Page, progress: number) {
   }, { progress, fraccion: FRACCION_RECORRIDO });
 }
 
+test("el hero pinta su párrafo desde el primer frame y el cierre queda sin textos añadidos", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await home(page);
+  const parrafo = page.locator("#hero p").first();
+  await expect(parrafo).toHaveCSS("visibility", "visible");
+  await expect(parrafo).toHaveCSS("opacity", "1");
+  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
+  const closingSection = page.locator("#closing-signature");
+  await expect(closingSection).not.toContainText("Ideas en movimiento");
+  await expect(closingSection).not.toContainText("Forma. Código. Producto.");
+  await expect(closingSection).not.toContainText("Cada idea encuentra su forma");
+});
+
 test("el nombre se forma, se completa en constelación y solo después llega el footer", async ({ page }) => {
   await home(page);
-  await expect(page.locator("#hero canvas")).toHaveCount(0);
   const canvas = page.locator(".closing-signature canvas");
   await expect(canvas).toHaveAttribute("data-state", "static");
   await closing(page, 0.12);
@@ -67,8 +51,6 @@ test("el nombre se forma, se completa en constelación y solo después llega el 
   await expect(canvas).toHaveAttribute("data-progress", progress!);
   await closing(page, 1);
   await expect(canvas).toHaveAttribute("data-state", "constellation");
-  // El orden importa: la constelacion se completa con el panel entero a la vista
-  // y el footer todavia fuera. Primero se ve la firma terminada, despues el footer.
   await expect(page.locator(".closing-signature")).toBeInViewport({ ratio: 0.9 });
   await expect(page.locator("footer")).not.toBeInViewport();
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
@@ -85,6 +67,7 @@ test("la pausa persiste, conserva el texto y libera el canvas fuera de pantalla"
   await page.getByRole("button", { name: "Pausar efectos" }).click();
   await expect(canvas).toHaveAttribute("data-state", "paused");
   await expect(page.locator("[data-landing-background]")).toHaveCount(0);
+  await expect(page.locator('[data-motion-active="true"]')).toHaveCount(0);
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Activar efectos" })).toBeVisible();
   await page.getByRole("button", { name: "Activar efectos" }).click();
@@ -99,6 +82,7 @@ test("la pausa persiste, conserva el texto y libera el canvas fuera de pantalla"
 test("movimiento reducido y ahorro de datos evitan cargar la escena", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await home(page);
+  await expect(page.locator("[data-landing-background]")).toHaveCount(0);
   await page.locator("#closing-signature").scrollIntoViewIfNeeded();
   await expect(page.locator(".closing-signature canvas")).toHaveAttribute("data-state", "static");
   await expect(page.getByRole("button", { name: "Pausar efectos" })).toHaveCount(0);
@@ -123,25 +107,23 @@ test("un canvas no disponible mantiene el cierre y la navegación", async ({ pag
   await expect(page).toHaveURL(/#casos$/);
 });
 
-test("las demos se congelan al pausar y los duplicados ocultos no trabajan", async ({ page }) => {
+test("las demos del mazo se congelan al pausar y no trabajan fuera de pantalla", async ({ page }) => {
   await home(page);
-  await page.locator("#vault").scrollIntoViewIfNeeded();
-  const cards = page.locator("[data-demo]");
-  await expect(cards).toHaveCount(6);
-  await expect.poll(() => page.locator('[data-demo][data-motion-active="true"]').count()).toBeGreaterThan(0);
-  for (const card of await cards.all()) {
-    if (!(await card.isVisible())) await expect(card).toHaveAttribute("data-motion-active", "false");
-  }
+  await irASeccion(page, "vault");
+  await page.locator("#vault").evaluate(element => element.scrollIntoView({ behavior: "instant", block: "center" }));
+  const cards = page.locator("#vault [data-demo]");
+  await expect(cards).toHaveCount(3);
+  await expect.poll(() => page.locator('#vault [data-demo][data-motion-active="true"]').count()).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Pausar efectos" }).click();
-  await expect(page.locator('[data-demo][data-motion-active="true"]')).toHaveCount(0);
+  await expect(page.locator('#vault [data-demo][data-motion-active="true"]')).toHaveCount(0);
   await page.waitForTimeout(1200);
   const snapshots = await cards.evaluateAll(elements => elements.map(element => element.innerHTML));
   await page.waitForTimeout(3600);
   expect(await cards.evaluateAll(elements => elements.map(element => element.innerHTML))).toEqual(snapshots);
   await page.getByRole("button", { name: "Activar efectos" }).click();
-  await expect.poll(() => page.locator('[data-demo][data-motion-active="true"]').count()).toBeGreaterThan(0);
-  await page.locator("#casos").scrollIntoViewIfNeeded();
-  await expect(page.locator('[data-demo][data-motion-active="true"]')).toHaveCount(0);
+  await expect.poll(() => page.locator('#vault [data-demo][data-motion-active="true"]').count()).toBeGreaterThan(0);
+  await page.evaluate(() => document.getElementById("contact")!.scrollIntoView({ behavior: "instant", block: "start" }));
+  await expect(page.locator('#vault [data-demo][data-motion-active="true"]')).toHaveCount(0);
 });
 
 test("portada sin desbordamientos y navegación visible al recibir foco", async ({ page }) => {

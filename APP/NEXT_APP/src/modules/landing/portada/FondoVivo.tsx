@@ -46,7 +46,7 @@ function mezcla(a: number, b: number, t: number) {
 /**
  * Fondo vivo de la portada: partículas en tres profundidades que siguen al
  * ratón, reaccionan a los clics y al scroll, con uniones entre las cercanas y
- * dos auroras del color de la sección visible. Sustituye a BackgroundManager.
+ * dos auroras del color de la sección visible.
  *
  * Presupuesto: en nivel medio dibuja a 1× y 30 fps con un 60 % de partículas; la
  * aurora se pinta en un lienzo de 1/8 y se escala, porque dos degradados a
