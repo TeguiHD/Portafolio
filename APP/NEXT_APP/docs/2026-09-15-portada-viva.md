@@ -40,6 +40,16 @@ La página principal de nicoholas.dev pasa del diseño de secciones estáticas a
 - Con el servidor de desarrollo los chunks diferidos compilan al vuelo: las pruebas de secciones profundas usan `irASeccion` (vuelve a desplazar hasta que la sección carga).
 - Al medir un paquete compilado, el servidor standalone debe reiniciarse con el mismo build: un servidor viejo con assets nuevos sirve una página rota y unas cifras sin valor.
 
-## Despliegue
+## Despliegue (15 de septiembre de 2026, 15:40 America/Santiago)
 
-Ver la sección al final de este documento, que se completa al desplegar.
+- Compilación local en un worktree limpio del commit `182a153` (sin `.env` ni cambios sin confirmar), `BUILD_ID KQicz_yw5NjD6MnfMVOeD`; paquete de 75 MB (`.next/standalone`, `.next/static`, `public`) subido a `/tmp` del VPS.
+- En el VPS: la imagen anterior quedó como `portfolio_web:rollback-20260915-1540`; se extrajo el paquete en `~/portfolio`, se reconstruyó `portfolio_web:latest` con `Dockerfile.prod` (solo copia, sin compilar allí) y se recreó únicamente el contenedor `web` con `docker compose --env-file .env up -d --no-deps web`. Nginx, PostgreSQL, Redis, `sicove` y `asistencia` no se tocaron y siguieron en 200 durante y después del cambio.
+- Comprobación: contenedor sin reinicios y con 107 MB de memoria; 287 MB disponibles en el VPS y 9,3 GB de disco; `https://nicoholas.dev/` en 200 con CSP con nonce, HSTS y `x-security-version 2.1.0`; prueba de humo con Playwright en escritorio (mesa con cuatro instrumentos, fondo vivo, cursor original, párrafo LCP visible, secciones diferidas cargadas, terminal con las cabeceras reales, contacto sin tarjetas) y en móvil (nivel medio: la mesa y el fondo llegan tras el primer scroll, sin desbordamiento); `/herramientas/quitar-fondo` en 200.
+- Lighthouse 12 contra producción (red real desde Chile): móvil 77 y 76 (LCP simulado 5,1–5,3 s, observado 0,7–1,3 s; FCP 2,3 s; TBT 135 ms; CLS 0), escritorio 89 (LCP 1,7 s; TBT 6 ms). Antes del cambio: móvil 84 (LCP 2,7 s), escritorio 85 (LCP 2,0 s). Accesibilidad 100 en ambos; buenas prácticas 74–75 por avisos heredados (script de Cloudflare bloqueado por la CSP, política de permisos, deprecaciones), iguales a los de antes.
+- Vuelta atrás, si hiciera falta: `docker tag portfolio_web:rollback-20260915-1540 portfolio_web:latest && cd ~/portfolio/DOCKER && docker compose --env-file .env up -d --no-deps web`.
+
+## Pendiente y recomendaciones
+
+- **LCP simulado en móvil**: el paquete inicial (React, runtime de Next, framer-motion por `template.tsx` y `MotionProvider`, dos fuentes) pesa 271 KB comprimidos más 88 KB de fuentes; Lighthouse lo imputa entero al LCP aunque el párrafo se pinte a los 0,3 s. Dos mejoras con recorrido: retirar JetBrains Mono de `next/font` (−48 KB; la pila del sistema basta para las etiquetas) y sacar framer-motion del paquete inicial (el fundido de `template.tsx` puede ser CSS), −43 KB.
+- **Caché de imágenes en el contenedor**: `Dockerfile.prod` copia como root y ejecuta como `node`, así que `/app/.next/cache` no es escribible y cada imagen optimizada se recodifica en cada petición (error `EACCES` en los logs; las imágenes sirven bien). Arreglo en el VPS: `RUN mkdir -p /app/.next/cache && chown -R node:node /app/.next` antes de `USER node`. Venía de antes.
+- La rama `ui/portada` (que contiene `ui/tools-overhaul` y `seo/overhaul`) no está fusionada en `main`: decidir merge o PR.

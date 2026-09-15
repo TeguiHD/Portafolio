@@ -47,4 +47,4 @@ Un lienzo fijo detrás de todo con partículas en tres planos (0,32 · 0,62 · 1
 
 ## Resultado de laboratorio (Lighthouse 12, compilación de producción)
 
-Móvil (Moto G Power simulado, 4G lento) y escritorio medidos sobre el paquete compilado; ver `docs/2026-09-15-portada-viva.md` para las cifras vigentes.
+Sobre el paquete compilado servido en local: móvil 88 (LCP observado 0,24 s; TBT 50 ms; CLS 0; accesibilidad 100), escritorio 98. En producción con red real: móvil 76–77, escritorio 89. Detalle y lecturas en `docs/2026-09-15-portada-viva.md`.
