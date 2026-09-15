@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { ShowcaseSection } from "@/modules/landing/sections/ShowcaseSection";
 import { ClosingSignature } from "@/modules/landing/sections/ClosingSignature";
 import { FooterSection } from "@/modules/landing/sections/FooterSection";
-import { HeroSection } from "@/modules/landing/sections/HeroSection";
+import { HeroSection } from "@/modules/landing/portada/hero/HeroSection";
+import { PortadaMotion } from "@/modules/landing/portada/PortadaMotion";
+import { FondoVivo } from "@/modules/landing/portada/FondoVivo";
+import "@/modules/landing/portada/portada.css";
 import { Navbar } from "@/modules/landing/layout/Navbar";
 import {
   DeferredLandingSection,
@@ -28,24 +31,27 @@ const deferredSections: (DeferredLandingSectionId | "casos")[] = [
 export default function Home() {
   return (
     <LandingMotionProvider>
-    <VisualEnhancements />
-    <main className="relative min-h-screen selection:bg-accent-success/30">
-      <Navbar />
+    <PortadaMotion>
+      <FondoVivo />
+      <VisualEnhancements />
+      <main className="portada relative min-h-screen selection:bg-accent-success/30">
+        <Navbar />
 
-      {/* 1. Hero: Impacto — loaded eagerly (LCP critical) */}
-      <HeroSection />
+        {/* 1. Hero: Impacto — loaded eagerly (LCP critical) */}
+        <HeroSection />
 
-      {/* Proyectos en HTML inicial; se difieren las secciones interactivas. */}
-      {deferredSections.map((section) => (
-        section === "casos"
-          ? <ShowcaseSection key={section} />
-          : <DeferredLandingSection key={section} section={section} />
-      ))}
+        {/* Proyectos en HTML inicial; se difieren las secciones interactivas. */}
+        {deferredSections.map((section) => (
+          section === "casos"
+            ? <ShowcaseSection key={section} />
+            : <DeferredLandingSection key={section} section={section} />
+        ))}
 
-      {/* Respaldo para crawlers que no ejecutan JS (GPTBot, ClaudeBot, CCBot...):
-          complementa las secciones interactivas que se cargan tras hidratar. */}
-      <NoScriptLanding />
-    </main>
+        {/* Respaldo para crawlers que no ejecutan JS (GPTBot, ClaudeBot, CCBot...):
+            complementa las secciones interactivas que se cargan tras hidratar. */}
+        <NoScriptLanding />
+      </main>
+    </PortadaMotion>
     <ClosingSignature />
     <FooterSection />
     </LandingMotionProvider>

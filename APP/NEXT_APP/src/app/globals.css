@@ -66,8 +66,10 @@
 
 /* Custom Utilities and Global Styles */
 :root {
-  --font-inter: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  /* --font-inter y --font-mono las define next/font en <html> (src/app/layout.tsx);
+     estos respaldos solo actúan si el <html> no lleva esas variables. */
+  --font-inter-respaldo: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono-respaldo: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 
   /* Primary Gradients */
   --grad-blue-purple: linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%);
@@ -124,13 +126,13 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-inter), sans-serif;
+  font-family: var(--font-inter, var(--font-inter-respaldo)), sans-serif;
 }
 
 code,
 pre,
 .font-mono {
-  font-family: var(--font-mono), monospace;
+  font-family: var(--font-mono, var(--font-mono-respaldo)), monospace;
 }
 
 /* Utilities */

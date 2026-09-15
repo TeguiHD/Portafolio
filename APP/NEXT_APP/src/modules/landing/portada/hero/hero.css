@@ -1,0 +1,33 @@
+/* Hero de la portada: texto LCP a la izquierda, mesa giratoria a la derecha. */
+
+.p-hero { position: relative; min-height: 100svh; display: grid; align-items: center; padding-block: 112px 88px; overflow: hidden; z-index: 1; }
+
+.p-hero-fondo { position: absolute; inset: 0; z-index: 0; pointer-events: none; mask-image: linear-gradient(to bottom, #000 80%, transparent); }
+.p-hero-fondo .a { position: absolute; top: 50%; left: 50%; width: 80vw; height: 80vw; max-width: 1000px; max-height: 1000px; transform: translate(-50%, -50%); background: #2563eb1a; border-radius: 50%; filter: blur(120px); }
+.p-hero-fondo .b { position: absolute; top: 20%; right: 10%; width: 30vw; height: 30vw; max-width: 400px; max-height: 400px; background: #9333ea1a; border-radius: 50%; filter: blur(80px); }
+.p-hero-fondo .g { position: absolute; inset: 0; opacity: 0.03; background-image: linear-gradient(#ffffff1a 1px, transparent 1px), linear-gradient(90deg, #ffffff1a 1px, transparent 1px); background-size: 60px 60px; }
+
+.p-hero-wrap { position: relative; z-index: 1; width: 100%; display: grid; gap: 40px; grid-template-columns: 1fr; align-items: center; }
+@media (min-width: 1024px) { .p-hero-wrap { grid-template-columns: 46fr 54fr; gap: 48px; } }
+
+.p-hero-texto { min-width: 0; }
+.p-insignia {
+  display: inline-flex; align-items: center; gap: 10px; border-radius: 999px; padding: 8px 14px;
+  border: 1px solid #99f6e426; background: #99f6e409; color: #ccfbf1cc; font-size: 12px;
+}
+.p-hero h1 { margin: 26px 0 22px; }
+.p-hero h1 .l1 { display: block; font-size: clamp(2.2rem, 4.4vw, 3.8rem); font-weight: 300; color: #cbd5e1; letter-spacing: -0.02em; line-height: 1; margin-bottom: 8px; }
+.p-hero h1 .l2 { display: block; font-size: clamp(2.6rem, 6vw, 5rem); font-weight: 900; letter-spacing: -0.045em; line-height: 0.95; color: #fff; }
+.p-hero .sub { font-size: 17px; }
+.p-hero-acciones { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+
+.p-hero-escena { position: relative; min-height: 0; }
+
+.p-explorar {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px;
+  font-size: 12px; color: var(--p-mut); text-decoration: none; transition: color 0.2s;
+}
+.p-explorar:hover { color: var(--p-teal); }
+.p-explorar svg { animation: p-flotar 1.8s ease-in-out infinite; }
+@keyframes p-flotar { 50% { transform: translateY(4px); } }

@@ -27,18 +27,17 @@ const SECTION_DEFINITIONS = {
   vault: {
     anchorId: "vault",
     minHeightClass: "min-h-[72vh]",
-    load: async () => (await import("./ForbiddenVaultSection")).ForbiddenVaultSection,
+    load: async () => (await import("../portada/secciones/Mazo")).Mazo,
   },
   tecnologias: {
     anchorId: "tecnologias",
     minHeightClass: "min-h-[66vh]",
-    load: async () => (await import("./TechnologiesSection")).TechnologiesSection,
+    load: async () => (await import("../portada/secciones/Orbita")).Orbita,
   },
   architecture: {
     anchorId: "architecture",
     minHeightClass: "min-h-[62vh]",
-    load: async () =>
-      (await import("./SecurityArchitectureSection")).SecurityArchitectureSection,
+    load: async () => (await import("../portada/secciones/Centinela")).Centinela,
   },
   contact: {
     anchorId: "contact",

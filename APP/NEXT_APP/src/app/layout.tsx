@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { StructuredData } from "@/components/StructuredData";
@@ -7,6 +8,11 @@ import { PWARegister } from "@/modules/finance/components/PWAComponents";
 import { MotionProvider } from "@/components/motion/MotionProvider";
 
 const BASE_URL = "https://nicoholas.dev";
+
+// Fuentes autoalojadas por Next (sin peticiones a Google en tiempo de ejecución,
+// respaldo con métricas ajustadas para evitar saltos de maquetación).
+const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" });
 
 async function bootstrapPulseNotifier() {
   if (process.env.PULSE_PUSH_BOOT !== "true") {
@@ -78,7 +84,7 @@ export default async function RootLayout({
   await bootstrapPulseNotifier();
 
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
         {/* Structured Data for Google Rich Snippets */}
         <StructuredData />

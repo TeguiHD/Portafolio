@@ -9,14 +9,6 @@ const DropCursor = dynamic(() => import("@/components/DropCursor"), {
   ssr: false,
 });
 
-const BackgroundManager = dynamic(
-  () =>
-    import("@/modules/landing/layout/BackgroundManager").then(
-      (mod) => mod.BackgroundManager
-    ),
-  { ssr: false }
-);
-
 type IdleWindow = Window & {
   requestIdleCallback?: (
     callback: IdleRequestCallback,
@@ -35,13 +27,11 @@ export function VisualEnhancements() {
   const { allowed } = useLandingMotion();
   const pathname = usePathname();
   const [isReady, setIsReady] = useState(false);
-  const [showBackground, setShowBackground] = useState(false);
   const [showCursor, setShowCursor] = useState(false);
 
   useEffect(() => {
     if (pathname !== "/" || !allowed) {
       setIsReady(false);
-      setShowBackground(false);
       setShowCursor(false);
       return;
     }
@@ -62,7 +52,6 @@ export function VisualEnhancements() {
 
       const allowAdvancedVisuals = !reducedMotion && !saveData && !lowCpu;
 
-      setShowBackground(allowAdvancedVisuals && desktopLikeViewport);
       setShowCursor(
         allowAdvancedVisuals &&
           desktopLikeViewport &&
@@ -109,10 +98,6 @@ export function VisualEnhancements() {
     return null;
   }
 
-  return (
-    <>
-      {showBackground ? <BackgroundManager /> : null}
-      {showCursor ? <DropCursor /> : null}
-    </>
-  );
+  // El fondo vivo de la portada (FondoVivo) se monta desde PortadaMotion; aquí solo queda el cursor.
+  return showCursor ? <DropCursor /> : null;
 }
