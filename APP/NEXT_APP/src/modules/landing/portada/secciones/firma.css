@@ -1,0 +1,83 @@
+/* Firma de cierre: el nombre hecho de partículas, con su respaldo en texto. */
+
+.p-firma {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  padding-block: clamp(56px, 9vw, 104px);
+  padding-inline: 16px;
+}
+
+.p-firma-caja {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 880px;
+  min-height: 190px;
+}
+
+@media (max-width: 519px) {
+  .p-firma-caja { min-height: 130px; }
+}
+
+/* El mismo nombre en texto: es lo que se lee sin lienzo, con efectos pausados o
+   con un lector de pantalla, y lo que se ve hasta que las partículas están listas. */
+.p-firma-txt {
+  position: absolute;
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 700;
+  font-size: clamp(2rem, 8.6vw, 4.5rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #cbd5e1;
+  transition: opacity 0.35s ease;
+}
+
+.p-firma-lienzo {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.p-firma[data-listo="true"] .p-firma-lienzo { opacity: 1; cursor: crosshair; }
+.p-firma[data-listo="true"] .p-firma-txt { opacity: 0; }
+
+.p-firma-pista {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid #ffffff14;
+  border-radius: 999px;
+  background: #0d121999;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  opacity: 0;
+  transition: opacity 0.45s ease 0.2s;
+}
+
+.p-firma[data-listo="true"] .p-firma-pista { opacity: 1; }
+
+.p-firma-icono { width: 14px; height: 14px; color: #5eead4; }
+
+.p-firma-pista .gruesa { display: none; }
+
+@media (pointer: coarse) {
+  .p-firma-pista .fina { display: none; }
+  .p-firma-pista .gruesa { display: inline; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-firma-txt,
+  .p-firma-lienzo,
+  .p-firma-pista { transition: none; }
+}

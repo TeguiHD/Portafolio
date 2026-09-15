@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Coverflow } from "@/modules/landing/portada/secciones/Coverflow";
-import { ClosingSignature } from "@/modules/landing/sections/ClosingSignature";
+import { Firma } from "@/modules/landing/portada/secciones/Firma";
 import { FooterSection } from "@/modules/landing/sections/FooterSection";
 import { HeroSection } from "@/modules/landing/portada/hero/HeroSection";
 import { PortadaMotion } from "@/modules/landing/portada/PortadaMotion";
@@ -51,8 +51,10 @@ export default function Home() {
             complementa las secciones interactivas que se cargan tras hidratar. */}
         <NoScriptLanding />
       </main>
+
+      {/* Firma de cierre: el nombre en partículas, con física bajo el puntero. */}
+      <Firma />
     </PortadaMotion>
-    <ClosingSignature />
     <FooterSection />
     </LandingMotionProvider>
   );

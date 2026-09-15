@@ -23,7 +23,7 @@ Next.js 16 (App Router, componentes de servidor para el texto crítico, seccione
 6. **Órbita · Una base para crecer.** Doce iconos de tecnologías (Next.js, React, TypeScript, Tailwind, Node.js, PostgreSQL, Docker, AWS, Redis, Python, Git, IA/ML) girando en un anillo 3D sin nombres. Al pasar o pulsar uno, su nombre sube por el centro con el color de la marca y un halo del mismo tono; el anillo se ralentiza mientras hay uno activo y el scroll lo empuja.
 7. **Centinela · La seguridad no es un extra. Es parte del diseño.** Un lanzador con cuatro peticiones (visita normal, inyección SQL, ráfaga de 200 peticiones, sesión caducada) que se teclean como HTTP real; al lanzar, un punto de luz recorre cuatro anillos (Cliente, WAF, Auth, Datos) hasta donde llega y el núcleo (una rejilla de puntos que respira) pasa de «Vigilando» a «Bloqueando» o «Correcto»; el terminal escribe las cabeceras de seguridad reales del sitio o la respuesta 400/429/302. Los anillos se aplastan un poco más al bajar.
 8. **Contacto · Hablemos de tu siguiente nivel.** Texto, chips «Respuesta rápida · Propuesta clara · Sin spam» y el formulario real, sin tarjetas de servicio.
-9. **Firma de cierre** (el nombre se forma en partículas al bajar y termina en constelación) y **pie de página**.
+9. **Firma de cierre.** «nicoholas.dev» escrito con unas mil partículas muestreadas del propio texto en JetBrains Mono. Al llegar a la sección vuelan a su letra desde fuera y se unen con líneas de constelación; el puntero (o el dedo) las repele dentro de un radio de 110 px marcado por un anillo punteado, se encienden en cian al ser empujadas y un muelle amortiguado las devuelve a su sitio; un clic las dispersa entera. Con todo quieto el bucle se apaga y no consume nada. Debajo, **pie de página**.
 
 ## Fondo vivo y profundidades
 
@@ -33,7 +33,7 @@ Un lienzo fijo detrás de todo con partículas en tres planos (0,32 · 0,62 · 1
 
 - **Cursor:** el DropCursor original del sitio, una gota con estela de diez puntos que crece y se vuelve naranja sobre enlaces y botones, solo en escritorio con puntero fino.
 - **Hover:** botones magnéticos (se acercan 6–8 px al puntero) con destello diagonal; tarjetas y paneles con inclinación 3D y brillo que sigue al puntero; iconos del carril que se elevan; satélites que se encienden en su color.
-- **Clic:** onda circular desde el punto pulsado en los botones; giro de cartas; tarjetas del hero que pasan al control manual; presets que lanzan una petición.
+- **Clic:** onda circular desde el punto pulsado en los botones; giro de cartas; tarjetas del hero que pasan al control manual; presets que lanzan una petición; detonación de la firma final.
 - **Scroll:** coreografía de entrada del hero (insignia, titular por máscara línea a línea, botones, mesa que entra inclinándose), revelado de cada cabecera al llegar, giro e inclinación de la mesa, abanico del mazo, fijado y desplazamiento del coverflow, empuje de la órbita, aplastamiento de los anillos, tinte del fondo por sección; scroll suave con Lenis y autoscroll con el botón central del ratón en escritorio.
 
 ## Optimización y accesibilidad
@@ -41,7 +41,7 @@ Un lienzo fijo detrás de todo con partículas en tres planos (0,32 · 0,62 · 1
 - El párrafo del hero es el elemento LCP: se renderiza en el servidor, se pinta desde el primer frame y nunca se anima ni se oculta; el titular y la mesa se retienen como mucho 700 ms para no destellar si la hidratación llega antes.
 - Nada bloquea el render: fuentes autoalojadas con respaldo de métricas iguales (sin salto de maquetación), GSAP y Lenis en sus propios chunks, secciones bajo el pliegue cargadas al acercarse.
 - Tres niveles de movimiento decididos solos: completo; medio en equipos con ≤ 4 núcleos, ≤ 4 GB, pantalla estrecha o puntero grueso (sin Lenis, fondo a 1× y 30 fps con 60 % de partículas, sin giro por scroll); estático con movimiento reducido, ahorro de datos, pestaña oculta o «Pausar efectos» (un botón fijo que persiste entre visitas).
-- La aurora se pinta en un lienzo de 1/8 y se escala; la calidad baja un escalón sola si el frame medio supera 25 ms; las demostraciones paran cuando su sección sale de pantalla; nada anima con la pestaña oculta.
+- La aurora se pinta en un lienzo de 1/8 y se escala; la calidad baja un escalón sola si el frame medio supera 25 ms; las demostraciones paran cuando su sección sale de pantalla; la firma final duerme su bucle en cuanto las partículas se asientan y despierta con el puntero; nada anima con la pestaña oculta.
 - Un solo h1, jerarquía h2 → h3, todo interactivo es enlace o botón con nombre, objetivos táctiles de 44 px, tarjetas laterales de la mesa inertes y ocultas al lector de pantalla, estados en `aria-pressed`, `aria-current` y `role="status"`, contraste mínimo 4,5:1, sin desbordamiento horizontal desde 320 px, y la página se lee completa sin JavaScript (proyectos con imágenes, lista de tecnologías, pie).
 - Sin cifras comerciales sin fuente, sin texto de «IA», sin notas explicativas: solo el texto real del sitio.
 

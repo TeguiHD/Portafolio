@@ -507,22 +507,10 @@ body:has(.landing-experience) {
   opacity: 1;
   transform: none;
 }
-.closing-signature canvas { opacity: 0; }
-.closing-signature[data-scene-ready="true"] canvas { opacity: 1; }
-.closing-signature[data-scene-ready="true"] .closing-signature-fallback { visibility: hidden; }
-.landing-experience[data-motion-restricted="true"] .closing-scene { height: auto; padding-block: 2rem; }
-.landing-experience[data-motion-restricted="true"] .closing-scene > div { position: relative; top: auto; }
-.landing-experience[data-motion-restricted="true"] .closing-signature { height: 18rem; }
 @media (prefers-reduced-motion: reduce) {
   .landing-experience *, .landing-experience *::before, .landing-experience *::after {
     animation: none !important;
     transition-duration: 0s !important;
     scroll-behavior: auto !important;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .closing-scene { height: auto; padding-block: 2rem; }
-  .closing-scene > div { position: relative; top: auto; }
-  .closing-signature { height: 18rem; }
 }

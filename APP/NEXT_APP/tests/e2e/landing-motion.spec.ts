@@ -8,20 +8,12 @@ async function home(page: Page) {
   await expect(page.getByRole("link", { name: "Usar herramientas", exact: true })).toBeVisible();
 }
 
-/** Espejo de FRACCION_RECORRIDO en ClosingSignature.tsx: la coreografia termina
- *  antes de que el panel se despegue, para que la constelacion final se vea
- *  completa antes del footer. Si cambia alli, cambia aqui. */
-const FRACCION_RECORRIDO = 0.68;
-
-async function closing(page: Page, progress: number) {
+/** Deja la firma de cierre a la vista, con las secciones diferidas ya cargadas. */
+async function cierre(page: Page) {
   for (const id of ["tools-belt", "vault", "tecnologias", "architecture", "contact"]) {
     await irASeccion(page, id);
   }
-  await page.evaluate(value => {
-    const section = document.querySelector("#closing-signature")!;
-    const top = scrollY + section.getBoundingClientRect().top - innerHeight * 0.8 + value.progress * (section.clientHeight + innerHeight * 0.2) * value.fraccion;
-    window.scrollTo({ top, behavior: "instant" });
-  }, { progress, fraccion: FRACCION_RECORRIDO });
+  await page.locator("#closing-signature").evaluate(element => element.scrollIntoView({ block: "center", behavior: "instant" }));
 }
 
 test("el hero pinta su párrafo desde el primer frame y el cierre queda sin textos añadidos", async ({ page }) => {
@@ -31,78 +23,63 @@ test("el hero pinta su párrafo desde el primer frame y el cierre queda sin text
   await expect(parrafo).toHaveCSS("visibility", "visible");
   await expect(parrafo).toHaveCSS("opacity", "1");
   await expect(page.locator("[data-instrumento]")).toHaveCount(4);
-  const closingSection = page.locator("#closing-signature");
-  await expect(closingSection).not.toContainText("Ideas en movimiento");
-  await expect(closingSection).not.toContainText("Forma. Código. Producto.");
-  await expect(closingSection).not.toContainText("Cada idea encuentra su forma");
+  const firma = page.locator("#closing-signature");
+  await expect(firma).not.toContainText("Ideas en movimiento");
+  await expect(firma).not.toContainText("Forma. Código. Producto.");
+  await expect(firma).not.toContainText("Cada idea encuentra su forma");
 });
 
-test("el nombre se forma, se completa en constelación y solo después llega el footer", async ({ page }) => {
+test("la pausa persiste, conserva el texto y libera el lienzo de la firma fuera de pantalla", async ({ page }) => {
   await home(page);
-  const canvas = page.locator(".closing-signature canvas");
-  await expect(canvas).toHaveAttribute("data-state", "static");
-  await closing(page, 0.12);
-  await expect(canvas).toHaveAttribute("data-state", "forming");
-  await closing(page, 0.545);
-  await expect(canvas).toHaveAttribute("data-state", "signature");
-  await expect(page.locator(".closing-signature")).toBeInViewport();
-  const progress = await canvas.getAttribute("data-progress");
-  await page.waitForTimeout(400);
-  await expect(canvas).toHaveAttribute("data-progress", progress!);
-  await closing(page, 1);
-  await expect(canvas).toHaveAttribute("data-state", "constellation");
-  await expect(page.locator(".closing-signature")).toBeInViewport({ ratio: 0.9 });
-  await expect(page.locator("footer")).not.toBeInViewport();
-  await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
-  await expect(page.locator("footer")).toBeInViewport();
-  await expect(canvas).toHaveAttribute("data-state", "constellation");
-  expect(await page.locator("footer").evaluate(element => Math.abs(element.getBoundingClientRect().bottom - innerHeight))).toBeLessThanOrEqual(1);
-});
-
-test("la pausa persiste, conserva el texto y libera el canvas fuera de pantalla", async ({ page }) => {
-  await home(page);
-  await closing(page, 0.545);
-  const canvas = page.locator(".closing-signature canvas");
-  await expect(canvas).toHaveAttribute("data-state", "signature");
+  await cierre(page);
+  const firma = page.locator("#closing-signature");
+  await expect(firma).toHaveAttribute("data-listo", "true", { timeout: 20_000 });
   await page.getByRole("button", { name: "Pausar efectos" }).click();
-  await expect(canvas).toHaveAttribute("data-state", "paused");
+  await expect(firma).toHaveAttribute("data-estado", "pausado");
+  await expect(firma).toHaveAttribute("data-listo", "false");
+  await expect(firma.locator(".p-firma-txt")).toBeVisible();
+  expect(await firma.locator("canvas").evaluate((element: HTMLCanvasElement) => element.width)).toBe(1);
   await expect(page.locator("[data-landing-background]")).toHaveCount(0);
   await expect(page.locator('[data-motion-active="true"]')).toHaveCount(0);
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Activar efectos" })).toBeVisible();
   await page.getByRole("button", { name: "Activar efectos" }).click();
   expect(await page.locator("[data-hero-content]").evaluate(element => [...element.querySelectorAll("*")].every(node => getComputedStyle(node).opacity === "1"))).toBe(true);
-  await closing(page, 0.545);
-  await expect(canvas).toHaveAttribute("data-state", "signature");
+  await cierre(page);
+  await expect(firma).toHaveAttribute("data-listo", "true", { timeout: 20_000 });
   await page.locator("#casos").scrollIntoViewIfNeeded();
-  await expect(canvas).toHaveAttribute("data-state", "paused");
-  expect(await canvas.evaluate((element: HTMLCanvasElement) => element.width)).toBe(1);
+  await expect(firma).toHaveAttribute("data-estado", "pausado");
+  expect(await firma.locator("canvas").evaluate((element: HTMLCanvasElement) => element.width)).toBe(1);
 });
 
-test("movimiento reducido y ahorro de datos evitan cargar la escena", async ({ page }) => {
+test("movimiento reducido y ahorro de datos dejan la firma en texto", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await home(page);
+  const firma = page.locator("#closing-signature");
   await expect(page.locator("[data-landing-background]")).toHaveCount(0);
-  await page.locator("#closing-signature").scrollIntoViewIfNeeded();
-  await expect(page.locator(".closing-signature canvas")).toHaveAttribute("data-state", "static");
+  await firma.scrollIntoViewIfNeeded();
+  await expect(firma).toHaveAttribute("data-listo", "false");
+  await expect(firma.locator(".p-firma-txt")).toBeVisible();
   await expect(page.getByRole("button", { name: "Pausar efectos" })).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await closing(page, 0.545);
-  await expect(page.locator(".closing-signature canvas")).toHaveAttribute("data-state", "signature");
+  await cierre(page);
+  await expect(firma).toHaveAttribute("data-listo", "true", { timeout: 20_000 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(page.locator(".closing-signature canvas")).toHaveAttribute("data-state", "paused");
+  await expect(firma).toHaveAttribute("data-estado", "pausado");
   await page.addInitScript(() => Object.defineProperty(navigator, "connection", { value: { saveData: true, addEventListener() {}, removeEventListener() {} }, configurable: true }));
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await home(page);
-  await closing(page, 0.545);
-  await expect(page.locator(".closing-signature canvas")).toHaveAttribute("data-state", "static");
+  await cierre(page);
+  await expect(firma).toHaveAttribute("data-listo", "false");
+  await expect(firma.locator(".p-firma-txt")).toBeVisible();
 });
 
-test("un canvas no disponible mantiene el cierre y la navegación", async ({ page }) => {
+test("un lienzo no disponible mantiene el nombre y la navegación", async ({ page }) => {
   await page.addInitScript(() => { HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext; });
   await home(page);
-  await closing(page, 0.545);
-  await expect(page.locator(".closing-signature-fallback")).toBeVisible();
+  await cierre(page);
+  await expect(page.locator("#closing-signature")).toHaveAttribute("data-estado", "sin-lienzo");
+  await expect(page.locator(".p-firma-txt")).toBeVisible();
   await page.locator("footer").getByRole("link", { name: "Proyectos", exact: true }).click();
   await expect(page).toHaveURL(/#casos$/);
 });
