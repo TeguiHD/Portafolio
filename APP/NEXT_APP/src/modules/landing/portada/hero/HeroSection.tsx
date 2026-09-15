@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUpRight, Code2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { EntradaHero } from "../EntradaHero";
+import { MesaGiratoria } from "./MesaGiratoria";
 import "./hero.css";
 
 /**
@@ -8,7 +9,7 @@ import "./hero.css";
  *
  * El texto (insignia, h1, párrafo, CTA) se renderiza en el servidor: el párrafo es
  * el elemento LCP y nunca se anima ni se retiene. La mesa giratoria (cliente)
- * se monta a la derecha; hasta la tarea 2 del plan el escenario queda vacío.
+ * se monta a la derecha con los cuatro instrumentos reales.
  */
 export function HeroSection() {
   return (
@@ -44,7 +45,9 @@ export function HeroSection() {
             </Link>
           </div>
         </div>
-        <div className="p-hero-escena" />
+        <div className="p-hero-escena">
+          <MesaGiratoria />
+        </div>
       </div>
       <a href="#tools-belt" className="p-explorar">
         Explorar <ArrowDown size={14} aria-hidden="true" />

@@ -24,6 +24,13 @@
 .portada h1, .portada h2, .portada h3 { margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
 .portada p { margin: 0; }
 
+/* Reglas que Lenis espera en el documento (equivalente a lenis.css): sin ellas, el
+   scroll-behavior: smooth del sitio compite con el scroll suave y con el autoscroll. */
+html.lenis, html.lenis body { height: auto; }
+html.lenis { scroll-behavior: auto !important; }
+html.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
+html.lenis.lenis-stopped { overflow: hidden; }
+
 .p-fondo { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 
 .p-progreso {

@@ -1,0 +1,51 @@
+import { test, expect } from "@playwright/test";
+
+test("la mesa giratoria muestra un instrumento al frente y cambia al pulsar un punto", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
+  await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveCount(1);
+  await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveAttribute("data-instrumento", "quitar-fondo");
+  await expect(page.locator(".p-instrumento-pos:not([inert])")).toHaveCount(1);
+  await page.getByRole("tab", { name: "Extractor de paleta" }).click();
+  await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveAttribute("data-instrumento", "paleta");
+  await expect(page.locator(".p-instrumento-pos:not([inert])")).toHaveCount(1);
+  // el párrafo LCP nunca se retiene ni se anima
+  const parrafo = page.locator("#hero p").first();
+  await expect(parrafo).toHaveCSS("visibility", "visible");
+  await expect(parrafo).toHaveCSS("opacity", "1");
+  await expect(page.getByRole("link", { name: "Usar herramientas", exact: true })).toBeVisible();
+});
+
+test("las demostraciones paran cuando el hero sale de pantalla y al pausar", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await expect(page.locator("[data-frente='true']")).toHaveAttribute("data-motion-active", "true");
+  // #contact existe en el HTML del servidor (esqueleto diferido): queda muy por debajo del hero
+  await page.evaluate(() => document.getElementById("contact")!.scrollIntoView({ block: "start" }));
+  await page.waitForFunction(() => window.scrollY > 1500);
+  await expect(page.locator('[data-motion-active="true"][data-frente]')).toHaveCount(0, { timeout: 10_000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForFunction(() => window.scrollY < 50);
+  await expect(page.locator("[data-frente='true']")).toHaveAttribute("data-motion-active", "true", { timeout: 10_000 });
+  await page.getByRole("button", { name: "Pausar efectos" }).click();
+  await expect(page.locator('[data-motion-active="true"][data-frente]')).toHaveCount(0);
+});
+
+test("el instrumento del frente responde al usuario: el recorte cambia de proporción", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Recortar imagen" }).click();
+  const recortar = page.locator("[data-instrumento='recortar']");
+  await expect(recortar).toBeVisible();
+  await recortar.getByRole("button", { name: "16:9" }).click();
+  await expect(recortar.getByRole("button", { name: "16:9" })).toHaveAttribute("aria-pressed", "true");
+  await expect(recortar.locator(".mesa-cabecera-nombre .detalle")).toContainText("×");
+});
+
+test("a 390 px la mesa cabe sin desbordar", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

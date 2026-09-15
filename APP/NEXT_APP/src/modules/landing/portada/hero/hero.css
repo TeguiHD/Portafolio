@@ -1,3 +1,6 @@
+@import "../../../../app/herramientas/tools.css";
+@import "../../../../components/tools/mesa/mesa.css";
+
 /* Hero de la portada: texto LCP a la izquierda, mesa giratoria a la derecha. */
 
 .p-hero { position: relative; min-height: 100svh; display: grid; align-items: center; padding-block: 112px 88px; overflow: hidden; z-index: 1; }
@@ -31,3 +34,114 @@
 .p-explorar:hover { color: var(--p-teal); }
 .p-explorar svg { animation: p-flotar 1.8s ease-in-out infinite; }
 @keyframes p-flotar { 50% { transform: translateY(4px); } }
+
+/* ── Mesa giratoria V1 (tocadiscos) ── */
+
+/* La tarjeta del frente se ve un 17 % mayor por la perspectiva (z 220 / 1500): la caja deja sitio a los puntos. */
+.p-mesa { position: relative; height: 660px; }
+@media (max-width: 1023px) { .p-mesa { height: 580px; } }
+.p-mesa-3d { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 52% 45%; }
+.p-mesa-giro { position: absolute; inset: 0; transform-style: preserve-3d; }
+.p-instrumento-pos {
+  position: absolute; left: 50%; top: 50%; width: min(540px, 84vw); height: 450px;
+  margin: -225px 0 0 calc(min(540px, 84vw) / -2);
+  transform-style: preserve-3d; backface-visibility: hidden; will-change: transform, opacity;
+}
+.p-instrumento-pos[data-frente="false"] { pointer-events: none; }
+.p-instrumento { height: 100%; }
+.p-instrumento .studio-panel { height: 100%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 50px 90px -50px #000, 0 0 0 1px #ffffff0a; transition: box-shadow 0.5s var(--p-ease); }
+.p-instrumento-pos[data-frente="true"] .studio-panel { box-shadow: 0 60px 100px -50px #000, 0 0 0 1px #ffffff14, 0 0 80px -40px color-mix(in srgb, var(--mesa-acento, #5eead4) 60%, transparent); }
+.p-instrumento .mesa-cuerpo { flex: 1; min-height: 0; }
+.p-instrumento .mesa-columna { display: flex; flex-direction: column; min-height: 0; }
+.p-instrumento .mesa-escenario { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+.p-instrumento .mesa-cabecera { padding: 10px 14px; }
+.p-instrumento .mesa-pasos { padding: 10px 14px 24px; }
+.p-instrumento .mesa-nodo { width: 38px; height: 38px; }
+.p-instrumento .mesa-nodo-ring { width: 40px; height: 40px; }
+.p-instrumento .mesa-pie { min-height: 40px; padding: 6px 14px; gap: 8px 14px; }
+.p-instrumento .mesa-chip { min-height: 26px; padding: 0 8px; font-size: 11px; }
+.p-instrumento .mesa-cuerpo { grid-template-columns: minmax(0, 1fr) 56px; }
+.p-instrumento .mesa-rail { flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; padding: 10px 6px; border-top: 0; border-left: 1px solid var(--mesa-linea); }
+.p-instrumento .mesa-sep { width: 22px; height: 1px; }
+.p-instrumento .mesa-seg { flex-direction: column; }
+.p-instrumento .mesa-seg .mesa-ib { width: 36px; height: 36px; }
+.p-instrumento .mesa-ib[data-tip]::after { left: auto; right: calc(100% + 10px); bottom: auto; top: 50%; transform: translate(4px, -50%); }
+.p-instrumento .mesa-ib[data-tip]:hover::after, .p-instrumento .mesa-ib[data-tip]:focus-visible::after { transform: translate(0, -50%); }
+.p-instrumento .studio-button { min-height: 36px; padding: 6px 12px; font-size: 12px; }
+.p-instrumento .studio-icon-button { min-width: 36px; min-height: 36px; }
+.p-instrumento .mesa-cabecera-nombre .nombre { font-size: 12px; }
+@media (max-width: 767px) {
+  .p-instrumento-pos { height: 430px; margin-top: -215px; }
+  .p-instrumento .mesa-cuerpo { grid-template-columns: minmax(0, 1fr); }
+  .p-instrumento .mesa-rail { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 6px; border-top: 1px solid var(--mesa-linea); border-left: 0; }
+  .p-instrumento .mesa-seg { flex-direction: row; }
+  .p-instrumento .mesa-sep { width: 1px; height: 22px; }
+  .p-instrumento .mesa-ib[data-tip]::after { display: none; }
+}
+
+/* quitar fondo */
+.p-qf-lienzo { touch-action: none; width: min(100%, 360px); aspect-ratio: 4 / 3; }
+.p-qf-lienzo canvas { display: block; width: 100%; height: 100%; cursor: none; }
+.p-fantasma { transition: left 0.12s linear, top 0.12s linear; }
+
+/* recortar */
+.p-rec-marco { position: relative; margin-inline: auto; width: min(100%, 380px); aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; touch-action: none; user-select: none; }
+.p-rec-marco canvas { display: block; width: 100%; height: 100%; }
+.p-rec-caja { position: absolute; border: 1.5px solid #fff; box-shadow: 0 0 0 9999px #07090f8c; cursor: grab; }
+.p-rec-caja:active { cursor: grabbing; }
+.p-rec-caja[data-cuadricula="true"]::before { content: ""; position: absolute; inset: 0; background: linear-gradient(#ffffff2e 1px, transparent 1px) 0 33.3% / 100% 33.3%, linear-gradient(90deg, #ffffff2e 1px, transparent 1px) 33.3% 0 / 33.3% 100%; }
+
+/* paleta */
+.p-pal-img { display: block; margin-inline: auto; width: min(100%, 380px); aspect-ratio: 16 / 9; border-radius: 10px; }
+.p-franja { display: grid; }
+.p-franja button { position: relative; height: 56px; border: 0; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding: 5px; transform-origin: bottom; transition: filter 0.15s, transform 0.2s var(--p-ease); }
+.p-franja button:hover { filter: brightness(1.12); transform: translateY(-4px); }
+.p-franja button > span:last-child { font-family: var(--font-mono, ui-monospace), monospace; font-size: 9px; padding: 2px 5px; border-radius: 4px; background: #000000a6; color: #fff; }
+.p-franja button .ok { position: absolute; left: 50%; top: 7px; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: #000000a6; display: none; place-items: center; }
+.p-franja button[aria-pressed="true"] .ok { display: grid; }
+.p-franja button .ok svg { width: 11px; height: 11px; fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.p-franja button.copiado::after { content: "copiado"; position: absolute; inset: 0; display: grid; place-items: center; background: #04211de6; color: var(--p-teal); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; animation: p-aparecer 0.2s ease-out; }
+@keyframes p-aparecer { from { opacity: 0; } }
+
+/* QR */
+.p-qr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 12px; height: 100%; padding: 12px; }
+@media (max-width: 767px) { .p-qr-grid { grid-template-columns: minmax(0, 1fr); } }
+.p-qr-columna { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.p-qr-card { border: 1px solid var(--p-linea); border-radius: 12px; background: #0d1219; overflow: hidden; }
+.p-qr-card .t { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--p-linea); font-size: 12.5px; font-weight: 600; }
+.p-qr-card .t svg { width: 15px; height: 15px; color: var(--p-teal); }
+.p-qr-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px 0; }
+.p-qr-tabs .p-chip { min-height: 30px; font-size: 11.5px; }
+.p-qr-card label { display: block; padding: 10px 12px 4px; font-size: 11px; color: var(--p-mut); }
+.p-qr-card input { width: calc(100% - 24px); margin: 0 12px 12px; min-height: 38px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--p-linea2); background: #0a111b; color: var(--p-txt); font-size: 13px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+.p-qr-card input:focus { border-color: var(--p-teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--p-teal) 18%, transparent); }
+.p-qr-estilos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 10px 12px 12px; }
+.p-qr-estilo { border: 1px solid var(--p-linea); border-radius: 9px; background: #111923; padding: 6px; cursor: pointer; text-align: center; font-size: 10.5px; color: var(--p-mut); transition: border-color 0.15s, transform 0.15s; }
+.p-qr-estilo:hover { transform: translateY(-2px); }
+.p-qr-estilo[aria-pressed="true"] { border-color: var(--p-teal); color: var(--p-txt); }
+.p-qr-estilo i { display: block; height: 30px; border-radius: 6px; margin-bottom: 5px; background: var(--fondoqr); position: relative; }
+.p-qr-estilo i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%); border-radius: 3px; background: var(--tinta); box-shadow: -6px -6px 0 -4px var(--tinta), 6px 6px 0 -4px var(--tinta), 6px -6px 0 -4px var(--tinta); }
+.p-qr-preview { border: 1px solid var(--p-linea); border-radius: 12px; background: #0d1219; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.p-qr-preview b { font-size: 12.5px; }
+.p-qr-preview small { font-size: 10.5px; color: var(--p-teal); display: flex; gap: 5px; align-items: center; }
+.p-qr-preview small svg { width: 12px; height: 12px; }
+.p-qr-lienzo { border-radius: 10px; background: var(--fondoqr, #fff); padding: 8px; aspect-ratio: 1; transition: background 0.3s; }
+.p-qr-lienzo svg { width: 100%; height: 100%; display: block; }
+.p-qr-modulo { transform-box: fill-box; transform-origin: center; animation: p-pop 0.45s var(--p-ease-out) both; }
+@keyframes p-pop { from { transform: scale(0); opacity: 0; } }
+.p-qr-error { font-size: 10px; color: #333; padding: 8px; }
+.p-qr-preview .studio-button { min-height: 36px; font-size: 11.5px; }
+
+/* puntos de la mesa */
+.p-puntos { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; gap: 8px; z-index: 5; }
+.p-puntos button {
+  min-width: 36px; height: 36px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--p-linea2);
+  background: #0d1219ee; color: var(--p-mut); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.p-puntos button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.p-puntos button .lbl { max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; font-size: 11.5px; font-weight: 600; transition: max-width 0.45s var(--p-ease), opacity 0.3s, margin 0.45s var(--p-ease); }
+.p-puntos button[aria-current="true"] { border-color: var(--p-teal); color: var(--p-teal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--p-teal) 15%, transparent); }
+.p-puntos button[aria-current="true"] .lbl { max-width: 160px; opacity: 1; margin-left: 7px; }
+.p-puntos button:hover { color: #fff; transform: translateY(-2px); }
+.p-puntos button:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 3px; }
