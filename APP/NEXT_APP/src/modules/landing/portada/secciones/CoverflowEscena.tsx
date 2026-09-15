@@ -19,6 +19,8 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
   const cab = useRevelar<HTMLDivElement>();
   const escena = useRef<HTMLDivElement>(null);
   const trigger = useRef<ScrollTrigger | null>(null);
+  const lenisRef = useRef(lenis);
+  lenisRef.current = lenis;
   const [activo, setActivo] = useState(0);
   const fijado = nivel !== "estatico";
 
@@ -41,6 +43,7 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
       return;
     }
     colocar(0);
+    const antes = document.getElementById("tecnologias")?.getBoundingClientRect().top ?? 0;
     const st = ScrollTrigger.create({
       trigger: ".p-cover-pin",
       start: "top top",
@@ -50,10 +53,26 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
       onUpdate: (self) => colocar(self.progress * (casos.length - 1)),
     });
     trigger.current = st;
+    // El fijado inserta el recorrido por encima de lo que sigue: si el usuario ya
+    // había pasado esta sección (p. ej. llegó por /#contact), se compensa lo que
+    // se movió, medido en el DOM, para que no cambie de sitio. La limpieza
+    // deshace la compensación con la misma medida.
+    const siguiente = document.getElementById("tecnologias");
+    const desplazar = (delta: number) => {
+      if (Math.abs(delta) < 2) return;
+      const l = lenisRef.current;
+      if (l) l.scrollTo(window.scrollY + delta, { immediate: true, force: true });
+      else window.scrollBy(0, delta);
+      ScrollTrigger.update();
+    };
+    if (siguiente && window.scrollY > st.start + 10) desplazar(siguiente.getBoundingClientRect().top - antes);
     return () => {
+      const previo = siguiente ? siguiente.getBoundingClientRect().top : 0;
+      const habiaPasado = window.scrollY > st.start + 10;
       st.kill();
       trigger.current = null;
       paneles().forEach((el) => gsap.set(el, { clearProps: "all" }));
+      if (siguiente && habiaPasado) desplazar(siguiente.getBoundingClientRect().top - previo);
     };
   }, [listo, fijado, colocar, paneles, casos.length]);
 
@@ -64,7 +83,8 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
       return;
     }
     const y = st.start + ((st.end - st.start) * i) / (casos.length - 1);
-    if (lenis) lenis.scrollTo(y);
+    const l = lenisRef.current;
+    if (l) l.scrollTo(y);
     else window.scrollTo({ top: y, behavior: "smooth" });
   }
 
