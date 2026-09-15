@@ -13,9 +13,9 @@ export function revelarCabecera(cab: HTMLElement): gsap.core.Timeline {
     scrollTrigger: { trigger: cab, start: "top 82%", once: true },
     defaults: { ease: "power3.out" },
   });
-  const eyebrow = cab.querySelectorAll(".eyebrow");
+  const eyebrow = cab.querySelectorAll('.eyebrow, [data-revela="eyebrow"]');
   const lineas = cab.querySelectorAll(".ln > span");
-  const sub = cab.querySelectorAll(".sub");
+  const sub = cab.querySelectorAll('.sub, [data-revela="sub"]');
   if (eyebrow.length) tl.from(eyebrow, { y: 12, opacity: 0, duration: 0.5 });
   if (lineas.length) tl.from(lineas, { yPercent: 110, duration: 0.9, stagger: 0.1 }, "-=.3");
   if (sub.length) tl.from(sub, { y: 14, opacity: 0, duration: 0.6 }, "-=.5");
@@ -34,7 +34,7 @@ export function useRevelar<T extends HTMLElement = HTMLDivElement>(): RefObject<
     return () => {
       tl.scrollTrigger?.kill();
       tl.kill();
-      gsap.set(el.querySelectorAll(".eyebrow, .ln > span, .sub"), { clearProps: "all" });
+      gsap.set(el.querySelectorAll('.eyebrow, [data-revela="eyebrow"], .ln > span, .sub, [data-revela="sub"]'), { clearProps: "all" });
     };
   }, [nivel, listo]);
 

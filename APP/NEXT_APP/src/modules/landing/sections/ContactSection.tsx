@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, CheckCircle2, Send, ShieldCheck, Zap } from "lucide-react";
+import { AlertCircle, CheckCircle2, Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 type FormStatus = "idle" | "sending" | "success" | "error";
@@ -222,35 +222,6 @@ export function ContactSection() {
               </div>
             </div>
 
-            <div className="mt-10 space-y-6">
-              <div className="glass-panel rounded-2xl border border-accent-1/20 bg-white/5 p-5">
-                <div className="flex gap-4 items-start">
-                  <div className="w-11 h-11 rounded-2xl bg-accent-1/10 border border-accent-1/20 flex items-center justify-center shrink-0">
-                    <Zap className="w-5 h-5 text-accent-1" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-semibold text-base">Velocidad de ejecución</h4>
-                    <p className="text-sm text-neutral-300 mt-1 leading-relaxed">
-                      Del concepto al despliegue con entregas iterativas, sin sacrificar calidad.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-panel rounded-2xl border border-accent-2/20 bg-white/5 p-5">
-                <div className="flex gap-4 items-start">
-                  <div className="w-11 h-11 rounded-2xl bg-accent-2/10 border border-accent-2/20 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-5 h-5 text-accent-2" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-semibold text-base">Calidad industrial</h4>
-                    <p className="text-sm text-neutral-300 mt-1 leading-relaxed">
-                      Seguridad, tipos estrictos y arquitectura escalable desde el día uno.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </motion.div>
 
           {/* Right Column: Premium Form */}

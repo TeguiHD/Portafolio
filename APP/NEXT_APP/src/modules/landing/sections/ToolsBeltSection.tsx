@@ -9,6 +9,8 @@ import {
 import { TOOL_COUNT } from "@/lib/tool-count";
 import { useMotionActivity } from "../motion/LandingMotionProvider";
 import { PlantPreview } from "../components/PlantPreview";
+import { useRevelar } from "../portada/revelar";
+import { onda, useInclinar, useMagnetico } from "../portada/interaccion";
 import styles from "./ToolsBeltSection.module.css";
 
 const quickTools = [
@@ -22,6 +24,11 @@ const quickTools = [
 export function ToolsBeltSection() {
   const { ref, active } = useMotionActivity<HTMLElement>();
   const previewRef = useRef<HTMLDivElement>(null);
+  const cabecera = useRevelar<HTMLDivElement>();
+  const tarjetaFondo = useRef<HTMLElement>(null);
+  const cta = useRef<HTMLAnchorElement>(null);
+  useInclinar(tarjetaFondo, 5);
+  useMagnetico(cta, 6);
   const [comparison, setComparison] = useState(50);
   const [interacted, setInteracted] = useState(false);
 
@@ -53,21 +60,25 @@ export function ToolsBeltSection() {
   return (
     <section ref={ref} id="tools-belt" data-motion-active={active} aria-labelledby="tools-heading" className={styles.section}>
       <div className={styles.container}>
-        <div className={styles.heading}>
+        <div ref={cabecera} className={styles.heading}>
           <div>
-            <div className={styles.eyebrow}><span aria-hidden="true" /> Tu próxima idea empieza aquí</div>
-            <h2 id="tools-heading">Menos pasos.<br /><span>Más hecho.</span></h2>
-            <p>Herramientas gratuitas para crear, editar y resolver.</p>
+            <div className={styles.eyebrow} data-revela="eyebrow"><span aria-hidden="true" /> {TOOL_COUNT} herramientas · sin registro</div>
+            <h2 id="tools-heading">
+              <span className="ln"><span>Las herramientas que uso a diario.</span></span>
+              <span className="ln"><span className={styles.t2}>Úsalas tú también.</span></span>
+            </h2>
+            <p data-revela="sub">Quita el fondo de una foto, recorta, genera un QR o limpia un JSON: rápido, en tu navegador y sin cuenta.</p>
           </div>
-          <Link href="/herramientas" prefetch={false} className={styles.allTools}>
+          <Link ref={cta} href="/herramientas" prefetch={false} className={styles.allTools} data-magnetic onPointerDown={onda}>
             <span className={styles.count}>{TOOL_COUNT}</span>
-            Ver herramientas
+            Explorar herramientas
             <ArrowUpRight size={18} aria-hidden="true" />
           </Link>
         </div>
 
         <div className={styles.featureGrid}>
-          <article className={`${styles.card} ${styles.backgroundCard}`}>
+          <article ref={tarjetaFondo} className={`${styles.card} ${styles.backgroundCard}`}>
+            <span className="p-brillo" aria-hidden="true" />
             <div className={styles.cardHeader}>
               <span className={styles.toolIcon}><Layers2 size={20} aria-hidden="true" /></span>
               <span className={styles.tag}>Imagen · IA</span>
