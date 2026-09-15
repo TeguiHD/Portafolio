@@ -49,8 +49,28 @@ La página principal de nicoholas.dev pasa del diseño de secciones estáticas a
 - Lighthouse 12 contra producción (red real desde Chile): móvil 77 y 76 (LCP simulado 5,1–5,3 s, observado 0,7–1,3 s; FCP 2,3 s; TBT 135 ms; CLS 0), escritorio 89 (LCP 1,7 s; TBT 6 ms). Antes del cambio: móvil 84 (LCP 2,7 s), escritorio 85 (LCP 2,0 s). Accesibilidad 100 en ambos; buenas prácticas 74–75 por avisos heredados (script de Cloudflare bloqueado por la CSP, política de permisos, deprecaciones), iguales a los de antes.
 - Vuelta atrás, si hiciera falta: `docker tag portfolio_web:rollback-20260915-1540 portfolio_web:latest && cd ~/portfolio/DOCKER && docker compose --env-file .env up -d --no-deps web`.
 
+## Segundo despliegue: la firma interactiva (15 de septiembre de 2026, 19:01 America/Santiago)
+
+- Commit `1cfc260`, `BUILD_ID mV4dVkrxsbjMqf9O_EXde`, compilado en el mismo worktree limpio y verificado antes de subir: las pruebas de la firma y de la base pasan contra el paquete compilado servido en local.
+- Mismo camino que la vez anterior: imagen previa guardada como `portfolio_web:rollback-20260915-1901`, paquete extraído en `~/portfolio`, imagen reconstruida con `Dockerfile.prod` y solo el contenedor `web` recreado. `sicove.cl` y `asistencia.nicoholas.dev` en 200 durante y después; nginx, bases de datos y Redis intactos.
+- Comprobación en producción: el `BUILD_ID` nuevo sirve sus assets y el anterior ya no; contenedor con 68 MB y cero reinicios; escritorio en nivel completo con la firma de 1087 partículas que se asienta, reacciona al puntero y se dispersa al clic; móvil con 540 partículas, sin desbordamiento y sin atrapar el scroll; sin errores de JavaScript ni respuestas 4xx/5xx propias.
+- Vuelta atrás: `docker tag portfolio_web:rollback-20260915-1901 portfolio_web:latest && cd ~/portfolio/DOCKER && docker compose --env-file .env up -d --no-deps web`.
+
+### Lo que enseñó la medición posterior
+
+Lighthouse en escritorio dio 81–83 (antes, en una sola pasada, 89). El desglose descarta la firma y apunta al fondo vivo:
+
+| Escritorio | SI simulado | SI observado | Último cambio visual | LCP observado |
+|---|---|---|---|---|
+| Antes (1 pasada) | 1,9 s | 1,1 s | 4,8 s | 1,3 s |
+| Ahora (3 pasadas) | 6,7–9,0 s | 1,4 s | 9,3–9,5 s | 1,5 s |
+| Ahora, con movimiento reducido | 1,3 s | 0,9 s | 1,2 s | — |
+
+El Speed Index simulado depende de cuánto tiempo sigue cambiando la imagen, y lo que cambia es el fondo de partículas: con `prefers-reduced-motion` la misma página puntúa 91. La firma no participa: con la página quieta arriba del todo diez segundos, su sección sigue en `data-estado="pausado"` y su lienzo sin dimensionar. Las métricas de pintado no se movieron (FCP 0,8 s, LCP 1,7 s simulado, TBT 0–10 ms, CLS 0,008) y el móvil quedó igual (74–78 frente a 76–77), porque allí el fondo espera a la primera interacción.
+
 ## Pendiente y recomendaciones
 
 - **LCP simulado en móvil**: el paquete inicial (React, runtime de Next, framer-motion por `template.tsx` y `MotionProvider`, dos fuentes) pesa 271 KB comprimidos más 88 KB de fuentes; Lighthouse lo imputa entero al LCP aunque el párrafo se pinte a los 0,3 s. Dos mejoras con recorrido: retirar JetBrains Mono de `next/font` (−48 KB; la pila del sistema basta para las etiquetas) y sacar framer-motion del paquete inicial (el fundido de `template.tsx` puede ser CSS), −43 KB.
 - **Caché de imágenes en el contenedor**: `Dockerfile.prod` copia como root y ejecuta como `node`, así que `/app/.next/cache` no es escribible y cada imagen optimizada se recodifica en cada petición (error `EACCES` en los logs; las imágenes sirven bien). Arreglo en el VPS: `RUN mkdir -p /app/.next/cache && chown -R node:node /app/.next` antes de `USER node`. Venía de antes.
+- **Speed Index en escritorio**: el fondo vivo anima sin parar y eso es lo único que separa un 82 de un 91. Candidato: dormir el fondo tras unos segundos sin interacción (puntero, scroll o tecla lo despiertan), igual que hace la firma. Se nota poco al usar la página y devuelve el Speed Index al rango de 1 s.
 - La rama `ui/portada` (que contiene `ui/tools-overhaul` y `seo/overhaul`) no está fusionada en `main`: decidir merge o PR.
