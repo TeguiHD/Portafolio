@@ -1,3 +1,5 @@
+import { pedirTexto } from "@/modules/pulse/lib/red";
+
 import { decodeHtmlEntities, stripHtml } from "@/modules/pulse/lib/server-utils";
 
 function extractMetaContent(html: string, selectors: string[]) {
@@ -77,25 +79,26 @@ function extractExcerptFromHtml(html: string) {
   return paragraphMatch?.[1] ? stripHtml(paragraphMatch[1]).slice(0, 220) : "";
 }
 
+/**
+ * Lee la portada de un artículo enlazado desde un feed para sacarle imagen y entradilla.
+ *
+ * La URL viene de terceros, así que sale por `pedirTexto` con destino comprobado (nada
+ * de direcciones privadas ni de la red interna), plazo máximo y tope de tamaño: antes
+ * bastaba un enlace preparado en un RSS para que el servidor pidiera cualquier cosa.
+ */
 export async function fetchArticlePreview(url: string) {
   if (!/^https?:\/\//i.test(url)) {
     return { imageUrl: "", excerpt: "", sourceDomain: "" };
   }
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "text/html,application/xhtml+xml",
-        "User-Agent": "nicoholas-digital-pulse",
-      },
-      next: { revalidate: 3600 },
+    const html = await pedirTexto(url, {
+      revalidate: 3600,
+      plazo: 4000,
+      comprobarDestino: true,
+      tipos: ["html", "xml"],
+      cabeceras: { Accept: "text/html,application/xhtml+xml" },
     });
-
-    if (!response.ok) {
-      throw new Error(`Preview failed: ${response.status}`);
-    }
-
-    const html = await response.text();
     const sourceDomain = new URL(url).hostname.replace(/^www\./, "");
 
     return {

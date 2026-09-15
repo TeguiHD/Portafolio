@@ -2,76 +2,58 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPulseNews } from "@/modules/pulse/lib/news-service";
 import type { PulseNewsItem } from "@/modules/pulse/types";
 
-const NEWS_MEMORY_CACHE_TTL_MS = 1000 * 60 * 20;
+const FRESCO_MS = 1000 * 60 * 20;
+/** Una recarga forzada no puede disparar la ronda de feeds más de una vez cada tanto. */
+const PISO_REFRESCO_MS = 1000 * 60 * 3;
 
-interface PulseNewsCacheEntry {
+interface Guardado {
   items: PulseNewsItem[];
   generatedAt: string;
-  expiresAt: number;
+  momento: number;
 }
 
-let pulseNewsCache: PulseNewsCacheEntry | null = null;
+let guardado: Guardado | null = null;
+/** Una sola ronda de feeds a la vez: si llegan diez visitas juntas, comparten trabajo. */
+let enCurso: Promise<Guardado> | null = null;
 
-function buildCacheHeaders() {
-  return {
-    "Cache-Control": "public, max-age=300, s-maxage=900, stale-while-revalidate=3600",
-  };
+const cabeceras = { "Cache-Control": "public, max-age=300, s-maxage=900, stale-while-revalidate=3600" };
+
+async function reunir(): Promise<Guardado> {
+  if (!enCurso) {
+    enCurso = getPulseNews()
+      .then((items) => {
+        guardado = { items, generatedAt: new Date().toISOString(), momento: Date.now() };
+        return guardado;
+      })
+      .finally(() => {
+        enCurso = null;
+      });
+  }
+  return enCurso;
 }
 
 export async function GET(request: NextRequest) {
-  const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
-  const now = Date.now();
+  const ahora = Date.now();
+  const edad = guardado ? ahora - guardado.momento : Infinity;
+  // "refresh=1" solo adelanta el trabajo si lo guardado ya tiene unos minutos: es un
+  // parámetro público y sin ese piso cualquiera podría lanzar la ronda de feeds a voluntad.
+  const pedido = request.nextUrl.searchParams.get("refresh") === "1" && edad > PISO_REFRESCO_MS;
 
-  if (!forceRefresh && pulseNewsCache && pulseNewsCache.expiresAt > now) {
-    return NextResponse.json(
-      {
-        items: pulseNewsCache.items,
-        generatedAt: pulseNewsCache.generatedAt,
-        cached: true,
-      },
-      {
-        headers: buildCacheHeaders(),
-      }
-    );
+  if (guardado && !pedido && edad < FRESCO_MS) {
+    return NextResponse.json({ items: guardado.items, generatedAt: guardado.generatedAt, cached: true }, { headers: cabeceras });
   }
 
   try {
-    const items = await getPulseNews();
-    const generatedAt = new Date().toISOString();
-
-    pulseNewsCache = {
-      items,
-      generatedAt,
-      expiresAt: now + NEWS_MEMORY_CACHE_TTL_MS,
-    };
-
-    return NextResponse.json(
-      {
-        items,
-        generatedAt,
-        cached: false,
-      },
-      {
-        headers: buildCacheHeaders(),
-      }
-    );
+    const fresco = await reunir();
+    return NextResponse.json({ items: fresco.items, generatedAt: fresco.generatedAt, cached: false }, { headers: cabeceras });
   } catch (error) {
     console.error("[Pulse News] Error:", error);
-
-    if (pulseNewsCache) {
+    if (guardado) {
       return NextResponse.json(
-        {
-          items: pulseNewsCache.items,
-          generatedAt: pulseNewsCache.generatedAt,
-          cached: true,
-          stale: true,
-        },
-        {
-          headers: buildCacheHeaders(),
-        }
+        { items: guardado.items, generatedAt: guardado.generatedAt, cached: true, stale: true },
+        { headers: cabeceras }
       );
     }
-
-    return NextResponse.json({ error: "No fue posible cargar noticias." }, { status: 500 });
+    return NextResponse.json({ error: "Las fuentes no responden ahora mismo." }, { status: 503 });
   }
 }

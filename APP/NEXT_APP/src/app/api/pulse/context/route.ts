@@ -1,10 +1,11 @@
+import { pedirJson } from "@/modules/pulse/lib/red";
 import { NextRequest, NextResponse } from "next/server";
 import type { PulseContextData } from "@/modules/pulse/types";
 import { buildWeatherMessage, getWeatherLabel } from "@/modules/pulse/lib/server-utils";
 
 const DEFAULT_CITY = "Santiago";
-const IP_API_BASE_URL = "http://ip-api.com/json";
-const IP_CACHE_TTL_MS = 1000 * 60 * 20;
+/** Lo más largo que se acepta como nombre de ciudad. */
+const MAX_CIUDAD = 60;
 
 interface ResolvedLocation {
   name: string;
@@ -15,62 +16,25 @@ interface ResolvedLocation {
   source: "coordinates" | "city" | "ip";
 }
 
-interface IpCacheEntry {
-  location: ResolvedLocation;
-  expiresAt: number;
+function fetchJson<T>(url: string, revalidate: number) {
+  return pedirJson<T>(url, { revalidate, plazo: 5000 });
 }
 
-const ipLocationCache = new Map<string, IpCacheEntry>();
-
-async function fetchJson<T>(url: string, revalidate: number) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "nicoholas-digital-pulse",
-    },
-    next: { revalidate },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
+/**
+ * La ciudad la escribe quien visita y viaja dentro de una URL hacia el geocodificador:
+ * se acota el largo y se dejan solo letras y los signos de un topónimo.
+ */
+function ciudadValida(valor: string | null): string {
+  const limpio = (valor ?? "").trim().slice(0, MAX_CIUDAD);
+  if (!limpio) return DEFAULT_CITY;
+  return /^[\p{L}\p{M}][\p{L}\p{M} '.,-]*$/u.test(limpio) ? limpio : DEFAULT_CITY;
 }
 
-function normalizeIpCandidate(value?: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  return value.replace(/^::ffff:/, "").trim();
-}
-
-function getClientIp(request: NextRequest) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const first = forwardedFor.split(",")[0];
-    const normalized = normalizeIpCandidate(first);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  const headersToCheck = [
-    "x-real-ip",
-    "cf-connecting-ip",
-    "x-vercel-forwarded-for",
-    "x-client-ip",
-  ] as const;
-
-  for (const header of headersToCheck) {
-    const value = normalizeIpCandidate(request.headers.get(header));
-    if (value) {
-      return value;
-    }
-  }
-
-  return "";
+/** Coordenada dentro de su rango; cualquier otra cosa se descarta. */
+function coordenadaValida(valor: string | null, tope: number): number | null {
+  if (valor === null || valor.trim() === "") return null;
+  const n = Number(valor);
+  return Number.isFinite(n) && Math.abs(n) <= tope ? n : null;
 }
 
 async function resolveCityLocation(city: string): Promise<ResolvedLocation> {
@@ -112,99 +76,40 @@ async function resolveCityLocation(city: string): Promise<ResolvedLocation> {
   };
 }
 
-async function resolveLocationByIp(request: NextRequest): Promise<ResolvedLocation | null> {
-  const clientIp = getClientIp(request);
-  if (!clientIp) {
-    return null;
-  }
+/**
+ * De dónde es el tiempo que se muestra.
+ *
+ * Solo dos caminos: las coordenadas que entrega el navegador cuando la persona da
+ * permiso, o la ciudad que escribe. Antes había un tercero que enviaba la IP de quien
+ * visitaba, en claro y por HTTP, a un servicio externo, y que además obedecía a una
+ * cabecera que cualquiera puede falsificar; se retiró.
+ */
+async function resolveLocation(searchParams: URLSearchParams): Promise<ResolvedLocation> {
+  const lat = coordenadaValida(searchParams.get("lat"), 90);
+  const lon = coordenadaValida(searchParams.get("lon"), 180);
+  const city = ciudadValida(searchParams.get("city"));
 
-  const now = Date.now();
-  const cached = ipLocationCache.get(clientIp);
-  if (cached && cached.expiresAt > now) {
-    return cached.location;
-  }
-
-  const payload = await fetchJson<{
-    status?: "success" | "fail";
-    message?: string;
-    country?: string;
-    city?: string;
-    lat?: number;
-    lon?: number;
-    timezone?: string;
-  }>(
-    `${IP_API_BASE_URL}/${encodeURIComponent(clientIp)}?fields=status,message,country,city,lat,lon,timezone`,
-    900
-  );
-
-  if (payload.status !== "success") {
-    return null;
-  }
-
-  if (typeof payload.lat !== "number" || typeof payload.lon !== "number") {
-    return null;
-  }
-
-  const location: ResolvedLocation = {
-    name: payload.city || DEFAULT_CITY,
-    country: payload.country || "",
-    latitude: payload.lat,
-    longitude: payload.lon,
-    timezone: payload.timezone || "UTC",
-    source: "ip",
-  };
-
-  ipLocationCache.set(clientIp, {
-    location,
-    expiresAt: now + IP_CACHE_TTL_MS,
-  });
-
-  if (ipLocationCache.size > 300) {
-    for (const [ip, entry] of ipLocationCache.entries()) {
-      if (entry.expiresAt <= now) {
-        ipLocationCache.delete(ip);
-      }
-    }
-  }
-
-  return location;
-}
-
-async function resolveLocation(searchParams: URLSearchParams, request: NextRequest): Promise<ResolvedLocation> {
-  const lat = searchParams.get("lat");
-  const lon = searchParams.get("lon");
-  const city = (searchParams.get("city") || DEFAULT_CITY).trim() || DEFAULT_CITY;
-  const useAutoIp = searchParams.get("auto") === "1";
-
-  if (lat && lon) {
-    const geo = await fetchJson<{
-      results?: Array<{ name: string; country: string; latitude: number; longitude: number; timezone: string }>;
-    }>(
-      `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&language=es&count=1`,
-      1800
-    );
-
-    const result = geo.results?.[0];
-    if (result) {
-      return {
-        name: result.name,
-        country: result.country,
-        latitude: result.latitude,
-        longitude: result.longitude,
-        timezone: result.timezone,
-        source: "coordinates",
-      };
-    }
-  }
-
-  if (useAutoIp) {
+  if (lat !== null && lon !== null) {
     try {
-      const autoLocation = await resolveLocationByIp(request);
-      if (autoLocation) {
-        return autoLocation;
+      const geo = await fetchJson<{
+        results?: Array<{ name: string; country: string; latitude: number; longitude: number; timezone: string }>;
+      }>(
+        `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=es&count=1`,
+        1800
+      );
+      const result = geo.results?.[0];
+      if (result) {
+        return {
+          name: result.name,
+          country: result.country,
+          latitude: result.latitude,
+          longitude: result.longitude,
+          timezone: result.timezone,
+          source: "coordinates",
+        };
       }
-    } catch (error) {
-      console.error("[Pulse Context] ip-api fallback:", error);
+    } catch {
+      // sin geocodificación inversa se sigue con la ciudad escrita
     }
   }
 
@@ -221,7 +126,7 @@ function buildDayLabel(value: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const location = await resolveLocation(request.nextUrl.searchParams, request);
+    const location = await resolveLocation(request.nextUrl.searchParams);
 
     const weather = await fetchJson<{
       current?: {

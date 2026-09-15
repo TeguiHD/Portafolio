@@ -1,124 +1,114 @@
 import type { PulseFinanceItem } from "@/modules/pulse/types";
+import { crearCache, pedirJson } from "@/modules/pulse/lib/red";
 
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
 const MINDICADOR_API = "https://mindicador.cl/api";
 
-async function fetchJson<T>(url: string, revalidate: number) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "nicoholas-digital-pulse",
-    },
-    next: { revalidate },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
+interface Moneda {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+  sparkline_in_7d?: { price?: number[] };
+  last_updated: string;
 }
 
-function buildTrend(changePercent: number): PulseFinanceItem["trend"] {
-  if (changePercent > 0.1) return "up";
-  if (changePercent < -0.1) return "down";
+interface Serie {
+  valor: number;
+  serie?: Array<{ valor: number; fecha: string }>;
+}
+
+type Indicadores = { uf?: Serie; utm?: Serie; dolar?: Serie };
+
+function tendencia(cambio: number): PulseFinanceItem["trend"] {
+  if (cambio > 0.1) return "up";
+  if (cambio < -0.1) return "down";
   return "flat";
 }
 
-function toSparkline(values: Array<number | null | undefined>) {
-  return values.filter((value): value is number => typeof value === "number").slice(-12);
+function chispa(valores: Array<number | null | undefined>) {
+  return valores.filter((v): v is number => typeof v === "number").slice(-12);
 }
 
-export async function getPulseFinance() {
-  const [coins, indicators] = await Promise.all([
-    fetchJson<Array<{
-      id: string;
-      symbol: string;
-      name: string;
-      current_price: number;
-      price_change_percentage_24h: number;
-      sparkline_in_7d?: { price?: number[] };
-      last_updated: string;
-    }>>(
-      `${COINGECKO_API}/coins/markets?vs_currency=usd&ids=bitcoin,ethereum&order=market_cap_desc&per_page=2&page=1&sparkline=true&price_change_percentage=24h`,
-      600
-    ),
-    fetchJson<{
-      uf?: { valor: number; serie?: Array<{ valor: number; fecha: string }> };
-      utm?: { valor: number; serie?: Array<{ valor: number; fecha: string }> };
-      dolar?: { valor: number; serie?: Array<{ valor: number; fecha: string }> };
-    }>(MINDICADOR_API, 1800),
-  ]);
+/** Variación respecto al dato anterior de la serie; 0 si no hay con qué comparar. */
+function variacion(serie: Serie | undefined) {
+  const previo = serie?.serie?.[1]?.valor;
+  if (!serie || !previo) return 0;
+  return ((serie.valor - previo) / previo) * 100;
+}
 
-  const cryptoItems = coins.map((coin) => ({
-    id: coin.id,
-    symbol: coin.symbol.toUpperCase(),
-    name: coin.name,
+function indicador(id: string, symbol: string, name: string, serie: Serie | undefined): PulseFinanceItem | null {
+  if (!serie || typeof serie.valor !== "number") return null;
+  const cambio = variacion(serie);
+  return {
+    id,
+    symbol,
+    name,
+    source: "mindicador.cl",
+    price: serie.valor,
+    currency: "CLP",
+    changePercent: cambio,
+    trend: tendencia(cambio),
+    sparkline: chispa(serie.serie?.slice(0, 10).reverse().map((e) => e.valor) ?? []),
+    lastUpdated: serie.serie?.[0]?.fecha ?? new Date().toISOString(),
+  };
+}
+
+async function cargarMonedas(): Promise<PulseFinanceItem[]> {
+  const monedas = await pedirJson<Moneda[]>(
+    `${COINGECKO_API}/coins/markets?vs_currency=usd&ids=bitcoin,ethereum&order=market_cap_desc&per_page=2&page=1&sparkline=true&price_change_percentage=24h`,
+    { revalidate: 600, plazo: 5000 }
+  );
+  return monedas.map((m) => ({
+    id: m.id,
+    symbol: m.symbol.toUpperCase(),
+    name: m.name,
     source: "CoinGecko",
-    price: coin.current_price,
+    price: m.current_price,
     currency: "USD",
-    changePercent: coin.price_change_percentage_24h ?? 0,
-    trend: buildTrend(coin.price_change_percentage_24h ?? 0),
-    sparkline: toSparkline(coin.sparkline_in_7d?.price ?? []),
-    lastUpdated: coin.last_updated,
-  })) satisfies PulseFinanceItem[];
+    changePercent: m.price_change_percentage_24h ?? 0,
+    trend: tendencia(m.price_change_percentage_24h ?? 0),
+    sparkline: chispa(m.sparkline_in_7d?.price ?? []),
+    lastUpdated: m.last_updated,
+  }));
+}
 
-  const indicatorItems = [
-    {
-      id: "uf",
-      symbol: "UF",
-      name: "Unidad de Fomento",
-      source: "mindicador.cl",
-      price: indicators.uf?.valor ?? 0,
-      currency: "CLP",
-      changePercent: indicators.uf?.serie?.[1]
-        ? ((indicators.uf.valor - indicators.uf.serie[1].valor) / indicators.uf.serie[1].valor) * 100
-        : 0,
-      trend: buildTrend(
-        indicators.uf?.serie?.[1]
-          ? ((indicators.uf.valor - indicators.uf.serie[1].valor) / indicators.uf.serie[1].valor) * 100
-          : 0
-      ),
-      sparkline: toSparkline(indicators.uf?.serie?.slice(0, 10).reverse().map((entry) => entry.valor) ?? []),
-      lastUpdated: indicators.uf?.serie?.[0]?.fecha ?? new Date().toISOString(),
-    },
-    {
-      id: "utm",
-      symbol: "UTM",
-      name: "Unidad Tributaria Mensual",
-      source: "mindicador.cl",
-      price: indicators.utm?.valor ?? 0,
-      currency: "CLP",
-      changePercent: indicators.utm?.serie?.[1]
-        ? ((indicators.utm.valor - indicators.utm.serie[1].valor) / indicators.utm.serie[1].valor) * 100
-        : 0,
-      trend: buildTrend(
-        indicators.utm?.serie?.[1]
-          ? ((indicators.utm.valor - indicators.utm.serie[1].valor) / indicators.utm.serie[1].valor) * 100
-          : 0
-      ),
-      sparkline: toSparkline(indicators.utm?.serie?.slice(0, 10).reverse().map((entry) => entry.valor) ?? []),
-      lastUpdated: indicators.utm?.serie?.[0]?.fecha ?? new Date().toISOString(),
-    },
-    {
-      id: "usdclp",
-      symbol: "USD/CLP",
-      name: "Dólar observado",
-      source: "mindicador.cl",
-      price: indicators.dolar?.valor ?? 0,
-      currency: "CLP",
-      changePercent: indicators.dolar?.serie?.[1]
-        ? ((indicators.dolar.valor - indicators.dolar.serie[1].valor) / indicators.dolar.serie[1].valor) * 100
-        : 0,
-      trend: buildTrend(
-        indicators.dolar?.serie?.[1]
-          ? ((indicators.dolar.valor - indicators.dolar.serie[1].valor) / indicators.dolar.serie[1].valor) * 100
-          : 0
-      ),
-      sparkline: toSparkline(indicators.dolar?.serie?.slice(0, 10).reverse().map((entry) => entry.valor) ?? []),
-      lastUpdated: indicators.dolar?.serie?.[0]?.fecha ?? new Date().toISOString(),
-    },
-  ] satisfies PulseFinanceItem[];
+async function cargarIndicadores(): Promise<PulseFinanceItem[]> {
+  const datos = await pedirJson<Indicadores>(MINDICADOR_API, { revalidate: 1800, plazo: 5000 });
+  return [
+    indicador("uf", "UF", "Unidad de Fomento", datos.uf),
+    indicador("utm", "UTM", "Unidad Tributaria Mensual", datos.utm),
+    indicador("usdclp", "USD/CLP", "Dólar observado", datos.dolar),
+  ].filter((i): i is PulseFinanceItem => i !== null);
+}
 
-  return [...cryptoItems, ...indicatorItems];
+const cache = crearCache<PulseFinanceItem[]>("finance", 5 * 60_000, 24 * 60 * 60_000);
+
+/**
+ * Mercado: cripto (CoinGecko) e indicadores chilenos (mindicador.cl).
+ *
+ * Las dos fuentes son públicas y sin clave, así que una puede responder 429 en
+ * cualquier momento. Se piden por separado y se devuelve lo que haya llegado: antes,
+ * un fallo de cualquiera de las dos dejaba la sección entera en error.
+ */
+export async function getPulseFinance(): Promise<PulseFinanceItem[]> {
+  const [monedas, indicadores] = await Promise.allSettled([cargarMonedas(), cargarIndicadores()]);
+  const items = [
+    ...(monedas.status === "fulfilled" ? monedas.value : []),
+    ...(indicadores.status === "fulfilled" ? indicadores.value : []),
+  ];
+  if (items.length === 0) {
+    const motivo = [monedas, indicadores]
+      .map((r) => (r.status === "rejected" ? String(r.reason?.message ?? r.reason) : null))
+      .filter(Boolean)
+      .join("; ");
+    throw new Error(motivo || "sin datos de mercado");
+  }
+  return items;
+}
+
+/** Igual que el anterior, pero con memoria: si las fuentes fallan, sirve lo último bueno. */
+export function getPulseFinanceCached(forzar = false) {
+  return cache.leer(getPulseFinance, forzar);
 }

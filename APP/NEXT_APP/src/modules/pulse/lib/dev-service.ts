@@ -1,26 +1,24 @@
 import type { PulseDevActivityData, PulseGitHubEvent, PulseGitHubRepo } from "@/modules/pulse/types";
 import { PULSE_GITHUB_USERNAME, summarizeGitHubEvent } from "@/modules/pulse/lib/server-utils";
+import { crearCache, pedirJson } from "@/modules/pulse/lib/red";
 
 const GITHUB_API = "https://api.github.com";
 
-async function fetchJson<T>(url: string, revalidate: number) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "User-Agent": "nicoholas-digital-pulse",
-    },
-    next: { revalidate },
+function fetchJson<T>(url: string, revalidate: number) {
+  return pedirJson<T>(url, {
+    revalidate,
+    plazo: 5000,
+    cabeceras: { Accept: "application/vnd.github+json" },
   });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
 }
 
+/**
+ * Actividad en GitHub. La API va sin credenciales (60 peticiones por hora y por IP),
+ * así que cada llamada puede volver con un 403: se piden por separado y la sección se
+ * dibuja con lo que haya llegado en vez de caerse entera.
+ */
 export async function getPulseDevActivity(): Promise<PulseDevActivityData> {
-  const [profile, repos, events] = await Promise.all([
+  const [perfilRes, reposRes, eventosRes] = await Promise.allSettled([
     fetchJson<{
       html_url: string;
       followers: number;
@@ -46,6 +44,13 @@ export async function getPulseDevActivity(): Promise<PulseDevActivityData> {
       created_at: string;
     }>>(`${GITHUB_API}/users/${PULSE_GITHUB_USERNAME}/events/public?per_page=8`, 300),
   ]);
+
+  if (perfilRes.status === "rejected" && reposRes.status === "rejected" && eventosRes.status === "rejected") {
+    throw new Error(String(perfilRes.reason?.message ?? "GitHub no responde"));
+  }
+  const profile = perfilRes.status === "fulfilled" ? perfilRes.value : null;
+  const repos = reposRes.status === "fulfilled" ? reposRes.value : [];
+  const events = eventosRes.status === "fulfilled" ? eventosRes.value : [];
 
   const featuredRepos = repos
     .filter((repo) => !repo.fork)
@@ -86,13 +91,20 @@ export async function getPulseDevActivity(): Promise<PulseDevActivityData> {
 
   return {
     username: PULSE_GITHUB_USERNAME,
-    profileUrl: profile.html_url,
-    followers: profile.followers,
-    publicRepos: profile.public_repos,
+    profileUrl: profile?.html_url ?? `https://github.com/${PULSE_GITHUB_USERNAME}`,
+    followers: profile?.followers ?? 0,
+    publicRepos: profile?.public_repos ?? featuredRepos.length,
     totalStars: featuredRepos.reduce((total, repo) => total + repo.stars, 0),
     languages,
     featuredRepos,
     recentEvents,
     lastActiveAt: recentEvents[0]?.createdAt,
   };
+}
+
+const cache = crearCache<PulseDevActivityData>("dev", 5 * 60_000, 24 * 60 * 60_000);
+
+/** Con memoria y respaldo: si GitHub limita la cuota, se sirve lo último bueno. */
+export function getPulseDevActivityCached(forzar = false) {
+  return cache.leer(getPulseDevActivity, forzar);
 }

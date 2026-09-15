@@ -9,10 +9,16 @@ function escapeXml(value: string) {
     .replace(/'/g, "&apos;");
 }
 
+/** Recorta primero y escapa después: al revés, el corte puede partir una entidad
+ *  («&amp;» → «&am») y el SVG deja de ser válido, que es una tarjeta rota. */
+function recortado(valor: string | null, respaldo: string, largo: number) {
+  return escapeXml((valor || respaldo).slice(0, largo));
+}
+
 export async function GET(request: NextRequest) {
-  const title = escapeXml(request.nextUrl.searchParams.get("title") || "Digital Pulse");
-  const source = escapeXml(request.nextUrl.searchParams.get("source") || "Source");
-  const category = escapeXml(request.nextUrl.searchParams.get("category") || "news");
+  const title = recortado(request.nextUrl.searchParams.get("title"), "Digital Pulse", 60);
+  const source = recortado(request.nextUrl.searchParams.get("source"), "Source", 40);
+  const category = recortado(request.nextUrl.searchParams.get("category"), "news", 24);
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
@@ -31,7 +37,7 @@ export async function GET(request: NextRequest) {
       <rect width="1200" height="630" rx="32" fill="url(#glow)"/>
       <rect x="48" y="48" width="1104" height="534" rx="28" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
       <text x="84" y="118" fill="#A5F3FC" font-family="Arial, sans-serif" font-size="26" letter-spacing="6">${source.toUpperCase()}</text>
-      <text x="84" y="174" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="64" font-weight="700">${title.slice(0, 60)}</text>
+      <text x="84" y="174" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="64" font-weight="700">${title}</text>
       <text x="84" y="530" fill="#D1FAE5" font-family="Arial, sans-serif" font-size="28">${category.toUpperCase()} · DIGITAL PULSE</text>
     </svg>
   `;

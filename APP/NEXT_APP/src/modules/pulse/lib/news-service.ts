@@ -1,4 +1,5 @@
 import type { PulseNewsItem } from "@/modules/pulse/types";
+import { pedirJson, pedirTexto } from "@/modules/pulse/lib/red";
 import { fetchArticlePreview } from "@/modules/pulse/lib/article-preview";
 import {
   buildTimestampLabel,
@@ -32,16 +33,17 @@ const BYTEDANCE_SEED_RELEASES_ATOM = "https://github.com/ByteDance-Seed/VeOmni/r
 const GAMMA_COMMITS_ATOM = "https://github.com/gamma-app/gamma-docs/commits/main.atom";
 const SORA_SIGNAL_RSS = "https://news.google.com/rss/search?q=OpenAI%20Sora%20video%20model%20when:30d&hl=en-US&gl=US&ceid=US:en";
 
-const MAX_NEWS_ITEMS = 18;
-const MAX_ITEMS_PER_SOURCE = 3;
+/** Suficientes para tres páginas de doce sin repetir fuente en exceso. */
+const MAX_NEWS_ITEMS = 36;
+const MAX_ITEMS_PER_SOURCE = 4;
 const MAX_EXCERPT_CHARS = 220;
 const UNKNOWN_PUBLISHED_AT = "2000-01-01T00:00:00.000Z";
 
 const CATEGORY_TARGETS: Partial<Record<PulseNewsItem["category"], number>> = {
-  ai: 6,
-  security: 6,
-  dev: 4,
-  startup: 2,
+  ai: 12,
+  security: 12,
+  dev: 8,
+  startup: 4,
 };
 
 interface FeedSourceOptions {
@@ -440,36 +442,17 @@ function enforceBalancedSelection(items: PulseNewsItem[], maxItems: number, maxP
   return selected;
 }
 
-async function fetchJson<T>(url: string, revalidate: number) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "nicoholas-digital-pulse",
-    },
-    next: { revalidate },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
+/** Los feeds son públicos y lentos a ratos: con plazo, uno caído no retrasa al resto. */
+function fetchJson<T>(url: string, revalidate: number) {
+  return pedirJson<T>(url, { revalidate, plazo: 6000 });
 }
 
-async function fetchText(url: string, revalidate: number) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/rss+xml, application/xml, text/xml, text/html",
-      "User-Agent": "nicoholas-digital-pulse",
-    },
-    next: { revalidate },
+function fetchText(url: string, revalidate: number) {
+  return pedirTexto(url, {
+    revalidate,
+    plazo: 6000,
+    cabeceras: { Accept: "application/rss+xml, application/xml, text/xml, text/html" },
   });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.text();
 }
 
 async function fetchCisaKevItems() {
@@ -585,16 +568,23 @@ async function fetchFeedCollection(sources: FeedSourceDescriptor[]) {
   return items;
 }
 
+/** Tope de portadas que se descargan por tanda: cada una es una petición a otro sitio. */
+const PORTADAS_MAX = 24;
+
 async function enrichNewsItems(items: PulseNewsItem[]) {
+  let portadas = 0;
   const settled = await Promise.allSettled(
     items.map(async (item, index) => {
-      if (index > 8 && item.excerpt && item.imageUrl && item.sourceDomain) {
+      const yaCompleto = Boolean(item.excerpt && item.imageUrl && item.sourceDomain);
+      if ((index > 8 && yaCompleto) || (!yaCompleto && portadas >= PORTADAS_MAX)) {
         return {
           ...item,
           excerpt: truncateExcerpt(item.excerpt) || "Señal técnica capturada por el Command Center.",
+          imageUrl: item.imageUrl || buildPulsePlaceholderImage(item.source, item.category, item.title),
+          imageAlt: item.imageAlt || item.title,
         } satisfies PulseNewsItem;
       }
-
+      portadas++;
       const preview = await fetchArticlePreview(item.url);
       const mergedExcerpt = truncateExcerpt(item.excerpt || preview.excerpt) || "Señal técnica capturada por el Command Center.";
 
