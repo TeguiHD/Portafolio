@@ -95,4 +95,6 @@
 @media (pointer: coarse) {
   .p-anillos .glow { display: none; }
   .p-anillos .tick { animation: none; stroke-dasharray: none; opacity: 0.35; }
+  /* el drop-shadow sobre un lienzo que se repinta cada frame se rasteriza entero cada vez */
+  .p-nucleo canvas { filter: none; }
 }
