@@ -10,5 +10,8 @@ test("contacto sin las dos tarjetas y con el formulario intacto", async ({ page 
   await expect(sec).not.toContainText("Calidad industrial");
   await expect(sec.getByRole("heading", { level: 2 })).toContainText("Hablemos de tu");
   await expect(sec.getByRole("button", { name: "Enviar Mensaje" })).toBeVisible();
-  await expect(sec.getByText("Respuesta rápida")).toBeVisible();
+  // Los chips de la columna izquierda se retiraron a petición: queda el texto y el formulario.
+  await expect(sec.getByText("Respuesta rápida")).toHaveCount(0);
+  await expect(sec.getByText("Propuesta clara")).toHaveCount(0);
+  await expect(sec.getByText("Sin spam")).toHaveCount(0);
 });

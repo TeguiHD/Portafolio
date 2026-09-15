@@ -1,11 +1,11 @@
 {
-    "name": "Nicoholas Dev - Blog",
-    "short_name": "Blog",
-    "description": "Blog instalable con Digital Pulse, widgets en tiempo real, noticias técnicas y señales del mercado.",
+    "name": "Pulso digital — nicoholas.dev",
+    "short_name": "Pulso",
+    "description": "Noticias de seguridad, IA y desarrollo de fuentes oficiales, con el mercado del día y la actividad técnica.",
     "start_url": "/blog",
     "display": "standalone",
-    "background_color": "#0a0a0a",
-    "theme_color": "#08131f",
+    "background_color": "#0a0a0f",
+    "theme_color": "#0a0a0f",
     "orientation": "any",
     "scope": "/",
     "lang": "es-CL",
@@ -29,28 +29,51 @@
             "purpose": "any maskable"
         }
     ],
-    "categories": ["developer", "productivity", "news", "finance"],
+    "categories": [
+        "developer",
+        "productivity",
+        "news",
+        "finance"
+    ],
     "shortcuts": [
         {
             "name": "Blog",
             "short_name": "Blog",
-            "description": "Abrir el blog interactivo con widgets en tiempo real",
+            "description": "Abrir el pulso del día: noticias, mercado y actividad técnica",
             "url": "/blog",
-            "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
         },
         {
             "name": "Herramientas",
             "short_name": "Tools",
             "description": "Ir al catálogo de herramientas",
             "url": "/herramientas",
-            "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
         },
         {
             "name": "Inicio",
             "short_name": "Home",
             "description": "Volver al home del portafolio",
             "url": "/",
-            "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
         }
     ],
     "related_applications": [],

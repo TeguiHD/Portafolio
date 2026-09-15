@@ -181,7 +181,7 @@ export function ContactSection() {
   );
 
   return (
-    <section id="contact" className="relative overflow-hidden px-5 py-32 sm:px-10">
+    <section id="contact" className="relative overflow-hidden px-5 py-20 sm:px-10 sm:py-24">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(184,160,130,0.08),transparent_35%),radial-gradient(circle_at_80%_50%,rgba(0,212,170,0.1),transparent_35%)] [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]" />
 
       <div className="relative mx-auto max-w-7xl">
@@ -209,18 +209,6 @@ export function ContactSection() {
               Transformemos ideas complejas en software de alto rendimiento.
               Sin intermediarios, sin burocracia. Ingeniería directa.
             </p>
-
-            <div className="mt-8 flex flex-wrap gap-3 text-sm">
-              <div className="glass-panel rounded-full border border-accent-1/30 px-4 py-2 text-neutral-300">
-                Respuesta rápida
-              </div>
-              <div className="glass-panel rounded-full border border-accent-2/30 px-4 py-2 text-neutral-300">
-                Propuesta clara
-              </div>
-              <div className="glass-panel rounded-full border border-white/10 px-4 py-2 text-neutral-400">
-                Sin spam
-              </div>
-            </div>
 
           </motion.div>
 

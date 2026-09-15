@@ -1,0 +1,294 @@
+/* Blog (Pulso digital): mismo vocabulario visual que la portada — tokens --p-*,
+   cejilla en versalitas, titular apretado, paneles con borde tenue y acento teal. */
+
+.pulso {
+  --radio: 18px;
+  position: relative;
+  color: var(--p-txt);
+  background: var(--p-bg);
+  min-height: 100vh;
+}
+
+.pulso::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 520px;
+  background:
+    radial-gradient(60% 100% at 18% 0%, rgba(94, 234, 212, 0.1), transparent 70%),
+    radial-gradient(50% 90% at 88% 8%, rgba(167, 139, 250, 0.08), transparent 72%);
+  pointer-events: none;
+}
+
+.pulso-wrap { position: relative; max-width: 1360px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 40px); }
+
+/* Cabecera --------------------------------------------------------------- */
+
+/* El hueco de arriba deja pasar la barra flotante, que va fija sobre el contenido. */
+.pulso-cab { display: grid; gap: 16px; padding-block: clamp(96px, 11vw, 132px) clamp(20px, 3vw, 32px); }
+@media (min-width: 900px) { .pulso-cab { grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 28px; } }
+
+.pulso-cejilla {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--p-teal); font-weight: 600;
+}
+.pulso-cejilla::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--p-teal); box-shadow: 0 0 12px var(--p-teal); }
+
+.pulso h1 {
+  margin: 10px 0 0;
+  font-size: clamp(2rem, 4.4vw, 3.1rem); line-height: 1.04; font-weight: 800; letter-spacing: -0.035em; color: #fff;
+  text-wrap: balance; max-width: 18ch;
+}
+.pulso h1 .t { color: var(--p-teal); }
+.pulso-lede { margin: 14px 0 0; color: var(--p-mut); font-size: 16px; line-height: 1.6; max-width: 62ch; }
+
+/* Cápsula de tiempo y hora ------------------------------------------------ */
+
+.pulso-capsula { position: relative; justify-self: end; z-index: 30; }
+.pulso-capsula-pil {
+  display: inline-flex; align-items: center; gap: 12px; min-height: 44px;
+  padding: 8px 16px; border-radius: 999px; border: 1px solid var(--p-linea2);
+  background: color-mix(in srgb, var(--p-panel) 85%, transparent);
+  color: var(--p-txt); font-size: 14px; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+.pulso-capsula-pil:hover { border-color: color-mix(in srgb, var(--p-teal) 45%, transparent); transform: translateY(-1px); }
+.pulso-capsula-pil .grados { font-variant-numeric: tabular-nums; font-weight: 600; }
+.pulso-capsula-pil .raya { width: 1px; height: 16px; background: var(--p-linea2); }
+.pulso-capsula-pil .reloj { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; color: var(--p-mut); }
+.pulso-capsula-pil svg { color: var(--p-ambar); }
+
+.pulso-panel-tiempo {
+  position: absolute; right: 0; top: 0; width: min(340px, calc(100vw - 32px)); z-index: 40;
+  padding: 20px; border-radius: 26px; border: 1px solid var(--p-linea2);
+  background: color-mix(in srgb, var(--p-panel2) 96%, transparent);
+  box-shadow: 0 30px 60px -30px #000, 0 0 0 1px #ffffff0a inset;
+  backdrop-filter: blur(16px);
+}
+.pulso-panel-tiempo h2 { margin: 0; font-size: 15px; font-weight: 600; color: #fff; }
+.pulso-panel-tiempo .grados-grande { font-size: 44px; font-weight: 300; letter-spacing: -0.04em; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.pulso-panel-tiempo .estado { color: var(--p-mut); font-size: 13px; }
+.pulso-tiempo-rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+.pulso-tiempo-celda { padding: 12px; border-radius: 14px; border: 1px solid var(--p-linea); background: #ffffff08; }
+.pulso-tiempo-celda dt { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--p-mut); }
+.pulso-tiempo-celda dd { margin: 6px 0 0; font-size: 15px; color: #fff; font-variant-numeric: tabular-nums; }
+.pulso-tiempo-dias { margin-top: 18px; display: grid; gap: 8px; }
+.pulso-tiempo-dia { display: grid; grid-template-columns: 54px 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.pulso-tiempo-dia .dia { color: var(--p-txt); text-transform: capitalize; }
+.pulso-tiempo-dia .cielo { color: var(--p-mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pulso-tiempo-dia .max { color: #fff; font-variant-numeric: tabular-nums; }
+.pulso-tiempo-dia .min { color: var(--p-mut); font-variant-numeric: tabular-nums; }
+.pulso-tiempo-lugar { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.pulso-cerrar {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--p-linea2); background: transparent; color: var(--p-mut); cursor: pointer;
+}
+.pulso-cerrar:hover { color: #fff; border-color: var(--p-linea2); background: #ffffff0f; }
+.pulso-ciudad { display: flex; gap: 8px; margin-top: 16px; }
+.pulso-ciudad input {
+  flex: 1; min-width: 0; min-height: 40px; padding: 0 12px; border-radius: 12px;
+  border: 1px solid var(--p-linea2); background: #ffffff08; color: var(--p-txt); font-size: 13px;
+}
+.pulso-ciudad input:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 1px; }
+
+/* Barra de herramientas --------------------------------------------------- */
+
+.pulso-barra { display: grid; gap: 14px; padding: 16px; border-radius: var(--radio); border: 1px solid var(--p-linea); background: color-mix(in srgb, var(--p-panel) 70%, transparent); }
+.pulso-buscar { position: relative; display: flex; align-items: center; }
+.pulso-buscar svg { position: absolute; left: 14px; width: 16px; height: 16px; color: var(--p-mut); pointer-events: none; }
+.pulso-buscar input {
+  width: 100%; min-height: 46px; padding: 0 14px 0 40px; border-radius: 12px;
+  border: 1px solid var(--p-linea2); background: #ffffff08; color: var(--p-txt); font-size: 14px;
+}
+.pulso-buscar input::placeholder { color: #64748b; }
+.pulso-buscar input:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 1px; border-color: transparent; }
+
+.pulso-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pulso-chip {
+  min-height: 34px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--p-linea2);
+  background: transparent; color: var(--p-mut); font-size: 12.5px; cursor: pointer;
+  transition: color 0.18s, border-color 0.18s, background 0.18s;
+}
+.pulso-chip:hover { color: var(--p-txt); border-color: color-mix(in srgb, var(--tono, var(--p-teal)) 50%, transparent); }
+.pulso-chip[aria-pressed="true"] {
+  color: #06131a; font-weight: 600; border-color: transparent;
+  background: var(--tono, var(--p-teal));
+}
+.pulso-chip:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 2px; }
+.pulso-chips-etiqueta { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; margin-right: 2px; }
+.pulso-chips-etiqueta.orden { margin-left: auto; }
+/* En pantalla estrecha el orden empieza línea: si no, la etiqueta queda suelta en
+   mitad de la fila de temas. */
+@media (max-width: 640px) {
+  .pulso-chips-etiqueta.orden { margin-left: 0; flex-basis: 100%; margin-top: 4px; }
+}
+
+/* Rejilla de noticias ----------------------------------------------------- */
+
+.pulso-cuerpo { display: grid; gap: 28px; padding-bottom: 72px; }
+@media (min-width: 1100px) { .pulso-cuerpo { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; } }
+
+.pulso-conteo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; margin: 22px 0 14px; }
+.pulso-conteo p { margin: 0; font-size: 13px; color: var(--p-mut); }
+.pulso-conteo b { color: var(--p-txt); font-variant-numeric: tabular-nums; }
+
+.pulso-rejilla { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.pulso-rejilla .destacada { grid-column: span 2; }
+@media (max-width: 700px) { .pulso-rejilla .destacada { grid-column: span 1; } }
+
+.pulso-tarjeta {
+  /* relative: es el marco del ::after del titular, que cubre la tarjeta para que se
+     pueda pulsar entera. Sin esto, ese recuadro se extendía por toda la página. */
+  position: relative;
+  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
+  border-radius: var(--radio); border: 1px solid var(--p-linea); background: var(--p-panel2);
+  color: inherit; cursor: pointer;
+  transition: transform 0.25s var(--p-ease), border-color 0.25s, box-shadow 0.25s;
+}
+.pulso-tarjeta:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--tono, var(--p-teal)) 40%, transparent); box-shadow: 0 24px 40px -28px #000; }
+.pulso-tarjeta:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 2px; }
+
+/* flex: 0 0 auto para que la imagen conserve su proporción aunque la tarjeta
+   crezca para igualar la altura de su fila. */
+/* El botón es el titular y su ::after cubre la tarjeta entera: así lo que se anuncia
+   es el titular, el clic funciona en cualquier punto y el foco vuelve aquí al cerrar. */
+.pulso-tarjeta-btn {
+  display: inline; padding: 0; margin: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.pulso-tarjeta-btn::after { content: ""; position: absolute; inset: 0; border-radius: var(--radio); }
+.pulso-tarjeta:has(.pulso-tarjeta-btn:focus-visible) { outline: 2px solid var(--p-teal); outline-offset: 2px; }
+.pulso-tarjeta-btn:focus-visible { outline: none; }
+
+.pulso-tarjeta-img { position: relative; flex: 0 0 auto; aspect-ratio: 16 / 9; overflow: hidden; background: #0b1119; }
+.pulso-tarjeta.destacada .pulso-tarjeta-img { aspect-ratio: 2 / 1; }
+.pulso-tarjeta-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s var(--p-ease); }
+.pulso-tarjeta:hover .pulso-tarjeta-img img { transform: scale(1.03); }
+/* Plano de color para las noticias sin foto: el tono de la categoría y la fuente. */
+.pulso-tarjeta-img[data-sin-foto], .pulso-lector-img[data-sin-foto] {
+  display: grid; place-items: center; align-content: center; text-align: center;
+  background:
+    radial-gradient(120% 120% at 80% 0%, color-mix(in srgb, var(--tono, var(--p-teal)) 26%, transparent), transparent 62%),
+    linear-gradient(160deg, #0d1219, #080b11);
+}
+.pulso-sin-foto { display: grid; gap: 6px; padding: 16px; }
+.pulso-sin-foto .fuente { font-family: var(--font-mono), ui-monospace, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tono, var(--p-teal)); }
+.pulso-sin-foto .cat { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b; }
+
+.pulso-marca {
+  position: absolute; left: 12px; top: 12px; padding: 4px 10px; border-radius: 999px;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
+  color: #06131a; background: var(--tono, var(--p-teal));
+}
+.pulso-tarjeta-txt { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px 18px; flex: 1; }
+.pulso-tarjeta h3 { margin: 0; font-size: 16px; line-height: 1.32; font-weight: 650; color: #fff; }
+.pulso-tarjeta.destacada h3 { font-size: 22px; letter-spacing: -0.02em; }
+.pulso-tarjeta p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--p-mut); }
+.pulso-tarjeta-pie {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: auto; padding-top: 12px;
+  font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; color: #7d8ea3;
+}
+.pulso-tarjeta-pie .fuente { color: var(--p-txt); }
+.pulso-tarjeta-pie .punto { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+
+/* Paginado ---------------------------------------------------------------- */
+
+.pulso-paginado { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; }
+.pulso-pag {
+  min-width: 40px; min-height: 40px; padding: 0 12px; border-radius: 12px;
+  border: 1px solid var(--p-linea2); background: transparent; color: var(--p-mut);
+  font-family: var(--font-mono), ui-monospace, monospace; font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: color 0.18s, border-color 0.18s, background 0.18s;
+}
+.pulso-pag:hover:not(:disabled) { color: var(--p-txt); border-color: color-mix(in srgb, var(--p-teal) 45%, transparent); }
+.pulso-pag[aria-current="page"] { color: #06131a; background: var(--p-teal); border-color: transparent; font-weight: 700; }
+.pulso-pag:disabled { opacity: 0.35; cursor: default; }
+.pulso-pag:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 2px; }
+
+/* Columna lateral --------------------------------------------------------- */
+
+.pulso-lado { display: grid; gap: 16px; }
+@media (min-width: 1100px) { .pulso-lado { position: sticky; top: 96px; } }
+
+.pulso-panel { border-radius: var(--radio); border: 1px solid var(--p-linea); background: color-mix(in srgb, var(--p-panel) 72%, transparent); padding: 18px; }
+.pulso-panel-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.pulso-panel-cab h2 { margin: 0; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--p-mut); font-weight: 600; }
+.pulso-vivo { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-teal); }
+.pulso-vivo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--p-teal); box-shadow: 0 0 10px var(--p-teal); }
+
+.pulso-valor { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--p-linea); }
+.pulso-valor:first-of-type { border-top: 0; }
+.pulso-valor .simbolo { font-size: 13px; color: #fff; font-weight: 600; }
+.pulso-valor .nombre { font-size: 11px; color: #7d8ea3; grid-column: 1; }
+.pulso-valor .precio { grid-row: 1; grid-column: 2; text-align: right; font-family: var(--font-mono), ui-monospace, monospace; font-size: 13px; color: #fff; font-variant-numeric: tabular-nums; }
+.pulso-valor .delta { grid-row: 2; grid-column: 2; text-align: right; font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }
+.pulso-valor .delta.sube { color: var(--p-verde); }
+.pulso-valor .delta.baja { color: #f87171; }
+.pulso-valor .delta.plano { color: var(--p-mut); }
+
+.pulso-repo { display: block; padding: 11px 0; border-top: 1px solid var(--p-linea); color: inherit; text-decoration: none; }
+.pulso-repo:first-of-type { border-top: 0; }
+.pulso-repo strong { display: block; font-size: 13px; color: #fff; font-weight: 600; }
+.pulso-repo span { display: block; font-size: 11.5px; color: var(--p-mut); margin-top: 3px; line-height: 1.45; }
+.pulso-repo:hover strong { color: var(--p-teal); }
+.pulso-repo-meta { display: flex; gap: 10px; margin-top: 6px; font-family: var(--font-mono), ui-monospace, monospace; font-size: 10.5px; color: #7d8ea3; }
+
+.pulso-idea { padding: 11px 0; border-top: 1px solid var(--p-linea); }
+.pulso-idea:first-of-type { border-top: 0; }
+.pulso-idea strong { display: block; font-size: 13px; color: #fff; font-weight: 600; }
+.pulso-idea span { display: block; font-size: 11.5px; color: var(--p-mut); margin-top: 3px; line-height: 1.45; }
+.pulso-idea[data-tono="warning"] strong { color: var(--p-ambar); }
+.pulso-idea[data-tono="positive"] strong { color: var(--p-teal); }
+
+.pulso-aviso { margin-top: 12px; font-size: 11.5px; color: #7d8ea3; line-height: 1.5; }
+.pulso-enlace { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--p-teal); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.pulso-enlace:hover { text-decoration: underline; }
+
+/* Lector ------------------------------------------------------------------ */
+
+.pulso-lector-fondo {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px;
+  background: #05070ad9; backdrop-filter: blur(6px);
+  animation: pulso-aparece 0.2s var(--p-ease-out);
+}
+.pulso-lector {
+  width: min(720px, 100%); max-height: min(88vh, 900px); overflow: auto;
+  border-radius: 22px; border: 1px solid var(--p-linea2); background: var(--p-panel2);
+  box-shadow: 0 40px 80px -40px #000;
+  animation: pulso-sube 0.28s var(--p-ease-out);
+}
+.pulso-lector-img { position: relative; aspect-ratio: 2 / 1; overflow: hidden; background: #0b1119; }
+.pulso-lector-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pulso-lector-txt { padding: 22px clamp(18px, 4vw, 30px) 26px; display: grid; gap: 14px; }
+.pulso-lector h2 { margin: 0; font-size: clamp(1.25rem, 2.6vw, 1.7rem); line-height: 1.22; font-weight: 750; color: #fff; letter-spacing: -0.02em; }
+.pulso-lector-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-family: var(--font-mono), ui-monospace, monospace; font-size: 11.5px; color: #7d8ea3; }
+.pulso-lector p { margin: 0; font-size: 15px; line-height: 1.7; color: #c7d2dd; }
+.pulso-lector-pie { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding-top: 6px; border-top: 1px solid var(--p-linea); }
+.pulso-lector-ir {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px;
+  background: var(--p-teal); color: #06131a; font-size: 13.5px; font-weight: 700; text-decoration: none;
+}
+.pulso-lector-ir:hover { background: var(--p-teal2); }
+.pulso-lector-nota { font-size: 11.5px; color: #7d8ea3; max-width: 40ch; line-height: 1.45; }
+.pulso-lector-cerrar { position: absolute; right: 12px; top: 12px; z-index: 2; }
+
+@keyframes pulso-aparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulso-sube { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+/* Esqueletos y estados ---------------------------------------------------- */
+
+.pulso-hueso { border-radius: var(--radio); border: 1px solid var(--p-linea); background: var(--p-panel2); overflow: hidden; }
+.pulso-hueso .barra { height: 100%; width: 100%; background: linear-gradient(90deg, #ffffff08, #ffffff14, #ffffff08); background-size: 200% 100%; animation: pulso-brilla 1.4s linear infinite; }
+.pulso-hueso-img { aspect-ratio: 16 / 9; }
+.pulso-hueso-lin { height: 12px; border-radius: 6px; margin: 10px 18px; }
+@keyframes pulso-brilla { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.pulso-vacio { padding: 36px 20px; text-align: center; border-radius: var(--radio); border: 1px dashed var(--p-linea2); color: var(--p-mut); font-size: 14px; }
+.pulso-fallo { padding: 16px 18px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--p-ambar) 35%, transparent); background: color-mix(in srgb, var(--p-ambar) 8%, transparent); color: #fcd9a3; font-size: 13px; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulso-tarjeta, .pulso-tarjeta-img img, .pulso-capsula-pil { transition: none; }
+  .pulso-lector-fondo, .pulso-lector { animation: none; }
+  .pulso-hueso .barra { animation: none; }
+}

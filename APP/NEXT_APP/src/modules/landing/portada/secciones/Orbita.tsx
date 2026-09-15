@@ -24,6 +24,9 @@ export function Orbita() {
   const escena = useRef<HTMLDivElement>(null);
   const texto = useRef<HTMLElement>(null);
   const [activo, setActivo] = useState<number | null>(null);
+  /** El que se pinta: sobrevive a la animación de salida para que el nombre no cambie
+   *  de color ni se vacíe a mitad del recorrido. */
+  const [pintado, setPintado] = useState<number | null>(null);
   const activoRef = useRef<number | null>(null);
   /** Un clic fija el nombre aunque el puntero se vaya; otro clic sobre el mismo lo suelta. */
   const fijado = useRef<number | null>(null);
@@ -69,17 +72,32 @@ export function Orbita() {
     salida.current = null;
     activoRef.current = i;
     setActivo(i);
+    setPintado(i);
     if (texto.current && nivel !== "estatico") gsap.fromTo(texto.current, { yPercent: 110 }, { yPercent: 0, duration: 0.55, ease: "power3.out", overwrite: true });
   }
 
   function ocultar() {
     activoRef.current = null;
     setActivo(null);
-    if (texto.current && nivel !== "estatico") salida.current = gsap.to(texto.current, { yPercent: -110, duration: 0.4, ease: "power3.in", overwrite: true });
+    if (!texto.current || nivel === "estatico") {
+      setPintado(null);
+      return;
+    }
+    salida.current = gsap.to(texto.current, {
+      yPercent: -110,
+      duration: 0.4,
+      ease: "power3.in",
+      overwrite: true,
+      // El nombre se suelta al terminar: si se soltara antes, el texto se vaciaría y el
+      // color saltaría al de reserva durante el último tramo de la salida.
+      onComplete: () => { if (activoRef.current === null) setPintado(null); },
+    });
   }
 
-  const tec = activo === null ? null : tecnologias[activo];
+  const tec = pintado === null ? null : tecnologias[pintado];
   const tono = tec ? colorNombre(tec.color) : undefined;
+  /** El halo se apaga al irse el puntero; el nombre conserva su color mientras sale. */
+  const encendido = activo !== null;
 
   return (
     <section ref={seccion} id="tecnologias" className="p-sec p-orbita-sec" data-motion-active={corre ? "true" : "false"}>
@@ -93,8 +111,8 @@ export function Orbita() {
           </p>
         </div>
         <div ref={escena} className="p-orbita-escena" style={{ "--n": tecnologias.length } as CSSProperties}>
-          <div className={tec ? "p-orbita-halo on" : "p-orbita-halo"} style={{ "--tono": tono } as CSSProperties} aria-hidden="true" />
-          <div id="orbNombre" className={tec ? "p-orbita-nombre on" : "p-orbita-nombre"} style={{ "--tono": tono } as CSSProperties} aria-live="polite">
+          <div className={encendido ? "p-orbita-halo on" : "p-orbita-halo"} style={{ "--tono": tono } as CSSProperties} aria-hidden="true" />
+          <div id="orbNombre" className={encendido ? "p-orbita-nombre on" : "p-orbita-nombre"} style={{ "--tono": tono } as CSSProperties} aria-live="polite">
             <span className="ln"><b ref={texto}>{tec ? tec.name : ""}</b></span>
             <small>en el stack</small>
           </div>
@@ -126,7 +144,13 @@ export function Orbita() {
                   }
                 }}
               >
-                {t.path ? (
+                {t.logo ? (
+                  <svg viewBox={t.logo.viewBox} data-logo="" style={{ width: t.logo.ancho }} aria-hidden="true">
+                    {t.logo.piezas.map((pieza, k) => (
+                      <path key={k} fill={pieza.color} d={pieza.d} />
+                    ))}
+                  </svg>
+                ) : t.path ? (
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill={t.color} d={t.path} /></svg>
                 ) : (
                   <Sparkles aria-hidden="true" color={t.color} strokeWidth={2} />

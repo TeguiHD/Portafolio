@@ -1,9 +1,11 @@
 /* Órbita de tecnologías (#tecnologias): anillo 3D de iconos con el nombre en el centro. */
 
-.p-orbita-escena { --radio: min(260px, 38vw); perspective: 1200px; height: 460px; position: relative; display: grid; place-items: center; }
-@media (max-width: 640px) { .p-orbita-escena { height: 380px; } }
+/* El anillo ocupa la banda central; el nombre vive debajo, fuera del paso de los
+   satélites, para que nunca se pisen. */
+.p-orbita-escena { --radio: min(260px, 38vw); --banda: 200px; perspective: 1200px; height: 420px; position: relative; display: grid; place-items: center; }
+@media (max-width: 640px) { .p-orbita-escena { height: 340px; --banda: 150px; } }
 
-.p-anillo { position: relative; width: 1px; height: 1px; transform-style: preserve-3d; --ang: 0deg; transform: rotateX(-14deg) rotateY(var(--ang)); }
+.p-anillo { position: relative; width: 1px; height: 1px; margin-bottom: calc(var(--banda) * 0.62); transform-style: preserve-3d; --ang: 0deg; transform: rotateX(-14deg) rotateY(var(--ang)); }
 
 .p-satelite {
   position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; display: grid; place-items: center; padding: 0;
@@ -12,18 +14,26 @@
   transition: border-color 0.25s, box-shadow 0.25s;
 }
 .p-satelite > svg { width: 28px; height: 28px; }
+/* Logos anchos (AWS): mandan el ancho y el alto sale de la proporción. */
+.p-satelite > svg[data-logo] { height: auto; }
 .p-satelite:hover, .p-satelite:focus-visible, .p-satelite[aria-pressed="true"] {
   border-color: var(--tono); box-shadow: 0 0 0 5px color-mix(in srgb, var(--tono) 16%, transparent), 0 20px 30px -20px var(--tono);
 }
 .p-satelite:focus-visible { outline: 2px solid var(--tono); outline-offset: 3px; }
 @media (max-width: 640px) { .p-satelite { width: 52px; height: 52px; left: -26px; top: -26px; border-radius: 14px; } .p-satelite > svg { width: 22px; height: 22px; } }
 
-.p-orbita-nombre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 2; }
+.p-orbita-nombre {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  text-align: center; pointer-events: none; z-index: 2;
+  /* El resplandor va aquí, sobre el recorte: dentro de .ln lo cortaría la máscara
+     que hace subir el nombre, y se veía el borde del rectángulo. */
+  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--tono, #5eead4) 45%, transparent));
+}
 .p-orbita-nombre .ln { display: block; overflow: hidden; padding: 6px 0; }
-.p-orbita-nombre b { display: inline-block; font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -0.035em; color: var(--tono, #fff); text-shadow: 0 0 40px color-mix(in srgb, var(--tono, #fff) 55%, transparent); }
+.p-orbita-nombre b { display: inline-block; font-size: clamp(26px, 3.6vw, 40px); font-weight: 800; letter-spacing: -0.035em; color: var(--tono, #fff); }
 .p-orbita-nombre small { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--p-mut); margin-top: 2px; opacity: 0; transition: opacity 0.3s; }
 .p-orbita-nombre.on small { opacity: 1; }
-.p-orbita-halo { position: absolute; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--tono, #5eead4) 22%, transparent), transparent 65%); opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+.p-orbita-halo { position: absolute; top: calc(50% - var(--banda) * 0.31); left: 50%; width: 320px; height: 320px; margin: -160px 0 0 -160px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--tono, #5eead4) 20%, transparent), transparent 62%); opacity: 0; transition: opacity 0.4s; pointer-events: none; }
 .p-orbita-halo.on { opacity: 1; }
 
 .p-orbita-lista { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; list-style: none; margin: 16px 0 0; padding: 0; color: var(--p-mut); font-size: 14px; }

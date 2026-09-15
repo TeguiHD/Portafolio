@@ -118,12 +118,3 @@ export const lineasFijas: LineaTerminal[] = [
   ["referrer-policy", "strict-origin-when-cross-origin", "no filtra la ruta"],
   ["permissions-policy", "camera=(), microphone=(), geolocation=(), …", "sensores apagados"],
 ];
-
-export const practicas = [
-  "CSP con nonces dinámicos",
-  "Rate limiting por endpoint",
-  "Validaciones OWASP Top 10",
-  "Logs de auditoría inmutables",
-  "Separación de responsabilidades",
-  "Encriptación en reposo (AES-256)",
-];

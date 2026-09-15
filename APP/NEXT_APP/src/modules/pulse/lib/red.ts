@@ -83,28 +83,45 @@ interface Opciones {
   tipos?: string[];
 }
 
+/** Saltos de redirección que se siguen; más que esto es un bucle o una trampa. */
+const MAX_SALTOS = 3;
+
 async function pedir(url: string, { revalidate, plazo = 6000, cabeceras, comprobarDestino, tipos }: Opciones) {
-  if (comprobarDestino && !(await destinoPermitido(url))) {
-    throw new ErrorDeRed(url, "destino no permitido");
-  }
+  let destino = url;
   let respuesta: Response;
-  try {
-    respuesta = await fetch(url, {
-      headers: { "User-Agent": AGENTE, ...cabeceras },
-      redirect: "follow",
-      signal: AbortSignal.timeout(plazo),
-      ...(revalidate === undefined ? { cache: "no-store" as const } : { next: { revalidate } }),
-    });
-  } catch (error) {
-    throw new ErrorDeRed(url, error instanceof Error && error.name === "TimeoutError" ? `sin respuesta en ${plazo} ms` : "no se pudo conectar");
+  const vencimiento = AbortSignal.timeout(plazo);
+
+  // Las redirecciones se siguen a mano: comprobar solo la primera URL no sirve de nada
+  // si el sitio responde 302 hacia una dirección interna, que es la forma habitual de
+  // esquivar este filtro.
+  for (let salto = 0; ; salto++) {
+    if (comprobarDestino && !(await destinoPermitido(destino))) {
+      throw new ErrorDeRed(destino, "destino no permitido");
+    }
+    try {
+      respuesta = await fetch(destino, {
+        headers: { "User-Agent": AGENTE, ...cabeceras },
+        redirect: comprobarDestino ? "manual" : "follow",
+        signal: vencimiento,
+        ...(revalidate === undefined ? { cache: "no-store" as const } : { next: { revalidate } }),
+      });
+    } catch (error) {
+      throw new ErrorDeRed(destino, error instanceof Error && error.name === "TimeoutError" ? `sin respuesta en ${plazo} ms` : "no se pudo conectar");
+    }
+    if (!comprobarDestino || respuesta.status < 300 || respuesta.status >= 400) break;
+    const siguiente = respuesta.headers.get("location");
+    if (!siguiente) throw new ErrorDeRed(destino, "redirección sin destino");
+    if (salto + 1 >= MAX_SALTOS) throw new ErrorDeRed(destino, "demasiadas redirecciones");
+    destino = new URL(siguiente, destino).toString();
   }
-  if (!respuesta.ok) throw new ErrorDeRed(url, `respuesta ${respuesta.status}`);
+
+  if (!respuesta.ok) throw new ErrorDeRed(destino, `respuesta ${respuesta.status}`);
   if (tipos) {
     const tipo = (respuesta.headers.get("content-type") ?? "").toLowerCase();
-    if (!tipos.some((t) => tipo.includes(t))) throw new ErrorDeRed(url, `tipo inesperado: ${tipo || "sin tipo"}`);
+    if (!tipos.some((t) => tipo.includes(t))) throw new ErrorDeRed(destino, `tipo inesperado: ${tipo || "sin tipo"}`);
   }
   const declarado = Number(respuesta.headers.get("content-length") ?? 0);
-  if (declarado > MAX_BYTES) throw new ErrorDeRed(url, "respuesta demasiado grande");
+  if (declarado > MAX_BYTES) throw new ErrorDeRed(destino, "respuesta demasiado grande");
   return respuesta;
 }
 
@@ -159,6 +176,8 @@ interface Guardado<T> {
  */
 export function crearCache<T>(nombre: string, frescoMs: number, rancioMs: number) {
   let guardado: Guardado<T> | null = null;
+  /** Una sola recarga a la vez: diez visitas juntas comparten el mismo trabajo. */
+  let enCurso: Promise<T> | null = null;
   return {
     nombre,
     async leer(cargar: () => Promise<T>, forzar = false): Promise<{ valor: T; cacheado: boolean; rancio: boolean }> {
@@ -166,16 +185,28 @@ export function crearCache<T>(nombre: string, frescoMs: number, rancioMs: number
       if (guardado && !forzar && ahora - guardado.momento < frescoMs) {
         return { valor: guardado.valor, cacheado: true, rancio: false };
       }
+      if (!enCurso) {
+        enCurso = cargar()
+          .then((valor) => {
+            guardado = { valor, momento: Date.now() };
+            return valor;
+          })
+          .finally(() => {
+            enCurso = null;
+          });
+      }
       try {
-        const valor = await cargar();
-        guardado = { valor, momento: ahora };
-        return { valor, cacheado: false, rancio: false };
+        return { valor: await enCurso, cacheado: false, rancio: false };
       } catch (error) {
-        if (guardado && ahora - guardado.momento < rancioMs) {
+        if (guardado && Date.now() - guardado.momento < rancioMs) {
           return { valor: guardado.valor, cacheado: true, rancio: true };
         }
         throw error;
       }
+    },
+    /** Lo guardado ahora mismo, sin pedir nada. */
+    verGuardado(): Guardado<T> | null {
+      return guardado;
     },
   };
 }

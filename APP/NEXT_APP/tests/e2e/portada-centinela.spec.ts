@@ -14,7 +14,10 @@ test("el centinela bloquea una inyección y deja pasar una petición normal", as
   await expect(sec.locator("#term")).toContainText("curl -I https://nicoholas.dev", { timeout: 8000 });
   await expect(sec.locator("#term")).toContainText("content-security-policy", { timeout: 8000 });
   await expect(sec.getByRole("status")).toHaveText("Correcto", { timeout: 8000 });
-  await expect(sec.getByText("Matrix Orb")).toBeVisible();
-  await expect(sec).toContainText("CSP con nonces dinámicos");
+  // La lista de prácticas y el crédito visible del núcleo se retiraron a petición;
+  // la licencia MIT sigue en docs/licencias/ y en la cabecera de matrixOrb.ts.
+  await expect(sec.getByText("Matrix Orb")).toHaveCount(0);
+  await expect(sec).not.toContainText("CSP con nonces dinámicos");
+  await expect(sec).not.toContainText("Encriptación en reposo");
   await expect(sec.locator("canvas")).toHaveCount(1);
 });

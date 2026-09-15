@@ -6,7 +6,7 @@
   display: grid;
   justify-items: center;
   gap: 18px;
-  padding-block: clamp(56px, 9vw, 104px);
+  padding-block: clamp(40px, 5vw, 72px);
   padding-inline: 16px;
 }
 

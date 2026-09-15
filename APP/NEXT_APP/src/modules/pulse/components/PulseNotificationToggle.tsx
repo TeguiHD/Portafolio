@@ -143,7 +143,7 @@ export function PulseNotificationToggle() {
     <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-white/45">Push radar</p>
+          <p className="text-xs uppercase tracking-[0.22em] text-white/45">Avisos</p>
           <p className="mt-2 text-sm leading-6 text-white/62">
             Activa alertas del navegador para enterarte cuando el blog detecte una noticia nueva o una señal relevante.
           </p>
@@ -156,7 +156,7 @@ export function PulseNotificationToggle() {
             permission === "default" && "bg-white/[0.06] text-white/55"
           )}
         >
-          {permission}
+          {permission === "granted" ? "activos" : permission === "denied" ? "bloqueados" : "sin activar"}
         </span>
       </div>
 

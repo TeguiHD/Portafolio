@@ -1,5 +1,5 @@
 import type { PulseNewsItem } from "@/modules/pulse/types";
-import { pedirJson, pedirTexto } from "@/modules/pulse/lib/red";
+import { crearCache, pedirJson, pedirTexto } from "@/modules/pulse/lib/red";
 import { fetchArticlePreview } from "@/modules/pulse/lib/article-preview";
 import {
   buildTimestampLabel,
@@ -307,6 +307,21 @@ function getHostname(url: string) {
   }
 }
 
+/**
+ * Lo que algunos feeds ponen como resumen no dice nada: Hacker News manda «Comments»,
+ * otros repiten el título o dejan «Read more». Mejor sin resumen que con ruido.
+ */
+const RESUMENES_VACIOS = new Set(["comments", "comment", "read more", "leer más", "link", "article", "n/a"]);
+
+function resumenUtil(valor: string | undefined, titulo: string): string {
+  const limpio = (valor ?? "").trim();
+  if (limpio.length < 25) return "";
+  const plano = limpio.toLowerCase().replace(/[.\u2026]+$/, "");
+  if (RESUMENES_VACIOS.has(plano)) return "";
+  if (plano === titulo.trim().toLowerCase()) return "";
+  return limpio;
+}
+
 function truncateExcerpt(input?: string | null, maxChars = MAX_EXCERPT_CHARS) {
   if (!input) {
     return undefined;
@@ -579,14 +594,14 @@ async function enrichNewsItems(items: PulseNewsItem[]) {
       if ((index > 8 && yaCompleto) || (!yaCompleto && portadas >= PORTADAS_MAX)) {
         return {
           ...item,
-          excerpt: truncateExcerpt(item.excerpt) || "Señal técnica capturada por el Command Center.",
+          excerpt: truncateExcerpt(resumenUtil(item.excerpt, item.title)) || undefined,
           imageUrl: item.imageUrl || buildPulsePlaceholderImage(item.source, item.category, item.title),
           imageAlt: item.imageAlt || item.title,
         } satisfies PulseNewsItem;
       }
       portadas++;
       const preview = await fetchArticlePreview(item.url);
-      const mergedExcerpt = truncateExcerpt(item.excerpt || preview.excerpt) || "Señal técnica capturada por el Command Center.";
+      const mergedExcerpt = truncateExcerpt(resumenUtil(item.excerpt, item.title) || resumenUtil(preview.excerpt, item.title)) || undefined;
 
       return {
         ...item,
@@ -636,4 +651,14 @@ export async function getPulseNews() {
   const ranked = uniqueByUrl(sortNewsItems(uniqueById(enriched)));
 
   return enforceBalancedSelection(ranked, MAX_NEWS_ITEMS, MAX_ITEMS_PER_SOURCE);
+}
+
+const cacheNoticias = crearCache<PulseNewsItem[]>("news", 20 * 60_000, 24 * 60 * 60_000);
+
+/**
+ * Noticias con memoria del proceso: la página y la API comparten la misma tanda, así
+ * que pintar el blog en el servidor no dispara una segunda ronda de feeds.
+ */
+export function getPulseNewsCached(forzar = false) {
+  return cacheNoticias.leer(getPulseNews, forzar);
 }

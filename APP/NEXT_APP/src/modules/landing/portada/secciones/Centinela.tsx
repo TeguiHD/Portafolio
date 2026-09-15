@@ -7,7 +7,7 @@ import { useMotionActivity } from "@/modules/landing/motion/LandingMotionProvide
 import { usePortada } from "../PortadaMotion";
 import { useRevelar } from "../revelar";
 import { onda, useMagnetico } from "../interaccion";
-import { cabecerasEsperadas, capas, lineasFijas, practicas, presets, type LineaTerminal } from "../datos/seguridad";
+import { cabecerasEsperadas, capas, lineasFijas, presets, type LineaTerminal } from "../datos/seguridad";
 import { matrixOrb, type MatrixOrb } from "./matrixOrb";
 import "./centinela.css";
 
@@ -396,10 +396,6 @@ export function Centinela() {
             ))}
           </pre>
         </div>
-        <ul className="p-practicas" aria-label="Prácticas de seguridad">
-          {practicas.map((p) => (<li key={p}>{p}</li>))}
-        </ul>
-        <p className="p-credito">Núcleo: Matrix Orb de <a href="https://www.rareui.com/" target="_blank" rel="noopener noreferrer">rareui</a> (MIT), adaptado.</p>
       </div>
     </section>
   );

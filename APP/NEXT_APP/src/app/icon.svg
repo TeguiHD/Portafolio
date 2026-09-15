@@ -1,16 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#00B8A9"/>
-      <stop offset="1" stop-color="#FF8A00"/>
-    </linearGradient>
-  </defs>
-  <rect width="40" height="40" rx="9" fill="#0a0a0f"/>
-  <!-- <N/> trazado a mano: legible a 16px, no depende de una fuente -->
-  <g fill="none" stroke="url(#g)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="10,13 6,20 10,27"/>
-    <polyline points="14,27 14,13 22,27 22,13"/>
-    <line x1="28" y1="13" x2="25" y2="27"/>
-    <polyline points="30,13 34,20 30,27"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="nicoholas.dev">
+  <!-- Marca del sitio: la "n" de nicoholas y el punto de .dev. Trazada a mano, sin
+       depender de una fuente, y con un solo grosor para que aguante 16 px. -->
+  <rect width="64" height="64" rx="15" fill="#0B0F14"/>
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="1.5"/>
+  <g fill="none" stroke="#F5F8FA" stroke-width="8.5" stroke-linecap="round">
+    <path d="M16 43.5V25.5"/>
+    <path d="M16 32.5C16 25.4 21.5 22 26.8 22 32.4 22 37 26.1 37 33v10.5"/>
   </g>
+  <circle cx="48.5" cy="43.5" r="4.6" fill="#2DD4BF"/>
 </svg>

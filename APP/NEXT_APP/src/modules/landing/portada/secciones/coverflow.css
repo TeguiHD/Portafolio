@@ -1,11 +1,12 @@
 /* Coverflow de proyectos (#casos): sección fijada al scroll con tres paneles en perspectiva. */
 
 .p-casos { padding-block: 0; }
-.p-cover-pin { min-height: 100svh; display: grid; align-content: center; overflow: hidden; padding-block: 72px 48px; }
+.p-cover-pin { min-height: 100svh; display: grid; align-content: center; overflow: hidden; padding-block: 48px 40px; }
 .p-cover-wrap { width: 100%; }
 .p-cover-pin .p-cab { margin-bottom: clamp(14px, 3vh, 36px); }
 
-.p-cover-escena { perspective: 1800px; position: relative; height: min(450px, 52vh); }
+/* Los paneles llenan la pantalla fijada en vez de dejar hueco arriba y abajo. */
+.p-cover-escena { perspective: 1800px; position: relative; height: min(540px, 60vh); }
 .p-panel {
   position: absolute; left: 50%; top: 0; width: min(660px, 84vw); height: 100%; margin-left: calc(min(660px, 84vw) / -2);
   border-radius: 22px; border: 1px solid var(--p-linea2); background: #0d1219; overflow: hidden; will-change: transform, opacity;

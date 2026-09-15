@@ -1,0 +1,22 @@
+/* Vocabulario visual compartido: lo usan la portada (.portada) y el blog (.pulso).
+   Vivía dentro de .portada, y el blog acabó con su propia paleta parecida pero
+   distinta; aquí hay una sola fuente para los dos. */
+
+:root {
+  --p-bg: #0a0a0f;
+  --p-panel: #111923;
+  --p-panel2: #0d1219;
+  --p-linea: #ffffff14;
+  --p-linea2: #ffffff26;
+  --p-txt: #e6edf3;
+  --p-mut: #94a3b8;
+  --p-teal: #5eead4;
+  --p-teal2: #2dd4bf;
+  --p-ambar: #f59e0b;
+  --p-azul: #60a5fa;
+  --p-vio: #a78bfa;
+  --p-rojo: #ef4444;
+  --p-verde: #22c55e;
+  --p-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --p-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}

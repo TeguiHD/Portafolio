@@ -9,7 +9,7 @@
 /* Columna en pantallas estrechas; abanico a partir de 640 px. */
 .p-mazo { display: grid; gap: 18px; justify-items: center; }
 @media (min-width: 640px) {
-  .p-mazo-escena { height: 540px; }
+  .p-mazo-escena { height: 500px; }
   .p-mazo { position: absolute; inset: 0; display: block; }
   .p-carta-pos { position: absolute; left: 50%; top: 30px; margin-left: -160px; }
 }

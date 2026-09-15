@@ -1,10 +1,10 @@
 import { ImageResponse } from "next/og";
-import { PulseAppIcon } from "@/modules/pulse/lib/pwa-art";
+import { AppIcon } from "@/components/brand/AppIcon";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  return new ImageResponse(PulseAppIcon({ size: 192 }), {
+  return new ImageResponse(AppIcon({ size: 192 }), {
     width: 192,
     height: 192,
   });
