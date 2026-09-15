@@ -14,6 +14,11 @@ export function usePrimeraInteraccion(): boolean {
   const [hubo, setHubo] = useState(false);
   useEffect(() => {
     if (hubo) return;
+    // Si la persona ya se movió antes de hidratar (scroll inicial), cuenta como interacción.
+    if (window.scrollY > 0) {
+      setHubo(true);
+      return;
+    }
     const marcar = () => setHubo(true);
     EVENTOS.forEach((e) => window.addEventListener(e, marcar, { passive: true, once: true }));
     return () => EVENTOS.forEach((e) => window.removeEventListener(e, marcar));

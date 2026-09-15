@@ -46,8 +46,9 @@ test("el instrumento del frente responde al usuario: el recorte cambia de propor
 test("a 390 px la mesa cabe sin desbordar", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  // En móvil la mesa llega con la primera interacción (aquí, un scroll mínimo).
+  // En móvil la mesa llega con la primera interacción (aquí, un scroll mínimo tras hidratar).
   await expect(page.locator(".p-mesa")).toHaveCount(1);
+  await expect(page.locator(".p-progreso")).toHaveAttribute("data-nivel", "medio");
   await page.evaluate(() => window.scrollBy(0, 1));
   await expect(page.locator("[data-instrumento]")).toHaveCount(4, { timeout: 15_000 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
