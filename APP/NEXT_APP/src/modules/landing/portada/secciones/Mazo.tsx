@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
-import { CreditCard, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { CreditCard, ShieldCheck, Sparkles } from "lucide-react";
 import { useMotionActivity } from "@/modules/landing/motion/LandingMotionProvider";
 import { CVOptimizerDemo, FinanceDemo, SecurityDemo } from "@/modules/landing/sections/vault-demos";
 import { usePortada } from "../PortadaMotion";
@@ -47,13 +47,8 @@ function Carta({ carta, indice }: { carta: (typeof cartasMazo)[number]; indice: 
       >
         <div className="p-cara">
           <span className="p-brillo" aria-hidden="true" />
-          <div className="p-cara-cab">
-            <span className="p-cara-ico"><Icono size={18} aria-hidden="true" /></span>
-            <div>
-              <h3>{carta.titulo}</h3>
-              <small>{carta.subtitulo}</small>
-            </div>
-          </div>
+          {/* La demostración trae su propia cabecera (título, subtítulo, insignia de demo). */}
+          <h3 className="sr-only">{carta.titulo}</h3>
           <div className="p-cara-demo">
             {carta.id === "finance" && <FinanceDemo isActive={activa} />}
             {carta.id === "cv" && <CVOptimizerDemo isActive={activa} />}
@@ -63,9 +58,9 @@ function Carta({ carta, indice }: { carta: (typeof cartasMazo)[number]; indice: 
         </div>
         <div className="p-cara p-dorso">
           <div className="p-cara-cab">
-            <span className="p-cara-ico"><RotateCcw size={18} aria-hidden="true" /></span>
+            <span className="p-cara-ico"><Icono size={18} aria-hidden="true" /></span>
             <div>
-              <h3>{carta.titulo}</h3>
+              <p className="p-cara-titulo">{carta.titulo}</p>
               <small>{carta.subtitulo}</small>
             </div>
           </div>

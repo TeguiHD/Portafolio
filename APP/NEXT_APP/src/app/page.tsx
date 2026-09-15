@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ShowcaseSection } from "@/modules/landing/sections/ShowcaseSection";
+import { Coverflow } from "@/modules/landing/portada/secciones/Coverflow";
 import { ClosingSignature } from "@/modules/landing/sections/ClosingSignature";
 import { FooterSection } from "@/modules/landing/sections/FooterSection";
 import { HeroSection } from "@/modules/landing/portada/hero/HeroSection";
@@ -43,7 +43,7 @@ export default function Home() {
         {/* Proyectos en HTML inicial; se difieren las secciones interactivas. */}
         {deferredSections.map((section) => (
           section === "casos"
-            ? <ShowcaseSection key={section} />
+            ? <Coverflow key={section} />
             : <DeferredLandingSection key={section} section={section} />
         ))}
 

@@ -1,0 +1,51 @@
+/* Coverflow de proyectos (#casos): sección fijada al scroll con tres paneles en perspectiva. */
+
+.p-casos { padding-block: 0; }
+.p-cover-pin { min-height: 100svh; display: grid; align-content: center; overflow: hidden; padding-block: 72px 48px; }
+.p-cover-wrap { width: 100%; }
+.p-cover-pin .p-cab { margin-bottom: clamp(14px, 3vh, 36px); }
+
+.p-cover-escena { perspective: 1800px; position: relative; height: min(450px, 52vh); }
+.p-panel {
+  position: absolute; left: 50%; top: 0; width: min(660px, 84vw); height: 100%; margin-left: calc(min(660px, 84vw) / -2);
+  border-radius: 22px; border: 1px solid var(--p-linea2); background: #0d1219; overflow: hidden; will-change: transform, opacity;
+  cursor: pointer; box-shadow: 0 40px 80px -40px #000; display: flex; flex-direction: column; transition: box-shadow 0.4s var(--p-ease);
+}
+.p-panel:hover { box-shadow: 0 50px 90px -40px #000, 0 0 0 1px #ffffff1f; }
+.p-panel-visual { height: 52%; position: relative; overflow: hidden; background: var(--fondo); }
+.p-panel-imagen { object-fit: cover; }
+.p-panel-etiqueta { position: absolute; left: 14px; bottom: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid #ffffff26; background: #07090fe6; font-size: 10px; color: #e2e8f0; }
+.p-panel-texto { padding: 16px 22px 18px; display: flex; flex-direction: column; min-height: 0; }
+.p-panel-texto small { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--p-ambar); font-weight: 600; }
+.p-panel h3 { font-size: 20px; margin-top: 6px; color: #fff; }
+.p-panel p { color: var(--p-mut); font-size: 13px; margin-top: 6px; line-height: 1.5; }
+.p-panel-detalle { display: none; }
+.p-panel-pie { margin-top: auto; padding-top: 10px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; }
+.p-panel-pie > span { font-size: 10px; color: var(--p-mut); }
+.p-panel-enlace { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--p-teal); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.p-panel-enlace svg { width: 14px; height: 14px; transition: transform 0.25s var(--p-ease); }
+.p-panel-enlace:hover svg { transform: translate(2px, -2px); }
+.p-panel-enlace:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 3px; border-radius: 6px; }
+@media (min-height: 760px) { .p-panel-detalle { display: block; font-size: 12px; } }
+
+.p-cover-mando { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; }
+.p-cover-mando button { min-width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--p-linea2); background: #0d1219ee; color: var(--p-mut); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: color 0.2s, border-color 0.2s, transform 0.2s; }
+.p-cover-mando button:hover:not([disabled]) { color: #fff; transform: translateY(-2px); }
+.p-cover-mando button[disabled] { opacity: 0.35; cursor: default; }
+.p-cover-mando button:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 3px; }
+.p-cover-punto { width: 36px; }
+.p-cover-punto::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.p-cover-punto[aria-current="true"] { color: var(--p-teal); border-color: var(--p-teal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--p-teal) 15%, transparent); }
+
+.p-casos-enlace { display: inline-flex; align-items: center; min-height: 44px; margin-top: 14px; color: #cbd5e1; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.p-casos-enlace:hover { color: #fff; }
+
+/* Sin fijar (nivel estático; también el HTML del servidor, y por tanto sin JavaScript): rejilla con las tres imágenes. */
+.p-cover-escena[data-fijado="false"] {
+  perspective: none; height: auto; display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.p-cover-escena[data-fijado="false"] .p-panel {
+  position: relative; left: auto; top: auto; width: auto; height: auto; margin-left: 0; transform: none !important; opacity: 1 !important;
+}
+.p-cover-escena[data-fijado="false"] .p-panel-visual { aspect-ratio: 8 / 5; height: auto; }
+.p-cover-escena[data-fijado="false"] + .p-cover-mando { display: none; }
