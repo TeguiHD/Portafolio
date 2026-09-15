@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { gsap } from "gsap";
 import { usePortada } from "./PortadaMotion";
 
 /** Tinte del fondo según la sección que cruza el centro de la pantalla. */
@@ -53,12 +52,13 @@ function mezcla(a: number, b: number, t: number) {
  * pantalla completa por frame eran el coste dominante en móvil.
  */
 export function FondoVivo() {
-  const { nivel, lenis } = usePortada();
+  const { nivel, lenis, motor } = usePortada();
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = ref.current;
-    if (!canvas || nivel === "estatico") return;
+    if (!canvas || !motor || nivel === "estatico") return;
+    const { gsap } = motor;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -329,7 +329,7 @@ export function FondoVivo() {
       canvas.width = 1;
       canvas.height = 1;
     };
-  }, [nivel, lenis]);
+  }, [nivel, lenis, motor]);
 
   if (nivel === "estatico") return null;
   return <canvas ref={ref} className="p-fondo" data-landing-background="true" aria-hidden="true" />;

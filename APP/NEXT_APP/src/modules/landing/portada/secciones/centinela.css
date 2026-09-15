@@ -89,3 +89,10 @@
 .p-practicas li { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--p-linea2); font-size: 12px; color: #cbd5e1; }
 .p-credito { margin-top: 10px; font-size: 11px; color: var(--p-mut); text-align: right; }
 .p-credito a { color: var(--p-mut); }
+
+/* Con puntero grueso (móvil) el desenfoque SVG y el destello que recorre los anillos cuestan
+   demasiado por frame: los anillos quedan quietos y sin halo, el resto de la escena sigue. */
+@media (pointer: coarse) {
+  .p-anillos .glow { display: none; }
+  .p-anillos .tick { animation: none; stroke-dasharray: none; opacity: 0.35; }
+}

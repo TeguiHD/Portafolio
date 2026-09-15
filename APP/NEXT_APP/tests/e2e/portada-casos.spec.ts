@@ -12,6 +12,9 @@ test("el coverflow fija la sección y cambia de proyecto con scroll y con los pu
   await expect(page.locator('#casos article[aria-current="true"] h3')).toHaveText("Herramientas de uso diario", { timeout: 10_000 });
   await page.getByRole("button", { name: "Ver FloresDyD" }).click();
   await expect(page.locator('#casos article[aria-current="true"] h3')).toHaveText("FloresDyD", { timeout: 10_000 });
+  // Lenis ignora la rueda mientras anima el salto al punto: se espera a que el scroll se asiente.
+  await page.waitForFunction(() => new Promise((res) => { const y = window.scrollY; setTimeout(() => res(Math.abs(window.scrollY - y) < 1), 400); }));
+  await page.mouse.move(700, 500);
   await page.mouse.wheel(0, 700);
   await expect(page.locator('#casos article[aria-current="true"] h3')).not.toHaveText("FloresDyD", { timeout: 10_000 });
   await expect(page.locator("#casos")).not.toContainText(/200%|92%|850\+|Auditado/);

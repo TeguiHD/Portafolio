@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
-import { gsap } from "gsap";
 import { usePortada } from "./PortadaMotion";
 
 /** Onda al pulsar con el botón principal. El elemento necesita `position: relative; overflow: hidden`. */
@@ -23,10 +22,11 @@ function punteroFino() {
 
 /** Imán de unos píxeles hacia el puntero, solo con puntero fino y nivel completo. */
 export function useMagnetico(ref: RefObject<HTMLElement | null>, fuerza = 8) {
-  const { nivel } = usePortada();
+  const { nivel, motor } = usePortada();
   useEffect(() => {
     const el = ref.current;
-    if (!el || nivel !== "completo" || !punteroFino()) return;
+    if (!el || !motor || nivel !== "completo" || !punteroFino()) return;
+    const { gsap } = motor;
     const qx = gsap.quickTo(el, "x", { duration: 0.4, ease: "power3.out" });
     const qy = gsap.quickTo(el, "y", { duration: 0.4, ease: "power3.out" });
     const mover = (e: PointerEvent) => {
@@ -45,15 +45,16 @@ export function useMagnetico(ref: RefObject<HTMLElement | null>, fuerza = 8) {
       el.removeEventListener("pointerleave", salir);
       gsap.set(el, { clearProps: "transform" });
     };
-  }, [ref, nivel, fuerza]);
+  }, [ref, nivel, motor, fuerza]);
 }
 
 /** Inclinación 3D siguiendo al puntero, con `--gx`/`--gy` para un brillo `.p-brillo`. */
 export function useInclinar(ref: RefObject<HTMLElement | null>, max = 8) {
-  const { nivel } = usePortada();
+  const { nivel, motor } = usePortada();
   useEffect(() => {
     const el = ref.current;
-    if (!el || nivel !== "completo" || !punteroFino()) return;
+    if (!el || !motor || nivel !== "completo" || !punteroFino()) return;
+    const { gsap } = motor;
     const rx = gsap.quickTo(el, "rotateX", { duration: 0.5, ease: "power3.out" });
     const ry = gsap.quickTo(el, "rotateY", { duration: 0.5, ease: "power3.out" });
     const mover = (e: PointerEvent) => {
@@ -77,5 +78,5 @@ export function useInclinar(ref: RefObject<HTMLElement | null>, max = 8) {
       el.removeEventListener("pointerleave", salir);
       gsap.set(el, { clearProps: "transform" });
     };
-  }, [ref, nivel, max]);
+  }, [ref, nivel, motor, max]);
 }

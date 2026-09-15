@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import { gsap } from "gsap";
 import { usePortada } from "./PortadaMotion";
+import type { Motor, Timeline } from "./motor";
+
+const PIEZAS = '.eyebrow, [data-revela="eyebrow"], .ln > span, .sub, [data-revela="sub"]';
 
 /**
  * Revela una cabecera al entrar en pantalla: el eyebrow sube, las líneas del
  * título (`.ln > span`) entran por máscara y el párrafo (`.sub`) sube.
  */
-export function revelarCabecera(cab: HTMLElement): gsap.core.Timeline {
+export function revelarCabecera(gsap: Motor["gsap"], cab: HTMLElement): Timeline {
   const tl = gsap.timeline({
     scrollTrigger: { trigger: cab, start: "top 82%", once: true },
     defaults: { ease: "power3.out" },
@@ -22,21 +24,21 @@ export function revelarCabecera(cab: HTMLElement): gsap.core.Timeline {
   return tl;
 }
 
-/** Devuelve la ref de una cabecera que se revela sola cuando el nivel lo permite. */
+/** Devuelve la ref de una cabecera que se revela sola cuando el nivel y el motor lo permiten. */
 export function useRevelar<T extends HTMLElement = HTMLDivElement>(): RefObject<T | null> {
   const ref = useRef<T>(null);
-  const { nivel, listo } = usePortada();
+  const { nivel, listo, motor } = usePortada();
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || !listo || nivel === "estatico") return;
-    const tl = revelarCabecera(el);
+    if (!el || !listo || !motor || nivel === "estatico") return;
+    const tl = revelarCabecera(motor.gsap, el);
     return () => {
       tl.scrollTrigger?.kill();
       tl.kill();
-      gsap.set(el.querySelectorAll('.eyebrow, [data-revela="eyebrow"], .ln > span, .sub, [data-revela="sub"]'), { clearProps: "all" });
+      motor.gsap.set(el.querySelectorAll(PIEZAS), { clearProps: "all" });
     };
-  }, [nivel, listo]);
+  }, [nivel, listo, motor]);
 
   return ref;
 }

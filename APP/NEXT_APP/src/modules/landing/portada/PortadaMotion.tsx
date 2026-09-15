@@ -1,43 +1,55 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import Lenis from "lenis";
+import type Lenis from "lenis";
 import { usePortadaNivel, type Nivel } from "./nivel";
-
-gsap.registerPlugin(ScrollTrigger);
+import type { Motor } from "./motor";
 
 interface Portada {
   nivel: Nivel;
   lenis: Lenis | null;
-  /** Verdadero cuando ScrollTrigger está operativo (nivel distinto de estático). */
+  /** Verdadero cuando el motor está cargado y ScrollTrigger operativo (nivel distinto de estático). */
   listo: boolean;
+  /** GSAP, ScrollTrigger y Lenis; null hasta que se cargan (o siempre en nivel estático). */
+  motor: Motor | null;
 }
 
-const Ctx = createContext<Portada>({ nivel: "estatico", lenis: null, listo: false });
+const Ctx = createContext<Portada>({ nivel: "estatico", lenis: null, listo: false, motor: null });
 
 export function usePortada() {
   return useContext(Ctx);
 }
 
 /**
- * Motor de movimiento de la portada: GSAP + ScrollTrigger siempre que el nivel
- * no sea estático, Lenis solo en nivel completo, barra de progreso de lectura
- * y autoscroll del botón central del ratón (Lenis virtualiza la rueda y lo pierde).
+ * Motor de movimiento de la portada. GSAP, ScrollTrigger y Lenis se cargan en
+ * su propio chunk tras hidratar y solo si el nivel no es estático; Lenis solo
+ * en nivel completo. Pinta la barra de progreso de lectura y reproduce el
+ * autoscroll del botón central del ratón (Lenis virtualiza la rueda y lo pierde).
  */
 export function PortadaMotion({ children }: { children: ReactNode }) {
   const nivel = usePortadaNivel();
+  const [motor, setMotor] = useState<Motor | null>(null);
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const [listo, setListo] = useState(false);
   const progreso = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (nivel !== "completo") {
+    if (nivel === "estatico" || motor) return;
+    let vivo = true;
+    import("./motor")
+      .then((m) => m.cargarMotor())
+      .then((m) => { if (vivo) setMotor(m); })
+      .catch(() => { /* sin motor la portada queda estática pero completa */ });
+    return () => { vivo = false; };
+  }, [nivel, motor]);
+
+  useEffect(() => {
+    if (!motor || nivel !== "completo") {
       setLenis(null);
       return;
     }
-    const l = new Lenis({ lerp: 0.11, smoothWheel: true });
+    const { gsap, ScrollTrigger, Lenis: LenisCtor } = motor;
+    const l = new LenisCtor({ lerp: 0.11, smoothWheel: true });
     l.on("scroll", ScrollTrigger.update);
     const tick = (t: number) => l.raf(t * 1000);
     gsap.ticker.add(tick);
@@ -83,14 +95,15 @@ export function PortadaMotion({ children }: { children: ReactNode }) {
       l.destroy();
       setLenis(null);
     };
-  }, [nivel]);
+  }, [motor, nivel]);
 
   useEffect(() => {
-    if (nivel === "estatico") {
-      ScrollTrigger.getAll().forEach((st) => st.disable(false));
+    if (!motor || nivel === "estatico") {
+      motor?.ScrollTrigger.getAll().forEach((st) => st.disable(false));
       setListo(false);
       return;
     }
+    const { gsap, ScrollTrigger } = motor;
     ScrollTrigger.getAll().forEach((st) => st.enable());
     const barra = progreso.current;
     const tw = barra
@@ -115,10 +128,10 @@ export function PortadaMotion({ children }: { children: ReactNode }) {
       tw?.kill();
       if (barra) gsap.set(barra, { clearProps: "transform" });
     };
-  }, [nivel]);
+  }, [motor, nivel]);
 
   return (
-    <Ctx.Provider value={{ nivel, lenis, listo }}>
+    <Ctx.Provider value={{ nivel, lenis, listo, motor }}>
       <div ref={progreso} className="p-progreso" aria-hidden="true" data-nivel={nivel} />
       {children}
     </Ctx.Provider>

@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUpRight, Code2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { EntradaHero } from "../EntradaHero";
-import { MesaGiratoria } from "./MesaGiratoria";
+import { HeroMesa } from "./HeroMesa";
 import "./hero.css";
 
 /**
@@ -46,7 +46,7 @@ export function HeroSection() {
           </div>
         </div>
         <div className="p-hero-escena">
-          <MesaGiratoria />
+          <HeroMesa />
         </div>
       </div>
       <a href="#tools-belt" className="p-explorar">

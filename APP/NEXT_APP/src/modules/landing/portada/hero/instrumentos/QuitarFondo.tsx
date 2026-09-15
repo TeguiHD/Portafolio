@@ -67,6 +67,8 @@ export function QuitarFondo({ registrar }: InstrumentoProps) {
     ultimo: null as { x: number; y: number } | null,
     manual: false,
     tl: null as gsap.core.Timeline | null,
+    temporal: null as HTMLCanvasElement | null,
+    ultimoAvance: -1,
   });
 
   function componer() {
@@ -92,11 +94,16 @@ export function QuitarFondo({ registrar }: InstrumentoProps) {
       v.drawImage(s.base, 0, 0);
       v.globalAlpha = 1;
     }
-    const t = document.createElement("canvas");
-    t.width = W;
-    t.height = H;
+    if (!s.temporal) {
+      s.temporal = document.createElement("canvas");
+      s.temporal.width = W;
+      s.temporal.height = H;
+    }
+    const t = s.temporal;
     const tc = t.getContext("2d");
     if (!tc) return;
+    tc.globalCompositeOperation = "source-over";
+    tc.clearRect(0, 0, W, H);
     tc.drawImage(s.base, 0, 0);
     tc.globalCompositeOperation = "destination-in";
     tc.drawImage(s.mask, 0, 0);
@@ -233,7 +240,12 @@ export function QuitarFondo({ registrar }: InstrumentoProps) {
     };
     const pasos = (e: EstadoPaso[], avance?: number) => {
       setEstados(e);
-      setProgreso(avance);
+      // el anillo de progreso se actualiza en 20 pasos: bastan para verlo avanzar y evitan un render por frame
+      const paso = avance === undefined ? -1 : Math.round(avance * 20) / 20;
+      if (paso !== s.ultimoAvance) {
+        s.ultimoAvance = paso;
+        setProgreso(avance === undefined ? undefined : paso);
+      }
     };
 
     const demo = {

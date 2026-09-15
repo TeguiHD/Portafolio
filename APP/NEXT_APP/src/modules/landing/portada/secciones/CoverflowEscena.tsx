@@ -3,22 +3,21 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ArrowUpRight, ChevronLeft, ChevronRight, GraduationCap, ShoppingBag, Wrench } from "lucide-react";
 import { usePortada } from "../PortadaMotion";
 import { useRevelar } from "../revelar";
 import type { Caso } from "../datos/casos";
+import type { Trigger } from "../motor";
 
 const ICONOS = [ShoppingBag, GraduationCap, Wrench];
 const RECORRIDO = 1200;
 
 /** Coverflow de los tres proyectos: el scroll dentro de la sección fijada desplaza el panel activo. */
 export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
-  const { nivel, listo, lenis } = usePortada();
+  const { nivel, listo, lenis, motor } = usePortada();
   const cab = useRevelar<HTMLDivElement>();
   const escena = useRef<HTMLDivElement>(null);
-  const trigger = useRef<ScrollTrigger | null>(null);
+  const trigger = useRef<Trigger | null>(null);
   const lenisRef = useRef(lenis);
   lenisRef.current = lenis;
   const [activo, setActivo] = useState(0);
@@ -27,6 +26,8 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
   const paneles = useCallback(() => (escena.current ? Array.from(escena.current.querySelectorAll<HTMLElement>(".p-panel")) : []), []);
 
   const colocar = useCallback((p: number, animar = false) => {
+    const gsap = motor?.gsap;
+    if (!gsap) return;
     paneles().forEach((el, i) => {
       const o = i - p;
       const a = Math.abs(o);
@@ -35,9 +36,11 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
       else gsap.set(el, props);
     });
     setActivo(Math.round(Math.max(0, Math.min(casos.length - 1, p))));
-  }, [paneles, casos.length]);
+  }, [paneles, casos.length, motor]);
 
   useEffect(() => {
+    if (!motor) return;
+    const { gsap, ScrollTrigger } = motor;
     if (!listo || !fijado) {
       paneles().forEach((el) => gsap.set(el, { clearProps: "all" }));
       return;
@@ -74,7 +77,7 @@ export function CoverflowEscena({ casos }: { casos: readonly Caso[] }) {
       paneles().forEach((el) => gsap.set(el, { clearProps: "all" }));
       if (siguiente && habiaPasado) desplazar(siguiente.getBoundingClientRect().top - previo);
     };
-  }, [listo, fijado, colocar, paneles, casos.length]);
+  }, [listo, fijado, colocar, paneles, casos.length, motor]);
 
   function ir(i: number) {
     const st = trigger.current;

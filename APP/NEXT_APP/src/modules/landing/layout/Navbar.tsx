@@ -236,6 +236,7 @@ export function Navbar() {
         role="dialog"
         aria-label="Menú de navegación móvil"
         aria-hidden={!open}
+        inert={!open}
         className={cn(
           "fixed left-4 right-4 z-40 bg-[#09090b] border border-white/10 rounded-3xl p-3 shadow-2xl md:hidden",
           "transition-all duration-200 ease-out origin-top",
