@@ -32,22 +32,15 @@ export function EnlaceCorreo({
     setDestino(`mailto:${usuario}@${dominio}${cola}`);
   }, [usuario, dominio, asunto]);
 
-  const texto = children ?? `${usuario}@${dominio}`;
-
+  // Antes de hidratar (y sin JavaScript) la dirección sale enmascarada: si se escribiera
+  // entera, un rastreador la copiaría del HTML y Cloudflare volvería a ofuscarla con su
+  // script, que es justo lo que nuestra CSP bloquea.
   if (!destino) {
-    return (
-      <span className={className}>
-        {texto}
-        <noscript>
-          {" "}
-          ({usuario} arroba {dominio})
-        </noscript>
-      </span>
-    );
+    return <span className={className}>{children ?? `${usuario} [arroba] ${dominio}`}</span>;
   }
   return (
     <a href={destino} className={className}>
-      {texto}
+      {children ?? `${usuario}@${dominio}`}
     </a>
   );
 }
