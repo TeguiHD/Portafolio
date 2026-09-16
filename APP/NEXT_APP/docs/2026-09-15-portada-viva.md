@@ -118,6 +118,27 @@ Commit `3ee4b87`, `BUILD_ID TszpRvQwHeOQQ4px-86QC`. Despliegue limpio: con el vo
 - **El centinela se toca.** El anillo y el núcleo se quedan; la petición pasa a ser una ficha que se coge y se empuja hacia dentro. Cada anillo cruzado se enciende y dice qué comprobó, y el que debe frenarla no la deja pasar de su borde: se pone rojo, sale una onda de escudo en SVG y el terminal escribe la respuesta real. La legítima llega al núcleo. La ficha late en reposo para descubrirse; el botón sigue haciendo lo mismo para quien use teclado. Dos pruebas nuevas cubren ambos caminos.
 - **El icono de la pestaña, vivo** (`components/brand/FaviconVivo.tsx`): se dibuja en un lienzo, el punto respira y toma el color de la sección que se lee, y si la pestaña deja de verse el icono se apaga y el título pasa a «Aquí te espero · nicoholas.dev». Con movimiento reducido no anima.
 
+## Sexta ronda: el arranque adelgaza (16 de septiembre de 2026, 14:48)
+
+Commit `3fbe074`, `BUILD_ID OCGDhk2-reFwmNYQoIw2o`.
+
+- **framer-motion sale del paquete inicial de todas las páginas.** Entraba por dos puertas del layout raíz: el aviso de enlace externo del pie (ahora aparece con CSS) y la configuración global de movimiento, que solo existe para que framer respete la preferencia del sistema y ahora se carga en el primer hueco libre. Son 129 KB en crudo, 42 comprimidos, con el 86 % sin usar según Lighthouse.
+- **La fuente mono deja de competir con el LCP.** El párrafo del hero se pinta en Inter; JetBrains Mono se descargaba a la vez y retrasaba el pintado definitivo. Con `preload: false` llega un instante después.
+
+Medido con Lighthouse 13 sobre el paquete compilado servido en local (móvil):
+
+| Variante | Puntuación | LCP | Fuentes |
+|---|---|---|---|
+| Las dos fuentes precargadas | 89 | 3,6 s | 88 KiB |
+| Sin JetBrains Mono | 92 | 3,3 s | 48 KiB |
+| **Mono sin precargar** | **94** | **2,9 s** | 88 KiB |
+
+Sale mejor conservar la tipografía y no precargarla que quitarla. En producción, medido desde una conexión lenta, escritorio da 97 con bloqueo total de 0 ms.
+
+### Lo que queda para el 100 en móvil
+
+El LCP simulado ronda los 2,9 s y hacen falta 2,5. Lo que sigue en la ruta crítica son 52 KiB de CSS que comparten todas las rutas (la salida de Tailwind vive en `globals.css`, que carga el layout raíz, así que la portada paga también el panel de administración) y los 265 KiB de scripts, de los que 71 son react-dom. Bajar eso ya no es un ajuste: es separar el CSS por zonas de la aplicación.
+
 ## Pendiente y recomendaciones
 
 - **LCP simulado en móvil**: el paquete inicial (React, runtime de Next, framer-motion por `template.tsx` y `MotionProvider`, dos fuentes) pesa 271 KB comprimidos más 88 KB de fuentes; Lighthouse lo imputa entero al LCP aunque el párrafo se pinte a los 0,3 s. Dos mejoras con recorrido: retirar JetBrains Mono de `next/font` (−48 KB; la pila del sistema basta para las etiquetas) y sacar framer-motion del paquete inicial (el fundido de `template.tsx` puede ser CSS), −43 KB.
