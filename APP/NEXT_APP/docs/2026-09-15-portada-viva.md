@@ -68,6 +68,22 @@ Lighthouse en escritorio dio 81–83 (antes, en una sola pasada, 89). El desglos
 
 El Speed Index simulado depende de cuánto tiempo sigue cambiando la imagen, y lo que cambia es el fondo de partículas: con `prefers-reduced-motion` la misma página puntúa 91. La firma no participa: con la página quieta arriba del todo diez segundos, su sección sigue en `data-estado="pausado"` y su lienzo sin dimensionar. Las métricas de pintado no se movieron (FCP 0,8 s, LCP 1,7 s simulado, TBT 0–10 ms, CLS 0,008) y el móvil quedó igual (74–78 frente a 76–77), porque allí el fondo espera a la primera interacción.
 
+## Tercer despliegue: aire, marca y blog (16 de septiembre de 2026, 00:27 America/Santiago)
+
+Commit `b1112fd`, `BUILD_ID oBFKwdIA79WKsHT-9Am2S`, mismo camino de siempre (imagen anterior guardada como `portfolio_web:rollback-20260915-2056`, solo el contenedor `web` recreado).
+
+- **Portada más compacta**: el aire entre secciones baja de 320–400 px a 80–250 px y la página encoge unos 600 px. El coverflow llena la pantalla que ocupa en vez de dejar hueco arriba y abajo.
+- **Órbita**: AWS pasa a su logo oficial (Wikimedia Commons, palabra en blanco sobre el satélite oscuro). Se arreglan tres cosas visibles: el resplandor del nombre lo recortaba en rectángulo la máscara de su propia animación (ahora el brillo va en `filter` sobre el recorte), el nombre pisaba los satélites (ahora vive bajo el anillo, fuera de su paso) y al retirar el puntero el nombre cambiaba de color antes de terminar de salir (ahora el que se pinta sobrevive a la animación).
+- **Fuera**, a petición: la lista de prácticas de seguridad con el crédito visible del núcleo (la licencia MIT sigue en `docs/licencias/rareui-matrix-orb.md` y en la cabecera de `matrixOrb.ts`) y los tres chips de contacto.
+- **Marca**: favicon nuevo, la «n» de nicoholas con el punto de .dev, legible a 16 px; los iconos de la aplicación instalable pasan a usarlo en vez del cartel «DP Command Center».
+- **Blog rehecho** con los tokens de la portada, ahora compartidos en `src/app/tokens.css`. Las noticias se pintan en el servidor y viajan en el HTML (antes la página llegaba vacía), con paginado de doce sobre 36 señales y una ficha de lectura en la misma página. Mercado y GitHub se piden por partes con plazo y memoria, así que una fuente caída ya no deja la sección en error. Se retiran unas 2.500 líneas de interfaz anterior que no se usaban.
+- **Peticiones a terceros acotadas**: plazo, tope de tamaño y destino comprobado salto a salto (incluidas las redirecciones) para las URLs que vienen de un feed; el contexto del tiempo deja de enviar la IP de quien visita, en claro, a un servicio externo; la recarga forzada de noticias tiene piso de tiempo; las suscripciones de avisos solo se aceptan hacia los servicios de los navegadores.
+- Comprobación en producción: las seis pruebas del blog y las nueve de la portada pasan contra `https://nicoholas.dev`; el blog responde en 0,9 s en caliente; contenedor con 96 MB y cero reinicios; `sicove.cl` y `asistencia` en 200.
+
+### Lo que enseñó este despliegue
+
+`docker compose up -d` se colgó 28 minutos sin decir nada: preguntaba «Volume "docker_uploads_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)?» y, sin terminal, esperaba una respuesta que nunca llegaba. La web siguió sirviendo con el contenedor anterior todo ese rato. Conviene lanzar ese paso con la entrada cerrada (o `nohup … &`) y un `timeout`, y arreglar el desajuste del volumen en el compose para que la pregunta no aparezca.
+
 ## Pendiente y recomendaciones
 
 - **LCP simulado en móvil**: el paquete inicial (React, runtime de Next, framer-motion por `template.tsx` y `MotionProvider`, dos fuentes) pesa 271 KB comprimidos más 88 KB de fuentes; Lighthouse lo imputa entero al LCP aunque el párrafo se pinte a los 0,3 s. Dos mejoras con recorrido: retirar JetBrains Mono de `next/font` (−48 KB; la pila del sistema basta para las etiquetas) y sacar framer-motion del paquete inicial (el fundido de `template.tsx` puede ser CSS), −43 KB.
