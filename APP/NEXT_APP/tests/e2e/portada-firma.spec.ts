@@ -36,7 +36,8 @@ test("el nombre se forma con partículas y el bucle se duerme al asentarse", asy
   await expect(firma.locator(".p-firma-txt")).toHaveText("nicoholas.dev");
   await expect(firma).toHaveAttribute("data-estado", "reposo", { timeout: 15_000 });
   await expect(firma).toHaveAttribute("data-desvio", "0");
-  await expect(page.locator("footer")).toBeVisible();
+  // Por id: un `footer` a secas también engancha el del aviso de errores de `next dev`.
+  await expect(page.locator("footer#site-footer")).toBeVisible();
 });
 
 test("el puntero repele las partículas, el clic las dispersa y todas vuelven a su letra", async ({ page }) => {

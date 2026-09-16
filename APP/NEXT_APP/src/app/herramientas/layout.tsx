@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ToolsWorkspace } from "@/components/tools/ToolsWorkspace";
 import { ToolsFooter } from "@/components/tools/ToolsFooter";
 import { getPublicTools } from "@/lib/public-tools.server";
+import { ConfigMovimiento } from "@/components/motion/ConfigMovimiento";
 import "./tools.css";
 import "@/components/tools/mesa/mesa.css";
 
@@ -14,5 +15,9 @@ export const metadata: Metadata = {
 
 export default async function ToolsLayout({ children }: { children: React.ReactNode }) {
     const tools = await getPublicTools();
-    return <ToolsWorkspace tools={tools}>{children}<ToolsFooter /></ToolsWorkspace>;
+    return (
+        <ConfigMovimiento>
+            <ToolsWorkspace tools={tools}>{children}<ToolsFooter /></ToolsWorkspace>
+        </ConfigMovimiento>
+    );
 }

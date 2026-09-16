@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { AlertCircle, CheckCircle2, Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ConfigMovimiento } from "@/components/motion/ConfigMovimiento";
 
 type FormStatus = "idle" | "sending" | "success" | "error";
 
@@ -181,6 +182,7 @@ export function ContactSection() {
   );
 
   return (
+    <ConfigMovimiento>
     <section id="contact" className="relative overflow-hidden px-5 py-20 sm:px-10 sm:py-24">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(184,160,130,0.08),transparent_35%),radial-gradient(circle_at_80%_50%,rgba(0,212,170,0.1),transparent_35%)] [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]" />
 
@@ -237,5 +239,6 @@ export function ContactSection() {
         </div>
       </div>
     </section>
+    </ConfigMovimiento>
   );
 }

@@ -8,6 +8,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { ParticleBackground } from "@/components/ParticleBackground";
 import { useToast } from "@/components/ui/Toast";
 import { sanitizeRedirectPath } from "@/lib/url-security";
+import { ConfigMovimiento } from "@/components/motion/ConfigMovimiento";
 
 function LoginForm() {
     const searchParams = useSearchParams();
@@ -312,11 +313,13 @@ function LoginFallback() {
 
 export default function LoginPage() {
     return (
+        <ConfigMovimiento>
         <div className="relative min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-[#050912] via-[#0c1224] to-[#050912]">
             <ParticleBackground particleCount={20} />
             <Suspense fallback={<LoginFallback />}>
                 <LoginForm />
             </Suspense>
         </div>
+        </ConfigMovimiento>
     );
 }

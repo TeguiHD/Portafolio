@@ -56,13 +56,19 @@ export function Paleta({ registrar }: InstrumentoProps) {
     return franjaRef.current ? Array.from(franjaRef.current.querySelectorAll("button")) : [];
   }
 
+  /** Al desmontar ya no queda ninguna franja: pedirle a GSAP que pinte una lista vacía solo suelta un aviso. */
+  function restaurarFranja() {
+    const b = botones();
+    if (b.length) gsap.set(b, { scaleY: 1, opacity: 1 });
+  }
+
   function tomarControl() {
     const s = est.current;
     if (s.manual) return;
     s.manual = true;
     s.tl?.kill();
     s.tl = null;
-    gsap.set(botones(), { scaleY: 1, opacity: 1 });
+    restaurarFranja();
     setEstados(LISTOS);
     setPista("Pulsa un color para ver sus valores");
   }
@@ -104,7 +110,7 @@ export function Paleta({ registrar }: InstrumentoProps) {
       stop() {
         s.tl?.kill();
         s.tl = null;
-        gsap.set(botones(), { scaleY: 1, opacity: 1 });
+        restaurarFranja();
         setEstados(LISTOS);
       },
     };

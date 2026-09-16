@@ -6,6 +6,7 @@ import { gsap } from "gsap";
 import { CreditCard, ShieldCheck, Sparkles } from "lucide-react";
 import { useMotionActivity } from "@/modules/landing/motion/LandingMotionProvider";
 import { CVOptimizerDemo, FinanceDemo, SecurityDemo } from "@/modules/landing/sections/vault-demos";
+import { ConfigMovimiento } from "@/components/motion/ConfigMovimiento";
 import { usePortada } from "../PortadaMotion";
 import { useRevelar } from "../revelar";
 import { onda, useInclinar, useMagnetico } from "../interaccion";
@@ -103,6 +104,7 @@ export function Mazo() {
   }, [nivel, listo]);
 
   return (
+    <ConfigMovimiento>
     <section id="vault" className="p-sec p-mazo-sec">
       <div className="p-wrap">
         <div className="p-mazo-cab">
@@ -132,5 +134,6 @@ export function Mazo() {
         </div>
       </div>
     </section>
+    </ConfigMovimiento>
   );
 }

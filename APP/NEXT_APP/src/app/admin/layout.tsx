@@ -1,6 +1,7 @@
 import { verifyAnyRole } from "@/lib/auth/dal";
 import { AdminLayoutClient } from "@/modules/admin/components/AdminLayoutClient";
 import { getUserEffectivePermissions } from "@/lib/permission-check";
+import { ConfigMovimiento } from "@/components/motion/ConfigMovimiento";
 
 // Force dynamic rendering - admin pages require authentication
 export const dynamic = 'force-dynamic';
@@ -20,11 +21,13 @@ export default async function AdminLayout({
     );
 
     return (
-        <AdminLayoutClient
-            user={session.user}
-            permissions={Array.from(userPermissions)}
-        >
-            {children}
-        </AdminLayoutClient>
+        <ConfigMovimiento>
+            <AdminLayoutClient
+                user={session.user}
+                permissions={Array.from(userPermissions)}
+            >
+                {children}
+            </AdminLayoutClient>
+        </ConfigMovimiento>
     );
 }
