@@ -521,3 +521,10 @@ body:has(.landing-experience) {
 @keyframes ruta-entra { from { opacity: 0; } to { opacity: 1; } }
 .ruta-entra { animation: ruta-entra 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @media (prefers-reduced-motion: reduce) { .ruta-entra { animation: none; } }
+
+/* Aviso de enlace externo (src/components/ui/ExternalLink.tsx): entrada en CSS. */
+@keyframes aviso-externo-fondo-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes aviso-externo-caja-in { from { opacity: 0; transform: translate(-50%, calc(-50% + 20px)) scale(0.95); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.aviso-externo-fondo { animation: aviso-externo-fondo-in 0.2s ease both; }
+.aviso-externo-caja { animation: aviso-externo-caja-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) { .aviso-externo-fondo, .aviso-externo-caja { animation: none; } }
