@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { FaviconVivo } from "@/components/brand/FaviconVivo";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { StructuredData } from "@/components/StructuredData";
@@ -133,6 +134,8 @@ export default async function RootLayout({
         </noscript>
       </head>
       <body className="font-sans antialiased text-white bg-[#0a0a0a] selection:bg-accent-success/30">
+        {/* El icono de la pestaña respira y sigue el color de la sección; si te vas, se apaga. */}
+        <FaviconVivo />
         {/* El aviso vive en el body: <head> solo admite link/style/meta dentro
             de <noscript>, y un <div> ahí lo expulsa el parser. */}
         <noscript>
