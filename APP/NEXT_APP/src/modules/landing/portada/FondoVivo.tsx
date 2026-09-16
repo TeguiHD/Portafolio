@@ -69,6 +69,8 @@ export function FondoVivo() {
     let capas: Particula[][] = [];
     let ondas: Onda[] = [];
     const raton = { x: -1e4, y: -1e4, sx: -1e4, sy: -1e4 };
+    /** Cualquier señal de que hay alguien delante saca al fondo del reposo. */
+    let despertar = () => {};
     let vel = 0;
     let scrollActual = 0;
     const tinte = hex(TINTES.hero);
@@ -116,6 +118,7 @@ export function FondoVivo() {
     window.addEventListener("resize", tam, { passive: true });
 
     const mover = (e: PointerEvent) => {
+      despertar();
       raton.x = e.clientX;
       raton.y = e.clientY;
     };
@@ -126,12 +129,17 @@ export function FondoVivo() {
     };
     window.addEventListener("pointermove", mover, { passive: true });
     window.addEventListener("pointerdown", pulsar, { passive: true });
+    window.addEventListener("keydown", despertar, { passive: true });
+    window.addEventListener("wheel", despertar, { passive: true });
+    window.addEventListener("touchstart", despertar, { passive: true });
 
     const alScroll = (e: { velocity?: number; scroll?: number }) => {
+      despertar();
       vel = e.velocity || 0;
       scrollActual = e.scroll || 0;
     };
     const scrollNativo = () => {
+      despertar();
       vel = (window.scrollY - scrollActual) * 0.6;
       scrollActual = window.scrollY;
     };
@@ -155,8 +163,34 @@ export function FondoVivo() {
     let acum = 0;
     const paso30 = presupuesto < 1;
 
+    /**
+     * Reposo por inactividad: sin puntero, scroll ni teclas durante unos segundos, el
+     * fondo se queda quieto y deja de pintar. Quien está leyendo no lo nota, deja de
+     * gastar batería, y las mediciones dejan de ver una imagen que cambia sin parar
+     * (que es justo lo que hundía el Speed Index).
+     */
+    const ESPERA_REPOSO = 3500;
+    let ultimaActividad = performance.now();
+    let dormido = false;
+
+    despertar = () => {
+      ultimaActividad = performance.now();
+      if (dormido) {
+        dormido = false;
+        canvas.dataset.reposo = "false";
+      }
+    };
+
     const frame = (_t: number, dtRaw: number) => {
       if (document.hidden) return;
+      if (!dormido && performance.now() - ultimaActividad > ESPERA_REPOSO) {
+        dormido = true;
+        canvas.dataset.reposo = "true";
+      }
+      if (dormido) {
+        acum = 0;
+        return;
+      }
       acum += dtRaw;
       if (paso30 && acum < 30) return;
       const dt = acum;
@@ -324,6 +358,9 @@ export function FondoVivo() {
       window.removeEventListener("resize", tam);
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerdown", pulsar);
+      window.removeEventListener("keydown", despertar);
+      window.removeEventListener("wheel", despertar);
+      window.removeEventListener("touchstart", despertar);
       if (lenis) lenis.off("scroll", alScroll);
       else window.removeEventListener("scroll", scrollNativo);
       canvas.width = 1;

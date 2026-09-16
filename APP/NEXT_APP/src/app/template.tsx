@@ -1,38 +1,29 @@
 "use client";
 
-import { useEffect } from "react";
-import { motion } from "framer-motion";
-import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import { useEffect, useState } from "react";
 
 /**
- * Transición entre rutas: un fade corto al navegar.
+ * Transición entre rutas: un fundido corto al navegar.
  *
- * Dos decisiones deliberadas:
- *  1. Solo `opacity`, nunca `transform`. Un transform en este wrapper lo
- *     convertiría en containing block de los navbars `position: fixed`, que
+ * Tres decisiones deliberadas:
+ *  1. Solo `opacity`, nunca `transform`. Un transform en este envoltorio lo
+ *     convertiría en bloque contenedor de los navbars `position: fixed`, que
  *     saltarían durante la animación.
- *  2. Solo anima en navegaciones de cliente. En el primer render no hay
- *     `initial`, así que el HTML servido jamás lleva `opacity: 0`: los
- *     crawlers sin JS y el primer pintado ven el contenido tal cual.
- *     El flag se activa en `useEffect` (solo cliente) para que el módulo
- *     del servidor nunca lo herede entre requests.
+ *  2. Solo anima en navegaciones de cliente. En el primer render no hay clase,
+ *     así que el HTML servido jamás lleva `opacity: 0`: los rastreadores sin JS
+ *     y el primer pintado ven el contenido tal cual.
+ *  3. Va en CSS y no en framer-motion: este envoltorio está en todas las rutas,
+ *     así que la biblioteca entraba en el paquete inicial de todas ellas para
+ *     un fundido de una línea.
  */
-let hasNavigatedBefore = false;
+let yaNavego = false;
 
 export default function Template({ children }: { children: React.ReactNode }) {
-    const animateIn = hasNavigatedBefore;
+  const [animar] = useState(() => yaNavego);
 
-    useEffect(() => {
-        hasNavigatedBefore = true;
-    }, []);
+  useEffect(() => {
+    yaNavego = true;
+  }, []);
 
-    return (
-        <motion.div
-            initial={animateIn ? { opacity: 0 } : false}
-            animate={{ opacity: 1 }}
-            transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
-        >
-            {children}
-        </motion.div>
-    );
+  return <div className={animar ? "ruta-entra" : undefined}>{children}</div>;
 }

@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone', // Required for Docker deployment
+
+  experimental: {
+    // Los estilos viajan en el HTML en vez de en un <link>: quita la petición que
+    // bloquea el primer pintado. La CSP ya admite estilos en línea.
+    inlineCss: true,
+  },
   // typedRoutes disabled: Turbopack does not generate proper AppRoutes/PageRoutes
   // (StaticRoutes only contains redirect routes, causing false type errors)
   // Re-enable when Turbopack fully supports typed route generation

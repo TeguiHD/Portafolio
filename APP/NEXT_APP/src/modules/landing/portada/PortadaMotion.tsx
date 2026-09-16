@@ -40,11 +40,23 @@ export function PortadaMotion({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!tocaCargar || motor) return;
     let vivo = true;
-    import("./motor")
-      .then((m) => m.cargarMotor())
-      .then((m) => { if (vivo) setMotor(m); })
-      .catch(() => { /* sin motor la portada queda estática pero completa */ });
-    return () => { vivo = false; };
+    // El motor espera a que el hilo principal respire: cargarlo justo al hidratar
+    // alargaba las tareas largas del arranque sin que nadie viera nada a cambio.
+    const cargar = () => {
+      import("./motor")
+        .then((m) => m.cargarMotor())
+        .then((m) => { if (vivo) setMotor(m); })
+        .catch(() => { /* sin motor la portada queda estática pero completa */ });
+    };
+    let ocioso: number | null = null;
+    let reloj: number | null = null;
+    if (typeof window.requestIdleCallback === "function") ocioso = window.requestIdleCallback(cargar, { timeout: 1500 });
+    else reloj = window.setTimeout(cargar, 200);
+    return () => {
+      vivo = false;
+      if (ocioso !== null) window.cancelIdleCallback(ocioso);
+      if (reloj !== null) window.clearTimeout(reloj);
+    };
   }, [tocaCargar, motor]);
 
   useEffect(() => {

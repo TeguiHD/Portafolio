@@ -515,3 +515,9 @@ body:has(.landing-experience) {
     scroll-behavior: auto !important;
   }
 }
+
+/* Fundido entre rutas (src/app/template.tsx). Solo opacidad: un transform aquí
+   convertiría el envoltorio en bloque contenedor de los navbars fijos. */
+@keyframes ruta-entra { from { opacity: 0; } to { opacity: 1; } }
+.ruta-entra { animation: ruta-entra 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) { .ruta-entra { animation: none; } }
