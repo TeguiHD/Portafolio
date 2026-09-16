@@ -193,9 +193,18 @@ export function FondoVivo() {
     const ESPERA_REPOSO = 3500;
     let ultimaActividad = performance.now();
     let dormido = false;
+    /**
+     * Al cargar todavía no hay señales de que haya alguien delante: se pinta un cuadro
+     * —para que el fondo esté ahí, no en blanco— y se para hasta el primer gesto. Antes
+     * animaba 3,5 s en cada carga, que es justo la ventana en la que se mide la página:
+     * PageSpeed lo veía como veinte tareas largas repartidas entre el segundo 1 y el 4.
+     */
+    let esperandoPersona = true;
+    let pintado = false;
 
     despertar = () => {
       ultimaActividad = performance.now();
+      esperandoPersona = false;
       if (dormido) {
         dormido = false;
         canvas.dataset.reposo = "false";
@@ -204,7 +213,8 @@ export function FondoVivo() {
 
     const frame = (_t: number, dtRaw: number) => {
       if (document.hidden) return;
-      if (!dormido && performance.now() - ultimaActividad > ESPERA_REPOSO) {
+      const quieto = (esperandoPersona && pintado) || performance.now() - ultimaActividad > ESPERA_REPOSO;
+      if (!dormido && quieto) {
         dormido = true;
         canvas.dataset.reposo = "true";
       }
@@ -372,6 +382,7 @@ export function FondoVivo() {
       });
       ondas = ondas.filter((o) => o.a > 0);
       c.globalCompositeOperation = "source-over";
+      pintado = true;
     };
 
     gsap.ticker.add(frame);

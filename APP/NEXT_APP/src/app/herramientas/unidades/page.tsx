@@ -223,7 +223,7 @@ export default function UnitConverterPage() {
                     }}
                 >
                     {/* Conversion Flow - Vertical on mobile/tablet, Horizontal only on large desktop */}
-                    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-[1fr,auto,1fr] lg:gap-4 xl:gap-6 lg:items-end">
+                    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-4 xl:gap-6 lg:items-end">
 
                         {/* FROM Section */}
                         <div className="space-y-3 min-w-0">

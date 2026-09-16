@@ -143,7 +143,7 @@ export function CurrencyConverter() {
             </div>
 
             {/* Currency Selection */}
-            <div className="grid grid-cols-[1fr,auto,1fr] gap-3 items-end">
+            <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-end">
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-300">De</label>
                     <select

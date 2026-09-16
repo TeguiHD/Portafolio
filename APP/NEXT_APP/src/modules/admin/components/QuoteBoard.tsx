@@ -137,7 +137,7 @@ export function QuoteBoard({ onLogout }: QuoteBoardProps) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
+    <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       {/* Sidebar de plantillas */}
       <div className="glass-panel rounded-2xl border border-accent-1/20 bg-white/5 p-4 shadow-lg">
         <div className="flex items-center justify-between gap-2 mb-4">
