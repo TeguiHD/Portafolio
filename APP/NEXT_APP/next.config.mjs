@@ -3,11 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone', // Required for Docker deployment
 
-  experimental: {
-    // Los estilos viajan en el HTML en vez de en un <link>: quita la petición que
-    // bloquea el primer pintado. La CSP ya admite estilos en línea.
-    inlineCss: true,
-  },
+  // experimental.inlineCss se probó y se descartó: el CSS de la aplicación pesa 358 KB
+  // y meterlo en cada HTML hundía el móvil (89 → 83 en Lighthouse). En fichero se
+  // descarga una vez y queda en caché para el resto de la visita.
   // typedRoutes disabled: Turbopack does not generate proper AppRoutes/PageRoutes
   // (StaticRoutes only contains redirect routes, causing false type errors)
   // Re-enable when Turbopack fully supports typed route generation
