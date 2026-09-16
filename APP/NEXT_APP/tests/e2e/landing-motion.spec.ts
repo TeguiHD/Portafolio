@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { irASeccion } from "./portada-utils";
+import { irASeccion, despertarPortada } from "./portada-utils";
 
 test.setTimeout(150_000);
 
@@ -22,7 +22,9 @@ test("el hero pinta su párrafo desde el primer frame y el cierre queda sin text
   const parrafo = page.locator("#hero p").first();
   await expect(parrafo).toHaveCSS("visibility", "visible");
   await expect(parrafo).toHaveCSS("opacity", "1");
-  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
+  // Solo el instrumento del frente está montado hasta que alguien se mueve.
+  await expect(page.locator("[data-instrumento]")).toHaveCount(1);
+  await despertarPortada(page);
   const firma = page.locator("#closing-signature");
   await expect(firma).not.toContainText("Ideas en movimiento");
   await expect(firma).not.toContainText("Forma. Código. Producto.");

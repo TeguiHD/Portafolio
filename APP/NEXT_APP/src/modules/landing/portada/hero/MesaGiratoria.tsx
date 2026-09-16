@@ -196,7 +196,11 @@ export function MesaGiratoria() {
                 inert={!frente}
                 aria-hidden={!frente}
               >
-                <Comp registrar={registradores.current[i]} />
+                {/* Hasta que haya alguien delante solo se monta el del frente: los otros
+                    tres hidratan cientos de nodos que nadie está mirando —solo el QR son
+                    230 elementos—. Con el primer gesto, mucho antes de que a nadie le dé
+                    tiempo a pulsar una pestaña, entran los demás. */}
+                {frente || interactuado ? <Comp registrar={registradores.current[i]} /> : null}
               </div>
             );
           })}

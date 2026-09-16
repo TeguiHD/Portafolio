@@ -1,9 +1,13 @@
 import { test, expect } from "@playwright/test";
+import { despertarPortada } from "./portada-utils";
 
 test("la mesa giratoria muestra un instrumento al frente y cambia al pulsar un punto", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
-  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
+  // En reposo solo está montado el instrumento del frente; los otros tres llegan con la
+  // primera señal de que hay alguien (así la portada hidrata 737 nodos y no 1059).
+  await expect(page.locator("[data-instrumento]")).toHaveCount(1);
+  await despertarPortada(page);
   await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveCount(1);
   // El primero del carrusel es el generador de QR (ver datos/instrumentos.ts).
   await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveAttribute("data-instrumento", "qr");
@@ -23,7 +27,7 @@ test("las demostraciones paran cuando el hero sale de pantalla y al pausar", asy
   await page.goto("/");
   // Las demos esperan a que haya alguien delante: mover el puntero es esa señal, y
   // tiene que llegar con la página ya hidratada, que es cuando hay quien la escuche.
-  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
+  await despertarPortada(page);
   // Varios movimientos con pausa: uno solo puede llegar antes de que el hero escuche.
   for (let i = 0; i < 6; i++) {
     await page.mouse.move(700 + i * 3, 500 + i * 2);
@@ -54,8 +58,9 @@ test("las demostraciones paran cuando el hero sale de pantalla y al pausar", asy
 test("el instrumento del frente responde al usuario: el recorte cambia de proporción", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
-  // La mesa llega en su propio chunk: pulsar antes de que exista no cambia nada.
-  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
+  // La mesa llega en su propio chunk y los instrumentos de atrás, con el primer gesto:
+  // pulsar antes de que existan no cambia nada.
+  await despertarPortada(page);
   await page.getByRole("tab", { name: "Recortar imagen" }).click();
   const recortar = page.locator("[data-instrumento='recortar']");
   await expect(recortar).toBeVisible();
@@ -71,6 +76,6 @@ test("a 390 px la mesa cabe sin desbordar", async ({ page }) => {
   await expect(page.locator(".p-mesa")).toHaveCount(1);
   await expect(page.locator(".p-progreso")).toHaveAttribute("data-nivel", "medio");
   await page.evaluate(() => window.scrollBy(0, 1));
-  await expect(page.locator("[data-instrumento]")).toHaveCount(4, { timeout: 15_000 });
+  await despertarPortada(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
