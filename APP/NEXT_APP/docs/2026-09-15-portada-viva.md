@@ -139,6 +139,23 @@ Sale mejor conservar la tipografía y no precargarla que quitarla. En producció
 
 El LCP simulado ronda los 2,9 s y hacen falta 2,5. Lo que sigue en la ruta crítica son 52 KiB de CSS que comparten todas las rutas (la salida de Tailwind vive en `globals.css`, que carga el layout raíz, así que la portada paga también el panel de administración) y los 265 KiB de scripts, de los que 71 son react-dom. Bajar eso ya no es un ajuste: es separar el CSS por zonas de la aplicación.
 
+## Séptima ronda: el correo, el cursor y lo que Cloudflare inyectaba (16 de septiembre de 2026, 15:45)
+
+- **El script de Cloudflare desaparece de todas las páginas** sin tocar su panel. Solo lo inyecta cuando encuentra una dirección de correo que ofuscar; ahora el HTML del servidor no lleva ninguna. En el pie el enlace dice «Email» y la dirección se arma al hidratar (`components/ui/EnlaceCorreo.tsx`); en privacidad y términos sale enmascarada («hola [arroba] nicoholas.dev») hasta que el cliente la compone. Misma protección contra rastreadores, sin script ajeno y sin el error de CSP que salía en cada página.
+- **La firma deja de pintar una cruz** sobre el cursor propio del sitio.
+
+### El token de Cloudflare no servía
+
+El token entregado es de cuenta (279 permisos) pero su política solo alcanza el recurso de la cuenta, no las zonas: lee los ajustes de `nicoholas.dev` y al escribir devuelve «Authentication error». Tampoco incluye ningún permiso de tipo Zone Settings ni Bot Management. Para editar esos ajustes por API haría falta una política con el recurso de la zona y esos permisos.
+
+### Lo único que queda en buenas prácticas
+
+Las dos auditorías que restan salen del mismo fichero, `/cdn-cgi/challenge-platform/scripts/jsd/main.js`, que es la detección por JavaScript de Cloudflare: tres avisos de deprecación (peso 5) y una violación de la política de permisos por `picture-in-picture` (peso 1). Se apagan juntas desde Security → JavaScript Detections en el panel de Cloudflare. Relajar nuestra política de permisos para silenciar la segunda no compensa: dejaría la de peso 5 igual.
+
+### Aviso operativo
+
+El SSH al VPS se bloqueó a media tarde (puerto 22 sin respuesta, 80 y 443 bien): fueron cientos de conexiones de vigilancia en pocas horas, que es justo lo que castiga fail2ban. Se resolvió solo en minutos y el despliegue se retomó sin dejar nada a medias. Conviene espaciar las comprobaciones.
+
 ## Pendiente y recomendaciones
 
 - **LCP simulado en móvil**: el paquete inicial (React, runtime de Next, framer-motion por `template.tsx` y `MotionProvider`, dos fuentes) pesa 271 KB comprimidos más 88 KB de fuentes; Lighthouse lo imputa entero al LCP aunque el párrafo se pinte a los 0,3 s. Dos mejoras con recorrido: retirar JetBrains Mono de `next/font` (−48 KB; la pila del sistema basta para las etiquetas) y sacar framer-motion del paquete inicial (el fundido de `template.tsx` puede ser CSS), −43 KB.
