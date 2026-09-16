@@ -23,6 +23,9 @@
 .p-hero h1 .l2 { display: block; font-size: clamp(2.6rem, 6vw, 5rem); font-weight: 900; letter-spacing: -0.045em; line-height: 0.95; color: #fff; }
 .p-hero .sub { font-size: 17px; }
 .p-hero-acciones { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+/* En una columna los dos botones comparten ancho: apilados con anchos distintos el
+   bloque quedaba desalineado por la derecha. */
+@media (max-width: 519px) { .p-hero-acciones { flex-direction: column; align-items: stretch; } .p-hero-acciones .p-cta { justify-content: center; } }
 
 .p-hero-escena { position: relative; min-height: 0; }
 
@@ -107,7 +110,7 @@
 
 /* QR */
 .p-qr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 12px; height: 100%; padding: 12px; }
-@media (max-width: 767px) { .p-qr-grid { grid-template-columns: minmax(0, 1fr); } }
+
 .p-qr-columna { display: grid; gap: 10px; align-content: start; min-width: 0; }
 .p-qr-card { border: 1px solid var(--p-linea); border-radius: 12px; background: #0d1219; overflow: hidden; }
 .p-qr-card .t { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--p-linea); font-size: 12.5px; font-weight: 600; }
@@ -147,3 +150,69 @@
 .p-puntos button[aria-current="true"] .lbl { max-width: 160px; opacity: 1; margin-left: 7px; }
 .p-puntos button:hover { color: #fff; transform: translateY(-2px); }
 .p-puntos button:focus-visible { outline: 2px solid var(--p-teal); outline-offset: 3px; }
+
+/* En una tarjeta de teléfono no cabe la herramienta entera, y lo que se quiere ver es
+   el resultado: el código sube al principio y los controles se quedan en lo justo (el
+   campo y los cuatro estilos). La herramienta completa está a un toque, en su página. */
+@media (max-width: 767px) {
+  /* Dos filas: el código ocupa lo que sobre y los controles lo que necesitan, así no
+     hay manera de que el conjunto se salga de la tarjeta. */
+  .p-qr-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
+  .p-qr-preview { order: -1; align-items: center; min-height: 0; }
+  .p-qr-columna { min-height: 0; }
+  .p-qr-preview b, .p-qr-preview small { text-align: center; }
+  .p-qr-lienzo { height: 100%; width: auto; max-width: 100%; aspect-ratio: 1; margin-inline: auto; padding: 6px; min-height: 0; }
+  .p-qr-preview { padding: 10px; gap: 6px; }
+  /* El titular de la tarjeta sobra cuando el código ocupa toda la vista; se queda la
+     línea de estado, que es la que dice que ya se puede descargar. */
+  /* Los dos botones en una fila: apilados se comían el sitio del código. */
+  .p-qr-acciones { display: flex; gap: 8px; width: 100%; margin-top: auto; }
+  .p-qr-acciones .studio-button { flex: 1 1 0; }
+  .p-qr-preview small { font-size: 10px; }
+  .p-qr-preview .studio-button { min-height: 32px; font-size: 11px; }
+  .p-qr-estilos { padding: 8px 10px 10px; gap: 5px; }
+  .p-qr-estilo { font-size: 9.5px; padding: 5px 3px; border-radius: 8px; }
+  .p-qr-estilo i { height: 20px; margin-bottom: 3px; }
+  .p-qr-card .t { padding: 8px 10px; font-size: 11.5px; }
+  .p-qr-columna .p-qr-card:first-child .t,
+  .p-qr-columna .p-qr-card:first-child label,
+  .p-qr-columna .p-qr-card:first-child .p-qr-tabs,
+  .p-qr-columna .p-qr-card:last-child .t { display: none; }
+}
+
+/* Los otros tres instrumentos comparten la mesa. En móvil lo que hay que ver es la pieza
+   —la foto, la paleta, el encuadre—, así que el mobiliario adelgaza y el escenario se
+   queda con lo que sobra, en lugar de al revés. Va al final del archivo a propósito: las
+   reglas base de arriba ganarían por orden. */
+@media (max-width: 767px) {
+  /* El nombre pide poco sitio y cede el resto: así el botón de descarga sube a la misma
+     fila (eran 46 px de más) y la cabecera solo se parte cuando de verdad no cabe. */
+  .p-instrumento .mesa-cabecera { gap: 8px; padding: 8px 12px; }
+  .p-instrumento .mesa-cabecera-nombre { flex: 1 1 96px; min-width: 0; }
+  .p-instrumento .mesa-cabecera-nombre .detalle { white-space: nowrap; }
+  .p-instrumento .mesa-cabecera .studio-button { min-height: 32px; padding: 5px 10px; font-size: 11px; white-space: nowrap; }
+
+  /* Los pasos siguen contando la historia, en pequeño. */
+  .p-instrumento .mesa-pasos { padding: 8px 12px 17px; }
+  .p-instrumento .mesa-nodo { width: 30px; height: 30px; }
+  .p-instrumento .mesa-nodo-ring { width: 32px; height: 32px; }
+  .p-instrumento .mesa-nodo-ico svg, .p-instrumento .mesa-nodo-chk { width: 15px; height: 15px; }
+  .p-instrumento .mesa-nodo small { top: calc(100% + 4px); font-size: 9px; }
+
+  /* Las proporciones, en una fila que se desliza: envueltas ocupaban dos renglones. */
+  .p-instrumento .mesa-pie { flex-wrap: nowrap; min-height: 34px; padding: 5px 12px; gap: 10px; }
+  .p-instrumento .mesa-chips { flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .p-instrumento .mesa-chips::-webkit-scrollbar { display: none; }
+  .p-instrumento .mesa-chip, .p-instrumento .mesa-pie-estado { flex: 0 0 auto; }
+
+  /* La pieza se mide por el alto que queda y conserva su proporción; midiéndola por el
+     ancho salía más alta que el escenario y se recortaba por arriba y por abajo. */
+  .p-instrumento .mesa-escenario { padding: 8px; }
+  .p-rec-marco, .p-qf-lienzo, .p-pal-img { height: 100%; width: auto; max-width: 100%; }
+
+  /* El desvanecido dice que la fila sigue hacia la derecha; el corte seco parecía un fallo. */
+  .p-instrumento .mesa-chips { mask-image: linear-gradient(90deg, #000 84%, transparent); }
+
+  /* La pista cabe en dos renglones antes que terminar en puntos suspensivos. */
+  .p-instrumento .mesa-pista { left: 8px; bottom: 8px; max-width: calc(100% - 16px); border-radius: 10px; white-space: normal; line-height: 1.35; }
+}

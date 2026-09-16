@@ -24,12 +24,19 @@ test("las demostraciones paran cuando el hero sale de pantalla y al pausar", asy
   // Las demos esperan a que haya alguien delante: mover el puntero es esa señal, y
   // tiene que llegar con la página ya hidratada, que es cuando hay quien la escuche.
   await expect(page.locator("[data-instrumento]")).toHaveCount(4);
-  await page.mouse.move(700, 500);
-  await page.mouse.move(702, 504);
+  // Varios movimientos con pausa: uno solo puede llegar antes de que el hero escuche.
+  for (let i = 0; i < 6; i++) {
+    await page.mouse.move(700 + i * 3, 500 + i * 2);
+    await page.waitForTimeout(120);
+  }
   await expect(page.locator("[data-frente='true']")).toHaveAttribute("data-motion-active", "true", { timeout: 10_000 });
-  // #contact existe en el HTML del servidor (esqueleto diferido): queda muy por debajo del hero
-  await page.evaluate(() => document.getElementById("contact")!.scrollIntoView({ block: "start" }));
-  await page.waitForFunction(() => window.scrollY > 1500);
+  // Con la rueda, como una persona: Lenis virtualiza el scroll y un `scrollIntoView`
+  // directo pelea con su posición interna.
+  for (let i = 0; i < 14 && (await page.evaluate(() => window.scrollY)) < 1600; i++) {
+    await page.mouse.wheel(0, 2400);
+    await page.waitForTimeout(220);
+  }
+  await page.waitForFunction(() => window.scrollY > 1500, null, { timeout: 15_000 });
   await expect(page.locator('[data-motion-active="true"][data-frente]')).toHaveCount(0, { timeout: 10_000 });
   // De vuelta arriba con la rueda: Lenis virtualiza el scroll y un `scrollTo` directo
   // pelea con su posición interna.
@@ -47,6 +54,8 @@ test("las demostraciones paran cuando el hero sale de pantalla y al pausar", asy
 test("el instrumento del frente responde al usuario: el recorte cambia de proporción", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
+  // La mesa llega en su propio chunk: pulsar antes de que exista no cambia nada.
+  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
   await page.getByRole("tab", { name: "Recortar imagen" }).click();
   const recortar = page.locator("[data-instrumento='recortar']");
   await expect(recortar).toBeVisible();

@@ -49,10 +49,12 @@ export function LandingMotionProvider({ children }: { children: React.ReactNode 
               setPaused(next);
               try { sessionStorage.setItem("portfolio:motion-paused", String(next)); } catch { /* Keep the control usable. */ }
             }}
-            className="fixed bottom-4 right-4 z-40 inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-[#0a0a0f]/95 px-4 text-xs text-slate-200 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300"
+            aria-label={paused ? "Activar efectos" : "Pausar efectos"}
+            className="fixed bottom-4 right-4 z-40 inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-white/15 bg-[#0a0a0f]/95 px-0 text-xs text-slate-200 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300 sm:px-4"
           >
             {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
-            {paused ? "Activar efectos" : "Pausar efectos"}
+            {/* En móvil solo el icono: la píldora con texto se plantaba encima de la mesa del hero. */}
+            <span className="hidden sm:inline">{paused ? "Activar efectos" : "Pausar efectos"}</span>
           </button>
         )}
       </div>

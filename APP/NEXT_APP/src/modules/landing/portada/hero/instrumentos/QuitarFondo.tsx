@@ -24,15 +24,53 @@ const PISTA_RESTAURAR = "Pinta para restaurar · el fantasma muestra lo borrado"
 
 type Modo = "erase" | "restore";
 
+/**
+ * El producto de la demostración: un frasco con hombros redondeados, cuello corto y
+ * base apoyada. Se dibuja a mano porque la máscara necesita exactamente la misma
+ * silueta que la foto, y una imagen real obligaría a traer también su recorte.
+ */
 function sujeto(c: CanvasRenderingContext2D) {
   c.beginPath();
-  c.moveTo(208, 290);
-  c.bezierCurveTo(170, 240, 170, 168, 224, 132);
-  c.lineTo(224, 88);
-  c.lineTo(256, 88);
-  c.lineTo(256, 132);
-  c.bezierCurveTo(310, 168, 310, 240, 272, 290);
+  c.moveTo(196, 292);
+  c.bezierCurveTo(186, 292, 178, 284, 178, 272);
+  c.lineTo(178, 208);
+  c.bezierCurveTo(178, 182, 196, 166, 214, 152);
+  c.bezierCurveTo(220, 147, 222, 142, 222, 136);
+  c.lineTo(222, 104);
+  c.bezierCurveTo(222, 99, 226, 96, 231, 96);
+  c.lineTo(249, 96);
+  c.bezierCurveTo(254, 96, 258, 99, 258, 104);
+  c.lineTo(258, 136);
+  c.bezierCurveTo(258, 142, 260, 147, 266, 152);
+  c.bezierCurveTo(284, 166, 302, 182, 302, 208);
+  c.lineTo(302, 272);
+  c.bezierCurveTo(302, 284, 294, 292, 284, 292);
   c.closePath();
+}
+
+/** La etiqueta y el brillo, que son lo que hace que parezca una foto y no una mancha. */
+function detalles(c: CanvasRenderingContext2D) {
+  // Etiqueta con dos renglones insinuados.
+  c.fillStyle = "#f3f5f8";
+  c.beginPath();
+  c.roundRect(196, 206, 88, 54, 6);
+  c.fill();
+  c.fillStyle = "#9aa7b8";
+  c.fillRect(206, 220, 58, 5);
+  c.fillRect(206, 232, 40, 4);
+  c.fillStyle = "#c2410c";
+  c.fillRect(206, 244, 24, 4);
+  // Brillo vertical suave en el lado izquierdo del cuerpo.
+  const brillo = c.createLinearGradient(186, 0, 226, 0);
+  brillo.addColorStop(0, "rgba(255,255,255,0)");
+  brillo.addColorStop(0.55, "rgba(255,255,255,0.16)");
+  brillo.addColorStop(1, "rgba(255,255,255,0)");
+  c.fillStyle = brillo;
+  c.save();
+  sujeto(c);
+  c.clip();
+  c.fillRect(178, 150, 60, 150);
+  c.restore();
 }
 
 /** Quitar fondo: sube, la IA recorta, el pincel borra los restos y la descarga queda lista. Si tocas, tomas el control. */
@@ -186,30 +224,43 @@ export function QuitarFondo({ registrar }: InstrumentoProps) {
     g.addColorStop(1, "#c9d3e0");
     b.fillStyle = g;
     b.fillRect(0, 0, W, H);
-    b.fillStyle = "rgba(0,0,0,.18)";
+    // Sombra de apoyo, cuerpo con volumen, tapa y detalles.
+    b.fillStyle = "rgba(15,23,42,.16)";
     b.beginPath();
-    b.ellipse(250, 300, 105, 16, 0, 0, 7);
+    b.ellipse(240, 296, 78, 13, 0, 0, 7);
     b.fill();
     sujeto(b);
-    b.fillStyle = "#1f2937";
+    const cuerpo = b.createLinearGradient(178, 0, 302, 0);
+    cuerpo.addColorStop(0, "#334155");
+    cuerpo.addColorStop(0.42, "#1f2937");
+    cuerpo.addColorStop(1, "#0f172a");
+    b.fillStyle = cuerpo;
     b.fill();
+    // Tapa: un bloque con su franja de apriete.
     b.fillStyle = "#c2410c";
-    b.fillRect(216, 72, 48, 16);
-    b.fillStyle = "#f8fafc";
-    b.fillRect(224, 188, 32, 36);
-    b.fillStyle = "#5b6b7c";
     b.beginPath();
-    b.ellipse(380, 250, 40, 22, 0.4, 0, 7);
+    b.roundRect(218, 74, 44, 26, 4);
     b.fill();
+    b.fillStyle = "#9a3412";
+    b.fillRect(218, 92, 44, 5);
+    detalles(b);
+    // Segundo objeto: una sombra suelta en el suelo, la que se borra con el pincel.
+    b.fillStyle = "rgba(100,116,139,.45)";
+    b.beginPath();
+    b.ellipse(374, 280, 46, 14, 0.12, 0, 7);
+    b.fill();
+    // La máscara marca lo que se conserva: frasco, tapa, sombra de apoyo y el objeto suelto.
     m.fillStyle = "#fff";
     sujeto(m);
     m.fill();
     m.beginPath();
-    m.ellipse(380, 250, 40, 22, 0.4, 0, 7);
+    m.ellipse(374, 280, 46, 14, 0.12, 0, 7);
     m.fill();
-    m.fillRect(216, 72, 48, 16);
     m.beginPath();
-    m.ellipse(250, 300, 105, 16, 0, 0, 7);
+    m.roundRect(218, 74, 44, 26, 4);
+    m.fill();
+    m.beginPath();
+    m.ellipse(240, 296, 78, 13, 0, 0, 7);
     m.fill();
     s.base = base;
     s.mask = mask;

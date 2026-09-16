@@ -237,8 +237,10 @@ export function GeneradorQR({ registrar }: InstrumentoProps) {
               <p className="p-qr-error">Contenido demasiado largo</p>
             )}
           </div>
-          <button type="button" className="studio-button studio-button-primary" onClick={descargarPng}>Descargar PNG</button>
-          <button type="button" className="studio-button" onClick={descargarSvg}>SVG</button>
+          <div className="p-qr-acciones">
+            <button type="button" className="studio-button studio-button-primary" onClick={descargarPng}>Descargar PNG</button>
+            <button type="button" className="studio-button" onClick={descargarSvg}>SVG</button>
+          </div>
         </div>
       </div>
     </Instrumento>

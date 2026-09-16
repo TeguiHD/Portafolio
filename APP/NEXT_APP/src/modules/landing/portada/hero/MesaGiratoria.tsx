@@ -13,12 +13,13 @@ import { Recortar } from "./instrumentos/Recortar";
 import type { Demo } from "./instrumentos/tipos";
 
 const N = instrumentos.length;
-const ICONOS = [
-  <path key="0" d="m18.4 3.6 2 2-9 9-3.5 1.5L9.4 12.6z" />,
-  <g key="1"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /></g>,
-  <path key="2" d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />,
-  <path key="3" d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" />,
-];
+/** Icono de cada pestaña, por id: así reordenar el carrusel no los desparejaba. */
+const ICONOS: Record<string, React.ReactNode> = {
+  "quitar-fondo": <path d="m18.4 3.6 2 2-9 9-3.5 1.5L9.4 12.6z" />,
+  qr: <g><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /></g>,
+  paleta: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />,
+  recortar: <path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" />,
+};
 
 function radio() {
   return window.innerWidth < 1100 ? 150 : 220;
@@ -212,7 +213,7 @@ export function MesaGiratoria() {
             aria-current={i === activo ? "true" : "false"}
             onClick={() => ir(i, true)}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">{ICONOS[i]}</svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true">{ICONOS[ins.id]}</svg>
             <span className="lbl" aria-hidden="true">{ins.nombre}</span>
           </button>
         ))}
