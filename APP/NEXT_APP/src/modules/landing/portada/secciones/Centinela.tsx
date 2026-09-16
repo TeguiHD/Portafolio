@@ -40,6 +40,8 @@ export function Centinela() {
   const pdot = useRef<HTMLSpanElement>(null);
   const estela = useRef<HTMLSpanElement>(null);
   const lanzarBtn = useRef<HTMLButtonElement>(null);
+  const escudo = useRef<SVGEllipseElement>(null);
+  const guia = useRef<SVGPathElement>(null);
   useMagnetico(lanzarBtn, 6);
 
   const [actual, setActual] = useState(0);
@@ -62,6 +64,10 @@ export function Centinela() {
     K: { v: 0.47 },
     orb: null as MatrixOrb | null,
     reales: lineasFijas as LineaTerminal[],
+    /** Arrastre de la petición: quién lo lleva, hasta dónde llegó y si ya se resolvió. */
+    arrastre: null as number | null,
+    tocados: -1,
+    resuelto: false,
   });
   const corre = active && nivel !== "estatico";
 
@@ -90,13 +96,16 @@ export function Centinela() {
 
   const limpiar = useCallback(() => {
     setAnillos(ANILLOS_INICIALES);
-    if (pdot.current) gsap.set(pdot.current, { opacity: 0, scale: 1 });
+    // La ficha se queda fuera del anillo, a la vista: es lo que se puede coger.
+    est.current.rayoT = 1.05;
+    colocarRayo();
+    if (pdot.current) gsap.set(pdot.current, { opacity: 1, scale: 1 });
     if (estela.current) gsap.set(estela.current, { opacity: 0 });
     setVeredicto({ texto: "", mal: false, on: false });
     luz("#5eead4");
     est.current.orb?.setState("idle");
     setOrbEstado("Vigilando");
-  }, [luz]);
+  }, [colocarRayo, luz]);
 
   const escribir = useCallback((items: LineaTerminal[] | null) => {
     setLineas((prev) => ({ items: items ?? est.current.reales, version: prev.version + 1 }));
@@ -130,10 +139,131 @@ export function Centinela() {
 
   const programarRef = useRef<() => void>(() => {});
 
+  /** Onda de escudo al rechazar: una elipse que se abre sobre el anillo que frena. */
+  const golpeEscudo = useCallback((i: number) => {
+    const el = escudo.current;
+    if (!el || nivel === "estatico") return;
+    const r = RADIOS[i] * 100;
+    gsap.killTweensOf(el);
+    gsap.fromTo(
+      el,
+      { attr: { rx: r * 0.86, ry: r * est.current.K.v * 0.86 }, opacity: 0.85 },
+      { attr: { rx: r * 1.5, ry: r * est.current.K.v * 1.5 }, opacity: 0, duration: 0.9, ease: "power2.out" },
+    );
+  }, [nivel]);
+
+  /**
+   * Final compartido por el botón y por el arrastre: veredicto, terminal y núcleo.
+   * `anillo` es el que frena (o -1 si la petición llegó entera).
+   */
+  const resolver = useCallback((pr: (typeof presets)[number], anillo: number) => {
+    const s = est.current;
+    if (s.resuelto) return;
+    s.resuelto = true;
+    if (anillo >= 0) {
+      marcar(anillo, "mal", `· ${pr.ok[anillo]}`);
+      luz("#ef4444");
+      s.orb?.setState("thinking");
+      setOrbEstado("Bloqueando");
+      golpeEscudo(anillo);
+    } else {
+      s.orb?.setState("listening");
+      setOrbEstado("Respondiendo");
+    }
+    setVeredicto({ texto: pr.fin, mal: pr.hasta < 4, on: true });
+    escribir(pr.lineas);
+  }, [escribir, golpeEscudo, luz, marcar]);
+
+  /**
+   * Arrastrar la petición.
+   *
+   * La ficha se coge y se empuja hacia el núcleo: cada anillo que cruza se enciende y
+   * cuenta qué comprueba, y el que tiene que frenarla no la deja pasar de su borde por
+   * mucho que se insista. Es la misma coreografía que hace el botón, pero con el pulso
+   * en la mano de quien mira.
+   */
+  const desdePuntero = useCallback((e: PointerEvent | React.PointerEvent) => {
+    const c = centinela.current;
+    if (!c) return null;
+    const caja = c.getBoundingClientRect();
+    const r = caja.width / 2;
+    const dx = e.clientX - (caja.left + r);
+    const dy = e.clientY - (caja.top + caja.height / 2);
+    const kvv = est.current.K.v || 0.47;
+    return { ang: Math.atan2(dy / kvv, dx), t: Math.hypot(dx, dy / kvv) / r };
+  }, []);
+
+  const moverArrastre = useCallback((e: PointerEvent) => {
+    const s = est.current;
+    if (s.arrastre === null) return;
+    const pos = desdePuntero(e);
+    if (!pos) return;
+    const pr = presets[s.actual];
+    // Si la petición no es legítima, el anillo que la frena es su muro.
+    const muro = pr.hasta < 4 ? RADIOS[pr.hasta - 1] + 0.035 : 0.06;
+    const t = Math.min(1.14, Math.max(muro, pos.t));
+    s.rayoAng = pos.ang;
+    s.rayoT = t;
+    colocarRayo();
+
+    // Anillos cruzados: se encienden en orden y dicen qué comprobaron.
+    for (let i = 0; i < pr.hasta && i < RADIOS.length; i++) {
+      if (t <= RADIOS[i] + 0.02 && s.tocados < i) {
+        s.tocados = i;
+        const frena = pr.hasta < 4 && i === pr.hasta - 1;
+        if (!frena) marcar(i, "toca", `· ${pr.ok[i]}`);
+      }
+    }
+    if (pr.hasta < 4 && pos.t < muro - 0.01) resolver(pr, pr.hasta - 1);
+    if (pr.hasta === 4 && t <= 0.08) resolver(pr, -1);
+  }, [colocarRayo, desdePuntero, marcar, resolver]);
+
+  const soltarArrastre = useCallback(() => {
+    const s = est.current;
+    if (s.arrastre === null) return;
+    s.arrastre = null;
+    centinela.current?.classList.remove("arrastrando");
+    window.removeEventListener("pointermove", moverArrastre);
+    const volver = { t: s.rayoT };
+    gsap.to(volver, {
+      t: 1.05,
+      duration: 0.7,
+      ease: "power2.out",
+      onUpdate: () => { s.rayoT = volver.t; colocarRayo(); },
+      onComplete: () => { if (!s.resuelto) programarRef.current(); },
+    });
+    if (guia.current) gsap.to(guia.current, { opacity: 0, duration: 0.3 });
+  }, [colocarRayo, moverArrastre]);
+
+  const cogerPeticion = useCallback((e: React.PointerEvent) => {
+    const s = est.current;
+    if (nivel === "estatico") return;
+    e.preventDefault();
+    s.manual = true;
+    s.tl?.kill();
+    window.clearTimeout(s.temporizador);
+    s.resuelto = false;
+    s.tocados = -1;
+    limpiar();
+    s.arrastre = e.pointerId;
+    centinela.current?.classList.add("arrastrando");
+    s.orb?.setState("listening");
+    setOrbEstado("Petición en la mano");
+    if (pdot.current) gsap.set(pdot.current, { opacity: 1, scale: 1.15 });
+    if (estela.current) gsap.set(estela.current, { opacity: 1 });
+    if (guia.current) gsap.to(guia.current, { opacity: 0.5, duration: 0.3 });
+    window.addEventListener("pointermove", moverArrastre, { passive: true });
+    window.addEventListener("pointerup", soltarArrastre, { once: true });
+    window.addEventListener("pointercancel", soltarArrastre, { once: true });
+    moverArrastre(e.nativeEvent);
+  }, [limpiar, moverArrastre, nivel, soltarArrastre]);
+
   const lanzarPeticion = useCallback(() => {
     const s = est.current;
     window.clearTimeout(s.temporizador);
     s.tl?.kill();
+    s.resuelto = false;
+    s.tocados = -1;
     limpiar();
     const pr = presets[s.actual];
     const tope = pr.hasta < 4 ? RADIOS[pr.hasta - 1] + 0.04 : 0;
@@ -289,7 +419,7 @@ export function Centinela() {
           </h2>
           <p className="sub">
             Seguridad defensiva por diseño. Un núcleo vigila el sitio y cada petición atraviesa cuatro anillos antes de tocar un dato.
-            Lanza una y mira cómo responde.
+            Lánzala, o arrástrala tú hasta el núcleo y mira hasta dónde llega.
           </p>
         </div>
 
@@ -339,9 +469,22 @@ export function Centinela() {
                   </g>
                 ))}
               </svg>
-              <div className="p-rayo" aria-hidden="true">
-                <span ref={estela} className="estela" />
-                <span ref={pdot} className="pdot" />
+              <div
+                className="p-rayo"
+                onPointerDown={cogerPeticion}
+                role="button"
+                tabIndex={0}
+                aria-label="Arrastra la petición hacia el núcleo"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    est.current.manual = true;
+                    lanzarPeticion();
+                  }
+                }}
+              >
+                <span ref={estela} className="estela" aria-hidden="true" />
+                <span ref={pdot} className="pdot" aria-hidden="true" />
               </div>
               <div ref={nucleo} className="p-nucleo">
                 <span className="halo" aria-hidden="true" />
@@ -349,6 +492,9 @@ export function Centinela() {
                 <span className="estado-orb" role="status" aria-live="polite">{orbEstado}</span>
               </div>
               <svg className="p-anillos delante" viewBox="-100 -100 200 200" aria-hidden="true">
+                {/* Onda de escudo del anillo que rechaza, y guía hacia el núcleo al arrastrar. */}
+                <ellipse ref={escudo} className="p-escudo" cx="0" cy="0" rx="10" ry="5" opacity="0" />
+                <path ref={guia} className="p-guia" d={`M 0 0 L ${(100).toFixed(0)} 0`} opacity="0" />
                 {capas.map((c, i) => (
                   <g key={c.numero} className={anillos[i].marca} style={{ "--tono": c.tono, "--dur": `${18 + i * 9}s` } as CSSProperties}>
                     <path className="glow" d={arcos(i, kv).cerca} />

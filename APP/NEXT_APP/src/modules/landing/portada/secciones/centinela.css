@@ -73,7 +73,26 @@
 }
 @media (max-width: 640px) { .p-anillo-seg .lbl { font-size: 10px; padding: 4px 7px 4px 5px; } .p-anillo-seg .lbl em { display: none; } }
 
-.p-rayo { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 3; }
+/* La ficha de la petición se puede coger y empujar hacia el núcleo. */
+.p-rayo { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 3; touch-action: none; }
+.p-rayo:focus-visible { outline: none; }
+.p-rayo:focus-visible .pdot { box-shadow: 0 0 0 3px #0d1219, 0 0 0 5px var(--luz); }
+.p-rayo .pdot { cursor: grab; }
+/* Latido suave en reposo: invita a cogerla sin necesidad de un cartel. */
+.p-centinela:not(.arrastrando) .pdot { animation: p-latido 2.6s ease-in-out infinite; }
+[data-motion-active="false"] .p-centinela .pdot { animation: none; }
+@keyframes p-latido { 0%, 100% { box-shadow: 0 0 16px 4px color-mix(in srgb, var(--luz) 60%, transparent), 0 0 40px 10px color-mix(in srgb, var(--luz) 22%, transparent); } 50% { box-shadow: 0 0 20px 7px color-mix(in srgb, var(--luz) 75%, transparent), 0 0 52px 16px color-mix(in srgb, var(--luz) 30%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .p-centinela:not(.arrastrando) .pdot { animation: none; } }
+/* Zona de agarre cómoda alrededor del punto, invisible. */
+.p-rayo .pdot::after { content: ""; position: absolute; inset: -14px; border-radius: 50%; }
+.p-centinela.arrastrando .pdot { cursor: grabbing; }
+.p-centinela.arrastrando .estela { opacity: 1; }
+
+/* Onda del anillo que rechaza y guía punteada hacia el núcleo. */
+.p-escudo { fill: none; stroke: var(--p-rojo); stroke-width: 2.2; }
+.p-guia { fill: none; stroke: var(--luz); stroke-width: 0.8; stroke-dasharray: 3 5; opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .p-escudo, .p-guia { display: none; } }
+
 .p-rayo .pdot { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: var(--luz); box-shadow: 0 0 16px 4px color-mix(in srgb, var(--luz) 60%, transparent), 0 0 40px 10px color-mix(in srgb, var(--luz) 22%, transparent); opacity: 0; }
 .p-rayo .estela { position: absolute; left: 0; top: -1px; height: 2px; width: 0; transform-origin: left; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--luz) 70%, transparent)); opacity: 0; }
 
