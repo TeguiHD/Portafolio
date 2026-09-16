@@ -20,8 +20,11 @@ test("la mesa giratoria muestra un instrumento al frente y cambia al pulsar un p
 test("las demostraciones paran cuando el hero sale de pantalla y al pausar", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
-  // Las demos esperan a que haya alguien delante: mover el puntero es esa señal.
+  // Las demos esperan a que haya alguien delante: mover el puntero es esa señal, y
+  // tiene que llegar con la página ya hidratada, que es cuando hay quien la escuche.
+  await expect(page.locator("[data-instrumento]")).toHaveCount(4);
   await page.mouse.move(700, 500);
+  await page.mouse.move(702, 504);
   await expect(page.locator("[data-frente='true']")).toHaveAttribute("data-motion-active", "true", { timeout: 10_000 });
   // #contact existe en el HTML del servidor (esqueleto diferido): queda muy por debajo del hero
   await page.evaluate(() => document.getElementById("contact")!.scrollIntoView({ block: "start" }));
