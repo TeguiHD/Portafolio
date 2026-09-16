@@ -84,6 +84,24 @@ Commit `b1112fd`, `BUILD_ID oBFKwdIA79WKsHT-9Am2S`, mismo camino de siempre (ima
 
 `docker compose up -d` se colgó 28 minutos sin decir nada: preguntaba «Volume "docker_uploads_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)?» y, sin terminal, esperaba una respuesta que nunca llegaba. La web siguió sirviendo con el contenedor anterior todo ese rato. Conviene lanzar ese paso con la entrada cerrada (o `nohup … &`) y un `timeout`, y arreglar el desajuste del volumen en el compose para que la pregunta no aparezca.
 
+## Cuarta ronda: rendimiento (16 de septiembre de 2026, 02:07 America/Santiago)
+
+Commit `e8ba3c7`, `BUILD_ID 1PTTTP1crd6H07-Glnpac`. Parte de lo que marcaba PageSpeed: escritorio 67 con 800 ms de bloqueo y 4,4 s de hilo principal.
+
+- **La página se queda quieta si no hay nadie.** Las demostraciones del hero esperan a la primera señal de presencia (mover el puntero, tocar, desplazar o teclear), igual que ya hacían en móvil; el fondo vivo se duerme tras 3,5 s sin interacción y despierta con ella; la flecha de «bajar» hace tres vaivenes en vez de mecerse para siempre. Comprobado en producción: sin tocar nada, dos capturas separadas 2,5 s son idénticas.
+- **Menos JavaScript de arranque.** El fundido entre rutas pasa de framer-motion a CSS, con lo que esa biblioteca (42 KB, 30 sin usar) sale del paquete inicial de todas las rutas. El motor de movimiento se carga en el primer hueco libre del hilo principal en vez de justo al hidratar.
+- **`experimental.inlineCss` probado y descartado**: con los 358 KB de CSS de la aplicación dentro de cada HTML, el móvil bajaba de 89 a 83 en Lighthouse 13. Queda en fichero, que se cachea.
+- Medido en local con Lighthouse 13 sobre el paquete compilado, escritorio pasa de 89 a 98 y su Speed Index de 4,4 s a 0,76 s; el bloqueo total cae a 3 ms en escritorio y 82 ms en móvil.
+
+### Lo que impide llegar a 100
+
+- **Buenas prácticas 92**: las tres auditorías que restan son de Cloudflare, no del sitio. Las deprecaciones (peso 5) vienen de su script de detección de bots (`/cdn-cgi/challenge-platform/scripts/jsd/main.js`); los errores de consola y el panel de problemas (peso 1 cada uno), de su script de ofuscación de correo, que la CSP con `strict-dynamic` bloquea por no llevar nonce. Se quitan desde el panel de Cloudflare: Scrape Shield → Email Address Obfuscation en off, y Security → JavaScript Detections en off. Lo segundo baja un escalón la protección contra bots.
+- **Móvil 90**: lo único que resta es el LCP simulado (3,5 s). El párrafo del hero se pinta de verdad a los 265 ms; Lighthouse imputa el JavaScript que empieza antes. Quedan dos piezas gordas: un chunk de 70 KB con 1,9 s de CPU y los 358 KB de CSS que comparten todas las rutas, incluido el panel de administración.
+
+### Despliegues: el volumen que colgaba compose
+
+`docker compose up -d` se colgaba en cada despliegue esperando respuesta a «Volume "docker_uploads_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)?». La causa: el proyecto se movió a `~/portfolio` y el `device: ./volumes/uploads` del compose pasó a resolverse a una carpeta vacía, mientras los datos seguían en `/home/teguihd/docker/volumes/uploads`. En el VPS se dejó la ruta absoluta (con copia previa del fichero); ahora el despliegue pasa sin preguntar y el volumen conserva `cv/` y `cv-backups/`.
+
 ## Pendiente y recomendaciones
 
 - **LCP simulado en móvil**: el paquete inicial (React, runtime de Next, framer-motion por `template.tsx` y `MotionProvider`, dos fuentes) pesa 271 KB comprimidos más 88 KB de fuentes; Lighthouse lo imputa entero al LCP aunque el párrafo se pinte a los 0,3 s. Dos mejoras con recorrido: retirar JetBrains Mono de `next/font` (−48 KB; la pila del sistema basta para las etiquetas) y sacar framer-motion del paquete inicial (el fundido de `template.tsx` puede ser CSS), −43 KB.
