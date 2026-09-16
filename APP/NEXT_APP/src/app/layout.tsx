@@ -13,7 +13,10 @@ const BASE_URL = "https://nicoholas.dev";
 // Fuentes autoalojadas por Next (sin peticiones a Google en tiempo de ejecución,
 // respaldo con métricas ajustadas para evitar saltos de maquetación).
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
-const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" });
+// La mono no se precarga a propósito: no es la letra del párrafo que marca el LCP y,
+// compitiendo por el ancho de banda en ese momento, lo retrasaba 0,7 s en móvil. Llega
+// un instante después y el texto que la usa (terminal, etiquetas, firma) la adopta.
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono", preload: false });
 
 async function bootstrapPulseNotifier() {
   if (process.env.PULSE_PUSH_BOOT !== "true") {
