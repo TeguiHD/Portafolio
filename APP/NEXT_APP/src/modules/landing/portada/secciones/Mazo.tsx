@@ -81,11 +81,35 @@ export function Mazo() {
   const cta = useRef<HTMLAnchorElement>(null);
   useMagnetico(cta, 6);
 
-  // Abanico guiado por el scroll (solo con espacio para él: desde 640 px).
+  // Abanico guiado por el scroll desde 640 px, que es donde cabe abrirlo de lado. Más
+  // estrecho, la columna se reparte: cada carta llega ladeada y se endereza al entrar.
   useEffect(() => {
     const el = mazo.current;
-    if (!el || !listo || nivel === "estatico" || !window.matchMedia("(min-width: 640px)").matches) return;
+    if (!el || !listo || nivel === "estatico") return;
     const cartas = Array.from(el.querySelectorAll<HTMLElement>(".p-carta-pos"));
+    if (!window.matchMedia("(min-width: 640px)").matches) {
+      const repartir = cartas.map((carta, i) =>
+        gsap.fromTo(
+          carta,
+          { rotate: i % 2 === 0 ? -3.5 : 3.5, y: 44, scale: 0.94, transformOrigin: "50% 50%" },
+          {
+            rotate: 0,
+            y: 0,
+            scale: 1,
+            transformOrigin: "50% 50%",
+            ease: "none",
+            scrollTrigger: { trigger: carta, start: "top 92%", end: "top 48%", scrub: 0.7 },
+          },
+        ),
+      );
+      return () => {
+        repartir.forEach((t) => {
+          t.scrollTrigger?.kill();
+          t.kill();
+        });
+        gsap.set(cartas, { clearProps: "transform" });
+      };
+    }
     const sep = () => (window.innerWidth < 900 ? 210 : 330);
     gsap.set(cartas, { rotate: 0, x: 0, y: (i: number) => i * 4, zIndex: (i: number) => 10 - i });
     const tw = gsap.to(cartas, {

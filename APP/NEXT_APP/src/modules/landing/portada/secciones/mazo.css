@@ -37,7 +37,9 @@
 .p-cara { padding: 12px; }
 .p-dorso { padding: 18px; }
 
-.p-cara-demo { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; }
+/* `position: relative` no es decorativo: las demos se pintan con `absolute inset-0` y sin
+   esto se estiraban sobre la carta entera, tapando el pie con su propia barra inferior. */
+.p-cara-demo { position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; }
 .p-cara-demo > * { flex: 1; min-height: 0; }
 .p-cara-pie { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--p-mut); }
 .p-cara-pie span { color: var(--tono); font-weight: 600; }
