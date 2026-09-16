@@ -308,20 +308,41 @@
 .it .it-niebla line { stroke: #94a3b8; }
 .it .it-rayo { fill: var(--p-ambar); stroke: var(--p-ambar); }
 
-.it-rayos { transform-origin: 12px 12px; animation: it-girar 24s linear infinite; }
-.it[data-cielo="sol-nube"] .it-rayos, .it[data-cielo="chubasco"] .it-rayos { transform-origin: 8.6px 8.4px; }
-.it-gotas line { animation: it-caer 1.5s ease-in infinite; }
-.it-copos g { transform-origin: center; animation: it-titilar 2.6s ease-in-out infinite; }
-.it-rayo { animation: it-destello 3.4s ease-in-out infinite; }
+/* Nada se queda quieto: el sol gira, la nube deriva, las gotas caen, los copos bajan
+   titilando, la niebla se desliza en dos capas y el rayo destella. Las duraciones son
+   lo bastante cortas para que se vea a 20 px sin llamar la atención al leer. */
+.it-rayos { transform-origin: 12px 12px; animation: it-girar 11s linear infinite; }
+.it[data-cielo="sol-nube"] .it-rayos { transform-origin: 8.6px 8.4px; }
+.it[data-cielo="chubasco"] .it-rayos { transform-origin: 7.4px 6.2px; }
+.it-sol { transform-box: fill-box; transform-origin: center; animation: it-latir 4.4s ease-in-out infinite; }
+.it-nube { transform-box: fill-box; transform-origin: center; animation: it-derivar 6s ease-in-out infinite; }
+.it-gotas line { animation: it-caer 1.4s ease-in infinite; }
+.it-copos g { transform-box: fill-box; transform-origin: center; animation: it-nevar 3.2s ease-in-out infinite; }
+.it-niebla line:first-child { animation: it-deslizar 4.2s ease-in-out infinite; }
+.it-niebla line:last-child { animation: it-deslizar 4.2s ease-in-out infinite reverse; }
+.it-rayo { transform-box: fill-box; transform-origin: center; animation: it-destello 2.6s ease-in-out infinite; }
 
 @keyframes it-girar { to { transform: rotate(360deg); } }
+@keyframes it-latir { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes it-derivar { 0%, 100% { transform: translateX(-0.7px); } 50% { transform: translateX(0.7px); } }
 @keyframes it-caer {
-  0% { opacity: 0; transform: translateY(-2.5px); }
-  30% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(2.5px); }
+  0% { opacity: 0; transform: translateY(-2.6px); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(2.6px); }
 }
-@keyframes it-titilar { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-@keyframes it-destello { 0%, 88%, 100% { opacity: 1; } 92% { opacity: 0.25; } 96% { opacity: 1; } }
+@keyframes it-nevar {
+  0% { opacity: 0.2; transform: translateY(-1.6px) rotate(0deg); }
+  40% { opacity: 1; }
+  100% { opacity: 0.2; transform: translateY(1.8px) rotate(80deg); }
+}
+@keyframes it-deslizar { 0%, 100% { transform: translateX(-1.1px); } 50% { transform: translateX(1.1px); } }
+@keyframes it-destello {
+  0%, 62%, 100% { opacity: 1; }
+  66% { opacity: 0.15; }
+  70% { opacity: 1; }
+  74% { opacity: 0.3; }
+  78% { opacity: 1; }
+}
 
 /* El panel entra: crece un poco desde la píldora que lo abrió, en lugar de aparecer
    de golpe. Es la misma curva que usa el resto de la portada. */
