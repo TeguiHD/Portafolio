@@ -292,3 +292,57 @@
   .pulso-lector-fondo, .pulso-lector { animation: none; }
   .pulso-hueso .barra { animation: none; }
 }
+
+/* ── El cielo, dibujado (IconoTiempo) ───────────────────────────────────────────
+   Cada condición con su color y un movimiento corto: el sol gira despacio, las gotas
+   caen, los copos parpadean y el rayo destella. Nada de esto se mueve si el sistema
+   pide menos movimiento (al final del archivo). */
+.it { color: #94a3b8; flex: 0 0 auto; }
+.it .it-nube { stroke: #cbd5e1; }
+.it .it-sol { fill: var(--p-ambar); stroke: var(--p-ambar); }
+.it .it-rayos line { stroke: var(--p-ambar); }
+.it[data-cielo="luna"] .it-sol,
+.it[data-cielo="luna-nube"] .it-sol { fill: #e2e8f0; stroke: #e2e8f0; }
+.it .it-gotas line { stroke: #60a5fa; }
+.it .it-copos line { stroke: #e0f2fe; }
+.it .it-niebla line { stroke: #94a3b8; }
+.it .it-rayo { fill: var(--p-ambar); stroke: var(--p-ambar); }
+
+.it-rayos { transform-origin: 12px 12px; animation: it-girar 24s linear infinite; }
+.it[data-cielo="sol-nube"] .it-rayos, .it[data-cielo="chubasco"] .it-rayos { transform-origin: 8.6px 8.4px; }
+.it-gotas line { animation: it-caer 1.5s ease-in infinite; }
+.it-copos g { transform-origin: center; animation: it-titilar 2.6s ease-in-out infinite; }
+.it-rayo { animation: it-destello 3.4s ease-in-out infinite; }
+
+@keyframes it-girar { to { transform: rotate(360deg); } }
+@keyframes it-caer {
+  0% { opacity: 0; transform: translateY(-2.5px); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(2.5px); }
+}
+@keyframes it-titilar { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@keyframes it-destello { 0%, 88%, 100% { opacity: 1; } 92% { opacity: 0.25; } 96% { opacity: 1; } }
+
+/* El panel entra: crece un poco desde la píldora que lo abrió, en lugar de aparecer
+   de golpe. Es la misma curva que usa el resto de la portada. */
+.pulso-panel-tiempo { animation: pulso-abrir 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: top right; }
+@keyframes pulso-abrir {
+  from { opacity: 0; transform: translateY(-6px) scale(0.965); }
+  to { opacity: 1; transform: none; }
+}
+.pulso-panel-tiempo .pulso-tiempo-dia { animation: pulso-fila 0.34s ease-out both; }
+.pulso-panel-tiempo .pulso-tiempo-dia:nth-child(2) { animation-delay: 0.05s; }
+.pulso-panel-tiempo .pulso-tiempo-dia:nth-child(3) { animation-delay: 0.1s; }
+@keyframes pulso-fila { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .it-rayos, .it-gotas line, .it-copos g, .it-rayo,
+  .pulso-panel-tiempo, .pulso-panel-tiempo .pulso-tiempo-dia { animation: none; }
+}
+
+/* Los grados y la figura, uno al lado del otro. */
+.pulso-tiempo-ahora { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.pulso-tiempo-ahora .grados-grande { margin: 0; }
+.it-grande { opacity: 0.95; filter: drop-shadow(0 6px 14px #0006); }
+.pulso-tiempo-dia .cielo { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.pulso-tiempo-dia .cielo .it { margin-top: -1px; }

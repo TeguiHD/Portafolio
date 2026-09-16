@@ -22,16 +22,19 @@ export function usePortada() {
 }
 
 /**
- * Motor de movimiento de la portada. GSAP, ScrollTrigger y Lenis se cargan en
- * su propio chunk tras hidratar y solo si el nivel no es estático; Lenis solo
- * en nivel completo. Pinta la barra de progreso de lectura y reproduce el
+ * Motor de movimiento de la portada. GSAP, ScrollTrigger y Lenis se cargan en su propio
+ * chunk con la primera interacción y solo si el nivel no es estático; Lenis solo en nivel
+ * completo. Pinta la barra de progreso de lectura y reproduce el
  * autoscroll del botón central del ratón (Lenis virtualiza la rueda y lo pierde).
  */
 export function PortadaMotion({ children }: { children: ReactNode }) {
   const nivel = usePortadaNivel();
   const interactuado = usePrimeraInteraccion();
-  // En nivel completo el motor llega tras hidratar; en nivel medio, tras la primera interacción.
-  const tocaCargar = nivel === "completo" || (nivel === "medio" && interactuado);
+  // El motor espera siempre a la primera interacción. Cargarlo al hidratar le costaba a
+  // la portada de escritorio ~350 ms de tareas largas y todo el trabajo del ticker —GSAP,
+  // ScrollTrigger y el bucle de Lenis— dentro de la ventana en la que se mide la página,
+  // para animar cosas que nadie estaba mirando todavía. Quien se mueve lo enciende.
+  const tocaCargar = nivel !== "estatico" && interactuado;
   const [motor, setMotor] = useState<Motor | null>(null);
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const [listo, setListo] = useState(false);

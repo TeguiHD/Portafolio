@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Clock3, CloudSun, LocateFixed, Sun, Wind, X } from "lucide-react";
+import { LocateFixed, Sunrise, Sunset, Thermometer, Wind, X } from "lucide-react";
+import { IconoTiempo } from "./IconoTiempo";
 import type { PulseContextData } from "@/modules/pulse/types";
 
 const CIUDAD_POR_DEFECTO = "Santiago";
@@ -129,7 +130,7 @@ export function Capsula() {
         onClick={() => setAbierta((v) => !v)}
         style={abierta ? { visibility: "hidden" } : undefined}
       >
-        <Sun aria-hidden="true" width={16} height={16} />
+        <IconoTiempo codigo={datos?.weatherCode ?? 0} dia={datos?.isDay ?? true} size={17} />
         <span className="grados">{grados}</span>
         <span className="raya" aria-hidden="true" />
         <span className="reloj">{hora}</span>
@@ -152,7 +153,10 @@ export function Capsula() {
             </button>
           </div>
 
-          <p className="grados-grande" style={{ margin: "14px 0 0" }}>{grados}</p>
+          <div className="pulso-tiempo-ahora">
+            <p className="grados-grande">{grados}</p>
+            {datos ? <IconoTiempo codigo={datos.weatherCode} dia={datos.isDay} size={58} className="it-grande" /> : null}
+          </div>
 
           <dl className="pulso-tiempo-rejilla">
             <div className="pulso-tiempo-celda">
@@ -160,15 +164,15 @@ export function Capsula() {
               <dd>{datos ? `${Math.round(datos.windSpeed)} km/h` : "--"}</dd>
             </div>
             <div className="pulso-tiempo-celda">
-              <dt><CloudSun aria-hidden="true" width={13} height={13} /> Máx / mín</dt>
+              <dt><Thermometer aria-hidden="true" width={13} height={13} /> Máx / mín</dt>
               <dd>{datos?.forecast?.[0] ? `${Math.round(datos.forecast[0].tempMax)}° / ${Math.round(datos.forecast[0].tempMin)}°` : "--"}</dd>
             </div>
             <div className="pulso-tiempo-celda">
-              <dt><Sun aria-hidden="true" width={13} height={13} /> Amanece</dt>
+              <dt><Sunrise aria-hidden="true" width={13} height={13} /> Amanece</dt>
               <dd>{soloHora(datos?.sunrise)}</dd>
             </div>
             <div className="pulso-tiempo-celda">
-              <dt><Clock3 aria-hidden="true" width={13} height={13} /> Oscurece</dt>
+              <dt><Sunset aria-hidden="true" width={13} height={13} /> Oscurece</dt>
               <dd>{soloHora(datos?.sunset)}</dd>
             </div>
           </dl>
@@ -178,7 +182,10 @@ export function Capsula() {
               {datos.forecast.slice(0, 3).map((d) => (
                 <div key={d.dayLabel} className="pulso-tiempo-dia">
                   <span className="dia">{d.dayLabel}</span>
-                  <span className="cielo">{d.weatherLabel}</span>
+                  <span className="cielo">
+                    <IconoTiempo codigo={d.weatherCode} size={20} />
+                    {d.weatherLabel}
+                  </span>
                   <span>
                     <span className="max">{Math.round(d.tempMax)}°</span> <span className="min">{Math.round(d.tempMin)}°</span>
                   </span>

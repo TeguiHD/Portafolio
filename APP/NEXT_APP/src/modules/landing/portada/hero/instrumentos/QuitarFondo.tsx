@@ -20,6 +20,17 @@ const PASOS = [
 ];
 const LISTOS: EstadoPaso[] = ["listo", "listo", "listo"];
 const PISTA_BORRAR = "Pinta para borrar restos";
+/**
+ * Cuánto agranda el CSS a la mesa. El carrusel escala el instrumento con `transform`, así
+ * que `getBoundingClientRect()` devuelve píxeles de pantalla mientras `style.left` se
+ * escribe en las coordenadas propias del elemento. Sin deshacer esa escala, el pincel se
+ * separaba del puntero más cuanto más te alejabas del borde izquierdo (48 px en el centro).
+ * Las coordenadas de pintado no lo necesitan: van por proporción.
+ */
+function escalaDe(el: HTMLElement, r: DOMRect) {
+  return el.offsetWidth > 0 ? r.width / el.offsetWidth : 1;
+}
+
 const PISTA_RESTAURAR = "Pinta para restaurar · el fantasma muestra lo borrado";
 
 type Modo = "erase" | "restore";
@@ -285,9 +296,10 @@ export function QuitarFondo({ registrar }: InstrumentoProps) {
       if (!lienzo || !view || !f) return;
       const r = lienzo.getBoundingClientRect();
       const rv = view.getBoundingClientRect();
+      const escala = escalaDe(lienzo, r);
       f.style.display = "block";
-      f.style.left = `${rv.left - r.left + (p.x / W) * rv.width}px`;
-      f.style.top = `${rv.top - r.top + (p.y / H) * rv.height}px`;
+      f.style.left = `${(rv.left - r.left + (p.x / W) * rv.width) / escala}px`;
+      f.style.top = `${(rv.top - r.top + (p.y / H) * rv.height) / escala}px`;
     };
     const pasos = (e: EstadoPaso[], avance?: number) => {
       setEstados(e);
@@ -517,9 +529,10 @@ export function QuitarFondo({ registrar }: InstrumentoProps) {
               const lienzo = lienzoRef.current;
               if (cur && lienzo) {
                 const r = lienzo.getBoundingClientRect();
+                const escala = escalaDe(lienzo, r);
                 cur.style.display = s.comparando || !s.manual ? "none" : "block";
-                cur.style.left = `${e.clientX - r.left}px`;
-                cur.style.top = `${e.clientY - r.top}px`;
+                cur.style.left = `${(e.clientX - r.left) / escala}px`;
+                cur.style.top = `${(e.clientY - r.top) / escala}px`;
               }
               if (!s.pintando) return;
               const p = posicion(e);
