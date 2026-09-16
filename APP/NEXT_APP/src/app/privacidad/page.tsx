@@ -1,4 +1,5 @@
 import { Navbar } from "@/modules/landing/layout/Navbar";
+import { EnlaceCorreo } from "@/components/ui/EnlaceCorreo";
 import { FooterSection } from "@/modules/landing/sections/FooterSection";
 
 export const metadata = {
@@ -114,9 +115,7 @@ export default function PrivacyPage() {
                                 Si tienes preguntas técnicas sobre cómo funcionan mis herramientas o sobre esta política, puedes escribirme directamente.
                             </p>
                             <div className="mt-4">
-                                <a href="mailto:hola@nicoholas.dev" className="text-accent-1 hover:text-white transition-colors underline decoration-accent-1/30 hover:decoration-white">
-                                    hola@nicoholas.dev
-                                </a>
+                                <EnlaceCorreo usuario="hola" dominio="nicoholas.dev" className="text-accent-1 hover:text-white transition-colors underline decoration-accent-1/30 hover:decoration-white" />
                             </div>
                         </section>
 

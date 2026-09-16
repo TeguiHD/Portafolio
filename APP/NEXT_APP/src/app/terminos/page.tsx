@@ -1,4 +1,5 @@
 import { Navbar } from "@/modules/landing/layout/Navbar";
+import { EnlaceCorreo } from "@/components/ui/EnlaceCorreo";
 import { FooterSection } from "@/modules/landing/sections/FooterSection";
 
 export const metadata = {
@@ -106,7 +107,7 @@ export default function TermsPage() {
 
                         <section className="pt-8 border-t border-white/10">
                             <p className="text-center text-neutral-500 text-xs">
-                                ¿Dudas sobre estos términos? <a href="mailto:hola@nicoholas.dev" className="text-accent-1 hover:text-white transition-colors">Contáctame</a>.
+                                ¿Dudas sobre estos términos? <EnlaceCorreo usuario="hola" dominio="nicoholas.dev" className="text-accent-1 hover:text-white transition-colors">Contáctame</EnlaceCorreo>.
                             </p>
                         </section>
 

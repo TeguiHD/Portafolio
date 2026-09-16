@@ -1,5 +1,6 @@
 import { ThrottledLink } from "@/components/ui/ThrottledLink";
 import { ExternalLink } from "@/components/ui/ExternalLink";
+import { EnlaceCorreo } from "@/components/ui/EnlaceCorreo";
 
 export function FooterSection() {
   return (
@@ -39,7 +40,7 @@ export function FooterSection() {
             <li><ExternalLink href="https://github.com/TeguiHD" className="hover:text-white transition-colors">GitHub</ExternalLink></li>
             <li><ExternalLink href="https://linkedin.com/in/nicoholas-lopetegui" className="hover:text-white transition-colors">LinkedIn</ExternalLink></li>
             <li>
-              <a href="mailto:contact@nicoholas.dev" className="hover:text-white transition-colors">Email</a>
+              <EnlaceCorreo usuario="contact" dominio="nicoholas.dev" className="hover:text-white transition-colors">Email</EnlaceCorreo>
             </li>
           </ul>
         </nav>
