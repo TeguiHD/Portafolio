@@ -20,13 +20,21 @@ test("la mesa giratoria muestra un instrumento al frente y cambia al pulsar un p
 test("las demostraciones paran cuando el hero sale de pantalla y al pausar", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
-  await expect(page.locator("[data-frente='true']")).toHaveAttribute("data-motion-active", "true");
+  // Las demos esperan a que haya alguien delante: mover el puntero es esa señal.
+  await page.mouse.move(700, 500);
+  await expect(page.locator("[data-frente='true']")).toHaveAttribute("data-motion-active", "true", { timeout: 10_000 });
   // #contact existe en el HTML del servidor (esqueleto diferido): queda muy por debajo del hero
   await page.evaluate(() => document.getElementById("contact")!.scrollIntoView({ block: "start" }));
   await page.waitForFunction(() => window.scrollY > 1500);
   await expect(page.locator('[data-motion-active="true"][data-frente]')).toHaveCount(0, { timeout: 10_000 });
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForFunction(() => window.scrollY < 50);
+  // De vuelta arriba con la rueda: Lenis virtualiza el scroll y un `scrollTo` directo
+  // pelea con su posición interna.
+  await page.mouse.move(700, 500);
+  for (let i = 0; i < 12 && (await page.evaluate(() => window.scrollY)) > 50; i++) {
+    await page.mouse.wheel(0, -2400);
+    await page.waitForTimeout(250);
+  }
+  await page.waitForFunction(() => window.scrollY < 50, null, { timeout: 15_000 });
   await expect(page.locator("[data-frente='true']")).toHaveAttribute("data-motion-active", "true", { timeout: 10_000 });
   await page.getByRole("button", { name: "Pausar efectos" }).click();
   await expect(page.locator('[data-motion-active="true"][data-frente]')).toHaveCount(0);

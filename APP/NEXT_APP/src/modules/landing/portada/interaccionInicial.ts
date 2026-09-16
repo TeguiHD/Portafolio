@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-const EVENTOS = ["pointerdown", "touchstart", "wheel", "keydown", "scroll"] as const;
+// `pointermove` cuenta: en escritorio es la primera señal de que hay alguien delante,
+// y sin ella el hero se quedaba quieto para quien mira sin tocar nada.
+const EVENTOS = ["pointermove", "pointerdown", "touchstart", "wheel", "keydown", "scroll"] as const;
 
 /**
  * Verdadero desde la primera interacción de la persona (toque, rueda, tecla o scroll).

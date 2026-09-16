@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { usePortada } from "../PortadaMotion";
+import { usePrimeraInteraccion } from "../interaccionInicial";
 import { instrumentos } from "../datos/instrumentos";
 import { QuitarFondo } from "./instrumentos/QuitarFondo";
 import { GeneradorQR } from "./instrumentos/GeneradorQR";
@@ -29,6 +30,9 @@ function radio() {
  */
 export function MesaGiratoria() {
   const { nivel, listo } = usePortada();
+  /** Las demostraciones esperan a que haya alguien delante: quien no interactúa no
+   *  paga su coste, y la página se queda quieta en vez de repintarse sin público. */
+  const interactuado = usePrimeraInteraccion();
   const mesaRef = useRef<HTMLDivElement>(null);
   const escenaRef = useRef<HTMLDivElement>(null);
   const demos = useRef<(Demo | null)[]>(Array.from({ length: N }, () => null));
@@ -118,7 +122,7 @@ export function MesaGiratoria() {
 
   // Arranque y parada de la demo del frente.
   useEffect(() => {
-    const corre = heroVisible && nivel !== "estatico";
+    const corre = heroVisible && nivel !== "estatico" && interactuado;
     const lista = demos.current;
     lista.forEach((d, k) => {
       if (!d) return;
@@ -127,17 +131,17 @@ export function MesaGiratoria() {
     });
     if (!corre) return;
     return () => lista[activo]?.stop();
-  }, [activo, heroVisible, nivel, registro]);
+  }, [activo, heroVisible, nivel, registro, interactuado]);
 
   // Avance automático cada 11 s.
   useEffect(() => {
-    if (nivel !== "completo") return;
+    if (nivel !== "completo" || !interactuado) return;
     const id = window.setInterval(() => {
       if (!heroVisible || document.hidden || Date.now() < pausaHasta.current) return;
       ir(activoRef.current + 1, false);
     }, 11000);
     return () => window.clearInterval(id);
-  }, [nivel, heroVisible, ir]);
+  }, [nivel, heroVisible, ir, interactuado]);
 
   // Coreografía de entrada del hero (una vez, si el hero sigue retenido).
   useEffect(() => {
