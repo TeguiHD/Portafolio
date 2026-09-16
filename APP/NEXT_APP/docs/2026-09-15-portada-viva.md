@@ -98,6 +98,10 @@ Commit `e8ba3c7`, `BUILD_ID 1PTTTP1crd6H07-Glnpac`. Parte de lo que marcaba Page
 - **Buenas prácticas 92**: las tres auditorías que restan son de Cloudflare, no del sitio. Las deprecaciones (peso 5) vienen de su script de detección de bots (`/cdn-cgi/challenge-platform/scripts/jsd/main.js`); los errores de consola y el panel de problemas (peso 1 cada uno), de su script de ofuscación de correo, que la CSP con `strict-dynamic` bloquea por no llevar nonce. Se quitan desde el panel de Cloudflare: Scrape Shield → Email Address Obfuscation en off, y Security → JavaScript Detections en off. Lo segundo baja un escalón la protección contra bots.
 - **Móvil 90**: lo único que resta es el LCP simulado (3,5 s). El párrafo del hero se pinta de verdad a los 265 ms; Lighthouse imputa el JavaScript que empieza antes. Quedan dos piezas gordas: un chunk de 70 KB con 1,9 s de CPU y los 358 KB de CSS que comparten todas las rutas, incluido el panel de administración.
 
+### La caché del contenedor, arreglada
+
+El `EACCES: permission denied, mkdir '/app/.next/cache'` que salía en cada arranque desde hacía meses ya no aparece. La imagen copia como root y el proceso corre como `node`, así que esa carpeta no existía y no se podía crear: cada imagen optimizada se recodificaba en cada petición y la caché de prerenderizado no se escribía nunca. Se creó en caliente en el contenedor y se añadió al `Dockerfile.prod` del VPS (con copia previa) para que venga hecha en la próxima imagen. Confirmado: cero `EACCES` desde el reinicio y la caché de imágenes ya guarda entradas.
+
 ### Despliegues: el volumen que colgaba compose
 
 `docker compose up -d` se colgaba en cada despliegue esperando respuesta a «Volume "docker_uploads_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)?». La causa: el proyecto se movió a `~/portfolio` y el `device: ./volumes/uploads` del compose pasó a resolverse a una carpeta vacía, mientras los datos seguían en `/home/teguihd/docker/volumes/uploads`. En el VPS se dejó la ruta absoluta (con copia previa del fichero); ahora el despliegue pasa sin preguntar y el volumen conserva `cv/` y `cv-backups/`.
