@@ -5,7 +5,8 @@ test("la mesa giratoria muestra un instrumento al frente y cambia al pulsar un p
   await page.goto("/");
   await expect(page.locator("[data-instrumento]")).toHaveCount(4);
   await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveCount(1);
-  await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveAttribute("data-instrumento", "quitar-fondo");
+  // El primero del carrusel es el generador de QR (ver datos/instrumentos.ts).
+  await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveAttribute("data-instrumento", "qr");
   await expect(page.locator(".p-instrumento-pos:not([inert])")).toHaveCount(1);
   await page.getByRole("tab", { name: "Extractor de paleta" }).click();
   await expect(page.locator("[data-frente='true'] [data-instrumento]")).toHaveAttribute("data-instrumento", "paleta");

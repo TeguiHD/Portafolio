@@ -168,7 +168,13 @@ export function MesaGiratoria() {
   }, []);
   const registradores = useRef(instrumentos.map((_, i) => registrar(i)));
 
-  const componentes = [QuitarFondo, GeneradorQR, Paleta, Recortar];
+  /** Por id, no por posición: el orden del carrusel se cambia solo en datos/instrumentos. */
+  const componentes: Record<(typeof instrumentos)[number]["id"], typeof QuitarFondo> = {
+    "quitar-fondo": QuitarFondo,
+    qr: GeneradorQR,
+    paleta: Paleta,
+    recortar: Recortar,
+  };
   // El mismo criterio que usa el efecto: si no, el atributo decía que la demo
   // corría cuando en realidad estaba parada esperando a que hubiera alguien.
   const corre = heroVisible && nivel !== "estatico" && interactuado;
@@ -178,7 +184,7 @@ export function MesaGiratoria() {
       <div ref={escenaRef} className="p-mesa-3d">
         <div ref={mesaRef} className="p-mesa-giro">
           {instrumentos.map((ins, i) => {
-            const Comp = componentes[i];
+            const Comp = componentes[ins.id];
             const frente = i === activo;
             return (
               <div

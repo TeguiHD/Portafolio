@@ -7,7 +7,7 @@ import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
 import { MesaBoton, MesaRail, MesaSeparador } from "@/components/tools/mesa/MesaRail";
 import type { EstadoPaso } from "@/components/tools/mesa/MesaPasos";
 import { IconoCopiar, IconoDescargar, IconoGota, IconoImagen, IconoSubir } from "@/components/tools/mesa/MesaIcons";
-import { instrumentos } from "../../datos/instrumentos";
+import { instrumentoPorId } from "../../datos/instrumentos";
 import { Instrumento } from "./Instrumento";
 import { pintarMuestra, type InstrumentoProps } from "./tipos";
 
@@ -41,7 +41,7 @@ function extraer(g: CanvasRenderingContext2D, cantidad: number): string[] {
 /** Extractor de paleta: los colores salen de la imagen uno a uno; pulsa uno para copiar su HEX. */
 export function Paleta({ registrar }: InstrumentoProps) {
   const router = useRouter();
-  const dato = instrumentos[2];
+  const dato = instrumentoPorId("paleta");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const franjaRef = useRef<HTMLDivElement>(null);
   const [cantidad, setCantidad] = useState(6);

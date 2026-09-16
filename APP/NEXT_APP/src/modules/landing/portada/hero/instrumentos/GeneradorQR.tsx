@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import QRCode from "qrcode";
 import { gsap } from "gsap";
 import { Link2, Palette, Check } from "lucide-react";
-import { instrumentos } from "../../datos/instrumentos";
+import { instrumentoPorId } from "../../datos/instrumentos";
 import { Instrumento } from "./Instrumento";
 import type { InstrumentoProps } from "./tipos";
 
@@ -37,7 +37,7 @@ function esFinder(r: number, c: number, n: number) {
 
 /** Generador de QR: el texto se teclea solo, los módulos brotan desde el centro y recorre los estilos. */
 export function GeneradorQR({ registrar }: InstrumentoProps) {
-  const dato = instrumentos[1];
+  const dato = instrumentoPorId("qr");
   const [texto, setTexto] = useState(TEXTO_DEMO);
   const [tipo, setTipo] = useState(0);
   const [estilo, setEstilo] = useState(0);

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MousePointer2 } from "lucide-react";
 import { useMotionActivity } from "@/modules/landing/motion/LandingMotionProvider";
 import { usePortada } from "../PortadaMotion";
 import "./firma.css";
@@ -351,11 +350,6 @@ export function Firma() {
         <p className="p-firma-txt">{TEXTO}</p>
         <canvas ref={lienzoRef} className="p-firma-lienzo" aria-hidden="true" />
       </div>
-      <p className="p-firma-pista" aria-hidden="true">
-        <MousePointer2 className="p-firma-icono" aria-hidden="true" />
-        <span className="fina">Pasa el ratón · clic para dispersar</span>
-        <span className="gruesa">Desliza el dedo · toca para dispersar</span>
-      </p>
     </section>
   );
 }

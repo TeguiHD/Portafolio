@@ -1,7 +1,9 @@
 /* Centinela de seguridad (#architecture): lanzador, anillos, núcleo y terminal. */
 
 .p-prueba { display: grid; gap: 22px; margin-top: 8px; }
-@media (min-width: 1024px) { .p-prueba { grid-template-columns: 360px minmax(0, 1fr); align-items: center; } }
+/* Dos columnas desde 1100: justo en 1024 la columna del anillo quedaba tan estrecha
+   que las etiquetas se salían de la sección. */
+@media (min-width: 1100px) { .p-prueba { grid-template-columns: 360px minmax(0, 1fr); align-items: center; } }
 
 .p-lanzador { border-radius: 18px; border: 1px solid var(--p-linea2); background: linear-gradient(180deg, #111923, #0b1017); padding: 18px; box-shadow: 0 30px 60px -40px #000; }
 .p-lanzador h3 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--p-mut); font-weight: 600; }
@@ -24,7 +26,12 @@
 
 .p-centinela-wrap { display: grid; place-items: center; min-height: 520px; position: relative; }
 @media (max-width: 640px) { .p-centinela-wrap { min-height: 420px; } }
+/* El radio deja sitio a las etiquetas, que salen del anillo hacia los lados: con un
+   radio fijo se salían de la sección y la sección las recortaba. */
 .p-centinela { --R: min(300px, 42vw); --luz: #5eead4; position: relative; width: calc(var(--R) * 2); height: calc(var(--R) * 2); }
+@media (max-width: 1320px) { .p-centinela { --R: min(212px, 20vw); } }
+@media (max-width: 1040px) { .p-centinela { --R: min(215px, 24vw); } }
+@media (max-width: 760px) { .p-centinela { --R: min(148px, 31vw); } }
 
 .p-anillos { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .p-anillos.delante { z-index: 4; pointer-events: none; }
@@ -55,6 +62,15 @@
 .p-anillo-seg.toca .lbl em, .p-anillo-seg.mal .lbl em { color: var(--p-txt); }
 .p-anillo-seg.mal .lbl { border-color: var(--p-rojo); background: #ef44441f; }
 .p-anillo-seg.mal .lbl i { color: var(--p-rojo); background: #ef44441f; }
+/* En pantalla estrecha la etiqueta se centra sobre su punto del anillo en vez de
+   salir hacia un lado: es la única forma de que quepa sin recortarse. */
+@media (max-width: 760px) {
+  .p-anillo-seg .lbl,
+  .p-anillo-seg .lbl-wrap.izq .lbl {
+    left: 50%; right: auto; transform: translateX(-50%);
+    max-width: min(44vw, 200px); white-space: normal; text-align: left;
+  }
+}
 @media (max-width: 640px) { .p-anillo-seg .lbl { font-size: 10px; padding: 4px 7px 4px 5px; } .p-anillo-seg .lbl em { display: none; } }
 
 .p-rayo { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 3; }

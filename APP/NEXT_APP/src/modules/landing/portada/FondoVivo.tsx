@@ -62,7 +62,7 @@ export function FondoVivo() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const presupuesto = nivel === "medio" ? 0.6 : 1;
+    const presupuesto = nivel === "medio" ? 0.48 : 1;
     let W = 0;
     let H = 0;
     let dpr = 1;
@@ -127,7 +127,28 @@ export function FondoVivo() {
       ondas.push({ x: e.clientX, y: e.clientY, r: 0, a: 1 });
       if (ondas.length > 6) ondas.shift();
     };
+    /**
+     * En una pantalla táctil el puntero solo existe mientras el dedo está apoyado, y
+     * el navegador deja de mandarlo en cuanto decide que el gesto es un scroll. Este
+     * escuchador va aparte y es pasivo: el fondo sigue al dedo también mientras se
+     * desplaza la página, y nunca interrumpe el desplazamiento.
+     */
+    const dedo = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      despertar();
+      raton.x = t.clientX;
+      raton.y = t.clientY;
+    };
+    const soltar = () => {
+      raton.x = -1e4;
+      raton.y = -1e4;
+    };
+
     window.addEventListener("pointermove", mover, { passive: true });
+    window.addEventListener("touchmove", dedo, { passive: true });
+    window.addEventListener("touchend", soltar, { passive: true });
+    window.addEventListener("touchcancel", soltar, { passive: true });
     window.addEventListener("pointerdown", pulsar, { passive: true });
     window.addEventListener("keydown", despertar, { passive: true });
     window.addEventListener("wheel", despertar, { passive: true });
@@ -297,7 +318,10 @@ export function FondoVivo() {
       });
 
       // Constelación entre partículas cercanas y medias: rejilla espacial y tres lotes de opacidad.
-      const LIM = 135;
+      // El umbral de unión va con el ancho de la pantalla: 135 px fijos tejían en un
+      // móvil una malla mucho más tupida que la que se ve en un portátil.
+      const LIM = Math.min(135, Math.max(70, W * 0.2));
+      const TOPE_TRAZOS = presupuesto < 1 ? 150 : 420;
       const rejilla: Record<string, number[]> = {};
       const nodos = capas[2].concat(capas[1]);
       const sendas = [new Path2D(), new Path2D(), new Path2D()];
@@ -306,7 +330,7 @@ export function FondoVivo() {
         const key = `${(p.x / LIM) | 0},${(p.sy / LIM) | 0}`;
         (rejilla[key] || (rejilla[key] = [])).push(idx);
       });
-      for (let i = 0; i < nodos.length && trazos < 420; i++) {
+      for (let i = 0; i < nodos.length && trazos < TOPE_TRAZOS; i++) {
         const a = nodos[i];
         const cx = (a.x / LIM) | 0;
         const cy = (a.sy / LIM) | 0;
@@ -357,6 +381,9 @@ export function FondoVivo() {
       observador.disconnect();
       window.removeEventListener("resize", tam);
       window.removeEventListener("pointermove", mover);
+      window.removeEventListener("touchmove", dedo);
+      window.removeEventListener("touchend", soltar);
+      window.removeEventListener("touchcancel", soltar);
       window.removeEventListener("pointerdown", pulsar);
       window.removeEventListener("keydown", despertar);
       window.removeEventListener("wheel", despertar);

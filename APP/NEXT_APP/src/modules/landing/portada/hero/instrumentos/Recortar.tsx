@@ -6,7 +6,7 @@ import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
 import { MesaBoton, MesaGrupo, MesaRail, MesaSeparador } from "@/components/tools/mesa/MesaRail";
 import type { EstadoPaso } from "@/components/tools/mesa/MesaPasos";
 import { IconoCuadricula, IconoDescargar, IconoEncuadre, IconoGirar, IconoPincel, IconoRestablecer, IconoSubir } from "@/components/tools/mesa/MesaIcons";
-import { instrumentos } from "../../datos/instrumentos";
+import { instrumentoPorId } from "../../datos/instrumentos";
 import { Instrumento } from "./Instrumento";
 import { descargarLienzo, pintarMuestra, type InstrumentoProps } from "./tipos";
 
@@ -32,7 +32,7 @@ interface Caja { x: number; y: number; w: number; h: number }
 
 /** Recortar imagen: el encuadre recorre las proporciones; arrastra el marco para tomar el control. */
 export function Recortar({ registrar }: InstrumentoProps) {
-  const dato = instrumentos[3];
+  const dato = instrumentoPorId("recortar");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const marcoRef = useRef<HTMLDivElement>(null);
   const cajaRef = useRef<HTMLDivElement>(null);

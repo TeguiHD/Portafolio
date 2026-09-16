@@ -48,36 +48,8 @@
 .p-firma[data-listo="true"] .p-firma-lienzo { opacity: 1; cursor: crosshair; }
 .p-firma[data-listo="true"] .p-firma-txt { opacity: 0; }
 
-.p-firma-pista {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 6px 14px;
-  border: 1px solid #ffffff14;
-  border-radius: 999px;
-  background: #0d121999;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: #94a3b8;
-  opacity: 0;
-  transition: opacity 0.45s ease 0.2s;
-}
-
-.p-firma[data-listo="true"] .p-firma-pista { opacity: 1; }
-
-.p-firma-icono { width: 14px; height: 14px; color: #5eead4; }
-
-.p-firma-pista .gruesa { display: none; }
-
-@media (pointer: coarse) {
-  .p-firma-pista .fina { display: none; }
-  .p-firma-pista .gruesa { display: inline; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .p-firma-txt,
-  .p-firma-lienzo,
-  .p-firma-pista { transition: none; }
+  .p-firma-lienzo { transition: none; }
 }

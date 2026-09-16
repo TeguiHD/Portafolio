@@ -7,7 +7,7 @@ import { MesaEscenario } from "@/components/tools/mesa/MesaEscenario";
 import { MesaBoton, MesaGrupo, MesaRail, MesaSeparador } from "@/components/tools/mesa/MesaRail";
 import type { EstadoPaso } from "@/components/tools/mesa/MesaPasos";
 import { IconoCapas, IconoDescargar, IconoDeshacer, IconoGoma, IconoImagen, IconoOjo, IconoPincel, IconoRestablecer, IconoSubir, IconoVarita } from "@/components/tools/mesa/MesaIcons";
-import { instrumentos } from "../../datos/instrumentos";
+import { instrumentoPorId } from "../../datos/instrumentos";
 import { Instrumento } from "./Instrumento";
 import { descargarLienzo, type InstrumentoProps } from "./tipos";
 
@@ -38,7 +38,7 @@ function sujeto(c: CanvasRenderingContext2D) {
 /** Quitar fondo: sube, la IA recorta, el pincel borra los restos y la descarga queda lista. Si tocas, tomas el control. */
 export function QuitarFondo({ registrar }: InstrumentoProps) {
   const router = useRouter();
-  const dato = instrumentos[0];
+  const dato = instrumentoPorId("quitar-fondo");
   const lienzoRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
