@@ -169,7 +169,9 @@ export function MesaGiratoria() {
   const registradores = useRef(instrumentos.map((_, i) => registrar(i)));
 
   const componentes = [QuitarFondo, GeneradorQR, Paleta, Recortar];
-  const corre = heroVisible && nivel !== "estatico";
+  // El mismo criterio que usa el efecto: si no, el atributo decía que la demo
+  // corría cuando en realidad estaba parada esperando a que hubiera alguien.
+  const corre = heroVisible && nivel !== "estatico" && interactuado;
 
   return (
     <div className="p-mesa" onPointerEnter={() => { pausaHasta.current = Date.now() + 9e9; }} onPointerLeave={() => { pausaHasta.current = Date.now() + 4000; }}>
