@@ -106,6 +106,18 @@ El `EACCES: permission denied, mkdir '/app/.next/cache'` que salía en cada arra
 
 `docker compose up -d` se colgaba en cada despliegue esperando respuesta a «Volume "docker_uploads_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)?». La causa: el proyecto se movió a `~/portfolio` y el `device: ./volumes/uploads` del compose pasó a resolverse a una carpeta vacía, mientras los datos seguían en `/home/teguihd/docker/volumes/uploads`. En el VPS se dejó la ruta absoluta (con copia previa del fichero); ahora el despliegue pasa sin preguntar y el volumen conserva `cv/` y `cv-backups/`.
 
+## Quinta ronda: tacto, marca viva y centinela con las manos (16 de septiembre de 2026, 14:19)
+
+Commit `3ee4b87`, `BUILD_ID TszpRvQwHeOQQ4px-86QC`. Despliegue limpio: con el volumen del compose ya alineado, no hubo pregunta ni cuelgue.
+
+- **El fondo sigue al dedo.** En pantalla táctil escucha `touchmove` aparte, con escuchador pasivo: reacciona también mientras se desplaza la página y no puede interrumpir el desplazamiento.
+- **Menos malla en móvil.** El umbral de unión entre partículas va con el ancho de la pantalla (135 px fijos tejían en un móvil una red mucho más tupida que en un portátil), con menos trazos y algo menos de puntos.
+- **La firma pierde su cartel**: se descubre sola.
+- **La mesa del hero abre con el generador de QR.** El orden y los componentes van por id, no por posición, así que reordenar es una línea en `datos/instrumentos.ts`.
+- **El centinela deja de recortarse.** Las etiquetas de los anillos se salían de la sección y la sección las cortaba: el radio se adapta, las dos columnas empiezan en 1100 px y en pantalla estrecha la etiqueta se centra sobre su punto. Verificado de 1600 a 390 px.
+- **El centinela se toca.** El anillo y el núcleo se quedan; la petición pasa a ser una ficha que se coge y se empuja hacia dentro. Cada anillo cruzado se enciende y dice qué comprobó, y el que debe frenarla no la deja pasar de su borde: se pone rojo, sale una onda de escudo en SVG y el terminal escribe la respuesta real. La legítima llega al núcleo. La ficha late en reposo para descubrirse; el botón sigue haciendo lo mismo para quien use teclado. Dos pruebas nuevas cubren ambos caminos.
+- **El icono de la pestaña, vivo** (`components/brand/FaviconVivo.tsx`): se dibuja en un lienzo, el punto respira y toma el color de la sección que se lee, y si la pestaña deja de verse el icono se apaga y el título pasa a «Aquí te espero · nicoholas.dev». Con movimiento reducido no anima.
+
 ## Pendiente y recomendaciones
 
 - **LCP simulado en móvil**: el paquete inicial (React, runtime de Next, framer-motion por `template.tsx` y `MotionProvider`, dos fuentes) pesa 271 KB comprimidos más 88 KB de fuentes; Lighthouse lo imputa entero al LCP aunque el párrafo se pinte a los 0,3 s. Dos mejoras con recorrido: retirar JetBrains Mono de `next/font` (−48 KB; la pila del sistema basta para las etiquetas) y sacar framer-motion del paquete inicial (el fundido de `template.tsx` puede ser CSS), −43 KB.
