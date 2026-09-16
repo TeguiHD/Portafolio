@@ -53,15 +53,37 @@ export function classifyNewsCategory(title: string, fallback: PulseCategory): Pu
   return fallback;
 }
 
+/** Las entidades con nombre que de verdad aparecen en los feeds que leemos. */
+const ENTIDADES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'",
+  nbsp: " ", ensp: " ", emsp: " ", thinsp: " ", shy: "",
+  hellip: "…", mdash: "—", ndash: "–", minus: "−", bull: "•", middot: "·", deg: "°",
+  laquo: "«", raquo: "»", lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”",
+  aacute: "á", eacute: "é", iacute: "í", oacute: "ó", uacute: "ú", ntilde: "ñ", uuml: "ü",
+  Aacute: "Á", Eacute: "É", Iacute: "Í", Oacute: "Ó", Uacute: "Ú", Ntilde: "Ñ",
+  euro: "€", pound: "£", copy: "©", reg: "®", trade: "™",
+};
+
+/**
+ * Deja el texto del feed legible.
+ *
+ * Dos vueltas a propósito: muchos feeds mandan el resumen codificado dos veces y, al
+ * traducir `&amp;` primero, lo que quedaba era un `&nbsp;` literal en mitad del titular.
+ * Con una sola pasada por entidad y dos vueltas, `&amp;nbsp;` acaba siendo un espacio.
+ */
 export function decodeHtmlEntities(input: string) {
-  return input
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'");
+  let texto = input.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
+  for (let vuelta = 0; vuelta < 2 && /&(#x?[0-9a-fA-F]+|\w+);/.test(texto); vuelta++) {
+    texto = texto.replace(/&(#x?[0-9a-fA-F]+|\w+);/g, (todo, cuerpo: string) => {
+      if (cuerpo[0] !== "#") return ENTIDADES[cuerpo] ?? todo;
+      const hex = cuerpo[1] === "x" || cuerpo[1] === "X";
+      const n = parseInt(hex ? cuerpo.slice(2) : cuerpo.slice(1), hex ? 16 : 10);
+      // Fuera del rango válido o en el de sustitutos, `fromCodePoint` lanza.
+      if (!Number.isFinite(n) || n <= 0 || n > 0x10ffff || (n >= 0xd800 && n <= 0xdfff)) return todo;
+      return String.fromCodePoint(n);
+    });
+  }
+  return texto;
 }
 
 export function stripHtml(input: string) {
@@ -196,51 +218,145 @@ export function sortNewsItems(items: PulseNewsItem[]) {
   });
 }
 
+/** Media de un tramo del histórico; devuelve null si no hay datos suficientes. */
+function media(valores: number[], desde = 0) {
+  const tramo = valores.slice(desde).filter((v) => Number.isFinite(v));
+  if (tramo.length === 0) return null;
+  return tramo.reduce((a, b) => a + b, 0) / tramo.length;
+}
+
+/**
+ * Lectura técnica de un valor a partir de lo que ya tenemos: su variación del día y su
+ * posición respecto a su propia media reciente. Son reglas simples y explicables —nada
+ * de predicciones—, pensadas para que el radar diga algo accionable en lugar de «X
+ * retrocede»: qué postura sugiere el dato y en qué plazo.
+ */
+function leerValor(item: {
+  id?: string;
+  name: string;
+  symbol: string;
+  changePercent: number;
+  sparkline: number[];
+}): PulseInsight | null {
+  const serie = item.sparkline.filter((v) => Number.isFinite(v) && v > 0);
+  if (serie.length < 4) return null;
+  const ultimo = serie[serie.length - 1];
+  const largo = media(serie);
+  const corto = media(serie, Math.floor(serie.length * 0.7));
+  if (largo === null || corto === null || largo === 0) return null;
+
+  const distancia = ((ultimo - largo) / largo) * 100; // % respecto a su media reciente
+  const impulso = ((corto - largo) / largo) * 100; // hacia dónde se mueve la media corta
+  const dia = item.changePercent;
+  const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+  const base = `${pct(dia)} en el día · ${pct(distancia)} respecto a su media reciente`;
+
+  if (dia <= -4 && distancia <= -2) {
+    return {
+      id: `lectura-${item.id ?? item.symbol}`,
+      sujeto: item.name,
+      title: `${item.symbol} en zona de sobreventa`,
+      detail: `${base}. Caídas así son donde suele mirar quien acumula por tramos.`,
+      postura: "acumular",
+      plazo: "corto",
+      tone: "warning",
+    };
+  }
+  if (dia >= 4 && distancia >= 2) {
+    return {
+      id: `lectura-${item.id ?? item.symbol}`,
+      sujeto: item.name,
+      title: `${item.symbol} estirado al alza`,
+      detail: `${base}. Tras subidas así es cuando se suelen asegurar ganancias parciales.`,
+      postura: "tomar-ganancias",
+      plazo: "corto",
+      tone: "positive",
+    };
+  }
+  if (impulso >= 1 && dia >= 0) {
+    return {
+      id: `lectura-${item.id ?? item.symbol}`,
+      sujeto: item.name,
+      title: `${item.symbol} sostiene la tendencia`,
+      detail: `${base}. Su media corta va por encima de la larga.`,
+      postura: "mantener",
+      plazo: "largo",
+      tone: "positive",
+    };
+  }
+  if (impulso <= -1 && dia <= 0) {
+    return {
+      id: `lectura-${item.id ?? item.symbol}`,
+      sujeto: item.name,
+      title: `${item.symbol} pierde impulso`,
+      detail: `${base}. Su media corta va por debajo de la larga.`,
+      postura: "esperar",
+      plazo: "largo",
+      tone: "warning",
+    };
+  }
+  return {
+    id: `lectura-${item.id ?? item.symbol}`,
+    sujeto: item.name,
+    title: `${item.symbol} sin dirección clara`,
+    detail: `${base}. Ni impulso ni corrección: rango.`,
+    postura: "esperar",
+    plazo: "corto",
+    tone: "neutral",
+  };
+}
+
 export function buildInsights(input: {
   news: PulseNewsItem[];
-  finance: Array<{ name: string; changePercent: number; trend: "up" | "down" | "flat" }>;
+  finance: Array<{
+    id?: string;
+    name: string;
+    symbol: string;
+    changePercent: number;
+    trend: "up" | "down" | "flat";
+    sparkline: number[];
+  }>;
   dev?: { recentEvents: PulseGitHubEvent[] };
 }): PulseInsight[] {
-  const securityItems = input.news.filter((item) => item.category === "security");
-  const aiItems = input.news.filter((item) => item.category === "ai");
-  const strongestMove = [...input.finance].sort(
-    (left, right) => Math.abs(right.changePercent) - Math.abs(left.changePercent)
-  )[0];
-
   const insights: PulseInsight[] = [];
 
-  if (strongestMove) {
-    insights.push({
-      id: "market-move",
-      title: `${strongestMove.name} ${strongestMove.trend === "down" ? "retrocede" : strongestMove.trend === "up" ? "acelera" : "se mantiene"}`,
-      detail: `Movimiento de ${strongestMove.changePercent.toFixed(2)}% en la ventana reciente.`,
-      tone: strongestMove.trend === "down" ? "warning" : "positive",
-    });
+  // Los dos valores que más se han movido, con su lectura. Son los que dicen algo.
+  const movidos = [...input.finance]
+    .filter((i) => Array.isArray(i.sparkline) && i.sparkline.length >= 4)
+    .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+    .slice(0, 2);
+  for (const item of movidos) {
+    const lectura = leerValor(item);
+    if (lectura) insights.push(lectura);
   }
 
-  if (securityItems.length > 0) {
+  // De seguridad y de IA, el titular concreto: contar señales no le sirve a nadie.
+  for (const [categoria, etiqueta, materia, tono] of [
+    ["security", "Seguridad", "seguridad", "warning"],
+    ["ai", "IA", "IA", "positive"],
+  ] as const) {
+    const items = input.news.filter((n) => n.category === categoria);
+    if (items.length === 0) continue;
+    const primera = items[0];
+    const otras = items.length - 1;
+    const resto = otras === 0 ? "única señal reciente" : otras === 1 ? "y una señal más" : `y ${otras} señales más`;
     insights.push({
-      id: "security-watch",
-      title: "Radar de seguridad activo",
-      detail: `${securityItems.length} señal(es) recientes entre NIST, OWASP o CVE Program.`,
-      tone: "warning",
-    });
-  }
-
-  if (aiItems.length > 0) {
-    insights.push({
-      id: "ai-watch",
-      title: "Pulso AI con alta actividad",
-      detail: `${aiItems.length} actualización(es) recientes en IA, producto o tooling.`,
-      tone: "positive",
+      id: `titular-${categoria}`,
+      sujeto: etiqueta,
+      title: primera.title.length > 72 ? `${primera.title.slice(0, 71)}…` : primera.title,
+      detail: `${primera.source} · ${resto} en ${materia}.`,
+      postura: "vigilar",
+      tone: tono,
+      enlace: primera.url,
     });
   }
 
   if (input.dev?.recentEvents?.length) {
     insights.push({
       id: "dev-activity",
-      title: "Actividad técnica reciente",
-      detail: `${input.dev.recentEvents.length} evento(s) públicos recientes en GitHub para alimentar el portafolio vivo.`,
+      sujeto: "GitHub",
+      title: input.dev.recentEvents[0]?.summary ?? "Actividad técnica reciente",
+      detail: `${input.dev.recentEvents.length === 1 ? "Un evento público reciente" : `${input.dev.recentEvents.length} eventos públicos recientes`}.`,
       tone: "neutral",
     });
   }

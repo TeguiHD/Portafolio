@@ -655,10 +655,28 @@ export async function getPulseNews() {
 
 const cacheNoticias = crearCache<PulseNewsItem[]>("news", 20 * 60_000, 24 * 60 * 60_000);
 
+/** Por debajo de esto, la tanda está claramente coja: media docena de fuentes caídas. */
+const MINIMO_RAZONABLE = 8;
+
 /**
  * Noticias con memoria del proceso: la página y la API comparten la misma tanda, así
  * que pintar el blog en el servidor no dispara una segunda ronda de feeds.
+ *
+ * Además, una tanda pobre no pisa a una buena. `Promise.allSettled` no falla porque se
+ * caigan la mitad de las fuentes: devuelve lo poco que llegó, y eso se guardaba tal cual
+ * en la caché, dejando el blog con dos noticias hasta la siguiente ronda. Ahora, cuando
+ * la nueva llega muy por debajo de la anterior, se mezclan: lo reciente manda y lo de
+ * antes rellena, con el mismo reparto por fuente y por tema que el resto del blog.
  */
 export function getPulseNewsCached(forzar = false) {
-  return cacheNoticias.leer(getPulseNews, forzar);
+  return cacheNoticias.leer(async () => {
+    const frescas = await getPulseNews();
+    const previas = cacheNoticias.verGuardado()?.valor ?? [];
+    const coja = frescas.length < MINIMO_RAZONABLE || frescas.length < previas.length * 0.6;
+    if (previas.length > frescas.length && coja) {
+      const mezcla = uniqueByUrl(sortNewsItems(uniqueById([...frescas, ...previas])));
+      return enforceBalancedSelection(mezcla, MAX_NEWS_ITEMS, MAX_ITEMS_PER_SOURCE);
+    }
+    return frescas;
+  }, forzar);
 }

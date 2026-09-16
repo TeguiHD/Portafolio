@@ -275,6 +275,26 @@ export function Firma() {
       despertar();
     };
     /** Un clic (o un toque) lanza las partículas desde el punto pulsado. */
+    /**
+     * Con el dedo, la detonación espera a levantarlo y solo si no hubo viaje ni scroll:
+     * apoyarse sobre el nombre para desplazar la página no debe dispersarlo.
+     */
+    let toque: { x: number; y: number; t: number; scroll: number } | null = null;
+    const apoyar = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") {
+        detonar(e);
+        return;
+      }
+      toque = { x: e.clientX, y: e.clientY, t: performance.now(), scroll: window.scrollY };
+    };
+    const levantar = (e: PointerEvent) => {
+      const t0 = toque;
+      toque = null;
+      if (!t0 || e.type !== "pointerup") return;
+      const viaje = Math.hypot(e.clientX - t0.x, e.clientY - t0.y);
+      if (viaje < 12 && Math.abs(window.scrollY - t0.scroll) < 4 && performance.now() - t0.t < 600) detonar(e);
+    };
+
     const detonar = (e: PointerEvent) => {
       const caja2 = lienzo.getBoundingClientRect();
       const cx = e.clientX - caja2.left;
@@ -294,7 +314,9 @@ export function Firma() {
     lienzo.addEventListener("pointerenter", situar, { passive: true });
     lienzo.addEventListener("pointerleave", salir, { passive: true });
     lienzo.addEventListener("pointercancel", salir, { passive: true });
-    lienzo.addEventListener("pointerdown", detonar, { passive: true });
+    lienzo.addEventListener("pointerdown", apoyar, { passive: true });
+    lienzo.addEventListener("pointerup", levantar, { passive: true });
+    lienzo.addEventListener("pointercancel", levantar, { passive: true });
 
     let anchoPrevio = 0;
     const observador = new ResizeObserver(() => {
@@ -327,7 +349,9 @@ export function Firma() {
       lienzo.removeEventListener("pointerenter", situar);
       lienzo.removeEventListener("pointerleave", salir);
       lienzo.removeEventListener("pointercancel", salir);
-      lienzo.removeEventListener("pointerdown", detonar);
+      lienzo.removeEventListener("pointerdown", apoyar);
+      lienzo.removeEventListener("pointerup", levantar);
+      lienzo.removeEventListener("pointercancel", levantar);
       lienzo.width = 1;
       lienzo.height = 1;
       delete lienzo.dataset.particulas;

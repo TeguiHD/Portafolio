@@ -93,4 +93,11 @@ export interface PulseInsight {
   title: string;
   detail: string;
   tone: "neutral" | "positive" | "warning";
+  /** Lectura técnica del mercado: qué sugiere el dato y en qué plazo. Sin postura, es una señal informativa. */
+  postura?: "acumular" | "mantener" | "tomar-ganancias" | "esperar" | "vigilar";
+  plazo?: "corto" | "largo";
+  /** El activo o la fuente a la que se refiere la lectura. */
+  sujeto?: string;
+  /** Enlace a la noticia que origina la señal, cuando la hay. */
+  enlace?: string;
 }

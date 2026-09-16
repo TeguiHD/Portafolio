@@ -64,7 +64,10 @@ export default function BlogPage() {
               ordenado en un solo sitio. Junto al mercado del día y la actividad técnica reciente.
             </p>
           </div>
-          <Capsula />
+          <div className="pulso-cab-acciones">
+            <Capsula />
+            <PulseNotificationToggle />
+          </div>
         </header>
 
         <div className="pulso-cuerpo">
@@ -84,7 +87,6 @@ export default function BlogPage() {
             <Suspense fallback={<EsqueletoPanel titulo="Radar" filas={2} />}>
               <PanelRadar />
             </Suspense>
-            <PulseNotificationToggle />
           </aside>
         </div>
       </main>

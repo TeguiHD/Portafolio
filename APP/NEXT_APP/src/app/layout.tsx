@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { StructuredData } from "@/components/StructuredData";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { PWARegister } from "@/modules/finance/components/PWAComponents";
+import { AvisoVersion } from "@/components/pwa/AvisoVersion";
 
 const BASE_URL = "https://nicoholas.dev";
 
@@ -161,6 +162,7 @@ export default async function RootLayout({
         </a>
         <ToastProvider>
           <PWARegister />
+          <AvisoVersion />
           <AnalyticsTracker />
           {children}
         </ToastProvider>

@@ -4,6 +4,7 @@ import { getPulseDevActivityCached } from "@/modules/pulse/lib/dev-service";
 import { getPulseNewsCached } from "@/modules/pulse/lib/news-service";
 import { buildInsights } from "@/modules/pulse/lib/server-utils";
 import type { PulseFinanceItem } from "@/modules/pulse/types";
+import { Mercado } from "./Mercado";
 
 /** Precio con el formato del país; si la moneda viene rara, se muestra el número a secas. */
 function precio(item: PulseFinanceItem) {
@@ -68,6 +69,7 @@ export async function PanelMercado() {
               <Chispa valores={item.sparkline} tono={item.trend === "down" ? "#f87171" : "var(--p-teal)"} />
             </div>
           ))}
+          <Mercado />
           <p className="pulso-aviso">
             {rancio ? "Últimos valores guardados: la fuente no responde ahora. " : ""}
             {fuentes.size > 0 ? `Fuente: ${[...fuentes].join(", ")}.` : ""}
@@ -117,6 +119,15 @@ export async function PanelGitHub() {
   }
 }
 
+/** Cómo se lee cada postura, en una palabra. */
+const POSTURAS: Record<NonNullable<import("@/modules/pulse/types").PulseInsight["postura"]>, string> = {
+  acumular: "Acumular",
+  mantener: "Mantener",
+  "tomar-ganancias": "Tomar ganancias",
+  esperar: "Esperar",
+  vigilar: "Vigilar",
+};
+
 export async function PanelRadar() {
   const [noticias, finanzas, dev] = await Promise.allSettled([
     getPulseNewsCached(),
@@ -132,12 +143,36 @@ export async function PanelRadar() {
   return (
     <section className="pulso-panel" aria-labelledby="pulso-radar">
       <div className="pulso-panel-cab"><h2 id="pulso-radar">Radar</h2></div>
-      {ideas.map((idea) => (
-        <div key={idea.id} className="pulso-idea" data-tono={idea.tone}>
-          <strong>{idea.title}</strong>
-          <span>{idea.detail}</span>
-        </div>
-      ))}
+      {ideas.map((idea) => {
+        const cuerpo = (
+          <>
+            <div className="pulso-idea-cab">
+              {idea.sujeto ? <span className="pulso-idea-sujeto">{idea.sujeto}</span> : null}
+              {idea.postura ? (
+                <span className="pulso-idea-postura" data-postura={idea.postura}>
+                  {POSTURAS[idea.postura]}
+                  {idea.plazo ? <em>· {idea.plazo === "corto" ? "corto plazo" : "largo plazo"}</em> : null}
+                </span>
+              ) : null}
+            </div>
+            <strong>{idea.title}</strong>
+            <span>{idea.detail}</span>
+          </>
+        );
+        return idea.enlace ? (
+          <a key={idea.id} className="pulso-idea" data-tono={idea.tone} href={idea.enlace} target="_blank" rel="noopener noreferrer">
+            {cuerpo}
+          </a>
+        ) : (
+          <div key={idea.id} className="pulso-idea" data-tono={idea.tone}>
+            {cuerpo}
+          </div>
+        );
+      })}
+      <p className="pulso-aviso">
+        Lectura automática de los datos del día (variación y media reciente). Es información, no una recomendación de
+        inversión.
+      </p>
     </section>
   );
 }

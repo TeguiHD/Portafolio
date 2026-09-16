@@ -122,10 +122,33 @@ export function FondoVivo() {
       raton.x = e.clientX;
       raton.y = e.clientY;
     };
+    const onda = (x: number, y: number) => {
+      ondas.push({ x, y, r: 0, a: 1 });
+      if (ondas.length > 6) ondas.shift();
+    };
+    /**
+     * La onda responde a un toque, no a un dedo que se apoya para desplazar la página.
+     * Con ratón sale al pulsar; con el dedo espera a levantarlo y solo si no hubo viaje
+     * ni scroll entre medias, que es lo que distingue tocar de arrastrar. Antes salía en
+     * cada `pointerdown` y en el móvil el fondo parecía responder a cada desplazamiento.
+     */
+    let toque: { x: number; y: number; t: number; scroll: number } | null = null;
     const pulsar = (e: PointerEvent) => {
       if (e.button !== 0) return;
-      ondas.push({ x: e.clientX, y: e.clientY, r: 0, a: 1 });
-      if (ondas.length > 6) ondas.shift();
+      if (e.pointerType === "touch") {
+        toque = { x: e.clientX, y: e.clientY, t: performance.now(), scroll: window.scrollY };
+        return;
+      }
+      onda(e.clientX, e.clientY);
+    };
+    const soltarToque = (e: PointerEvent) => {
+      const t0 = toque;
+      toque = null;
+      if (!t0 || e.type !== "pointerup") return;
+      const viaje = Math.hypot(e.clientX - t0.x, e.clientY - t0.y);
+      if (viaje < 12 && Math.abs(window.scrollY - t0.scroll) < 4 && performance.now() - t0.t < 600) {
+        onda(e.clientX, e.clientY);
+      }
     };
     /**
      * En una pantalla táctil el puntero solo existe mientras el dedo está apoyado, y
@@ -150,6 +173,8 @@ export function FondoVivo() {
     window.addEventListener("touchend", soltar, { passive: true });
     window.addEventListener("touchcancel", soltar, { passive: true });
     window.addEventListener("pointerdown", pulsar, { passive: true });
+    window.addEventListener("pointerup", soltarToque, { passive: true });
+    window.addEventListener("pointercancel", soltarToque, { passive: true });
     window.addEventListener("keydown", despertar, { passive: true });
     window.addEventListener("wheel", despertar, { passive: true });
     window.addEventListener("touchstart", despertar, { passive: true });
@@ -388,6 +413,8 @@ export function FondoVivo() {
       window.removeEventListener("touchend", soltar);
       window.removeEventListener("touchcancel", soltar);
       window.removeEventListener("pointerdown", pulsar);
+      window.removeEventListener("pointerup", soltarToque);
+      window.removeEventListener("pointercancel", soltarToque);
       window.removeEventListener("keydown", despertar);
       window.removeEventListener("wheel", despertar);
       window.removeEventListener("touchstart", despertar);

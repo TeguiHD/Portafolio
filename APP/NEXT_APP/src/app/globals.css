@@ -528,3 +528,26 @@ body:has(.landing-experience) {
 .aviso-externo-fondo { animation: aviso-externo-fondo-in 0.2s ease both; }
 .aviso-externo-caja { animation: aviso-externo-caja-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @media (prefers-reduced-motion: reduce) { .aviso-externo-fondo, .aviso-externo-caja { animation: none; } }
+
+/* Aviso de versión nueva (PWA) -------------------------------------------- */
+
+.aviso-version {
+  position: fixed; left: 50%; bottom: 16px; z-index: 95; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px);
+  padding: 9px 9px 9px 15px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(10, 13, 18, 0.96);
+  color: #e2e8f0; font-size: 13px; box-shadow: 0 22px 50px -24px #000;
+  animation: aviso-version-entra 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.aviso-version button {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 999px;
+  border: 0; background: #2dd4bf; color: #06131a; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.aviso-version button:disabled { opacity: 0.7; cursor: default; }
+.aviso-version button:focus-visible { outline: 2px solid #2dd4bf; outline-offset: 3px; }
+.aviso-version-gira { animation: aviso-version-girar 0.9s linear infinite; }
+@keyframes aviso-version-entra { from { opacity: 0; transform: translate(-50%, 14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes aviso-version-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .aviso-version, .aviso-version-gira { animation: none; }
+}

@@ -1,8 +1,15 @@
 "use client";
 
+/**
+ * Avisos del blog, en una campana.
+ *
+ * Antes era una tarjeta con título, explicación, insignia de estado y dos botones. Para
+ * lo que hace —encender o apagar las notificaciones del navegador— sobraba todo menos el
+ * gesto, así que ahora es un icono al lado del tiempo: apagada, activa o bloqueada.
+ */
+
 import { useEffect, useState } from "react";
-import { Bell, BellOff, LoaderCircle, Send } from "lucide-react";
-import { cn } from "@/components/ui/Button";
+import { Bell, BellOff, LoaderCircle } from "lucide-react";
 
 function base64UrlToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -119,86 +126,40 @@ export function PulseNotificationToggle() {
     }
   };
 
-  const sendTest = async () => {
-    try {
-      if (Notification.permission !== "granted") {
-        throw new Error("Activa permisos de notificación primero.");
-      }
-
-      new Notification("Digital Pulse activo", {
-        body: "Radar listo. Recibirás avisos cuando el command center detecte novedades relevantes.",
-        icon: "/icon-192.png",
-      });
-      setMessage("Notificación de prueba enviada.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No se pudo enviar la prueba.");
-    }
-  };
 
   if (!supported) {
     return null;
   }
 
+  const bloqueado = permission === "denied";
+  const rotulo = bloqueado
+    ? "Avisos bloqueados en el navegador"
+    : subscribed
+      ? "Avisos activos · pulsa para desactivarlos"
+      : "Avisarme de novedades";
+
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-white/45">Avisos</p>
-          <p className="mt-2 text-sm leading-6 text-white/62">
-            Activa alertas del navegador para enterarte cuando el blog detecte una noticia nueva o una señal relevante.
-          </p>
-        </div>
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.22em]",
-            permission === "granted" && "bg-emerald-400/15 text-emerald-100",
-            permission === "denied" && "bg-rose-400/15 text-rose-100",
-            permission === "default" && "bg-white/[0.06] text-white/55"
-          )}
-        >
-          {permission === "granted" ? "activos" : permission === "denied" ? "bloqueados" : "sin activar"}
-        </span>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={subscribed ? unsubscribe : subscribe}
-          disabled={loading}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition disabled:opacity-60 [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08131f]",
-            subscribed
-              ? "bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/20"
-              : "bg-white text-black hover:bg-white/90"
-          )}
-        >
-          {loading ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          ) : subscribed ? (
-            <BellOff className="h-4 w-4" />
-          ) : (
-            <Bell className="h-4 w-4" />
-          )}
-          {subscribed ? "Desactivar" : "Activar avisos"}
-        </button>
-
-        {subscribed ? (
-          <button
-            type="button"
-            onClick={sendTest}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition hover:bg-white/[0.08] disabled:opacity-60 [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08131f]"
-          >
-            <Send className="h-4 w-4" />
-            Probar
-          </button>
-        ) : null}
-      </div>
-      <p className="mt-3 text-sm text-white/60">
-        Estado de la suscripción: <span className="text-white">{subscribed ? "activa" : "inactiva"}</span>
-      </p>
+    <div className="pulso-campana-caja">
+      <button
+        type="button"
+        className="pulso-campana"
+        data-estado={loading ? "cargando" : bloqueado ? "bloqueada" : subscribed ? "activa" : "apagada"}
+        aria-pressed={subscribed}
+        aria-label={rotulo}
+        title={rotulo}
+        disabled={loading || bloqueado}
+        onClick={subscribed ? unsubscribe : subscribe}
+      >
+        {loading ? (
+          <LoaderCircle aria-hidden="true" width={17} height={17} className="pulso-campana-gira" />
+        ) : bloqueado ? (
+          <BellOff aria-hidden="true" width={17} height={17} />
+        ) : (
+          <Bell aria-hidden="true" width={17} height={17} />
+        )}
+      </button>
       {message ? (
-        <p aria-live="polite" className="mt-2 text-sm text-cyan-100">
+        <p className="pulso-campana-nota" role="status">
           {message}
         </p>
       ) : null}

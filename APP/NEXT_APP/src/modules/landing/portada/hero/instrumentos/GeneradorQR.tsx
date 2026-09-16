@@ -173,7 +173,7 @@ export function GeneradorQR({ registrar }: InstrumentoProps) {
               value={texto}
               spellCheck={false}
               aria-label="Contenido del QR"
-              onPointerDown={tomarControl}
+              onFocus={tomarControl}
               onChange={(e) => { tomarControl(); setAnimar(false); setTexto(e.target.value); }}
             />
           </div>

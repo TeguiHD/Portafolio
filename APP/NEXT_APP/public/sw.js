@@ -337,3 +337,10 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 console.log("[SW] Service worker loaded");
+
+// Cede el mando en cuanto la página lo pide (barra de «hay una versión nueva»).
+self.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "SKIP_WAITING") {
+        self.skipWaiting();
+    }
+});
