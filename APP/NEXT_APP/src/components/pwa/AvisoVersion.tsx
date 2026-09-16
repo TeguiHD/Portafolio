@@ -88,7 +88,7 @@ export function AvisoVersion() {
 
   return (
     <div className="aviso-version" role="status">
-      <span>Hay una versión nueva del sitio.</span>
+      <span>Hay una versión nueva</span>
       <button type="button" onClick={actualizar} disabled={recargando}>
         <RefreshCw aria-hidden="true" width={14} height={14} className={recargando ? "aviso-version-gira" : undefined} />
         {recargando ? "Actualizando…" : "Actualizar"}

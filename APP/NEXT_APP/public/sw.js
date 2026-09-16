@@ -7,17 +7,19 @@ const CACHE_NAME = "portfolio-pwa-v3";
 const STATIC_CACHE = "portfolio-static-v3";
 const DYNAMIC_CACHE = "portfolio-dynamic-v3";
 
-// Resources to cache immediately
+// Lo que se guarda nada más instalar.
+//
+// Solo rutas públicas y estables. Antes estaban aquí las del panel de finanzas: exigen
+// sesión (307) y una de ellas ya ni existe (404). `cache.addAll` rechaza entero si algo
+// falla, así que la instalación fallaba siempre y el service worker no llegaba a
+// activarse nunca: el PWA no funcionaba. Tampoco tiene sentido guardar páginas privadas
+// en una caché del navegador.
 const STATIC_ASSETS = [
+    "/blog",
     "/herramientas",
     "/manifest.json",
     "/icon-192.png",
     "/icon-512.png",
-    "/badge-72.png",
-    "/admin/finance",
-    "/admin/finance/transactions",
-    "/admin/finance/categories",
-    "/admin/finance/analysis",
     "/offline.html",
 ];
 
@@ -37,10 +39,11 @@ self.addEventListener("install", (event) => {
     console.log("[SW] Installing service worker...");
 
     event.waitUntil(
-        caches.open(STATIC_CACHE).then((cache) => {
-            console.log("[SW] Caching static assets");
-            return cache.addAll(STATIC_ASSETS);
-        })
+        caches.open(STATIC_CACHE).then((cache) =>
+            // Uno a uno y perdonando fallos: que falte un recurso no puede impedir que
+            // el service worker se instale.
+            Promise.all(STATIC_ASSETS.map((recurso) => cache.add(recurso).catch(() => undefined)))
+        )
     );
 
     // Activate immediately

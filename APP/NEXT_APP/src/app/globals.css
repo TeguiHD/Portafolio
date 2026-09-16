@@ -539,8 +539,9 @@ body:has(.landing-experience) {
   color: #e2e8f0; font-size: 13px; box-shadow: 0 22px 50px -24px #000;
   animation: aviso-version-entra 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+.aviso-version span { white-space: nowrap; }
 .aviso-version button {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 6px 13px; border-radius: 999px;
   border: 0; background: #2dd4bf; color: #06131a; font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
 .aviso-version button:disabled { opacity: 0.7; cursor: default; }
