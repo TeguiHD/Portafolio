@@ -45,7 +45,9 @@
   transition: opacity 0.45s ease;
 }
 
-.p-firma[data-listo="true"] .p-firma-lienzo { opacity: 1; cursor: crosshair; }
+/* Sin cursor propio: el sitio ya dibuja el suyo (la gota), y una cruz del sistema
+   encima lo rompía justo donde más se mira. */
+.p-firma[data-listo="true"] .p-firma-lienzo { opacity: 1; }
 .p-firma[data-listo="true"] .p-firma-txt { opacity: 0; }
 
 
