@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, ChartCandlestick, X } from "lucide-react";
 import type { CriptoDetalle, CriptoResumen } from "@/app/api/pulse/cripto/route";
 
@@ -13,6 +14,11 @@ import type { CriptoDetalle, CriptoResumen } from "@/app/api/pulse/cripto/route"
  * operaciones, que es donde se ve quién compra y quién vende ahora mismo.
  *
  * Todos los datos vienen de `/api/pulse/cripto`, nunca del navegador a un tercero.
+ *
+ * El diálogo se pinta con un portal en `document.body`. No es manía: el panel del que
+ * cuelga vive dentro de un `aside` pegajoso, y `position: sticky` crea contexto de
+ * apilado, así que el modal quedaba encerrado ahí dentro y ni la barra de navegación ni
+ * la cápsula del tiempo se quedaban debajo, por mucho z-index que se le pusiera.
  */
 
 const RANGOS: Array<{ id: "1" | "7" | "30" | "365"; nombre: string }> = [
@@ -52,6 +58,33 @@ function fechaPunto(ms: number, rango: string) {
         ? { month: "short", year: "numeric" }
         : { day: "2-digit", month: "short" },
   ).format(new Date(ms));
+}
+
+/**
+ * El logo de la moneda, con red debajo. Si el CDN de CoinGecko no responde —pasa, y
+ * limita por ráfagas—, en vez de quedar el icono roto del navegador se ve la inicial
+ * del símbolo sobre un círculo.
+ */
+function Logo({ src, simbolo, tam = 24 }: { src: string; simbolo: string; tam?: number }) {
+  const [roto, setRoto] = useState(false);
+  if (!src || roto) {
+    return (
+      <span className="mrc-logo mrc-logo-letra" style={{ width: tam, height: tam, fontSize: tam * 0.45 }} aria-hidden="true">
+        {simbolo.slice(0, 1)}
+      </span>
+    );
+  }
+  return (
+    <img
+      className="mrc-logo"
+      src={src}
+      alt=""
+      width={tam}
+      height={tam}
+      loading="lazy"
+      onError={() => setRoto(true)}
+    />
+  );
 }
 
 /** Línea de 7 días para la lista: el dibujo mínimo que dice si sube o baja. */
@@ -222,7 +255,7 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
         </button>
         {r ? (
           <div className="mrc-ficha-titulo">
-            {r.imagen ? <img src={r.imagen} alt="" width={26} height={26} loading="lazy" /> : null}
+            <Logo src={r.imagen} simbolo={r.simbolo} tam={26} />
             <div>
               <strong>{r.nombre}</strong>
               <span>{r.simbolo}</span>
@@ -320,6 +353,9 @@ export function Mercado() {
   const disparador = useRef<HTMLButtonElement>(null);
   const idPanel = useId();
 
+  /** Aviso para que la cápsula del tiempo se aparte: dos paneles abiertos a la vez sobran. */
+  const cerrarOtros = () => window.dispatchEvent(new CustomEvent("pulso:cerrar-paneles", { detail: "mercado" }));
+
   const cerrar = useCallback(() => {
     setAbierto(false);
     setElegida(null);
@@ -360,12 +396,13 @@ export function Mercado() {
 
   return (
     <>
-      <button ref={disparador} type="button" className="mrc-abrir" onClick={() => setAbierto(true)} aria-haspopup="dialog">
+      <button ref={disparador} type="button" className="mrc-abrir" onClick={() => { cerrarOtros(); setAbierto(true); }} aria-haspopup="dialog">
         <ChartCandlestick aria-hidden="true" width={14} height={14} />
         Ver el mercado
       </button>
 
-      {abierto ? (
+      {abierto && typeof document !== "undefined"
+        ? createPortal(
         <div className="mrc-fondo" onClick={(e) => e.target === e.currentTarget && cerrar()}>
           <div
             ref={panel}
@@ -394,7 +431,7 @@ export function Mercado() {
                 {monedas.map((m) => (
                   <li key={m.id}>
                     <button type="button" onClick={() => setElegida(m.id)}>
-                      {m.imagen ? <img src={m.imagen} alt="" width={24} height={24} loading="lazy" /> : null}
+                      <Logo src={m.imagen} simbolo={m.simbolo} />
                       <span className="mrc-nombre">
                         <strong>{m.simbolo}</strong>
                         <small>{m.nombre}</small>
@@ -416,8 +453,10 @@ export function Mercado() {
               Datos de CoinGecko y Binance, con unos segundos de retraso. Información de mercado, no asesoría financiera.
             </p>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+          )
+        : null}
     </>
   );
 }

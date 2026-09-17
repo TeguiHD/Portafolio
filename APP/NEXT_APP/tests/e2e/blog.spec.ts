@@ -87,7 +87,8 @@ test("las señales laterales se dibujan aunque una fuente falle", async ({ page 
   const valores = await mercado.locator(".pulso-valor").count();
   if (valores === 0) await expect(mercado.locator(".pulso-fallo")).toBeVisible();
   else expect(valores).toBeGreaterThan(0);
-  await expect(page.getByRole("heading", { name: "GitHub" })).toBeVisible();
+  // Exacto: algún titular del día puede llevar «GitHub» dentro y hacer ambigua la búsqueda.
+  await expect(page.getByRole("heading", { name: "GitHub", exact: true })).toBeVisible();
 });
 
 test("a 390 px el blog no desborda y la rejilla se apila", async ({ page }) => {

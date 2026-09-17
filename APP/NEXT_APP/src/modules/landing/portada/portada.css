@@ -110,3 +110,12 @@ html.portada-entrada .p-hero .p-insignia { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .portada *, .portada *::before, .portada *::after { animation: none !important; transition: none !important; }
 }
+
+/* Anclajes de la barra --------------------------------------------------- */
+
+/* La barra de navegación flota fija sobre el contenido y ocupa hasta los ~86 px. Sin
+   esto, pulsar «Stack» dejaba el título de la sección debajo de ella. El margen de
+   anclaje le dice al navegador dónde parar de verdad. */
+#hero, #tools-belt, #vault, #casos, #tecnologias, #architecture, #contact {
+  scroll-margin-top: 100px;
+}

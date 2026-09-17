@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ComponentType } from "react";
+import { EVENTO_ANCLA } from "../portada/anclas";
 
 type DeferredSectionComponent = ComponentType<Record<string, never>>;
 
@@ -64,12 +65,58 @@ export function DeferredLandingSection({ section }: DeferredLandingSectionProps)
     useState<DeferredSectionComponent | null>(null);
   const placeholderRef = useRef<HTMLElement | null>(null);
 
+  /** Verdadero cuando alguien ha pedido venir aquí: hay que cargar y luego situarse. */
+  const [pedida, setPedida] = useState(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.location.hash === `#${definition.anchorId}`) {
+    const mirar = () => {
+      if (window.location.hash === `#${definition.anchorId}`) {
+        setPedida(true);
+        setShouldLoad(true);
+      }
+    };
+    // Al montar (llegada directa con ancla), al volver atrás, y sobre todo cuando la
+    // barra lo pide: la navegación de Next usa `pushState` y no dispara `hashchange`.
+    mirar();
+    const porAviso = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== definition.anchorId) return;
+      setPedida(true);
       setShouldLoad(true);
-    }
+    };
+    window.addEventListener("hashchange", mirar);
+    window.addEventListener("popstate", mirar);
+    window.addEventListener(EVENTO_ANCLA, porAviso);
+    return () => {
+      window.removeEventListener("hashchange", mirar);
+      window.removeEventListener("popstate", mirar);
+      window.removeEventListener(EVENTO_ANCLA, porAviso);
+    };
   }, [definition.anchorId]);
+
+  // Ya cargada, hay que volver a situarla, y varias veces: el hueco y la sección de
+  // verdad no miden igual, y las secciones de más arriba siguen creciendo según cargan,
+  // empujando el destino hacia abajo. Se insiste un par de segundos y se suelta al
+  // primer gesto, para no pelearse con quien decide irse a otro sitio.
+  useEffect(() => {
+    if (!LoadedSection || typeof window === "undefined" || !pedida) return;
+    let intentos = 0;
+    let reloj: number | null = null;
+    const gestos = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
+    const soltar = () => {
+      if (reloj !== null) window.clearTimeout(reloj);
+      reloj = null;
+      gestos.forEach((g) => window.removeEventListener(g, soltar));
+    };
+    const situar = () => {
+      document.getElementById(definition.anchorId)?.scrollIntoView({ block: "start" });
+      if (++intentos >= 9) return soltar();
+      reloj = window.setTimeout(situar, 220);
+    };
+    gestos.forEach((g) => window.addEventListener(g, soltar, { passive: true }));
+    situar();
+    return soltar;
+  }, [LoadedSection, pedida, definition.anchorId]);
 
   useEffect(() => {
     if (shouldLoad || LoadedSection) return;

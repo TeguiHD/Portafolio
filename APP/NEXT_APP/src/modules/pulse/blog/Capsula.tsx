@@ -54,6 +54,13 @@ export function Capsula() {
     void cargar();
   }, [cargar]);
 
+  // Si se abre otro panel (el del mercado), este se aparta: dos a la vez sobran.
+  useEffect(() => {
+    const apartarse = () => setAbierta(false);
+    window.addEventListener("pulso:cerrar-paneles", apartarse);
+    return () => window.removeEventListener("pulso:cerrar-paneles", apartarse);
+  }, []);
+
   useEffect(() => {
     if (!abierta && devolverFoco.current) {
       devolverFoco.current = false;

@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/components/ui/Button";
 import { ThrottledLink } from "@/components/ui/ThrottledLink";
+import { anclaDe, pedirAncla } from "@/modules/landing/portada/anclas";
+import { PistaEnlace } from "@/components/ui/PistaEnlace";
 
 const navItems = [
   { label: "Blog", href: "/blog" },
@@ -167,7 +169,11 @@ export function Navbar() {
                 key={item.href}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Hash links are valid but strict typed routes may complain
                 href={item.href as any}
-                onClick={() => suppressHideFor()}
+                onClick={() => {
+                  const ancla = anclaDe(item.href);
+                  if (ancla) pedirAncla(ancla);
+                  suppressHideFor();
+                }}
                 className={cn(
                   "relative font-medium text-zinc-400 hover:text-white transition-all rounded-full hover:bg-white/5",
                   isExpanded
@@ -176,6 +182,7 @@ export function Navbar() {
                 )}
               >
                 {item.label}
+                <PistaEnlace />
               </ThrottledLink>
             ))}
           </nav>
@@ -183,7 +190,10 @@ export function Navbar() {
           {/* CTA */}
           <ThrottledLink
             href="/#contact"
-            onClick={() => suppressHideFor()}
+            onClick={() => {
+              pedirAncla("contact");
+              suppressHideFor();
+            }}
             className={cn(
               "hidden md:flex items-center justify-center font-bold text-black bg-white rounded-full hover:bg-gray-200 transition-all",
               isExpanded
@@ -253,12 +263,17 @@ export function Navbar() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Hash links are valid but strict typed routes may complain
               href={item.href as any}
               onClick={() => {
+                const ancla = anclaDe(item.href);
+                if (ancla) pedirAncla(ancla);
                 suppressHideFor();
                 setOpen(false);
               }}
               className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-white/5 transition-colors group"
             >
-              <span className="text-sm font-medium text-zinc-400 group-hover:text-white transition-colors">{item.label}</span>
+              <span className="text-sm font-medium text-zinc-400 group-hover:text-white transition-colors">
+                {item.label}
+                <PistaEnlace />
+              </span>
               <span className="text-zinc-600 group-hover:text-white transition-colors">→</span>
             </ThrottledLink>
           ))}
@@ -266,6 +281,7 @@ export function Navbar() {
           <ThrottledLink
             href="/#contact"
             onClick={() => {
+              pedirAncla("contact");
               suppressHideFor();
               setOpen(false);
             }}

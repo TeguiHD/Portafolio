@@ -9,7 +9,11 @@ test("la órbita revela el nombre de la tecnología en el centro", async ({ page
   await expect(sec.getByRole("heading", { level: 2 })).toContainText("Una base");
   await expect(sec.locator("button.p-satelite")).toHaveCount(12);
   await expect(sec.locator("#orbNombre b")).toHaveText("");
-  await sec.getByRole("button", { name: "PostgreSQL" }).hover({ force: true });
+  // Con el foco y no con el ratón: los satélites giran, así que apuntar a uno y esperar
+  // a que llegue el hover es perseguir un blanco en movimiento y a veces contesta el de
+  // al lado. El componente muestra el nombre igual al recibir el foco, que además es el
+  // camino que usa quien navega con el teclado.
+  await sec.getByRole("button", { name: "PostgreSQL" }).focus();
   await expect(sec.locator("#orbNombre b")).toHaveText("PostgreSQL");
   await sec.getByRole("button", { name: "Docker" }).click({ force: true });
   await expect(sec.locator("#orbNombre b")).toHaveText("Docker");

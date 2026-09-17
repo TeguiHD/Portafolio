@@ -185,6 +185,27 @@ export function crearCache<T>(nombre: string, frescoMs: number, rancioMs: number
       if (guardado && !forzar && ahora - guardado.momento < frescoMs) {
         return { valor: guardado.valor, cacheado: true, rancio: false };
       }
+      /**
+       * Caducado pero aún servible: se devuelve al momento y la recarga se hace por
+       * detrás. Antes, quien llegaba justo al caducar la tanda esperaba a que
+       * respondieran todas las fuentes —hasta siete segundos en el blog— para ver algo
+       * que ya estaba guardado. Solo se espera de verdad la primera vez, cuando no hay
+       * nada que enseñar.
+       */
+      if (guardado && !forzar && ahora - guardado.momento < rancioMs) {
+        if (!enCurso) {
+          enCurso = cargar()
+            .then((valor) => {
+              guardado = { valor, momento: Date.now() };
+              return valor;
+            })
+            .finally(() => {
+              enCurso = null;
+            });
+          enCurso.catch(() => undefined);
+        }
+        return { valor: guardado.valor, cacheado: true, rancio: true };
+      }
       if (!enCurso) {
         enCurso = cargar()
           .then((valor) => {

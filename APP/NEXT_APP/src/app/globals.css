@@ -552,3 +552,18 @@ body:has(.landing-experience) {
 @media (prefers-reduced-motion: reduce) {
   .aviso-version, .aviso-version-gira { animation: none; }
 }
+
+/* Señal de navegación en marcha (ver PistaEnlace) ------------------------- */
+
+.pista-enlace {
+  display: inline-block; width: 5px; height: 5px; margin-left: 6px; border-radius: 50%;
+  background: currentColor; vertical-align: middle;
+  animation: pista-enlace-late 0.9s ease-in-out infinite;
+}
+@keyframes pista-enlace-late {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pista-enlace { animation: none; opacity: 0.8; }
+}
