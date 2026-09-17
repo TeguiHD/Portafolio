@@ -89,7 +89,10 @@ export function PWARegister() {
             cancelIdleCallback?: (handle: number) => void;
         };
 
-        const swVersion = "v3";
+        // v4: la v3 quedó cacheada 30 días en el borde con la versión rota que no
+        // llegaba a instalarse (ver `public/sw.js`). Cambiar la consulta estrena clave de
+        // caché y los navegadores piden el fichero nuevo sin esperar a que caduque.
+        const swVersion = "v4";
         const idleWindow = window as IdleWindow;
 
         const registerServiceWorker = () => {
