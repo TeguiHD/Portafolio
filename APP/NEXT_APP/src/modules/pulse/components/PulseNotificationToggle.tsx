@@ -48,12 +48,37 @@ export function PulseNotificationToggle() {
       return;
     }
 
+    /**
+     * El permiso puede cambiar desde el propio navegador —el candado de la barra de
+     * direcciones— y eso no dispara ningún evento en la página. `permissions.query` sí
+     * avisa, así que la campana se entera de que la han desbloqueado sin recargar.
+     */
+    let soltarVigilante: (() => void) | null = null;
+    let montado = true;
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "notifications" as PermissionName })
+        .then((estado) => {
+          if (!montado) return;
+          const sincronizar = () => setPermission(Notification.permission);
+          estado.addEventListener("change", sincronizar);
+          soltarVigilante = () => estado.removeEventListener("change", sincronizar);
+          sincronizar();
+        })
+        .catch(() => undefined);
+    }
+
     navigator.serviceWorker.ready
       .then(async (registration) => {
         const subscription = await registration.pushManager.getSubscription();
         setSubscribed(Boolean(subscription));
       })
       .catch(() => undefined);
+
+    return () => {
+      montado = false;
+      soltarVigilante?.();
+    };
   }, []);
 
   const subscribe = async () => {
@@ -140,6 +165,17 @@ export function PulseNotificationToggle() {
     disparador.current?.focus();
   }, []);
 
+  /** Relee el permiso ahora mismo: el respaldo de quien acaba de cambiarlo a mano. */
+  const volverAComprobar = () => {
+    const ahora = Notification.permission;
+    setPermission(ahora);
+    if (ahora === "denied") {
+      setMessage("Sigue bloqueado en el navegador.");
+      return;
+    }
+    setMessage(null);
+  };
+
   const confirmar = async () => {
     const apagar = subscribed;
     await (apagar ? unsubscribe() : subscribe());
@@ -185,7 +221,7 @@ export function PulseNotificationToggle() {
         aria-label={rotulo}
         aria-haspopup="dialog"
         title={rotulo}
-        disabled={loading || bloqueado}
+        disabled={loading}
         onClick={() => {
           setMessage(null);
           setPreguntando(true);
@@ -217,43 +253,76 @@ export function PulseNotificationToggle() {
                 tabIndex={-1}
               >
                 <div className="pulso-dialogo-cab">
-                  <span className="pulso-dialogo-ico" data-apagar={subscribed ? "true" : "false"} aria-hidden="true">
-                    {subscribed ? <BellOff width={19} height={19} /> : <Bell width={19} height={19} />}
+                  <span
+                    className="pulso-dialogo-ico"
+                    data-apagar={bloqueado || subscribed ? "true" : "false"}
+                    aria-hidden="true"
+                  >
+                    {bloqueado || subscribed ? <BellOff width={19} height={19} /> : <Bell width={19} height={19} />}
                   </span>
                   <h3 id="pulso-avisos-titulo">
-                    {subscribed ? "¿Desactivar los avisos?" : "¿Activar los avisos?"}
+                    {bloqueado
+                      ? "Los avisos están bloqueados"
+                      : subscribed
+                        ? "¿Desactivar los avisos?"
+                        : "¿Activar los avisos?"}
                   </h3>
                   <button type="button" className="pulso-cerrar" onClick={cerrarPregunta} aria-label="Cerrar">
                     <X aria-hidden="true" width={16} height={16} />
                   </button>
                 </div>
-                <p className="pulso-dialogo-texto">
-                  {subscribed
-                    ? "Dejarás de recibir novedades del radar en este navegador. Puedes volver a activarlas cuando quieras desde la misma campana."
-                    : "Recibirás un aviso del navegador cuando el radar detecte una señal relevante: un aviso de seguridad, un movimiento fuerte del mercado o una novedad del stack. Nada más."}
-                </p>
-                {!subscribed ? (
-                  <p className="pulso-dialogo-pie">
-                    El navegador te pedirá permiso a continuación. La suscripción se guarda en este dispositivo.
-                  </p>
-                ) : null}
-                <div className="pulso-dialogo-botones">
-                  <button type="button" className="pulso-dialogo-no" onClick={cerrarPregunta}>
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="pulso-dialogo-si"
-                    data-apagar={subscribed ? "true" : "false"}
-                    disabled={loading}
-                    onClick={confirmar}
-                  >
-                    {loading ? (
-                      <LoaderCircle aria-hidden="true" width={15} height={15} className="pulso-campana-gira" />
+
+                {bloqueado ? (
+                  <>
+                    <p className="pulso-dialogo-texto">
+                      Este navegador tiene las notificaciones bloqueadas para el sitio, así que la página no puede
+                      volver a pedirte permiso: hay que quitarlo desde el navegador.
+                    </p>
+                    <ol className="pulso-dialogo-pasos">
+                      <li>Pulsa el candado —o el icono de ajustes— que está a la izquierda de la dirección.</li>
+                      <li>Busca «Notificaciones» y cámbialo a «Permitir» o quita el bloqueo.</li>
+                      <li>Vuelve aquí: la campana se entera sola, sin recargar.</li>
+                    </ol>
+                    <div className="pulso-dialogo-botones">
+                      <button type="button" className="pulso-dialogo-no" onClick={cerrarPregunta}>
+                        Entendido
+                      </button>
+                      <button type="button" className="pulso-dialogo-si" onClick={volverAComprobar}>
+                        Volver a comprobar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="pulso-dialogo-texto">
+                      {subscribed
+                        ? "Dejarás de recibir novedades del radar en este navegador. Puedes volver a activarlas cuando quieras desde la misma campana."
+                        : "Recibirás un aviso del navegador cuando el radar detecte una señal relevante: un aviso de seguridad, un movimiento fuerte del mercado o una novedad del stack. Nada más."}
+                    </p>
+                    {!subscribed ? (
+                      <p className="pulso-dialogo-pie">
+                        El navegador te pedirá permiso a continuación. La suscripción se guarda en este dispositivo.
+                      </p>
                     ) : null}
-                    {subscribed ? "Desactivar" : "Activar avisos"}
-                  </button>
-                </div>
+                    <div className="pulso-dialogo-botones">
+                      <button type="button" className="pulso-dialogo-no" onClick={cerrarPregunta}>
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="pulso-dialogo-si"
+                        data-apagar={subscribed ? "true" : "false"}
+                        disabled={loading}
+                        onClick={confirmar}
+                      >
+                        {loading ? (
+                          <LoaderCircle aria-hidden="true" width={15} height={15} className="pulso-campana-gira" />
+                        ) : null}
+                        {subscribed ? "Desactivar" : "Activar avisos"}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>,
             document.body,
