@@ -6,10 +6,15 @@
  * Antes era una tarjeta con título, explicación, insignia de estado y dos botones. Para
  * lo que hace —encender o apagar las notificaciones del navegador— sobraba todo menos el
  * gesto, así que ahora es un icono al lado del tiempo: apagada, activa o bloqueada.
+ *
+ * Encender o apagar avisos no es un clic cualquiera: el navegador va a pedir permiso, o
+ * se va a dejar de recibir algo que se pidió. Así que el icono abre primero un diálogo
+ * que dice qué va a pasar y espera confirmación.
  */
 
-import { useEffect, useState } from "react";
-import { Bell, BellOff, LoaderCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Bell, BellOff, LoaderCircle, X } from "lucide-react";
 
 function base64UrlToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -25,6 +30,9 @@ export function PulseNotificationToggle() {
   const [subscribed, setSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [message, setMessage] = useState<string | null>(null);
+  const [preguntando, setPreguntando] = useState(false);
+  const disparador = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const isSupported =
@@ -127,6 +135,34 @@ export function PulseNotificationToggle() {
   };
 
 
+  const cerrarPregunta = useCallback(() => {
+    setPreguntando(false);
+    disparador.current?.focus();
+  }, []);
+
+  const confirmar = async () => {
+    const apagar = subscribed;
+    await (apagar ? unsubscribe() : subscribe());
+    setPreguntando(false);
+    disparador.current?.focus();
+  };
+
+  // Escape cierra, el foco entra al panel y el fondo no se desplaza mientras está abierto.
+  useEffect(() => {
+    if (!preguntando) return;
+    panel.current?.focus();
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape") cerrarPregunta();
+    };
+    document.addEventListener("keydown", tecla);
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", tecla);
+      document.body.style.overflow = antes;
+    };
+  }, [preguntando, cerrarPregunta]);
+
   if (!supported) {
     return null;
   }
@@ -141,14 +177,19 @@ export function PulseNotificationToggle() {
   return (
     <div className="pulso-campana-caja">
       <button
+        ref={disparador}
         type="button"
         className="pulso-campana"
         data-estado={loading ? "cargando" : bloqueado ? "bloqueada" : subscribed ? "activa" : "apagada"}
         aria-pressed={subscribed}
         aria-label={rotulo}
+        aria-haspopup="dialog"
         title={rotulo}
         disabled={loading || bloqueado}
-        onClick={subscribed ? unsubscribe : subscribe}
+        onClick={() => {
+          setMessage(null);
+          setPreguntando(true);
+        }}
       >
         {loading ? (
           <LoaderCircle aria-hidden="true" width={17} height={17} className="pulso-campana-gira" />
@@ -163,6 +204,61 @@ export function PulseNotificationToggle() {
           {message}
         </p>
       ) : null}
+
+      {preguntando && typeof document !== "undefined"
+        ? createPortal(
+            <div className="pulso-dialogo-fondo" onClick={(e) => e.target === e.currentTarget && cerrarPregunta()}>
+              <div
+                ref={panel}
+                className="pulso-dialogo"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pulso-avisos-titulo"
+                tabIndex={-1}
+              >
+                <div className="pulso-dialogo-cab">
+                  <span className="pulso-dialogo-ico" data-apagar={subscribed ? "true" : "false"} aria-hidden="true">
+                    {subscribed ? <BellOff width={19} height={19} /> : <Bell width={19} height={19} />}
+                  </span>
+                  <h3 id="pulso-avisos-titulo">
+                    {subscribed ? "¿Desactivar los avisos?" : "¿Activar los avisos?"}
+                  </h3>
+                  <button type="button" className="pulso-cerrar" onClick={cerrarPregunta} aria-label="Cerrar">
+                    <X aria-hidden="true" width={16} height={16} />
+                  </button>
+                </div>
+                <p className="pulso-dialogo-texto">
+                  {subscribed
+                    ? "Dejarás de recibir novedades del radar en este navegador. Puedes volver a activarlas cuando quieras desde la misma campana."
+                    : "Recibirás un aviso del navegador cuando el radar detecte una señal relevante: un aviso de seguridad, un movimiento fuerte del mercado o una novedad del stack. Nada más."}
+                </p>
+                {!subscribed ? (
+                  <p className="pulso-dialogo-pie">
+                    El navegador te pedirá permiso a continuación. La suscripción se guarda en este dispositivo.
+                  </p>
+                ) : null}
+                <div className="pulso-dialogo-botones">
+                  <button type="button" className="pulso-dialogo-no" onClick={cerrarPregunta}>
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="pulso-dialogo-si"
+                    data-apagar={subscribed ? "true" : "false"}
+                    disabled={loading}
+                    onClick={confirmar}
+                  >
+                    {loading ? (
+                      <LoaderCircle aria-hidden="true" width={15} height={15} className="pulso-campana-gira" />
+                    ) : null}
+                    {subscribed ? "Desactivar" : "Activar avisos"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

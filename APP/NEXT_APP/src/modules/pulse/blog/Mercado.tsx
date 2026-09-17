@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ChartCandlestick, X } from "lucide-react";
-import type { CriptoDetalle, CriptoResumen } from "@/app/api/pulse/cripto/route";
+import type { CriptoDetalle, CriptoResumen, CriptoVivo, Operacion } from "@/app/api/pulse/cripto/route";
 
 /**
  * El mercado, para mirarlo de cerca.
@@ -103,8 +103,24 @@ function Chispa({ valores, sube }: { valores: number[]; sube: boolean }) {
   );
 }
 
-/** El histórico, dibujado en lienzo y con lectura bajo el dedo. */
-function Grafico({ puntos, rango, sube }: { puntos: Array<{ t: number; v: number }>; rango: string; sube: boolean }) {
+/**
+ * El histórico, dibujado en lienzo, con ejes y lectura bajo el dedo.
+ *
+ * Se repinta cuando cambia lo que se ve —la serie, el rango, el punto señalado o el
+ * precio en vivo—, y nada más. El precio en vivo llega cada ocho segundos, así que eso
+ * son ocho segundos entre repintados, no uno por fotograma.
+ */
+function Grafico({
+  puntos,
+  rango,
+  sube,
+  precioVivo,
+}: {
+  puntos: Array<{ t: number; v: number }>;
+  rango: string;
+  sube: boolean;
+  precioVivo: number | null;
+}) {
   const lienzo = useRef<HTMLCanvasElement>(null);
   const [mirando, setMirando] = useState<number | null>(null);
 
@@ -140,6 +156,18 @@ function Grafico({ puntos, rango, sube }: { puntos: Array<{ t: number; v: number
         g.moveTo(pad, yy);
         g.lineTo(W - pad, yy);
         g.stroke();
+      }
+      // El precio en vivo, marcado sobre la serie: dice de un vistazo si está por encima
+      // o por debajo de donde ha estado el rango entero.
+      if (precioVivo !== null && precioVivo >= min && precioVivo <= max) {
+        const yv = y(precioVivo);
+        g.strokeStyle = "#ffffff38";
+        g.setLineDash([2, 4]);
+        g.beginPath();
+        g.moveTo(pad, yv);
+        g.lineTo(W - pad, yv);
+        g.stroke();
+        g.setLineDash([]);
       }
       // Relleno bajo la línea.
       const degradado = g.createLinearGradient(0, pad, 0, H);
@@ -183,7 +211,7 @@ function Grafico({ puntos, rango, sube }: { puntos: Array<{ t: number; v: number
     const observador = new ResizeObserver(dibujar);
     observador.observe(c);
     return () => observador.disconnect();
-  }, [puntos, sube, mirando]);
+  }, [puntos, sube, mirando, precioVivo]);
 
   const situar = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const caja = e.currentTarget.getBoundingClientRect();
@@ -192,59 +220,172 @@ function Grafico({ puntos, rango, sube }: { puntos: Array<{ t: number; v: number
   };
 
   const punto = mirando !== null ? puntos[mirando] : null;
+  const vs = puntos.map((x) => x.v);
+  const alto = vs.length ? Math.max(...vs) : null;
+  const bajo = vs.length ? Math.min(...vs) : null;
+  // La etiqueta sigue al punto señalado y se aparta del borde para no salirse.
+  const izquierda = mirando !== null && puntos.length > 1 ? (mirando / (puntos.length - 1)) * 100 : 0;
 
   return (
     <div className="mrc-grafico">
-      <canvas
-        ref={lienzo}
-        onPointerMove={situar}
-        onPointerDown={situar}
-        onPointerLeave={() => setMirando(null)}
-        role="img"
-        aria-label={`Histórico de ${rango}`}
-      />
-      <p className="mrc-lectura" aria-live="polite">
+      <div className="mrc-eje-y" aria-hidden="true">
+        <span>{alto !== null ? dinero(alto) : ""}</span>
+        <span>{bajo !== null ? dinero(bajo) : ""}</span>
+      </div>
+      <div className="mrc-lienzo">
+        <canvas
+          ref={lienzo}
+          onPointerMove={situar}
+          onPointerDown={situar}
+          onPointerLeave={() => setMirando(null)}
+          role="img"
+          aria-label={`Histórico de ${rango}`}
+        />
         {punto ? (
-          <>
+          <div
+            className="mrc-globo"
+            style={{ left: `${izquierda}%`, transform: `translateX(${izquierda > 72 ? "-100%" : izquierda < 28 ? "0" : "-50%"})` }}
+          >
             <strong>{dinero(punto.v)}</strong>
             <span>{fechaPunto(punto.t, rango)}</span>
-          </>
-        ) : (
-          <span className="mrc-pista">Pasa el dedo o el ratón por encima para leer cada punto</span>
-        )}
-      </p>
+          </div>
+        ) : null}
+      </div>
+      <div className="mrc-eje-x" aria-hidden="true">
+        <span>{puntos.length ? fechaPunto(puntos[0].t, rango) : ""}</span>
+        <span className="mrc-pista">pasa el dedo o el ratón por encima</span>
+        <span>{puntos.length ? fechaPunto(puntos[puntos.length - 1].t, rango) : ""}</span>
+      </div>
     </div>
   );
+}
+
+/**
+ * El pulso del activo mientras la ficha está abierta.
+ *
+ * Pide solo lo que cambia a `/api/pulse/cripto?vivo=1` cada ocho segundos, y con tres
+ * frenos que importan: nada cuando la pestaña no se ve, nada cuando la ficha se cierra,
+ * y una sola llamada a la fuente por ventana de caché del servidor aunque haya muchas
+ * fichas abiertas. Ocho segundos es lo que tarda en notarse el cambio sin convertir la
+ * página en una ametralladora de peticiones.
+ */
+const CADA = 8000;
+
+function useVivo(id: string, activo: boolean) {
+  const [vivo, setVivo] = useState<CriptoVivo | null>(null);
+  const [direccion, setDireccion] = useState<"sube" | "baja" | null>(null);
+  const anterior = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!activo) return;
+    let enPie = true;
+    let reloj: number | null = null;
+    let control: AbortController | null = null;
+
+    const pedir = async () => {
+      if (document.hidden) return;
+      control?.abort();
+      control = new AbortController();
+      try {
+        const r = await fetch(`/api/pulse/cripto?id=${encodeURIComponent(id)}&vivo=1`, { signal: control.signal });
+        if (!r.ok) return;
+        const d = (await r.json()) as CriptoVivo;
+        if (!enPie) return;
+        if (d.precio !== null && anterior.current !== null && d.precio !== anterior.current) {
+          setDireccion(d.precio > anterior.current ? "sube" : "baja");
+        }
+        if (d.precio !== null) anterior.current = d.precio;
+        setVivo(d);
+      } catch {
+        /* una ronda perdida no rompe nada: la siguiente lo arregla */
+      }
+    };
+
+    const arrancar = () => {
+      if (reloj !== null) return;
+      void pedir();
+      reloj = window.setInterval(pedir, CADA);
+    };
+    const parar = () => {
+      if (reloj !== null) window.clearInterval(reloj);
+      reloj = null;
+      control?.abort();
+      control = null;
+    };
+    const alCambiarVisibilidad = () => (document.hidden ? parar() : arrancar());
+
+    arrancar();
+    document.addEventListener("visibilitychange", alCambiarVisibilidad);
+    return () => {
+      enPie = false;
+      parar();
+      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
+    };
+  }, [id, activo]);
+
+  // El destello del precio dura lo justo para verse y no se queda pegado.
+  useEffect(() => {
+    if (!direccion) return;
+    const reloj = window.setTimeout(() => setDireccion(null), 900);
+    return () => window.clearTimeout(reloj);
+  }, [direccion, vivo]);
+
+  return { vivo, direccion };
+}
+
+/** «hace 3 s», que es lo que dice si el dato está fresco. */
+function Antiguedad({ momento }: { momento: number }) {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const reloj = window.setInterval(() => setAhora(Date.now()), 1000);
+    return () => window.clearInterval(reloj);
+  }, []);
+  const s = Math.max(0, Math.round((ahora - momento) / 1000));
+  return <span className="mrc-antiguedad">{s < 60 ? `hace ${s} s` : `hace ${Math.round(s / 60)} min`}</span>;
 }
 
 function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
   const [rango, setRango] = useState<"1" | "7" | "30" | "365">("7");
   const [datos, setDatos] = useState<CriptoDetalle | null>(null);
   const [estado, setEstado] = useState<"cargando" | "listo" | "fallo">("cargando");
+  const { vivo, direccion } = useVivo(id, estado === "listo");
 
   useEffect(() => {
-    let vivo = true;
+    let enPie = true;
     setEstado((e) => (e === "listo" ? e : "cargando"));
     fetch(`/api/pulse/cripto?id=${encodeURIComponent(id)}&rango=${rango}`, { signal: AbortSignal.timeout(12_000) })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: CriptoDetalle) => {
-        if (!vivo) return;
+        if (!enPie) return;
         setDatos(d);
         setEstado("listo");
       })
-      .catch(() => vivo && setEstado((e) => (e === "listo" ? e : "fallo")));
+      .catch(() => enPie && setEstado((e) => (e === "listo" ? e : "fallo")));
     return () => {
-      vivo = false;
+      enPie = false;
     };
   }, [id, rango]);
 
   const r = datos?.resumen;
-  const sube = (r?.cambio24h ?? 0) >= 0;
-  const compras = datos?.operaciones.filter((o) => o.compra) ?? [];
-  const ventas = datos?.operaciones.filter((o) => !o.compra) ?? [];
-  const volCompra = compras.reduce((a, o) => a + o.precio * o.cantidad, 0);
-  const volVenta = ventas.reduce((a, o) => a + o.precio * o.cantidad, 0);
-  const presion = volCompra + volVenta > 0 ? (volCompra / (volCompra + volVenta)) * 100 : 50;
+  // Lo de Binance manda cuando está; lo de CoinGecko es el respaldo.
+  const precio = vivo?.precio ?? r?.precio ?? null;
+  const cambio = vivo?.cambio24h ?? r?.cambio24h ?? null;
+  const maximo = vivo?.maximo24h ?? r?.maximo24h ?? null;
+  const minimo = vivo?.minimo24h ?? r?.minimo24h ?? null;
+  const volumen = vivo?.volumen ?? r?.volumen ?? null;
+  const sube = (cambio ?? 0) >= 0;
+  const operaciones = vivo?.operaciones?.length ? vivo.operaciones : (datos?.operaciones ?? []);
+  const enVivo = Boolean(vivo && vivo.precio !== null);
+
+  // La presión llega calculada del servidor sobre la muestra completa; la cuenta local
+  // es solo el respaldo, y con doce operaciones no diría gran cosa.
+  const presion = vivo?.presion ?? datos?.presion ?? 50;
+
+  // Dónde está el precio dentro del recorrido del día: 0 en el mínimo, 100 en el máximo.
+  const posicionDia =
+    precio !== null && maximo !== null && minimo !== null && maximo > minimo
+      ? Math.min(100, Math.max(0, ((precio - minimo) / (maximo - minimo)) * 100))
+      : null;
 
   return (
     <div className="mrc-ficha">
@@ -255,21 +396,42 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
         </button>
         {r ? (
           <div className="mrc-ficha-titulo">
-            <Logo src={r.imagen} simbolo={r.simbolo} tam={26} />
-            <div>
+            <Logo src={r.imagen} simbolo={r.simbolo} tam={34} />
+            <div className="mrc-ficha-nombre">
               <strong>{r.nombre}</strong>
-              <span>{r.simbolo}</span>
+              <span>{r.simbolo} · USD</span>
             </div>
             <div className="mrc-ficha-precio">
-              <strong>{dinero(r.precio)}</strong>
+              <strong data-destello={direccion ?? undefined}>{precio !== null ? dinero(precio) : "—"}</strong>
               <span className={sube ? "sube" : "baja"}>
-                {r.cambio24h >= 0 ? "+" : ""}
-                {r.cambio24h.toFixed(2)}% · 24 h
+                {cambio !== null ? `${cambio >= 0 ? "+" : ""}${cambio.toFixed(2)}% · 24 h` : "sin dato de 24 h"}
               </span>
             </div>
           </div>
         ) : null}
       </div>
+
+      {posicionDia !== null && minimo !== null && maximo !== null ? (
+        <div className="mrc-dia">
+          <div className="mrc-dia-cab">
+            <span>Recorrido del día</span>
+            {enVivo && vivo ? (
+              <span className="mrc-envivo">
+                <i aria-hidden="true" />
+                en vivo · <Antiguedad momento={vivo.momento} />
+              </span>
+            ) : null}
+          </div>
+          <div className="mrc-dia-barra">
+            <span className="mrc-dia-relleno" style={{ width: `${posicionDia}%` }} />
+            <span className="mrc-dia-marca" style={{ left: `${posicionDia}%` }} aria-hidden="true" />
+          </div>
+          <div className="mrc-dia-pie">
+            <span>{dinero(minimo)}</span>
+            <span>{dinero(maximo)}</span>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mrc-rangos" role="group" aria-label="Rango del histórico">
         {RANGOS.map((x) => (
@@ -285,39 +447,46 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
         <div className="mrc-esqueleto" aria-hidden="true" />
       ) : (
         <>
-          <Grafico puntos={datos.puntos} rango={datos.rango} sube={sube} />
+          <Grafico puntos={datos.puntos} rango={datos.rango} sube={sube} precioVivo={precio} />
 
-          {r ? (
-            <dl className="mrc-datos">
-              <div>
-                <dt>Máximo 24 h</dt>
-                <dd>{dinero(r.maximo24h)}</dd>
-              </div>
-              <div>
-                <dt>Mínimo 24 h</dt>
-                <dd>{dinero(r.minimo24h)}</dd>
-              </div>
-              <div>
-                <dt>Volumen 24 h</dt>
-                <dd>{compacto(r.volumen)} USD</dd>
-              </div>
-              <div>
-                <dt>Capitalización</dt>
-                <dd>{compacto(r.capitalizacion)} USD</dd>
-              </div>
-            </dl>
-          ) : null}
+          <dl className="mrc-datos">
+            <div>
+              <dt>Máximo 24 h</dt>
+              <dd>{maximo !== null ? dinero(maximo) : "—"}</dd>
+            </div>
+            <div>
+              <dt>Mínimo 24 h</dt>
+              <dd>{minimo !== null ? dinero(minimo) : "—"}</dd>
+            </div>
+            <div>
+              <dt>Volumen 24 h</dt>
+              <dd>{volumen !== null ? `${compacto(volumen)} USD` : "—"}</dd>
+            </div>
+            <div>
+              <dt>Capitalización</dt>
+              <dd>{r ? `${compacto(r.capitalizacion)} USD` : "—"}</dd>
+            </div>
+          </dl>
 
           <div className="mrc-libro">
             <div className="mrc-libro-cab">
               <h4>Últimas operaciones</h4>
-              {!datos.sinOperaciones ? <span className="pulso-vivo">Binance</span> : null}
+              {operaciones.length > 0 ? (
+                <span className="mrc-envivo">
+                  <i aria-hidden="true" />
+                  Binance
+                </span>
+              ) : null}
             </div>
-            {datos.sinOperaciones ? (
+            {operaciones.length === 0 ? (
               <p className="mrc-vacio">Este par no cotiza contra USDT en la fuente de operaciones.</p>
             ) : (
               <>
-                <div className="mrc-presion" title={`${presion.toFixed(0)}% del volumen reciente son compras`}>
+                <div
+                  className="mrc-presion"
+                  role="img"
+                  aria-label={`${presion.toFixed(0)}% del volumen reciente son compras`}
+                >
                   <span className="compra" style={{ width: `${presion}%` }} />
                   <span className="venta" style={{ width: `${100 - presion}%` }} />
                 </div>
@@ -326,8 +495,8 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
                   <span className="venta">{(100 - presion).toFixed(0)}% ventas</span>
                 </p>
                 <ul className="mrc-operaciones">
-                  {datos.operaciones.slice(0, 14).map((o, i) => (
-                    <li key={`${o.hora}-${i}`} data-tipo={o.compra ? "compra" : "venta"}>
+                  {operaciones.slice(0, 12).map((o: Operacion, i: number) => (
+                    <li key={`${o.hora}-${o.precio}-${i}`} data-tipo={o.compra ? "compra" : "venta"}>
                       <span className="tipo">{o.compra ? "Compra" : "Venta"}</span>
                       <span className="precio">{dinero(o.precio)}</span>
                       <span className="cantidad">{cantidad(o.cantidad)}</span>

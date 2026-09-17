@@ -4,9 +4,13 @@ import { crearCache, pedirJson } from "@/modules/pulse/lib/red";
 /**
  * Datos del mercado cripto para el panel del blog.
  *
- * Dos formas de preguntar:
+ * Tres formas de preguntar:
  *  - sin parámetros: la lista de monedas con precio, variación y su serie de 7 días;
- *  - `?id=bitcoin&rango=7`: el detalle de una, con su histórico y las últimas operaciones.
+ *  - `?id=bitcoin&rango=7`: el detalle de una, con su histórico y las últimas operaciones;
+ *  - `?id=bitcoin&vivo=1`: solo lo que cambia —precio, variación, rango del día y las
+ *    últimas operaciones—, con caché de cinco segundos. Es lo que pide la ficha abierta
+ *    cada pocos segundos: respuesta pequeña y, sobre todo, una sola llamada a la fuente
+ *    por ventana de caché aunque haya cien fichas abiertas a la vez.
  *
  * Todo pasa por aquí y no desde el navegador: así la CSP sigue permitiendo solo nuestro
  * propio origen, las claves de terceros (si algún día hacen falta) no viajan al cliente y
@@ -61,12 +65,50 @@ export interface Operacion {
   hora: number;
 }
 
+/** Cuántas operaciones viajan al navegador: las que se pintan y una de margen. */
+const OPERACIONES_VISIBLES = 14;
+
+/**
+ * La presión compradora, calculada aquí.
+ *
+ * Hacen falta doscientas operaciones para que el número signifique algo —una orden
+ * grande se parte en decenas de ejecuciones del mismo segundo—, pero mandar las
+ * doscientas al navegador costaba 14 KB por ronda para pintar doce líneas. Se calcula en
+ * el servidor y viaja un número.
+ */
+function presionDe(operaciones: Operacion[]): number | null {
+  if (operaciones.length === 0) return null;
+  let compra = 0;
+  let total = 0;
+  for (const o of operaciones) {
+    const valor = o.precio * o.cantidad;
+    total += valor;
+    if (o.compra) compra += valor;
+  }
+  return total > 0 ? (compra / total) * 100 : null;
+}
+
+export interface CriptoVivo {
+  /** Precio del par contra USDT; null cuando la moneda no cotiza ahí. */
+  precio: number | null;
+  cambio24h: number | null;
+  maximo24h: number | null;
+  minimo24h: number | null;
+  volumen: number | null;
+  operaciones: Operacion[];
+  /** Porcentaje del volumen reciente que son compras, sobre la muestra completa. */
+  presion: number | null;
+  /** Momento del servidor en que se tomó el dato, para contar cuánto hace. */
+  momento: number;
+}
+
 export interface CriptoDetalle {
   resumen: CriptoResumen | null;
   puntos: Array<{ t: number; v: number }>;
   rango: Rango;
   etiquetaRango: string;
   operaciones: Operacion[];
+  presion: number | null;
   /** Verdadero cuando las operaciones no se pudieron traer: el resto sigue sirviendo. */
   sinOperaciones: boolean;
 }
@@ -134,6 +176,58 @@ async function cargarOperaciones(simbolo: string): Promise<Operacion[]> {
     .reverse();
 }
 
+const cacheVivo = new Map<string, ReturnType<typeof crearCache<CriptoVivo>>>();
+
+function vivoCache(simbolo: string) {
+  let c = cacheVivo.get(simbolo);
+  if (!c) {
+    c = crearCache<CriptoVivo>(`cripto-vivo-${simbolo}`, 5_000, 60_000);
+    cacheVivo.set(simbolo, c);
+    if (cacheVivo.size > 60) cacheVivo.delete(cacheVivo.keys().next().value as string);
+  }
+  return c;
+}
+
+/** El par de Binance para un símbolo, o null si no da un nombre razonable. */
+function parDe(simbolo: string) {
+  const limpio = simbolo.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (limpio.length < 2 || limpio.length > 10) return null;
+  return `${limpio}USDT`;
+}
+
+async function cargarVivo(simbolo: string): Promise<CriptoVivo> {
+  const par = parDe(simbolo);
+  const vacio: CriptoVivo = {
+    precio: null, cambio24h: null, maximo24h: null, minimo24h: null, volumen: null,
+    operaciones: [], presion: null, momento: Date.now(),
+  };
+  if (!par) return vacio;
+  // Las dos en paralelo y perdonando fallos por separado: el precio sirve sin las
+  // operaciones, y al revés.
+  const [ticker, operaciones] = await Promise.allSettled([
+    pedirJson<{ lastPrice: string; priceChangePercent: string; highPrice: string; lowPrice: string; quoteVolume: string }>(
+      `${BINANCE}/ticker/24hr?symbol=${par}`,
+      { plazo: 5000, revalidate: 5 },
+    ),
+    cargarOperaciones(simbolo),
+  ]);
+  const n = (v: string | undefined) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : null;
+  };
+  const todas = operaciones.status === "fulfilled" ? operaciones.value : [];
+  return {
+    precio: ticker.status === "fulfilled" ? n(ticker.value.lastPrice) : null,
+    cambio24h: ticker.status === "fulfilled" ? n(ticker.value.priceChangePercent) : null,
+    maximo24h: ticker.status === "fulfilled" ? n(ticker.value.highPrice) : null,
+    minimo24h: ticker.status === "fulfilled" ? n(ticker.value.lowPrice) : null,
+    volumen: ticker.status === "fulfilled" ? n(ticker.value.quoteVolume) : null,
+    operaciones: todas.slice(0, OPERACIONES_VISIBLES),
+    presion: presionDe(todas),
+    momento: Date.now(),
+  };
+}
+
 async function cargarDetalle(id: string, rango: Rango): Promise<CriptoDetalle> {
   const { dias, etiqueta } = RANGOS[rango];
   const [historico, lista] = await Promise.all([
@@ -161,7 +255,8 @@ async function cargarDetalle(id: string, rango: Rango): Promise<CriptoDetalle> {
       .map(([t, v]) => ({ t, v })),
     rango,
     etiquetaRango: etiqueta,
-    operaciones,
+    operaciones: operaciones.slice(0, OPERACIONES_VISIBLES),
+    presion: presionDe(operaciones),
     sinOperaciones,
   };
 }
@@ -179,6 +274,13 @@ export async function GET(peticion: Request) {
     // El identificador viene del navegador: solo el alfabeto que usa CoinGecko.
     if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(id)) {
       return NextResponse.json({ error: "identificador no válido" }, { status: 400 });
+    }
+    if (url.searchParams.get("vivo") === "1") {
+      const lista = await cacheLista.leer(cargarLista).then((r) => r.valor).catch(() => [] as CriptoResumen[]);
+      const moneda = lista.find((m) => m.id === id);
+      if (!moneda) return NextResponse.json({ error: "moneda desconocida" }, { status: 404 });
+      const { valor } = await vivoCache(moneda.simbolo).leer(() => cargarVivo(moneda.simbolo));
+      return NextResponse.json(valor, { headers: { "Cache-Control": "public, max-age=5" } });
     }
     const rango: Rango = rangoCrudo in RANGOS ? (rangoCrudo as Rango) : "7";
     const { valor, rancio } = await detalleCache(`${id}-${rango}`).leer(() => cargarDetalle(id, rango));
