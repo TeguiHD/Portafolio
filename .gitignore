@@ -86,6 +86,8 @@ Archivos/
 **/seed_error*.txt
 **/playwright-report/
 **/test-results/
+# Registros y capturas que deja el Playwright del editor.
+**/.playwright-mcp/
 
 ## Nginx secrets
 DOCKER/nginx/ssl/
