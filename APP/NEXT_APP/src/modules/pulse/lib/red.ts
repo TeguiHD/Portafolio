@@ -174,7 +174,18 @@ interface Guardado<T> {
  * último bueno mientras no esté rancio del todo. Evita que un 429 de la fuente deje la
  * sección en blanco.
  */
-export function crearCache<T>(nombre: string, frescoMs: number, rancioMs: number) {
+export function crearCache<T>(
+  nombre: string,
+  frescoMs: number,
+  rancioMs: number,
+  /**
+   * Servir lo caducado al momento y refrescar por detrás. Es lo que se quiere casi
+   * siempre —nadie espera por unas noticias que ya están—, pero no en un dato que se
+   * presenta como «en vivo»: ahí conviene esperar los milisegundos que cuesta traerlo
+   * fresco en lugar de enseñar algo de hace un ciclo.
+   */
+  { servirRancio = true }: { servirRancio?: boolean } = {},
+) {
   let guardado: Guardado<T> | null = null;
   /** Una sola recarga a la vez: diez visitas juntas comparten el mismo trabajo. */
   let enCurso: Promise<T> | null = null;
@@ -192,7 +203,7 @@ export function crearCache<T>(nombre: string, frescoMs: number, rancioMs: number
        * que ya estaba guardado. Solo se espera de verdad la primera vez, cuando no hay
        * nada que enseñar.
        */
-      if (guardado && !forzar && ahora - guardado.momento < rancioMs) {
+      if (servirRancio && guardado && !forzar && ahora - guardado.momento < rancioMs) {
         if (!enCurso) {
           enCurso = cargar()
             .then((valor) => {

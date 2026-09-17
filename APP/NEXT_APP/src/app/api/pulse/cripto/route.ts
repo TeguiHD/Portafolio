@@ -181,7 +181,10 @@ const cacheVivo = new Map<string, ReturnType<typeof crearCache<CriptoVivo>>>();
 function vivoCache(simbolo: string) {
   let c = cacheVivo.get(simbolo);
   if (!c) {
-    c = crearCache<CriptoVivo>(`cripto-vivo-${simbolo}`, 5_000, 60_000);
+    // Sin servir caducado: cinco segundos de caché protegen la fuente, y cuando toca
+    // refrescar se esperan los ~200 ms que cuesta, que es lo que hace que el dato de la
+    // ficha sea de hace un segundo y no de hace doce.
+    c = crearCache<CriptoVivo>(`cripto-vivo-${simbolo}`, 5_000, 60_000, { servirRancio: false });
     cacheVivo.set(simbolo, c);
     if (cacheVivo.size > 60) cacheVivo.delete(cacheVivo.keys().next().value as string);
   }
