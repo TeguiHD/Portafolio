@@ -156,3 +156,8 @@ APP/NEXT_APP/test-strip.js
 /grid*.png
 /p[0-9]*.png
 /shot*.txt
+
+# Claves sueltas: nunca al repositorio, pase lo que pase con un `git add -A`.
+*apikey*.txt
+*api-key*.txt
+*.secret
