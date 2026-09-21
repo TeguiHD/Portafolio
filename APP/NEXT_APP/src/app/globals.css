@@ -5,10 +5,10 @@
   /* Colors */
   --color-primary: #0F1724;
 
-  /* Accent Colors */
-  --color-accent-1: #FF8A00;
-  --color-accent-2: #00B8A9;
-  --color-accent-3: #F8FAFC;
+  /* Acentos: los valores viven en tokens.css, acá solo se referencian. */
+  --color-accent-1: var(--marca);
+  --color-accent-2: var(--marca-2);
+  --color-accent-3: var(--marca-3);
 
   /* Neutral Colors */
   --color-neutral-light: #F8FAFC;
@@ -85,17 +85,17 @@
   --border-subtle: rgba(255, 255, 255, 0.1);
 
   /* Functional Accents */
-  --accent-success: #10B981;
-  --accent-warning: #F59E0B;
-  --accent-error: #EF4444;
-  --accent-info: #3B82F6;
+  --accent-success: var(--exito);
+  --accent-warning: var(--aviso);
+  --accent-error: var(--peligro);
+  --accent-info: var(--dato);
 
-  /* Legacy Compatibility */
+  /* Compatibilidad heredada */
   --bg: var(--bg-dark);
   --bg-2: var(--bg-surface);
-  --accent-1: #10B981;
-  --accent-2: #06B6D4;
-  --accent-3: #8B5CF6;
+  /* Aquí vivían --accent-1/2/3 con colores distintos a los de las clases del mismo
+     nombre: verde contra naranja. Se quitaron para que «acento» signifique una sola
+     cosa. Los colores con significado están en tokens.css (--exito, --aviso, ...). */
 }
 
 * {

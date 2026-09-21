@@ -1,8 +1,28 @@
-/* Vocabulario visual compartido: lo usan la portada (.portada) y el blog (.pulso).
-   Vivía dentro de .portada, y el blog acabó con su propia paleta parecida pero
-   distinta; aquí hay una sola fuente para los dos. */
+/* Vocabulario visual del proyecto: una sola fuente para todos los nombres de color.
+ *
+ * Antes había tres familias que no se hablaban entre sí:
+ *   · las clases de Tailwind (`bg-accent-1`, en 118 archivos) pintaban naranja;
+ *   · `var(--accent-1)`, en dos archivos, valía verde;
+ *   · `var(--p-*)`, en la portada y el blog, su propio turquesa.
+ * Tres verdades para la misma idea de «acento». Acá la paleta se declara una vez y los
+ * demás nombres la referencian, así que cambiar la marca es cambiar una línea.
+ *
+ * Los valores son los que ya se ven en producción: esto ordena, no cambia el aspecto.
+ */
 
 :root {
+  /* ---------------------------------------------------------------- paleta */
+  --marca: #ff8a00;            /* naranja: el acento que usa todo el panel */
+  --marca-2: #00b8a9;          /* verde azulado de apoyo */
+  --marca-3: #f8fafc;          /* casi blanco, para superficies claras */
+
+  /* Colores con significado, no decorativos */
+  --exito: #10b981;
+  --aviso: #f59e0b;
+  --peligro: #ef4444;
+  --dato: #3b82f6;
+
+  /* ------------------------------------------------ portada y blog (--p-*) */
   --p-bg: #0a0a0f;
   --p-panel: #111923;
   --p-panel2: #0d1219;
@@ -12,11 +32,33 @@
   --p-mut: #94a3b8;
   --p-teal: #5eead4;
   --p-teal2: #2dd4bf;
-  --p-ambar: #f59e0b;
+  --p-ambar: var(--aviso);
   --p-azul: #60a5fa;
   --p-vio: #a78bfa;
-  --p-rojo: #ef4444;
+  --p-rojo: var(--peligro);
   --p-verde: #22c55e;
   --p-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --p-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ------------------------------------------------------------- efectos */
+  /* En rgb sueltos para poder componer opacidades: rgb(var(--marca-rgb) / .4).
+     Escribir rgba(var(--marca), .4) con un hexadecimal dentro no es CSS válido y el
+     navegador descarta la regla entera sin avisar; así estuvo un tiempo el resplandor
+     de dos botones del panel. */
+  --marca-rgb: 255 138 0;
+  --exito-rgb: 16 185 129;
+  --peligro-rgb: 239 68 68;
+  --brillo-marca: 0 0 15px rgb(var(--marca-rgb) / 0.4);
+
+  /* --------------------------------------------------------------- formas */
+  --radio-sm: 8px;
+  --radio-md: 12px;
+  --radio-lg: 16px;
+  --radio-xl: 22px;
+
+  /* ------------------------------------------------------------ movimiento */
+  --curva: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --rapido: 0.15s;
+  --normal: 0.25s;
+  --pausado: 0.4s;
 }

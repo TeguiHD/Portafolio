@@ -745,7 +745,7 @@ export function ContractsList({
             {/* Filter */}
             <div className="flex flex-wrap items-center gap-2 pb-2">
                 <span className="text-sm font-medium text-neutral-500 mr-2">Filtrar por Etapa:</span>
-                <button onClick={() => setFilter("ALL")} className={`text-xs font-bold px-4 py-2 rounded-xl transition-all ${filter === "ALL" ? "bg-accent-1 text-black shadow-[0_0_15px_rgba(var(--accent-1),0.4)] hover:-translate-y-0.5" : "bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 hover:-translate-y-0.5"}`}>
+                <button onClick={() => setFilter("ALL")} className={`text-xs font-bold px-4 py-2 rounded-xl transition-all ${filter === "ALL" ? "bg-accent-1 text-black shadow-[var(--brillo-marca)] hover:-translate-y-0.5" : "bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 hover:-translate-y-0.5"}`}>
                     Todos <span className="ml-1 opacity-70">({contracts.length})</span>
                 </button>
                 {(Object.entries(STATUS_CONFIG) as [ContractStatus, typeof STATUS_CONFIG[ContractStatus]][]).map(([key, cfg]) => {
