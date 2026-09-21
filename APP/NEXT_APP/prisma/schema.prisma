@@ -36,6 +36,11 @@ model User {
   anonymizedAt        DateTime?                // When PII was anonymized
   dataExportedAt      DateTime?                // GDPR: when user data was exported
   
+  // Cambio de clave obligatorio: cuando un administrador entrega una clave temporal,
+  // el usuario no puede hacer nada más hasta reemplazarla.
+  mustChangePassword  Boolean                  @default(false)
+  passwordChangedAt   DateTime?
+
   // MFA Fields (NIST SP 800-63B)
   mfaEnabled          Boolean                  @default(false)
   mfaSecret           String?                  // Encrypted TOTP secret

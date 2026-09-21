@@ -120,6 +120,8 @@ interface MenuItem {
     icon: React.ReactNode;
     requiredPermission: string;
     requiredRoles?: Role[];
+    /** Vive fuera de este dominio: se abre en otra pestaña y no pasa por el router. */
+    externo?: boolean;
 }
 
 interface MenuGroup {
@@ -224,6 +226,16 @@ const menuStructure: {
                     href: "/admin/analytics",
                     icon: icons.analytics,
                     requiredPermission: "analytics.view",
+                },
+                {
+                    // Corre en su propia máquina, fuera de este VPS: el laboratorio hace
+                    // peticiones constantes a exchanges y no tiene por qué compartir
+                    // recursos con el sitio. Detrás pide su propio acceso.
+                    name: "Laboratorio",
+                    href: "https://lab.nicoholas.dev",
+                    icon: icons.analytics,
+                    requiredPermission: "analytics.view",
+                    externo: true,
                 },
             ],
         },
@@ -378,6 +390,32 @@ function MenuGroupComponent({
                                                 2FA
                                             </span>
                                         </div>
+                                    );
+                                }
+
+                                if (item.externo) {
+                                    return (
+                                        <a
+                                            key={item.href}
+                                            href={item.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={() => closeSidebar()}
+                                            className="relative flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm text-neutral-400 hover:text-white hover:bg-white/5"
+                                        >
+                                            <span className="relative z-10 scale-90">{item.icon}</span>
+                                            <span className="relative z-10">{item.name}</span>
+                                            <svg
+                                                className="relative z-10 ml-auto h-3 w-3 opacity-50"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                aria-hidden="true"
+                                            >
+                                                <path d="M7 17 17 7M17 7H9m8 0v8" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </a>
                                     );
                                 }
 

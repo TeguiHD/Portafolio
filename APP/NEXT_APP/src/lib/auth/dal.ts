@@ -142,13 +142,14 @@ export const verifyAnyRole = cache(async (): Promise<Session> => {
         emailEncrypted: string | null
         avatar: string | null
         mfaEnabled: boolean
+        mustChangePassword: boolean
     } | null
 
     try {
         const emailHash = hashEmail(session.user.email)
         user = await prisma.user.findUnique({
             where: { email: emailHash },
-            select: { id: true, role: true, isActive: true, name: true, emailEncrypted: true, avatar: true, mfaEnabled: true },
+            select: { id: true, role: true, isActive: true, name: true, emailEncrypted: true, avatar: true, mfaEnabled: true, mustChangePassword: true },
         })
     } catch {
         redirect('/acceso')
@@ -156,6 +157,12 @@ export const verifyAnyRole = cache(async (): Promise<Session> => {
 
     if (!user || !user.isActive) {
         redirect('/unauthorized')
+    }
+
+    // Clave temporal entregada por un administrador: no se entra a ninguna parte hasta
+    // cambiarla. La página vive fuera de /admin justamente para no redirigir en círculo.
+    if (user.mustChangePassword) {
+        redirect('/cambiar-clave')
     }
 
     return {

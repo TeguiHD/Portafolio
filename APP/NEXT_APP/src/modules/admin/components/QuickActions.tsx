@@ -65,6 +65,23 @@ const actions = [
         borderColor: "border-blue-500/20",
         textColor: "text-blue-400",
     },
+    {
+        // Vive en su propia máquina, con su propio acceso: desde acá solo sale el enlace.
+        title: "Laboratorio",
+        description: "Medición de traders copiables, en vivo",
+        href: "https://lab.nicoholas.dev",
+        requiredPermission: "analytics.view",
+        externo: true,
+        icon: (
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3h6m-5 0v5.5L5 18a2 2 0 001.8 3h10.4a2 2 0 001.8-3l-5-9.5V3" />
+            </svg>
+        ),
+        color: "violet-400",
+        bgColor: "bg-violet-500/10",
+        borderColor: "border-violet-500/20",
+        textColor: "text-violet-300",
+    },
 ];
 
 interface QuickActionsProps {

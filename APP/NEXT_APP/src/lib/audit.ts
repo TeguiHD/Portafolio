@@ -34,6 +34,7 @@ export const AuditActions = {
     USER_SUSPENDED: "user.suspended",
     USER_ACTIVATED: "user.activated",
     PASSWORD_CHANGED: "password.changed",
+    PASSWORD_CHANGE_FAILED: "password.change_failed",
 
     // Security
     PERMISSION_GRANTED: "permission.granted",
