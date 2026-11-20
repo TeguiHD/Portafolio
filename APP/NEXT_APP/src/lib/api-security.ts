@@ -14,6 +14,7 @@
  */
 
 import 'server-only'
+import { ipCliente } from "@/lib/ip-cliente";
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
@@ -40,6 +41,7 @@ type AuthSession = Session & {
         name: string | null
         role: Role
         avatar: string | null
+        sessionTokenId?: string
     }
 } | null
 
@@ -82,8 +84,7 @@ export interface SecureApiOptions {
 export async function getSecurityContext(): Promise<SecurityContext> {
     const headersList = await headers()
     
-    const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                     headersList.get('x-real-ip') || 'unknown'
+    const ipAddress = ipCliente(headersList)
     const userAgent = headersList.get('user-agent') || 'unknown'
     const requestId = headersList.get('x-request-id') || 
                      `req-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -195,7 +196,7 @@ export async function secureApiEndpoint(
             
             return {
                 error: NextResponse.json(
-                    { error: 'Too many requests', retryAfter: rateCheck.resetIn },
+                    { error: 'Demasiadas solicitudes seguidas. Espera un momento y vuelve a intentar.', retryAfter: rateCheck.resetIn },
                     { 
                         status: 429,
                         headers: {
@@ -249,6 +250,7 @@ export async function secureApiEndpoint(
         }
         
         context.userId = session.user.id
+        context.sessionId = session.user.sessionTokenId
 
         const dbUser = await prisma.user.findUnique({
             where: { id: session.user.id },
@@ -342,7 +344,7 @@ export async function secureApiEndpoint(
                     ipAddress: context.ipAddress,
                     userAgent: context.userAgent,
                     userId: session.user.id,
-                    sessionId: context.requestId,
+                    sessionId: context.sessionId ?? context.requestId,
                     anomalyType: 'HIGH_ANOMALY_SCORE',
                     details: {
                         score: anomalyResult.score,

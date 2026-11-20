@@ -14,14 +14,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { ipCliente } from "@/lib/ip-cliente";
 import { headers } from 'next/headers'
 import { SecurityLogger } from '@/lib/security-logger'
 
 async function getClientInfo() {
     const headersList = await headers()
     return {
-        ipAddress: headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-            headersList.get('x-real-ip') || 'unknown',
+        ipAddress: ipCliente(headersList),
         userAgent: headersList.get('user-agent') || 'unknown',
         referer: headersList.get('referer') || undefined,
         origin: headersList.get('origin') || undefined

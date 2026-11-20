@@ -1,22 +1,65 @@
+<div align="center">
+
 # APP/NEXT_APP
 
-Aplicacion principal del proyecto Portafolio. Es una app Next.js 16 con App Router, Prisma 7, PostgreSQL, Redis, Auth.js/NextAuth v5, Tailwind CSS 4, Playwright y modulos productivos de finanzas, gestion comercial, cotizaciones, CV/jobs, herramientas publicas, portal de clientes, notificaciones y seguridad.
+**Aplicacion principal del Portafolio: Next.js 16, React 19, Prisma 7, Redis y modulos productivos reales.**
+
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.4-black?logo=nextdotjs)](package.json)
+[![React](https://img.shields.io/badge/React-19.2.4-149eca?logo=react&logoColor=white)](package.json)
+[![Prisma](https://img.shields.io/badge/Prisma-7.8.0-2d3748?logo=prisma)](prisma/schema.prisma)
+[![Playwright](https://img.shields.io/badge/Playwright-1.57-45ba4b?logo=playwright&logoColor=white)](tests/e2e)
+[![Redis](https://img.shields.io/badge/Redis-control%20plane-dc382d?logo=redis&logoColor=white)](docs/SECURITY_OPERATIONS_RUNBOOK.md)
+[![Security](https://img.shields.io/badge/Security-ASVS%20L3%20inspired-0f766e)](docs/SECURITY_OPERATIONS_RUNBOOK.md)
+
+</div>
+
+---
+
+## Que Es
+
+Esta carpeta contiene la aplicacion web principal del proyecto. Combina:
+
+- experiencia publica de portafolio;
+- herramientas tecnicas abiertas;
+- panel administrativo;
+- finanzas, gestion comercial, cotizaciones y portal de clientes;
+- CV/jobs y automatizaciones de IA;
+- seguridad operacional con auditoria, scoring, Redis y respuesta autonoma reversible.
+
+---
 
 ## Stack Actual
 
 | Capa | Tecnologia |
 | --- | --- |
-| Runtime | Node.js `>=22.22.0 <25` |
-| Package manager | pnpm `10.33.0` |
-| Framework | Next.js `16.2.4` |
-| UI | React `19.2.4`, Tailwind CSS 4, Framer Motion, GSAP |
-| DB | PostgreSQL + Prisma `7.8.0` |
-| Cache/control | Redis 5 client, Redis server 7/8 |
-| Auth | NextAuth v5 beta, MFA/TOTP, Argon2id |
-| Tests | ESLint 9, TypeScript 5, Playwright 1.57 |
-| Security tooling | CodeQL, Trivy, Gitleaks, Dependabot |
+| **Runtime** | Node.js `>=22.22.0 <25` |
+| **Package manager** | pnpm `10.33.0` |
+| **Framework** | Next.js `16.2.4` + App Router |
+| **UI** | React `19.2.4`, Tailwind CSS 4, Framer Motion, GSAP, lucide-react |
+| **DB** | PostgreSQL + Prisma `7.8.0` |
+| **Cache/control** | Redis client 5, Redis server 7/8 |
+| **Auth** | NextAuth v5 beta, MFA/TOTP, Argon2id |
+| **Tests** | ESLint 9, TypeScript 5, Playwright 1.57 |
+| **Security tooling** | CodeQL, Trivy, Gitleaks, Dependabot |
 
-## Rutas y Modulos
+---
+
+## Rutas Y Modulos
+
+```mermaid
+flowchart LR
+  root[/ /] --> landing[Landing]
+  tools[/herramientas/*/] --> utilities[Utilities lab]
+  login[/acceso/] --> auth[Auth + MFA]
+  admin[/admin/] --> finance[Finance]
+  admin --> crm[Gestion comercial]
+  admin --> quotations[Cotizaciones]
+  admin --> jobs[CV / Jobs]
+  admin --> security[Security center]
+  portal[/portal/:slug/] --> sharing[Controlled sharing]
+  api[/api/*/] --> db[(PostgreSQL)]
+  api --> redis[(Redis)]
+```
 
 | Area | Ruta | Notas |
 | --- | --- | --- |
@@ -32,6 +75,8 @@ Aplicacion principal del proyecto Portafolio. Es una app Next.js 16 con App Rout
 | Seguridad | `/admin/security` | Incidentes, metricas y defensa autonoma |
 | Superadmin | `/admin/superadmin` | Operacion avanzada del VPS |
 | Portal | `/portal/[slug]` | Acceso compartido controlado |
+
+---
 
 ## Estructura
 
@@ -53,6 +98,8 @@ APP/NEXT_APP/
 └── public/                  # Manifest, iconos, PWA/offline assets
 ```
 
+---
+
 ## Instalacion Local
 
 ```bash
@@ -67,23 +114,27 @@ pnpm run dev
 
 Servidor local: `http://localhost:3000`.
 
+---
+
 ## Scripts
 
-```bash
-pnpm run dev                    # Prisma generate + Next dev
-pnpm run build                  # Prisma generate + Next build
-pnpm run start                  # Next production server
-pnpm run lint                   # ESLint con max-warnings 0
-pnpm run typecheck              # tsc --noEmit
-pnpm run test:e2e               # Playwright
-pnpm run security:check         # lint + typecheck + audit + build
-pnpm run security:prod          # audit prod high+
-pnpm run security:false-positives -- --days 7 --min-score 70
-```
+| Comando | Uso |
+| --- | --- |
+| `pnpm run dev` | Prisma generate + Next dev |
+| `pnpm run build` | Prisma generate + Next build |
+| `pnpm run start` | Servidor Next de produccion |
+| `pnpm run lint` | ESLint con `--max-warnings 0` |
+| `pnpm run typecheck` | `tsc --noEmit` |
+| `pnpm run test:e2e` | Playwright |
+| `pnpm run security:check` | lint + typecheck + audit + build |
+| `pnpm run security:prod` | audit prod high+ |
+| `pnpm run security:false-positives -- --days 7 --min-score 70` | Revision de falsos positivos |
 
-`pnpm audit` consulta el registry de npm y puede exponer inventario de dependencias. Ejecutarlo solo cuando el operador apruebe esa salida de datos.
+> `pnpm audit` consulta el registry de npm y puede exponer inventario de dependencias. Ejecutarlo solo cuando el operador apruebe esa salida de datos.
 
-## Variables de Entorno
+---
+
+## Variables De Entorno
 
 Partir desde `.env.example`. Minimo para desarrollo:
 
@@ -100,7 +151,7 @@ AUTONOMOUS_DEFENSE_MODE="dry-run"
 AUTONOMOUS_DEFENSE_AUDIT="true"
 ```
 
-Produccion requiere secretos unicos por entorno. Generadores recomendados:
+Generadores recomendados:
 
 ```bash
 openssl rand -base64 32    # NEXTAUTH_SECRET / INTERNAL_API_SECRET
@@ -108,19 +159,43 @@ openssl rand -base64 48    # ENCRYPTION_KEY
 openssl rand -hex 32       # PASSWORD_PEPPER / IP_HASH_SECRET / AUDIT_SIGNING_KEY
 ```
 
+---
+
 ## Seguridad Aplicada
+
+```mermaid
+sequenceDiagram
+  participant R as Request
+  participant P as proxy.ts
+  participant A as Auth/DAL
+  participant L as SecurityLogger
+  participant S as ThreatScoring
+  participant E as Enforcement
+  participant Q as Human Queue
+
+  R->>P: request
+  P->>P: CSP + Redis enforcement
+  P->>A: route allowed
+  A->>L: structured event
+  L->>S: signal + score
+  S->>E: decision candidate
+  E->>P: Redis block/rate/MFA/cooldown
+  E->>Q: irreversible actions
+```
 
 Controles principales:
 
-- Zero Trust: permisos y roles se verifican server-side.
-- MFA/TOTP y deteccion de anomalias de sesion.
-- Argon2id + pepper para password hashing.
-- Redis-backed rate limiting en endpoints sensibles.
-- CSP/headers en `src/proxy.ts`.
-- Sanitizacion, validacion de payloads y magic bytes en uploads.
-- AuditLog tamper-evident y eventos SIEM-ready.
-- Defensa autonoma con Redis, scoring, AbuseIPDB, Lua atomic counters y cola humana.
-- Supply chain: pnpm lockfile unico, CodeQL, Trivy, Gitleaks y Dependabot.
+| Control | Implementacion |
+| --- | --- |
+| Zero Trust | Permisos y roles verificados server-side |
+| Sesiones | MFA/TOTP, anomalias, revocacion |
+| Passwords | Argon2id + pepper |
+| API | Redis-backed rate limiting y validacion |
+| Browser | CSP/headers en `src/proxy.ts` |
+| Datos | Prisma, DTOs, sanitizacion y upload checks |
+| Auditoria | AuditLog tamper-evident y eventos SIEM-ready |
+| Defensa autonoma | Scoring, AbuseIPDB, Lua atomic counters, cola humana |
+| Supply chain | pnpm lockfile unico, CodeQL, Trivy, Gitleaks, Dependabot |
 
 Documentos operativos:
 
@@ -130,6 +205,8 @@ Documentos operativos:
 - `docs/SECURITY_GUIDE.md`
 - `docs/SECURITY_ALERTS_SETUP.md`
 
+---
+
 ## Defensa Autonoma
 
 La defensa autonoma debe empezar en `dry-run`:
@@ -138,7 +215,7 @@ La defensa autonoma debe empezar en `dry-run`:
 AUTONOMOUS_DEFENSE_MODE="dry-run"
 ```
 
-Revisar falsos positivos:
+Revision de falsos positivos:
 
 ```bash
 pnpm run security:false-positives -- --days 7 --min-score 70
@@ -154,7 +231,17 @@ Activar solo despues de:
 [ ] migraciones aplicadas en produccion
 ```
 
-Acciones automaticas permitidas: lower rate limit, cooldown, MFA step-up, temporary block con TTL. Acciones permanentes requieren aprobacion humana.
+Acciones automaticas permitidas:
+
+| Accion | Naturaleza |
+| --- | --- |
+| Lower rate limit | Reversible |
+| Endpoint cooldown | Reversible |
+| MFA step-up | Reversible |
+| Temporary block con TTL | Reversible |
+| Permanent block / suspension | Aprobacion humana |
+
+---
 
 ## Redis
 
@@ -176,7 +263,9 @@ docker compose exec redis redis-cli -a "$REDIS_PASSWORD" info persistence
 docker compose exec redis redis-cli -a "$REDIS_PASSWORD" dbsize
 ```
 
-## Base de Datos
+---
+
+## Base De Datos
 
 ```bash
 pnpm exec prisma migrate dev       # desarrollo
@@ -185,13 +274,15 @@ pnpm exec prisma generate
 pnpm exec prisma studio
 ```
 
-Modelos relevantes agregados para seguridad:
+Modelos relevantes para seguridad:
 
 - `ThreatScoreHistory`
 - `ThreatPendingAction`
 - `AuditLog`
 - `SecurityIncident`
 - `UserSession`
+
+---
 
 ## Testing
 
@@ -205,6 +296,8 @@ pnpm run test:e2e
 ```
 
 Los E2E levantan Next.js en `localhost:3000`; en entornos con sandbox puede requerir permisos para abrir puerto local.
+
+---
 
 ## Docker
 
@@ -223,14 +316,20 @@ cp .env.example .env
 docker compose up -d
 ```
 
-## Politica de Actualizaciones
+---
 
-- Usar versiones estables recientes/LTS.
-- Evitar `alpha`, `beta`, `rc`, `canary` salvo justificacion.
-- Actualizar rapido ante CVE/GHSA/NVD/CISA KEV.
-- No mezclar gestores de paquetes.
-- Regenerar `pnpm-lock.yaml` con pnpm 10.33.0.
-- Validar siempre con lint, typecheck, build, E2E y scans.
+## Politica De Actualizaciones
+
+| Tema | Regla |
+| --- | --- |
+| Versiones | Estables recientes/LTS por defecto |
+| Riesgo | Evitar `alpha`, `beta`, `rc`, `canary` salvo justificacion |
+| Seguridad | Actualizar rapido ante CVE/GHSA/NVD/CISA KEV |
+| Package manager | No mezclar gestores |
+| Lockfile | Regenerar con pnpm 10.33.0 |
+| Validacion | lint, typecheck, build, E2E y scans |
+
+---
 
 ## Notas Operativas
 

@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/redis";
 import { logSecurityIncident, validateRequest } from "@/lib/security-infra";
@@ -69,9 +70,7 @@ function hashIP(ip: string): string {
 
 function getClientIP(request: NextRequest): string {
     return (
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
-        "unknown"
+        ipCliente(request.headers)
     );
 }
 
@@ -166,7 +165,7 @@ export function withSecurity(
 
                     return NextResponse.json(
                         {
-                            error: "Too many requests",
+                            error: "Demasiadas solicitudes seguidas. Espera un momento y vuelve a intentar.",
                             retryAfter: resetIn,
                         },
                         {

@@ -176,13 +176,17 @@ function getMfaEncryptionKey(): string {
     return key
 }
 
+let _mfaDerivedKey: Buffer | null = null
+
 function getMfaDerivedKey(): Buffer {
+    if (_mfaDerivedKey) return _mfaDerivedKey
     const salt = createHash('sha256')
         .update(`portfolio-mfa-kdf-v2-${getMfaEncryptionKey()}`)
         .digest()
         .subarray(0, 16)
 
-    return scryptSync(getMfaEncryptionKey(), salt, 32)
+    _mfaDerivedKey = scryptSync(getMfaEncryptionKey(), salt, 32)
+    return _mfaDerivedKey
 }
 
 function getLegacyMfaKey(): Buffer {

@@ -1,4 +1,6 @@
 import NextAuth, { CredentialsSignin } from "next-auth"
+import { ipCliente } from "@/lib/ip-cliente";
+import { geoDeCloudflare, type GeoCloudflare } from "@/lib/vps/geo-ip";
 import Credentials from "next-auth/providers/credentials"
 import { randomBytes } from "crypto"
 import { prisma } from "@/lib/prisma"
@@ -163,8 +165,7 @@ const nextAuth = NextAuth({
             async authorize(credentials, _request) {
                 // Get request context for security logging
                 const headersList = await headers()
-                const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-                    headersList.get('x-real-ip') || 'unknown'
+                const ipAddress = ipCliente(headersList)
                 const userAgent = headersList.get('user-agent') || 'unknown'
 
                 // SECURITY: Check if IP is blocked due to threat score
@@ -447,6 +448,7 @@ const nextAuth = NextAuth({
                     sessionTokenId: generateTokenId(),
                     loginIp: ipAddress,
                     loginUserAgent: userAgent,
+                    loginGeo: geoDeCloudflare(headersList),
                 }
             }
         })
@@ -468,6 +470,7 @@ const nextAuth = NextAuth({
                     sessionTokenId?: string
                     loginIp?: string
                     loginUserAgent?: string
+                    loginGeo?: GeoCloudflare
                 }
 
                 authToken.id = user.id as string
@@ -483,6 +486,7 @@ const nextAuth = NextAuth({
                         tokenId: sessionTokenId,
                         ipAddress: signedInUser.loginIp,
                         userAgent: signedInUser.loginUserAgent,
+                        geo: signedInUser.loginGeo,
                         expiresAt: new Date(now + SESSION_MAX_AGE_SECONDS * 1000),
                     })
                 } catch (error) {

@@ -1,83 +1,152 @@
+<div align="center">
+
 # Portafolio Full-Stack
 
-Plataforma productiva en Next.js para portafolio, herramientas publicas, panel administrativo, gestion comercial, finanzas personales, CV, jobs, cotizaciones, portal de clientes, notificaciones y operaciones de seguridad.
+**Portfolio publico + plataforma operativa privada + laboratorios de herramientas + defensa autonoma controlada.**
 
-El proyecto no es solo una landing: es una aplicacion full-stack con modulos internos reales, automatizaciones, IA, auditoria y defensa autonoma en modo controlado.
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](APP/NEXT_APP)
+[![React](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white)](APP/NEXT_APP/package.json)
+[![Prisma](https://img.shields.io/badge/Prisma-7-2d3748?logo=prisma)](APP/NEXT_APP/prisma/schema.prisma)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](DOCKER)
+[![Redis](https://img.shields.io/badge/Redis-AOF%20%2B%20noeviction-dc382d?logo=redis&logoColor=white)](APP/NEXT_APP/docs/SECURITY_OPERATIONS_RUNBOOK.md)
+[![pnpm](https://img.shields.io/badge/pnpm-10.33-f69220?logo=pnpm&logoColor=white)](APP/NEXT_APP/package.json)
+[![Security](https://img.shields.io/badge/security-Zero%20Trust%20%2B%20SOAR--lite-0f766e)](APP/NEXT_APP/docs/SECURITY_OPERATIONS_RUNBOOK.md)
+
+</div>
+
+---
+
+## Vision
+
+Este repositorio contiene una aplicacion Next.js productiva, no una landing aislada. Une presencia publica, herramientas tecnicas, administracion interna, finanzas personales, gestion comercial, cotizaciones, CV/jobs, portal de clientes, notificaciones, superadmin VPS y un plano de seguridad con auditoria y defensa autonoma reversible.
+
+La filosofia del proyecto es simple:
+
+> Construir una plataforma personal/profesional que pueda vivir mucho tiempo: mantenible, auditable, actualizada y operable bajo presion.
+
+---
+
+## Mapa Del Sistema
+
+```mermaid
+flowchart LR
+  visitor[Visitante] --> public[Landing / Blog / Herramientas]
+  client[Cliente] --> portal[Portal y cotizaciones]
+  admin[Admin] --> backoffice[Backoffice]
+  backoffice --> finance[Finanzas]
+  backoffice --> crm[Gestion comercial]
+  backoffice --> jobs[CV / Jobs]
+  backoffice --> security[Seguridad]
+  security --> redis[(Redis control plane)]
+  security --> audit[(AuditLog / Threat DB)]
+  security --> alerts[Alertas]
+  public --> api[Route Handlers]
+  portal --> api
+  backoffice --> api
+  api --> pg[(PostgreSQL)]
+  api --> redis
+```
+
+---
 
 ## Estado Actual
 
-| Area | Estado |
+| Capa | Estado |
 | --- | --- |
-| Framework | Next.js 16 + React 19 + App Router |
-| Runtime | Node.js 22/24 soportado, pnpm 10.33.0 |
-| Base de datos | PostgreSQL + Prisma 7 |
-| Cache / control plane | Redis con AOF, rate limiting y defensa autonoma |
-| UI | Tailwind CSS 4, Framer Motion, GSAP, lucide-react |
-| IA | OpenRouter/Groq segun modulo y disponibilidad |
-| Seguridad | Zero Trust, MFA, RBAC, audit log, CSP, SOAR-lite, AbuseIPDB |
-| CI / supply chain | GitHub Actions, CodeQL, Trivy, Gitleaks, Dependabot |
+| **Framework** | Next.js 16 + React 19 + App Router |
+| **Runtime** | Node.js 22/24 soportado, pnpm 10.33.0 |
+| **Datos** | PostgreSQL + Prisma 7 |
+| **Control plane** | Redis con AOF, `appendfsync everysec`, `noeviction` |
+| **UI** | Tailwind CSS 4, Framer Motion, GSAP, lucide-react |
+| **IA** | OpenRouter/Groq segun modulo y disponibilidad |
+| **Seguridad** | Zero Trust, MFA, RBAC, AuditLog, CSP, SOAR-lite, AbuseIPDB |
+| **Supply chain** | GitHub Actions, CodeQL, Trivy, Gitleaks, Dependabot |
 
 Validacion local reciente:
 
-```text
-pnpm run lint       OK
-pnpm run typecheck  OK
-pnpm run build      OK
-pnpm run test:e2e   15/15 OK
-```
+| Check | Resultado |
+| --- | --- |
+| `pnpm run lint` | OK |
+| `pnpm run typecheck` | OK |
+| `pnpm run build` | OK |
+| `pnpm run test:e2e` | 15/15 OK |
 
-`pnpm audit` requiere consultar el registry externo de npm. Ejecutarlo solo con aprobacion explicita porque envia inventario de dependencias fuera del workspace.
+> `pnpm audit` consulta el registry externo de npm y puede enviar inventario de dependencias. Ejecutarlo solo con aprobacion explicita del operador.
+
+---
 
 ## Modulos Principales
 
-| Modulo | Ruta / area | Descripcion |
+| Modulo | Ruta / area | Que resuelve |
 | --- | --- | --- |
-| Landing | `/` | Portafolio interactivo con secciones de servicios, experiencia y arquitectura |
-| Blog | `/blog` | Contenido editorial/tecnico |
-| Herramientas publicas | `/herramientas/*` | QR, regex, JSON, JWT, DNS, imagenes, unidades, subredes, metadatos y mas |
-| Acceso | `/acceso` | Login, MFA y flujos de recuperacion |
-| Admin | `/admin` | Dashboard operativo y navegacion interna |
-| Finanzas | `/admin/finance` + `/api/finance/*` | Cuentas, transacciones, OCR, presupuestos, metas, reportes y recordatorios |
-| Gestion comercial | `/admin/gestion-comercial` | Clientes, pipeline, propuestas, contratos, pagos y gastos |
-| Cotizaciones | `/admin/cotizaciones`, `/cotizacion/*` | Cotizaciones, enlaces compartidos, aprobaciones y pagos |
-| CV / Jobs | `/admin/cv-editor`, `/admin/jobs` | CV builder, vacantes, aplicaciones, analisis y adaptacion |
-| Portal | `/portal/[slug]` | Acceso controlado a recursos compartidos |
-| Pulse | `/api/pulse/*` | Contexto, noticias, push notifications y paneles auxiliares |
-| Seguridad | `/admin/security` | Incidentes, metricas, cola humana y defensa autonoma |
-| Superadmin | `/admin/superadmin`, `/api/superadmin/*` | Operacion avanzada del VPS y diagnostico restringido |
+| **Landing** | `/` | Presentacion publica, servicios, experiencia y arquitectura |
+| **Blog** | `/blog` | Contenido editorial y tecnico |
+| **Herramientas** | `/herramientas/*` | QR, regex, JSON, JWT, DNS, imagenes, unidades, subredes, metadatos y mas |
+| **Acceso** | `/acceso` | Login, MFA y recuperacion |
+| **Admin** | `/admin` | Dashboard operativo y navegacion interna |
+| **Finanzas** | `/admin/finance` + `/api/finance/*` | Cuentas, transacciones, OCR, presupuestos, metas, reportes y recordatorios |
+| **Gestion comercial** | `/admin/gestion-comercial` | Clientes, pipeline, propuestas, contratos, pagos y gastos |
+| **Cotizaciones** | `/admin/cotizaciones`, `/cotizacion/*` | Cotizaciones, enlaces compartidos, aprobaciones y pagos |
+| **CV / Jobs** | `/admin/cv-editor`, `/admin/jobs` | CV builder, vacantes, aplicaciones, analisis y adaptacion |
+| **Portal** | `/portal/[slug]` | Acceso controlado a recursos compartidos |
+| **Pulse** | `/api/pulse/*` | Contexto, noticias, push notifications y paneles auxiliares |
+| **Seguridad** | `/admin/security` | Incidentes, metricas, cola humana y defensa autonoma |
+| **Superadmin** | `/admin/superadmin`, `/api/superadmin/*` | Operacion avanzada del VPS y diagnostico restringido |
 
-## Arquitectura
+---
+
+## Arquitectura Del Repo
 
 ```text
 Portafolio/
-├── APP/NEXT_APP/          # Aplicacion Next.js principal
-│   ├── src/app/           # App Router, paginas y route handlers
-│   ├── src/modules/       # Modulos de dominio: landing, finance, cv, pulse, quotations
-│   ├── src/lib/           # Auth, Prisma, Redis, seguridad, auditoria, SOAR-lite
-│   ├── prisma/            # Schema, migraciones y seed
-│   ├── tests/e2e/         # Playwright
-│   └── docs/              # Seguridad, operaciones, despliegue y roadmap
-├── DOCKER/                # Stack Docker operativo para VPS
-├── .github/workflows/     # CI, CodeQL y security scans
-└── README.md              # Vista general del repositorio
+├── APP/NEXT_APP/              # Aplicacion Next.js principal
+│   ├── src/app/               # App Router, paginas y route handlers
+│   ├── src/modules/           # Dominios: landing, finance, cv, pulse, quotations
+│   ├── src/lib/               # Auth, Prisma, Redis, seguridad, auditoria, SOAR-lite
+│   ├── prisma/                # Schema, migraciones y seed
+│   ├── scripts/               # Operaciones, seguridad y mantenimiento
+│   ├── tests/e2e/             # Playwright
+│   └── docs/                  # Runbooks, guias, specs y roadmap
+├── DOCKER/                    # Stack Docker operativo para VPS
+├── .github/workflows/         # CI, CodeQL y security scans
+└── README.md                  # Vista general del repositorio
 ```
 
-## Seguridad
+---
 
-El objetivo es defensa por capas, no prometer "impenetrabilidad". La arquitectura sigue criterios de NIST, OWASP, MITRE ATT&CK, CISA Secure by Design y CIS Controls:
+## Seguridad Y Operacion
 
-- Autenticacion con Auth.js/NextAuth v5, Argon2id, pepper y MFA.
-- Autorizacion server-side con RBAC, permisos granulares y DAL.
-- CSP con nonce, HSTS, headers restrictivos y bloqueo temprano en `src/proxy.ts`.
-- Redis-backed rate limiting y enforcement antes de la logica de Next.js.
-- Threat scoring Redis + PostgreSQL con proteccion CGNAT.
-- AbuseIPDB con cache, presupuesto diario y circuit breaker.
-- Escalamiento reversible 15 min -> 1 h -> 24 h.
-- Cola humana para acciones irreversibles.
-- AuditLog y modelos forenses `ThreatScoreHistory` / `ThreatPendingAction`.
-- Secret hygiene: `.env`, dumps, llaves, reportes y artefactos locales ignorados.
+La seguridad esta disenada como defensa por capas, alineada con criterios de NIST, OWASP, MITRE ATT&CK, CISA Secure by Design y CIS Controls.
 
-Documentos clave:
+```mermaid
+flowchart TD
+  req[Request] --> proxy[Next.js proxy<br/>headers + CSP + Redis checks]
+  proxy --> auth[Auth.js + DAL permissions]
+  auth --> api[Route handler seguro]
+  api --> logger[SecurityLogger]
+  logger --> score[ThreatScoringEngine]
+  score --> defense[AutonomousDefenseEngine]
+  defense --> enforce[EnforcementExecutor]
+  enforce --> redis[(Redis enforcement)]
+  enforce --> audit[(AuditLog)]
+  enforce --> human[Human approval queue]
+```
+
+Controles destacados:
+
+| Control | Implementacion |
+| --- | --- |
+| Autenticacion | Auth.js/NextAuth v5, Argon2id, pepper, MFA |
+| Autorizacion | RBAC, permisos granulares, DAL server-side |
+| Navegador | CSP con nonce, HSTS, headers restrictivos |
+| API | Rate limit Redis, validacion, sanitizacion, bloqueos tempranos |
+| Deteccion | SecurityLogger, scoring Redis/PostgreSQL, AbuseIPDB |
+| Respuesta | Lower rate limit, cooldown, MFA step-up, temp block con TTL |
+| Irreversibles | Cola humana obligatoria |
+| Forense | AuditLog, ThreatScoreHistory, ThreatPendingAction |
+| Supply chain | pnpm lockfile unico, CodeQL, Trivy, Gitleaks, Dependabot |
+
+Docs clave:
 
 - [Security Operations Runbook](APP/NEXT_APP/docs/SECURITY_OPERATIONS_RUNBOOK.md)
 - [Security Update Policy](APP/NEXT_APP/docs/SECURITY_UPDATE_POLICY.md)
@@ -86,32 +155,42 @@ Documentos clave:
 - [Cloudflare WAF](APP/NEXT_APP/docs/CLOUDFLARE_WAF_SETUP.md)
 - [DNS Security](APP/NEXT_APP/docs/DNS_SECURITY_SETUP.md)
 
-## Redis y Recuperacion
+---
+
+## Redis: Persistencia Y Recuperacion
 
 Redis es parte del plano de seguridad. En produccion debe correr con:
 
-- `appendonly yes`
-- `appendfsync everysec`
-- `maxmemory-policy noeviction`
-- volumen persistente en `/data`
-- puerto interno o `127.0.0.1`
-- comandos `FLUSHALL`/`FLUSHDB` deshabilitados donde aplique
+```text
+appendonly yes
+appendfsync everysec
+maxmemory-policy noeviction
+volumen persistente /data
+puerto interno o 127.0.0.1
+FLUSHALL / FLUSHDB deshabilitados donde aplique
+```
 
-La politica operativa esta documentada en [SECURITY_OPERATIONS_RUNBOOK.md](APP/NEXT_APP/docs/SECURITY_OPERATIONS_RUNBOOK.md).
+La politica de recuperacion y HA esta documentada en [SECURITY_OPERATIONS_RUNBOOK.md](APP/NEXT_APP/docs/SECURITY_OPERATIONS_RUNBOOK.md).
 
-## Revision de Falsos Positivos
+---
 
-Antes de activar defensa autonoma en modo activo:
+## Revision De Falsos Positivos
+
+Antes de activar defensa autonoma:
 
 ```bash
 cd APP/NEXT_APP
 pnpm run security:false-positives -- --days 7 --min-score 70
 ```
 
-Regla de operacion:
+Regla operativa:
 
-- `falsePositiveRate <= 2%`: revisar muestras y avanzar con cautela.
-- `falsePositiveRate > 2%`: mantener `dry-run` y ajustar umbrales/pesos.
+| Resultado | Decision |
+| --- | --- |
+| `falsePositiveRate <= 2%` | Revisar muestras y avanzar con cautela |
+| `falsePositiveRate > 2%` | Mantener `dry-run` y ajustar pesos/umbrales |
+
+---
 
 ## Desarrollo Local
 
@@ -135,7 +214,9 @@ pnpm run dev
 
 La app queda en `http://localhost:3000`.
 
-## Comandos Principales
+---
+
+## Comandos Frecuentes
 
 ```bash
 cd APP/NEXT_APP
@@ -147,6 +228,8 @@ pnpm run build
 pnpm run test:e2e
 pnpm run security:false-positives -- --days 7 --min-score 70
 ```
+
+---
 
 ## Docker
 
@@ -174,22 +257,25 @@ Antes de produccion:
 - verificar Redis AOF;
 - mantener `AUTONOMOUS_DEFENSE_MODE=dry-run` minimo 7 dias.
 
-## Politica de Dependencias
+---
 
-- Usar versiones estables/LTS recientes.
-- Evitar betas/canary salvo decision explicita.
-- Mantener lockfile unico: `pnpm-lock.yaml`.
-- No usar `package-lock.json` ni `yarn.lock`.
-- Priorizar upgrades con CVE/GHSA/NVD/CISA KEV.
-- Validar con lint, typecheck, build, E2E y security scans.
+## Politica De Dependencias
 
-## Produccion
+| Regla | Criterio |
+| --- | --- |
+| Versiones | Estables recientes/LTS por defecto |
+| Betas | Evitarlas salvo decision explicita |
+| Lockfile | Solo `pnpm-lock.yaml` |
+| Urgencias | Priorizar CVE/GHSA/NVD/CISA KEV |
+| Validacion | lint, typecheck, build, E2E y scans |
 
-Checklist minimo:
+---
+
+## Checklist De Produccion
 
 ```text
 [ ] NEXTAUTH_SECRET, ENCRYPTION_KEY, PASSWORD_PEPPER, IP_HASH_SECRET generados
-[ ] Redis con AOF y volumen persistente
+[ ] Redis con AOF, noeviction y volumen persistente
 [ ] PostgreSQL con volumen persistente y usuario de menor privilegio
 [ ] Migraciones Prisma aplicadas
 [ ] GitHub Actions verdes
@@ -199,6 +285,8 @@ Checklist minimo:
 [ ] Backups y restore probados
 ```
 
+---
+
 ## Licencia
 
-Proyecto privado/personado de portafolio y operaciones. No subir credenciales, dumps ni archivos locales sensibles.
+Proyecto privado/personal de portafolio y operaciones. No subir credenciales, dumps, llaves ni archivos locales sensibles.

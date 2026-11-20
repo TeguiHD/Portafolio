@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone', // Required for Docker deployment
+  // nginx comprime (gzip, en C) delante de Node: comprimir también aquí gasta la CPU del único proceso de la app.
+  compress: false,
+  // Caché en memoria de respuestas (por defecto 50 MB): la VM tiene 2 GB y la web un tope de 640 MB.
+  cacheMaxMemorySize: 16 * 1024 * 1024,
 
   // experimental.inlineCss se probó y se descartó: el CSS de la aplicación pesa 358 KB
   // y meterlo en cada HTML hundía el móvil (89 → 83 en Lighthouse). En fichero se
@@ -18,6 +22,9 @@ const nextConfig = {
   },
 
   images: {
+    // Ningún componente usa next/image: sin optimizador, /_next/image no puede usarse para hacer trabajar a sharp
+    // reescalando imágenes remotas ni llenar .next/cache/images.
+    unoptimized: true,
     // SECURITY: Restrict image sources to trusted domains only
     // Prevents SSRF and loading malicious external images
     remotePatterns: [
@@ -60,10 +67,10 @@ const nextConfig = {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
-          // XSS Protection (legacy, pero no hace daño)
+          // Filtro XSS de navegadores viejos: apagado, como recomienda OWASP (la CSP protege).
           {
             key: 'X-XSS-Protection',
-            value: '1; mode=block',
+            value: '0',
           },
           // Referrer policy
           {

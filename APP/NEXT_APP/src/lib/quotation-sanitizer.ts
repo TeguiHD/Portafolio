@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { JSDOM } from "jsdom";
 import createDOMPurify from "dompurify";
 import { transpileLatexToHtml } from "@/lib/latex-to-html";
@@ -101,10 +102,30 @@ function normalizeLegacyQuotationHtml(html: string): string {
     return normalized;
 }
 
+// Cada visita a una propuesta saneaba el mismo documento creando un JSDOM nuevo (decenas de MB y cientos de ms).
+// El resultado depende solo del HTML de entrada: se guarda por su huella.
+const saneados = new Map<string, string>();
+const MAX_SANEADOS = 40;
+
 export function sanitizeQuotationHtml(html: string): string {
+    const huella = createHash("sha256").update(html).digest("base64url");
+    const guardado = saneados.get(huella);
+    if (guardado !== undefined) {
+        saneados.delete(huella);
+        saneados.set(huella, guardado);
+        return guardado;
+    }
+    const limpio = sanearSinMemoria(html);
+    saneados.set(huella, limpio);
+    if (saneados.size > MAX_SANEADOS) saneados.delete(saneados.keys().next().value as string);
+    return limpio;
+}
+
+function sanearSinMemoria(html: string): string {
+    let window: JSDOM["window"] | null = null;
     try {
         const normalizedHtml = normalizeLegacyQuotationHtml(html);
-        const window = new JSDOM("").window;
+        window = new JSDOM("").window;
         const purify = createDOMPurify(window as unknown as DOMPurifyWindow);
 
         purify.addHook("uponSanitizeAttribute", (node: Element, data: { attrName: string; attrValue: string; keepAttr: boolean }) => {
@@ -176,5 +197,7 @@ export function sanitizeQuotationHtml(html: string): string {
         clean = clean.replace(/\s+on[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gim, "");
         clean = clean.replace(/(?:href|src)\s*=\s*['"](?:javascript|vbscript|data:text\/html):[^'"]*['"]/gim, "");
         return clean;
+    } finally {
+        window?.close();
     }
 }

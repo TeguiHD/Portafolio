@@ -6,7 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { createAuditLog, AuditActions } from "@/lib/audit";
 import { createNotification } from "@/lib/notificationService";
-import { lookupIP } from "@/lib/vps/geo-ip";
+import type { GeoCloudflare } from "@/lib/vps/geo-ip";
 
 const MAX_ACTIVE_SESSIONS_PER_USER = 5;
 
@@ -92,6 +92,8 @@ interface CreateSessionParams {
     ipAddress?: string | null;
     userAgent?: string | null;
     expiresAt: Date;
+    /** País y ciudad que entrega Cloudflare con la petición de inicio de sesión. */
+    geo?: GeoCloudflare | null;
 }
 
 /**
@@ -102,7 +104,7 @@ export async function createUserSession(params: CreateSessionParams): Promise<{
     concurrentSessions: number;
     isNewLocation: boolean;
 }> {
-    const { userId, tokenId, ipAddress, userAgent, expiresAt } = params;
+    const { userId, tokenId, ipAddress, userAgent, expiresAt, geo } = params;
     const normalizedIpAddress = normalizeIpAddress(ipAddress);
 
     const browser = getBrowserFromUserAgent(userAgent || null);
@@ -110,10 +112,9 @@ export async function createUserSession(params: CreateSessionParams): Promise<{
     const os = getOSFromUserAgent(userAgent || null);
     const currentFingerprint = buildSessionFingerprint({ ipAddress: normalizedIpAddress, browser, device, os });
 
-    const geoData = normalizedIpAddress ? await lookupIP(normalizedIpAddress) : null;
-    const city = geoData?.city && geoData.city !== "Unknown" ? geoData.city : null;
-    const country = geoData?.country && geoData.country !== "Unknown" ? geoData.country : null;
-    const countryCode = geoData?.countryCode || null;
+    const city = geo?.city || null;
+    const country = geo?.country || null;
+    const countryCode = geo?.countryCode || null;
 
     await prisma.userSession.updateMany({
         where: {

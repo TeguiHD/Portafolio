@@ -8,6 +8,7 @@
  */
 
 import 'server-only'
+import { ipCliente } from "@/lib/ip-cliente";
 import { verifyAnyRole, type Session } from '@/lib/auth/dal'
 import { hasPermission } from '@/lib/permission-check'
 import { redirect } from 'next/navigation'
@@ -37,8 +38,7 @@ export async function requirePagePermission(permissionCode: string): Promise<Ses
 
     // Get request context for logging
     const headersList = await headers()
-    const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        headersList.get('x-real-ip') || 'unknown'
+    const ipAddress = ipCliente(headersList)
     const userAgent = headersList.get('user-agent') || 'unknown'
 
     // Check permission
@@ -77,8 +77,7 @@ export async function requireAllPermissions(permissionCodes: string[]): Promise<
     }
 
     const headersList = await headers()
-    const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        headersList.get('x-real-ip') || 'unknown'
+    const ipAddress = ipCliente(headersList)
     const userAgent = headersList.get('user-agent') || 'unknown'
 
     for (const code of permissionCodes) {
@@ -111,8 +110,7 @@ export async function requireAnyPermission(permissionCodes: string[]): Promise<S
     }
 
     const headersList = await headers()
-    const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        headersList.get('x-real-ip') || 'unknown'
+    const ipAddress = ipCliente(headersList)
     const userAgent = headersList.get('user-agent') || 'unknown'
 
     for (const code of permissionCodes) {

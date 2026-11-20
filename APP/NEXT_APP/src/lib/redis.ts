@@ -101,10 +101,12 @@ export async function isRedisAvailable(): Promise<boolean> {
         return false;
     }
 
+    // El proxy lo consulta en CADA petición: con el cliente ya creado basta su estado (antes, un PING por petición).
+    // Si no hay cliente, la primera conexión tiene tope de 1 s: con Redis caído, la página no espera los reintentos.
+    if (redisClient) return redisClient.isReady;
     try {
-        const client = await getRedisClient();
-        await client.ping();
-        return true;
+        await Promise.race([getRedisClient(), new Promise((_, rechazar) => setTimeout(() => rechazar(new Error("REDIS_TIMEOUT")), 1000))]);
+        return Boolean(redisClient && (redisClient as { isReady?: boolean }).isReady);
     } catch {
         return false;
     }

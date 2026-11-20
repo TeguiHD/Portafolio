@@ -469,7 +469,7 @@ function updateThreatScore(event: SecurityEvent): void {
 
     // Persist signal to Redis for distributed scoring (ThreatScoringEngine)
     try {
-        const redisIpKey = hashIp(event.ipAddress)
+        const redisIpKey = event.ipAddressHash
         const redisUserKey = event.userId
 
         let signal: 'rate-hits' | 'auth-fails' | 'attack-hits' | 'session-anomalies' | null = null

@@ -79,12 +79,19 @@ function requireEncryptionKey(): string {
  * The salt is derived from the ENCRYPTION_KEY itself, making it
  * unique per installation but deterministic (required for AES-GCM).
  */
+// La clave derivada no cambia durante la vida del proceso: scrypt (~30 ms de CPU que bloquean el
+// event loop) se paga una sola vez, no en cada cifrado y descifrado (auth() descifra en cada llamada).
+let _derivedKey: Buffer | null = null
+let _legacyKey: Buffer | null = null
+
 function getDerivedKey(): Buffer {
+    if (_derivedKey) return _derivedKey
     const derivedSalt = createHash('sha256')
         .update(`portfolio-kdf-v2-${requireEncryptionKey()}`)
         .digest()
         .subarray(0, 16) // 128-bit salt per NIST SP 800-132
-    return scryptSync(requireEncryptionKey(), derivedSalt, 32)
+    _derivedKey = scryptSync(requireEncryptionKey(), derivedSalt, 32)
+    return _derivedKey
 }
 
 /**
@@ -93,7 +100,8 @@ function getDerivedKey(): Buffer {
  * @deprecated Will be removed after full data migration.
  */
 function getLegacyKey(): Buffer {
-    return scryptSync(requireEncryptionKey(), 'salt', 32)
+    _legacyKey ??= scryptSync(requireEncryptionKey(), 'salt', 32)
+    return _legacyKey
 }
 
 /**

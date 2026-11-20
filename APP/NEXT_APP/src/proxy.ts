@@ -14,9 +14,10 @@
  */
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createHash, createHmac } from 'crypto'
+import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import { getRedisClient, isRedisAvailable, CACHE_KEYS } from '@/lib/redis'
 import { parseArParams } from '@/lib/ar-launch'
+import { ipCliente } from '@/lib/ip-cliente'
 
 // ============= SECURITY CONSTANTS =============
 const SECURITY_VERSION = '2.1.0'
@@ -68,8 +69,7 @@ interface IncidentTelemetry {
     riskScore?: number
 }
 
-function hashIpForLogging(ip: string): string {
-    // Simple hash for edge runtime (no crypto.createHash available)
+function legacyHashIp(ip: string): string {
     let hash = 0
     for (let i = 0; i < ip.length; i++) {
         const char = ip.charCodeAt(i)
@@ -77,6 +77,19 @@ function hashIpForLogging(ip: string): string {
         hash = hash & hash // Convert to 32bit integer
     }
     return Math.abs(hash).toString(16).padStart(8, '0')
+}
+
+function hashIpForLogging(ip: string): string {
+    const secret = process.env.IP_HASH_SECRET
+    if (secret) {
+        return createHmac('sha256', secret).update(ip).digest('hex').slice(0, 16)
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+        console.error('[Security] IP_HASH_SECRET missing; falling back to legacy incident hash')
+    }
+
+    return legacyHashIp(ip)
 }
 
 function extractGeoFromHeaders(request: NextRequest): Partial<IncidentTelemetry> {
@@ -109,7 +122,10 @@ function logSecurityIncidentAsync(
     actionTaken: ActionTaken,
     extraDetails?: Record<string, unknown>
 ): void {
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    // Un incidente sobre la propia ruta de incidentes generaría otro, y ese otro… (bucle). Sin secreto interno la ruta
+    // responde 401 a todo, así que tampoco se manda nada: solo queda el registro en consola.
+    if (pathname === '/api/admin/security/incidents') return
+    const baseUrl = process.env.INTERNAL_API_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
     // SECURITY: Use dedicated INTERNAL_API_SECRET, never reuse ENCRYPTION_KEY.
     // NIST SP 800-57: one key must serve one purpose only.
     const internalSecret = process.env.INTERNAL_API_SECRET
@@ -161,7 +177,8 @@ function logSecurityIncidentAsync(
     console.log(`[Security] ${severity} incident: ${type} | ${geoInfo.country || 'Unknown'} | ${actionTaken}`)
 
     if (!internalSecret) {
-        console.warn('[Security] INTERNAL_API_SECRET not set, incident logging may fail')
+        console.warn('[Security] INTERNAL_API_SECRET not set: incident not sent')
+        return
     }
 
     fetch(`${baseUrl}/api/admin/security/incidents`, {
@@ -337,7 +354,7 @@ function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false)
         // Connections: explicit whitelist (+ localhost for dev)
         // https://cloudflareinsights.com is for Cloudflare RUM beacon data
         // https://staticimgly.com hosts the background-removal model assets used by the local image editor
-        `connect-src 'self' blob: https://api.openrouter.ai https://api.frankfurter.app https://cloudflareinsights.com https://*.cloudflareinsights.com https://staticimgly.com${modelOrigin ? ` ${modelOrigin} https://www.gstatic.com` : ''}${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
+        `connect-src 'self' blob: https://cloudflareinsights.com https://*.cloudflareinsights.com https://staticimgly.com${modelOrigin ? ` ${modelOrigin} https://www.gstatic.com` : ''}${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : ''}`,
 
         // Forms: self + Overleaf (LaTeX editor "open in Overleaf" POST)
         "form-action 'self' https://www.overleaf.com",
@@ -374,8 +391,8 @@ function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false)
 
 // Static security headers (OWASP ASVS Level 3 compliant)
 const staticSecurityHeaders = {
-    // XSS Protection (legacy, but still useful for older browsers)
-    'X-XSS-Protection': '1; mode=block',
+    // El filtro XSS de los navegadores viejos se podía usar para filtrar datos; OWASP recomienda apagarlo (la CSP protege).
+    'X-XSS-Protection': '0',
 
     // Clickjacking protection
     'X-Frame-Options': 'DENY',
@@ -499,9 +516,7 @@ const VIOLATION_THRESHOLD = 3  // Block after 3 rate limit violations
 const BLOCK_DURATION = 15 * 60 * 1000  // 15 min block
 
 function getRateLimitKey(request: NextRequest): string {
-    const forwarded = request.headers.get('x-forwarded-for')
-    const realIp = request.headers.get('x-real-ip')
-    const ip = forwarded?.split(',')[0]?.trim() || realIp || 'unknown'
+    const ip = getClientIp(request)
 
     // Include path category in key for granular limiting
     const pathCategory = request.nextUrl.pathname.startsWith('/api/auth') ? 'auth' :
@@ -555,6 +570,56 @@ function checkRateLimit(
     return { allowed: true }
 }
 
+async function checkProxyRateLimit(
+    key: string,
+    limit: number,
+    windowMs: number,
+    redisUp: boolean
+): Promise<{ allowed: boolean; retryAfter?: number; remaining?: number }> {
+    if (!redisUp) {
+        return checkRateLimit(key, limit, windowMs)
+    }
+
+    try {
+        const client = await getRedisClient()
+        const windowSeconds = Math.ceil(windowMs / 1000)
+        const blockSeconds = Math.ceil(BLOCK_DURATION / 1000)
+        const counterKey = `${CACHE_KEYS.RATE_LIMIT}:proxy:${key}`
+        const violationsKey = `${counterKey}:violations`
+        const blockedKey = `${counterKey}:blocked`
+
+        const blockedTtl = await client.ttl(blockedKey)
+        if (blockedTtl > 0) {
+            return { allowed: false, retryAfter: blockedTtl }
+        }
+
+        const count = await client.incr(counterKey)
+        if (count === 1) {
+            await client.expire(counterKey, windowSeconds)
+        }
+
+        const ttl = await client.ttl(counterKey)
+        if (count > limit) {
+            const violations = await client.incr(violationsKey)
+            if (violations === 1) {
+                await client.expire(violationsKey, 24 * 60 * 60)
+            }
+
+            if (violations >= VIOLATION_THRESHOLD) {
+                await client.setEx(blockedKey, blockSeconds, '1')
+                return { allowed: false, retryAfter: blockSeconds }
+            }
+
+            return { allowed: false, retryAfter: ttl > 0 ? ttl : windowSeconds }
+        }
+
+        return { allowed: true, remaining: Math.max(0, limit - count) }
+    } catch (error) {
+        console.error('[Proxy] Redis rate limit failed:', error instanceof Error ? error.message : error)
+        return checkRateLimit(key, limit, windowMs)
+    }
+}
+
 // ============= SECURITY CHECKS =============
 
 function isBlockedUrl(pathname: string): boolean {
@@ -566,10 +631,18 @@ function isSuspiciousUA(userAgent: string | null): boolean {
     return SUSPICIOUS_UA_PATTERNS.some(pattern => pattern.test(userAgent))
 }
 
+// La misma regla que el resto de la app (cf-connecting-ip → x-real-ip → último salto de XFF): el primer valor de
+// X-Forwarded-For lo escribe el visitante.
 function getClientIp(request: NextRequest): string {
-    const forwarded = request.headers.get('x-forwarded-for')
-    const realIp = request.headers.get('x-real-ip')
-    return forwarded?.split(',')[0]?.trim() || realIp || 'unknown'
+    return ipCliente(request.headers)
+}
+
+function getSessionCookieValue(request: NextRequest): string | null {
+    return request.cookies.get('__Secure-authjs.session-token')?.value
+        ?? request.cookies.get('authjs.session-token')?.value
+        ?? request.cookies.get('__Secure-next-auth.session-token')?.value
+        ?? request.cookies.get('next-auth.session-token')?.value
+        ?? null
 }
 
 // ── Threat Enforcement Helpers ────────────────────────────────────
@@ -582,6 +655,16 @@ function hashIpForThreat(ip: string): string {
             .toString(16).replace('-', '').padStart(8, '0')
     }
     return createHmac('sha256', secret).update(ip).digest('hex').slice(0, 16)
+}
+
+/** Aviso de incidente que manda el propio proxy (POST con el secreto interno correcto). */
+function esIncidenteInterno(request: NextRequest, pathname: string): boolean {
+    const secreto = process.env.INTERNAL_API_SECRET
+    const recibido = request.headers.get('x-internal-secret')
+    if (!secreto || !recibido || request.method !== 'POST' || pathname !== '/api/admin/security/incidents') return false
+    const a = createHash('sha256').update(secreto).digest()
+    const b = createHash('sha256').update(recibido).digest()
+    return timingSafeEqual(a, b)
 }
 
 /** SHA-256 session cookie hash for MFA step-up lookup. */
@@ -658,8 +741,7 @@ export async function proxy(request: NextRequest) {
     // 0a. THREAT ENFORCEMENT (Redis — before all other logic)
     // ═══════════════════════════════════════════════════════════
     const threatIpHash = hashIpForThreat(clientIp)
-    const sessionCookieValue = request.cookies.get('next-auth.session-token')?.value
-        ?? request.cookies.get('__Secure-next-auth.session-token')?.value ?? null
+    const sessionCookieValue = getSessionCookieValue(request)
     const sessionHash = sessionCookieValue ? hashSessionCookie(sessionCookieValue) : null
 
     const redisUp = await isRedisAvailable()
@@ -696,7 +778,7 @@ export async function proxy(request: NextRequest) {
             }
             if (enforcement.action === 'cooldown') {
                 return new NextResponse(
-                    JSON.stringify({ error: 'Too many requests' }),
+                    JSON.stringify({ error: 'Demasiadas solicitudes seguidas. Espera un momento y vuelve a intentar.' }),
                     {
                         status: 429,
                         headers: { 'Content-Type': 'application/json', 'Retry-After': String(enforcement.ttl ?? 60), 'X-Security-ID': blockId, ...earlySecurityHeaders },
@@ -866,18 +948,32 @@ export async function proxy(request: NextRequest) {
     // 2b. Conditional Cache-Control (OWASP A02)
     // Sensitive routes: no-cache | Public pages: allow caching
     // ═══════════════════════════════════════════════════════════
-    if (pathname.startsWith('/admin') || pathname.startsWith('/api/')) {
+    // /cotizacion y /aprobar muestran documentos con código de acceso y firmas de clientes:
+    // nunca en cachés compartidas, y la versión firmada tiene que verse apenas se firma.
+    if (pathname.startsWith('/api/pulse/')) {
+        // Titulares, mercado y rellenos del blog son públicos: su propia ruta decide la caché (antes se forzaba no-store
+        // y cada imagen de relleno llegaba a Node).
+    } else if (pathname.startsWith('/admin') || pathname.startsWith('/api/') ||
+        pathname.startsWith('/cotizacion') || pathname.startsWith('/aprobar')) {
         response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
         response.headers.set('Pragma', 'no-cache')
         response.headers.set('Expires', '0')
-    } else {
+    } else if (/\.[a-z0-9]{2,5}$/i.test(pathname)) {
+        // Archivos de public/ (imágenes, íconos, manifiesto): caché pública como siempre.
         response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=86400')
+    } else {
+        // Páginas HTML: llevan el nonce de la CSP de esta respuesta, así que no van a cachés compartidas, y tras un
+        // despliegue el navegador no debe reutilizar un HTML que apunta a paquetes viejos.
+        response.headers.set('Cache-Control', 'private, no-cache')
     }
 
     // ═══════════════════════════════════════════════════════════
     // 3. Rate Limiting for API Routes (Enhanced)
     // ═══════════════════════════════════════════════════════════
-    if (pathname.startsWith('/api/')) {
+    // Los incidentes que registra este mismo proxy no cuentan: si un 429 generara otro incidente que a su vez
+    // recibiera 429, se armaría un bucle.
+    // /api/health tampoco: lo consulta Docker cada 15 s y un 429 haría reiniciar la web sin motivo.
+    if (pathname.startsWith('/api/') && pathname !== '/api/health' && !esIncidenteInterno(request, pathname)) {
         const rateLimitKey = getRateLimitKey(request)
 
         // Stricter limits based on endpoint sensitivity
@@ -916,13 +1012,13 @@ export async function proxy(request: NextRequest) {
             }
         }
 
-        const rateCheck = checkRateLimit(rateLimitKey, limit, window)
+        const rateCheck = await checkProxyRateLimit(rateLimitKey, limit, window, redisUp)
 
         if (!rateCheck.allowed) {
             console.warn(`[SECURITY] Rate limited: ${clientIp} on ${pathname}`)
             logSecurityIncidentAsync(request, 'rate_limit', 'MEDIUM', clientIp, pathname, 'rate_limited', { limit, window })
             return new NextResponse(
-                JSON.stringify({ error: 'Too many requests' }),
+                JSON.stringify({ error: 'Demasiadas solicitudes seguidas. Espera un momento y vuelve a intentar.' }),
                 {
                     status: 429,
                     headers: {

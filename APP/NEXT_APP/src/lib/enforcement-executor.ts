@@ -209,11 +209,9 @@ export async function executeActions(
     }
 
     try {
-      const scopeKey = context.userId ?? context.ipHash
-
       switch (action.type) {
         case 'LOWER_RATE_LIMIT':
-          await executeLowerRateLimit(action, scopeKey)
+          await executeLowerRateLimit(action, context.ipHash)
           result.executed.push(action.type)
           break
 

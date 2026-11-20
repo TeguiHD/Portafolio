@@ -62,3 +62,26 @@
   --normal: 0.25s;
   --pausado: 0.4s;
 }
+
+/* ---------------------------------------------------------------------------
+   Materia viva (sitio público). Tema oscuro por defecto y tema claro.
+   Lo usa todo lo que cuelga de src/modules/esqueleto y src/modules/materia.
+   Las variables de arriba (--marca, --p-*) siguen siendo del panel.
+   --------------------------------------------------------------------------- */
+:root {
+  --fondo: #08090d; --fondo-2: #0e1117; --sup: #121722; --linea: #ffffff14; --linea-2: #ffffff29;
+  --txt: #e8edf3; --mut: #93a1b5; --acento: #5eead4; --acento-tinta: #06231f; --cerca: #7dd3fc;
+  --particula: 203 213 225; --particula-acento: 94 234 212;
+  --sube: #34d399; --baja: #fb7185; --error: #fb7185; --boton: #5eead4; --boton-tinta: #06231f;
+  --mono: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  /* Barras de desplazamiento y controles nativos del color del tema (antes salían claras sobre el sitio oscuro). */
+  color-scheme: dark;
+}
+:root[data-tema="claro"] {
+  color-scheme: light;
+  --alfa-marco: .13;
+  --fondo: #f5f4f0; --fondo-2: #ecebe5; --sup: #ffffff; --linea: #0b111a14; --linea-2: #0b111a2e;
+  --txt: #0d131c; --mut: #556173; --acento: #0d9488; --acento-tinta: #ffffff; --cerca: #0369a1;
+  --particula: 30 41 59; --particula-acento: 13 148 136;
+  --sube: #047857; --baja: #be123c; --error: #be123c; --boton: #0f766e; --boton-tinta: #ffffff;
+}
