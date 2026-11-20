@@ -1,7 +1,26 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { ArrowLeft, Printer, Share2, Mail, MessageSquare, Copy, Check } from "lucide-react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { ArrowLeft, Printer, Share2, Mail, MessageSquare, Copy, Check, PenLine } from "lucide-react";
+import PanelFirma from "./firma-panel";
+import { salirPortalAction } from "../../actions";
+import type { FormularioFirma } from "@/lib/formulario-firma";
+import { copiarTexto } from "@/lib/tools/copiar";
+import "@/modules/portal/portal.css";
+
+export interface EstadoFirma {
+    nombre: string;
+    rut: string;
+    fecha: string; // ISO
+    documentoCambio: boolean;
+}
+
+function fechaLegible(iso: string): string {
+    const fecha = new Date(iso);
+    const dia = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Santiago" }).format(fecha);
+    const hora = new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Santiago" }).format(fecha);
+    return `${dia} a las ${hora}`;
+}
 
 interface QuotationViewerProps {
     quotation: {
@@ -11,23 +30,81 @@ interface QuotationViewerProps {
         clientName: string;
     };
     htmlContent: string;
+    firma?: EstadoFirma | null;
+    /** Lo que el documento pide al firmar y cómo se llama («propuesta», «acuerdo»…). */
+    formulario: FormularioFirma;
+    huella: string;
+    puedeFirmar: boolean;
+    clientSlug: string;
+    quotationSlug: string;
+    /** Con sesión del portal: vuelve a «Mis documentos» en vez de a la portada. */
+    volverA?: string;
+    /** El admin viendo como el cliente (nombre del cliente): franja de solo lectura. */
+    vistaAdmin?: string;
 }
 
-export default function QuotationViewer({ quotation, htmlContent }: QuotationViewerProps) {
+export default function QuotationViewer({ quotation, htmlContent, firma = null, formulario, huella, puedeFirmar, clientSlug, quotationSlug, volverA, vistaAdmin }: QuotationViewerProps) {
+    const firmadaVigente = Boolean(firma && !firma.documentoCambio);
+    const mostrarFirmar = puedeFirmar && !firmadaVigente;
     const [showShareModal, setShowShareModal] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const [firmando, setFirmando] = useState(false);
+    const [copia, setCopia] = useState<"ok" | "fallo" | null>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
-    const handlePrint = () => {
+    const handlePrint = useCallback(() => {
         iframeRef.current?.contentWindow?.focus();
         iframeRef.current?.contentWindow?.print();
-    };
+    }, []);
 
     const copyToClipboard = async () => {
-        await navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        // Sin permiso o fuera de HTTPS el portapapeles falla: antes no pasaba nada y el botón no decía nada.
+        setCopia((await copiarTexto(window.location.href)) ? "ok" : "fallo");
+        setTimeout(() => setCopia(null), 2000);
     };
+
+    /** El marco mide lo que mide el documento. Se recalcula al cambiar el ancho (girar el celular) y con las fuentes ya
+     *  cargadas: antes se medía una sola vez y, al girar, el documento quedaba cortado dentro de un marco con su propio scroll. */
+    const anchoMedido = useRef(0);
+    const ajustarAlto = useCallback(() => {
+        const iframe = iframeRef.current;
+        try {
+            const alto = iframe?.contentWindow?.document?.body?.scrollHeight;
+            if (iframe && alto) iframe.style.height = Math.max(alto, 800) + "px";
+            anchoMedido.current = iframe?.clientWidth ?? 0;
+        } catch { /* sin acceso al documento: se queda con el alto mínimo */ }
+    }, []);
+
+    useEffect(() => {
+        let cuadro = 0;
+        const alCambiar = () => {
+            // En el celular `resize` salta también al esconderse la barra del navegador: solo importa el ancho.
+            if ((iframeRef.current?.clientWidth ?? 0) === anchoMedido.current) return;
+            cancelAnimationFrame(cuadro);
+            cuadro = requestAnimationFrame(ajustarAlto);
+        };
+        window.addEventListener("resize", alCambiar);
+        return () => {
+            window.removeEventListener("resize", alCambiar);
+            cancelAnimationFrame(cuadro);
+        };
+    }, [ajustarAlto]);
+
+    /**
+     * Ctrl/Cmd + P imprime el documento y no la página que lo rodea: impreso desde fuera, el marco no se parte en hojas y
+     * salía solo la primera. Escape cierra el menú de compartir.
+     */
+    const alTeclear = useCallback((e: KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === "p" || e.key === "P")) {
+            e.preventDefault();
+            handlePrint();
+        } else if (e.key === "Escape") {
+            setShowShareModal(false);
+        }
+    }, [handlePrint]);
+    useEffect(() => {
+        window.addEventListener("keydown", alTeclear);
+        return () => window.removeEventListener("keydown", alTeclear);
+    }, [alTeclear]);
 
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
     const shareText = `Hola, revisa esta cotización: ${quotation.projectName} - ${shareUrl}`;
@@ -35,105 +112,101 @@ export default function QuotationViewer({ quotation, htmlContent }: QuotationVie
     const emailUrl = `mailto:?subject=Cotización: ${encodeURIComponent(quotation.projectName)}&body=${encodeURIComponent(shareText)}`;
 
     return (
-        <div className="min-h-screen bg-slate-100">
-            {/* Toolbar */}
-            <div className="print:hidden fixed top-0 left-0 right-0 bg-slate-900 text-white p-4 z-50 flex justify-between items-center shadow-lg">
-                <div className="flex items-center gap-4">
-                    <a
-                        href="/"
-                        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-                    >
-                        <ArrowLeft size={18} />
-                        <span className="hidden sm:inline">Inicio</span>
+        <div className="pv">
+            <header className="pv-barra print:hidden">
+                <div className="pv-lado">
+                    <a href={volverA || "/"} className="pv-volver">
+                        <ArrowLeft size={18} aria-hidden="true" />
+                        <span>{volverA ? "Mis documentos" : "Inicio"}</span>
                     </a>
-                    <div className="hidden md:block h-6 w-px bg-slate-700" />
-                    <div className="hidden md:block">
-                        <p className="text-xs text-slate-500">Cliente</p>
-                        <p className="text-sm font-medium">{quotation.client?.name || quotation.clientName}</p>
+                    <div className="pv-quien">
+                        <b>{quotation.client?.name || quotation.clientName}</b>
+                        <small>{quotation.folio}</small>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <span className="text-sm text-slate-400 font-mono hidden md:inline">
-                        {quotation.folio}
-                    </span>
-
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowShareModal(!showShareModal)}
-                            className={`p-2 rounded-lg transition-colors ${showShareModal ? "bg-indigo-600 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"}`}
-                            title="Compartir"
-                        >
-                            <Share2 size={18} />
+                <div className="pv-acciones">
+                    <div className="pv-envoltura">
+                        <button type="button" className="pv-boton" onClick={() => setShowShareModal(!showShareModal)} aria-expanded={showShareModal} aria-label="Compartir" title="Compartir">
+                            <Share2 size={17} aria-hidden="true" />
                         </button>
-
-                        {/* Share Popup */}
                         {showShareModal && (
                             <>
-                                <div className="fixed inset-0 z-40" onClick={() => setShowShareModal(false)} />
-                                <div className="absolute right-0 top-12 z-50 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-200">
-                                    <h3 className="text-white font-semibold mb-4 text-sm">Compartir Cotización</h3>
-                                    <div className="space-y-2">
-                                        <a
-                                            href={whatsappUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-3 w-full p-3 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
-                                        >
-                                            <MessageSquare size={18} />
-                                            <span className="text-sm font-medium">WhatsApp</span>
-                                        </a>
-
-                                        <a
-                                            href={emailUrl}
-                                            className="flex items-center gap-3 w-full p-3 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
-                                        >
-                                            <Mail size={18} />
-                                            <span className="text-sm font-medium">Correo Electrónico</span>
-                                        </a>
-
-                                        <button
-                                            onClick={copyToClipboard}
-                                            className="flex items-center gap-3 w-full p-3 rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-                                        >
-                                            {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
-                                            <span className="text-sm font-medium">{copied ? "Enlace Copiado" : "Copiar Enlace"}</span>
-                                        </button>
-                                    </div>
+                                <div className="pv-cubre" onClick={() => setShowShareModal(false)} />
+                                <div className="pv-compartir">
+                                    <p>Compartir el enlace</p>
+                                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"><MessageSquare size={18} aria-hidden="true" />WhatsApp</a>
+                                    <a href={emailUrl}><Mail size={18} aria-hidden="true" />Correo</a>
+                                    <button type="button" onClick={copyToClipboard} className={copia === "ok" ? "hecho" : undefined}>
+                                        {copia === "ok" ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+                                        <span aria-live="polite">{copia === "ok" ? "Enlace copiado" : copia === "fallo" ? "No se pudo copiar" : "Copiar enlace"}</span>
+                                    </button>
                                 </div>
                             </>
                         )}
                     </div>
 
-                    <button
-                        onClick={handlePrint}
-                        className="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                    >
-                        <Printer size={16} />
-                        <span className="hidden sm:inline">Imprimir / PDF</span>
+                    {mostrarFirmar && (
+                        <button type="button" onClick={() => setFirmando(true)} className="pv-boton lleno">
+                            <PenLine size={16} aria-hidden="true" />
+                            <span>Firmar<span className="pv-solo-ancho">{firma ? " nueva versión" : ` ${formulario.documento}`}</span></span>
+                        </button>
+                    )}
+
+                    <button type="button" onClick={handlePrint} className={`pv-boton${firmadaVigente || !mostrarFirmar ? " lleno" : ""}`}
+                        title={firmadaVigente ? "Imprimir o guardar la versión firmada" : "Imprimir o guardar en PDF"} aria-label={firmadaVigente ? "Descargar firmada" : "Imprimir o guardar en PDF"}>
+                        <Printer size={16} aria-hidden="true" />
+                        <span className="pv-solo-ancho">{firmadaVigente ? "Descargar firmada" : "Imprimir / PDF"}</span>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            {/* Content */}
-            <div className="pt-20 pb-8 print:p-0">
+            {vistaAdmin && (
+                <div className="pv-vista print:hidden" role="status">
+                    <span>Estás viendo como <strong>{vistaAdmin}</strong>. Solo lectura: en este modo no se firma.</span>
+                    <form action={salirPortalAction}>
+                        <button type="submit">Salir de la vista</button>
+                    </form>
+                </div>
+            )}
+
+            {firma && (
+                <div className="pv-firma print:hidden" data-cambio={firma.documentoCambio ? "" : undefined} role="status">
+                    <span>
+                        {firma.documentoCambio
+                            ? <>Firmada por <strong>{firma.nombre}</strong> el {fechaLegible(firma.fecha)}, pero el documento cambió después. {puedeFirmar ? "Puedes revisar y firmar la versión nueva." : ""}</>
+                            : <>Firmada por <strong>{firma.nombre}</strong> (RUT {firma.rut}) el {fechaLegible(firma.fecha)}.</>}
+                    </span>
+                </div>
+            )}
+
+            {firmando && (
+                <PanelFirma
+                    clientSlug={clientSlug}
+                    quotationSlug={quotationSlug}
+                    folio={quotation.folio}
+                    projectName={quotation.projectName}
+                    huella={huella}
+                    formulario={formulario}
+                    onClose={() => setFirmando(false)}
+                />
+            )}
+
+            {/* El documento: conserva su propio diseño (aprobado y firmado tal cual). */}
+            <div className="pv-hoja" data-firma={firma ? "" : undefined}>
                 <iframe
                     ref={iframeRef}
                     srcDoc={htmlContent}
-                    className="w-full border-0 bg-white mx-auto shadow-2xl print:shadow-none"
-                    style={{
-                        minHeight: "100vh",
-                        width: "100%",
-                        display: "block"
-                    }}
                     title={quotation.projectName}
                     sandbox="allow-same-origin allow-modals"
                     onLoad={(e) => {
-                        const iframe = e.target as HTMLIFrameElement;
+                        ajustarAlto();
                         try {
-                            const height = iframe.contentWindow?.document?.body?.scrollHeight;
-                            if (height) iframe.style.height = Math.max(height, 800) + "px";
-                        } catch { }
+                            const doc = (e.target as HTMLIFrameElement).contentWindow?.document;
+                            void doc?.fonts?.ready.then(ajustarAlto);
+                            // Con el foco dentro del documento las teclas no llegan a la página: el atajo de imprimir también.
+                            doc?.addEventListener("keydown", alTeclear);
+                        } catch { /* sin acceso al documento */ }
                     }}
                 />
             </div>

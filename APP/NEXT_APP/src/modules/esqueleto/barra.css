@@ -1,0 +1,101 @@
+/* Barra de «Materia viva». Copiada de la maqueta aprobada (fuentes/navbar.html). */
+/* ================= Navegación (prefijo nb-): una cápsula que respira con la página ================= */
+.nb { --ancho: min(1180px, 100vw - 32px); position: fixed; z-index: 30; top: 16px; left: 50%; width: var(--ancho); display: flex; align-items: center; gap: 6px;
+  padding: 8px 8px 8px 22px; border-radius: 999px; border: 1px solid transparent; translate: -50% 0; isolation: isolate;
+  transition: width .7s var(--curva), padding .7s var(--curva), translate .55s var(--curva), background .5s, border-color .5s, box-shadow .5s; }
+/* Al bajar se recoge en una cápsula de vidrio; si sigues bajando se esconde, y vuelve apenas subes */
+.nb.nb-baja { --ancho: min(680px, 100vw - 32px); padding-left: 20px; background: color-mix(in srgb, var(--fondo-2) 70%, transparent); border-color: var(--linea-2);
+  backdrop-filter: blur(20px) saturate(1.5); box-shadow: 0 1px 0 #ffffff1f inset, 0 22px 60px -26px #000c; }
+.nb.nb-oculta { translate: -50% -140%; }
+/* Avance de lectura: un hilo de luz que recorre el borde inferior de la cápsula */
+.nb::after { content: ""; position: absolute; left: 26px; right: 26px; bottom: -1px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--acento)); transform-origin: left;
+  transform: scaleX(var(--avance, 0)); opacity: 0; transition: opacity .4s; }
+.nb.nb-baja::after { opacity: 1; }
+
+.nb-marca { font: 700 19px/1 var(--mono); letter-spacing: -.03em; color: var(--txt); margin-right: auto; padding: 8px 0; display: inline-flex; white-space: nowrap; }
+.nb-marca i { color: var(--acento); font-style: normal; display: inline-block; transition: scale .4s var(--curva); }
+.nb-marca:hover i { scale: 1.9; }
+.nb-marca span { display: inline-block; max-width: 3.2ch; overflow: hidden; transition: max-width .6s var(--curva), opacity .4s; }
+.nb.nb-baja .nb-marca span { max-width: 0; opacity: 0; }
+
+.nb-ir { position: relative; display: flex; align-items: center; margin-right: 6px; }
+.nb-ir a { position: relative; z-index: 1; padding: 10px 16px; border-radius: 999px; color: var(--mut); font-size: 15.5px; transition: color .3s; }
+.nb-ir a:hover, .nb-ir a[aria-current] { color: var(--txt); }
+/* La pastilla viaja entre los enlaces: sigue al cursor y descansa en la sección actual */
+.nb-luz { position: absolute; z-index: 0; left: 0; top: 50%; height: 36px; width: var(--w, 0px); border-radius: 999px; translate: var(--x, 0px) -50%; opacity: var(--o, 0);
+  background: color-mix(in srgb, var(--txt) 9%, transparent); box-shadow: 0 1px 0 #ffffff1a inset;
+  transition: translate .5s var(--curva), width .5s var(--curva), opacity .3s; pointer-events: none; }
+.nb-luz::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 14px; height: 2px; margin-left: -7px; border-radius: 2px; background: var(--acento); opacity: var(--p, 0); transition: opacity .3s; }
+
+.nb-tema { position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--mut); transition: color .25s, background .25s; }
+.nb-tema:hover { color: var(--txt); background: var(--linea); }
+.nb-tema svg { position: absolute; transition: rotate .7s var(--curva), scale .5s var(--curva), opacity .4s; }
+.nb-sol { rotate: -90deg; scale: .3; opacity: 0; }
+:root[data-tema="claro"] .nb-luna { rotate: 90deg; scale: .3; opacity: 0; }
+:root[data-tema="claro"] .nb-sol { rotate: 0deg; scale: 1; opacity: 1; }
+/* El botón se deja atraer por el cursor */
+.viva .nb .nb-hablar, .viva .nb .nb-hablar:hover { translate: var(--ix, 0px) var(--iy, 0px); transition: translate .35s var(--curva), box-shadow .25s; }
+.nb a:focus-visible, .nb button:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+
+/* Entrada: la cápsula baja y sus piezas llegan una tras otra */
+@media (prefers-reduced-motion: no-preference) {
+  .nb { animation: nb-cae .9s var(--curva) both; }
+  .nb > * { animation: nb-llega .7s var(--curva) both; animation-delay: calc(.25s + var(--n, 0) * 70ms); }
+}
+@keyframes nb-cae { from { translate: -50% -130%; } }
+@keyframes nb-llega { from { opacity: 0; transform: translateY(-10px); } }
+
+/* El botón «Menú» y lo que solo va en el menú del celular no existen en ancho; la lista es parte de la fila. */
+/* (.viva .nb … para ganarle a «.viva .boton», que también da display a la llamada del menú) */
+.nb-menu, .viva .nb .nb-solo-menu { display: none; }
+.nb-lista { display: contents; }
+
+@media (max-width: 860px) {
+  /* Celular y tablet vertical: una barra completa y sobria arriba (marca, tema, «Menú»). Se esconde al bajar y vuelve al subir.
+     Sin cápsula flotante abajo: tapaba contenido. Los enlaces van en un popover nativo bajo la barra. */
+  .nb, .nb.nb-baja { left: 0; right: 0; top: 0; width: auto; translate: none; animation: none; border-radius: 0; padding: 10px 12px 10px 18px;
+    border: 0; border-bottom: 1px solid transparent; gap: 4px; padding-top: calc(10px + env(safe-area-inset-top)); }
+  .nb.nb-baja { background: color-mix(in srgb, var(--fondo) 90%, transparent); border-bottom-color: var(--linea); backdrop-filter: blur(16px) saturate(1.4); box-shadow: none; }
+  .nb.nb-oculta { translate: 0 -110%; }
+  .nb::after { left: 0; right: 0; border-radius: 0; }
+  .nb.nb-baja .nb-marca span { max-width: 3.2ch; opacity: 1; }
+  .nb-marca { font-size: 18px; }
+  .viva .nb .nb-hablar, .nb-luz { display: none; }
+  .nb-ir { order: 3; margin: 0; }
+  .nb-tema { order: 2; }
+  .nb-menu { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 12px; border-radius: 999px; border: 1px solid var(--linea-2);
+    color: var(--txt); font: 600 15px var(--font-inter, Inter), sans-serif; background: color-mix(in srgb, var(--sup) 60%, transparent); cursor: pointer; }
+  .nb-menu svg path { transition: translate .3s var(--curva), rotate .3s var(--curva); transform-origin: 12px 12px; }
+  .nb-menu[aria-expanded="true"] .nb-menu-a { translate: 0 4px; rotate: 45deg; }
+  .nb-menu[aria-expanded="true"] .nb-menu-b { translate: 0 -4px; rotate: -45deg; }
+  /* Antes de hidratar (sin el atributo popover todavía) la lista no se ve; sin JavaScript va en fila bajo la barra (abajo). */
+  .nb-lista { display: none; }
+  .nb-lista[popover], .nb-lista[data-abierta] { position: fixed; inset: auto; top: calc(70px + env(safe-area-inset-top)); left: 10px; right: 10px; width: auto; margin: 0;
+    max-height: calc(100dvh - 90px); overflow: auto; overscroll-behavior: contain; padding: 8px 8px 12px; border-radius: 22px; border: 1px solid var(--linea-2); color: var(--txt);
+    background: var(--sup); box-shadow: 0 30px 80px -30px rgb(0 0 0 / .7); }
+  .nb-lista:is(:popover-open, [data-abierta]) { display: grid; }
+  .nb-lista[popover]::backdrop { background: rgb(4 6 10 / .45); }
+  :root[data-tema="claro"] .nb-lista[popover]::backdrop { background: rgb(13 30 44 / .25); }
+  :root[data-tema="claro"] .nb-lista:is([popover], [data-abierta]) { box-shadow: 0 30px 70px -30px rgb(13 40 60 / .45); }
+  .nb-lista a { display: flex; align-items: center; justify-content: space-between; padding: 15px 14px; border-radius: 14px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--txt); }
+  .nb-lista a:not(.boton)::after { content: "→"; color: var(--mut); font-weight: 400; }
+  .nb-lista a + a:not(.boton) { border-top: 1px solid var(--linea); border-radius: 0; }
+  .nb-lista a[aria-current]:not(.boton) { color: var(--acento); }
+  .viva .nb .nb-lista .nb-solo-menu { display: flex; }
+  .nb-lista .nb-instalar { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 15px 14px; border: 0; border-top: 1px solid var(--linea);
+    background: none; color: var(--acento); font: 600 18px var(--font-inter, Inter), sans-serif; text-align: left; cursor: pointer; }
+  .nb-lista .nb-instalar::after { content: "↓"; color: var(--mut); font-weight: 400; }
+  .nb-lista .ayuda-instalar { margin: 0; padding: 0 14px 12px; font-size: 14.5px; color: var(--mut); }
+  .nb-lista .nb-menu-hablar { justify-content: center; margin-top: 10px; padding: 16px 20px; font-size: 16.5px; border-radius: 16px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .nb-lista[popover] { transition: opacity .22s var(--curva), translate .28s var(--curva), overlay .28s allow-discrete, display .28s allow-discrete; opacity: 0; translate: 0 -10px; }
+    .nb-lista[popover]:popover-open { opacity: 1; translate: 0 0; }
+    @starting-style { .nb-lista[popover]:popover-open { opacity: 0; translate: 0 -10px; } }
+  }
+}
+@media (max-width: 860px) and (scripting: none) {
+  .nb { flex-wrap: wrap; }
+  .nb-menu { display: none; }
+  .nb-lista { display: flex; flex-wrap: wrap; gap: 4px 6px; width: 100%; }
+  .nb-lista a { padding: 8px 10px; font-size: 15px; }
+}

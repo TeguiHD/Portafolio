@@ -25,7 +25,7 @@ function subscriptionId(endpoint: string) {
 function getVapidConfig() {
   const publicKey = process.env.WEB_PUSH_VAPID_PUBLIC_KEY;
   const privateKey = process.env.WEB_PUSH_VAPID_PRIVATE_KEY;
-  const contact = process.env.WEB_PUSH_CONTACT_EMAIL || "contact@nicoholas.dev";
+  const contact = process.env.WEB_PUSH_CONTACT_EMAIL || "contacto@nicoholas.dev";
 
   if (!publicKey || !privateKey) {
     return null;
@@ -137,9 +137,9 @@ export async function notifySubscribersAboutNews(items: PulseNewsItem[]) {
       title: item.title,
       body: item.excerpt || `${item.source} reporta una nueva actualización.`,
       url: item.url || "/blog",
-      icon: "/icon-192.png",
-      badge: "/badge-72.png",
-      image: item.imageUrl || "/icon-512.png",
+      icon: "/icon-192.png?v=4",
+      badge: "/badge-72.png?v=4",
+      image: item.imageUrl || "/icon-512.png?v=4",
       tag: item.id,
       source: item.source,
     });

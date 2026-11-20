@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { FaviconVivo } from "@/components/brand/FaviconVivo";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { StructuredData } from "@/components/StructuredData";
+import { TemaInicial } from "@/modules/esqueleto/TemaInicial";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
-import { PWARegister } from "@/modules/finance/components/PWAComponents";
+import { PWARegister } from "@/components/pwa/PWAComponents";
 import { AvisoVersion } from "@/components/pwa/AvisoVersion";
 
 const BASE_URL = "https://nicoholas.dev";
@@ -30,11 +31,11 @@ async function bootstrapPulseNotifier() {
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: "Nicoholas Lopetegui | Desarrollador Full Stack",
+    default: "Nicoholas Lopetegui | Desarrollador Full Stack en Chile",
     template: "%s | Nicoholas Lopetegui",
   },
   description:
-    "Desarrollador Full Stack que transforma problemas complejos en productos funcionales. Plataformas, automatizaciones y datos con impacto real.",
+    "Desarrollador full stack en Chile: tiendas en línea, sistemas internos y herramientas web a medida. Además, 29 herramientas gratis y sin registro.",
   keywords: [
     "desarrollador full stack",
     "desarrollo web",
@@ -52,15 +53,15 @@ export const metadata: Metadata = {
     locale: "es_CL",
     url: BASE_URL,
     siteName: "Nicoholas Lopetegui",
-    title: "Nicoholas Lopetegui | Desarrollador Full Stack",
+    title: "Nicoholas Lopetegui | Desarrollador Full Stack en Chile",
     description:
-      "Transformo problemas complejos en productos funcionales. Plataformas, automatizaciones y datos con impacto real.",
+      "Tiendas en línea, sistemas internos y herramientas web a medida. Además, 29 herramientas gratis y sin registro.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nicoholas Lopetegui | Desarrollador Full Stack",
+    title: "Nicoholas Lopetegui | Desarrollador Full Stack en Chile",
     description:
-      "Transformo problemas complejos en productos funcionales. Sin rodeos. Sin demoras.",
+      "Tiendas en línea, sistemas internos y herramientas web a medida. Además, 29 herramientas gratis y sin registro.",
   },
   robots: {
     index: true,
@@ -68,16 +69,25 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true },
   },
   manifest: "/manifest.json",
+  appleWebApp: { capable: true, title: "nicoholas.dev", statusBarStyle: "black-translucent" },
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+      { url: "/icon.svg?v=4", type: "image/svg+xml" },
+      // Para la pestaña basta uno chico; los de 192 y 512 los pide el manifest (antes cada visita bajaba el de 192: 35 KB).
+      { url: "/icon-32.png?v=4", type: "image/png", sizes: "32x32" },
     ],
     apple: [
-      { url: "/apple-icon.png", type: "image/png", sizes: "180x180" },
+      { url: "/apple-icon.png?v=4", type: "image/png", sizes: "180x180" },
     ],
   },
+};
+
+/** La barra del sistema (y la de la app instalada) con el fondo del tema: claro u oscuro según el sistema. */
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f4f0" },
+    { media: "(prefers-color-scheme: dark)", color: "#08090d" },
+  ],
 };
 
 export default async function RootLayout({
@@ -88,8 +98,9 @@ export default async function RootLayout({
   await bootstrapPulseNotifier();
 
   return (
-    <html lang="es" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="es" data-tema="oscuro" data-scroll-behavior="smooth" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
+        <TemaInicial />
         {/* Structured Data for Google Rich Snippets */}
         <StructuredData />
 
@@ -155,7 +166,7 @@ export default async function RootLayout({
         </noscript>
         {/* Skip to content — accessibility (WCAG 2.4.1) */}
         <a
-          href="#hero"
+          href="#contenido"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-white focus:text-black focus:px-4 focus:py-2 focus:rounded-lg focus:font-bold focus:text-sm"
         >
           Saltar al contenido principal

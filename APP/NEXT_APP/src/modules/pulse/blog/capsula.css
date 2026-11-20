@@ -1,0 +1,92 @@
+/* Cápsula del tiempo (prefijo cp-): una píldora con grados y hora; debajo se abre el día, sin celdas.
+   El panel entra solo con opacidad y traslado (nada se escala: la sombra no deja costuras). */
+.cp { position: relative; }
+.cp-pildora { display: inline-flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px 0 13px; border-radius: 999px; border: 1px solid var(--linea-2);
+  background: color-mix(in srgb, var(--sup) 55%, transparent); color: var(--txt); cursor: pointer; transition: border-color .25s, background .25s; }
+.cp-pildora:hover, .cp-pildora[aria-expanded="true"] { border-color: var(--acento); background: color-mix(in srgb, var(--sup) 85%, transparent); }
+.cp-pildora:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+.cp-pildora-grados { font-weight: 650; font-variant-numeric: tabular-nums; }
+.cp-pildora-hora { padding-left: 10px; border-left: 1px solid var(--linea-2); font: 500 14px var(--mono); color: var(--mut); }
+
+.cp-panel { position: absolute; z-index: 35; top: calc(100% + 12px); right: 0; width: min(410px, calc(100vw - 48px)); padding: 22px 24px 18px;
+  border-radius: 26px; border: 1px solid var(--linea-2); background: var(--sup); color: var(--txt);
+  box-shadow: 0 40px 90px -40px #000d; transition: opacity .35s var(--curva), translate .45s var(--curva); }
+@starting-style { .cp-panel { opacity: 0; translate: 0 -10px; } }
+:root[data-tema="claro"] .cp-panel { box-shadow: 0 2px 6px rgb(13 40 60 / .08), 0 40px 80px -40px rgb(13 60 80 / .5); }
+
+.cp-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.cp-cab h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.cp-cab p { margin: 3px 0 0; color: var(--mut); font-size: 14.5px; }
+.cp-cerrar { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px solid var(--linea-2); color: var(--mut);
+  transition: color .25s, border-color .25s, rotate .35s var(--curva); }
+.cp-cerrar:hover { color: var(--txt); border-color: var(--acento); rotate: 90deg; }
+.cp-cerrar:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Los grados en grande, con el cielo dibujado al lado. */
+.cp-ahora { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.cp-grados { margin: 0; font-size: clamp(76px, 18vw, 104px); font-weight: 250; letter-spacing: -.07em; line-height: 1; font-variant-numeric: tabular-nums; }
+.cp-grados span { color: var(--acento); font-weight: 300; }
+
+/* El arco del día: lo recorrido en acento; el sol (o la luna) donde va. */
+.cp-arco { margin-top: 6px; }
+.cp-arco svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cp-arco path { fill: none; stroke-width: 2; stroke-linecap: round; }
+.cp-arco-via { stroke: var(--linea-2); stroke-dasharray: .012 .02; }
+.cp-arco-hecho { stroke: #fbbf24; transition: stroke-dasharray .9s var(--curva); }
+.cp-arco-suelo { stroke: var(--linea); stroke-width: 1; }
+.cp-astro { fill: #e2e8f0; }
+.cp-astro-halo { fill: color-mix(in srgb, #e2e8f0 16%, transparent); }
+.cp-arco[data-dia] .cp-astro { fill: #fbbf24; }
+.cp-arco[data-dia] .cp-astro-halo { fill: color-mix(in srgb, #fbbf24 22%, transparent); animation: cp-latir 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes cp-latir { 50% { scale: 1.25; opacity: .7; } }
+.cp-arco p { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0 0; color: var(--mut); font-size: 13.5px; }
+.cp-arco p b { color: var(--txt); font: 500 13.5px var(--mono); margin-left: 4px; }
+
+.cp-linea { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 14px 0 0; padding-bottom: 14px; border-bottom: 1px solid var(--linea); color: var(--mut); font-size: 14.5px; }
+.cp-linea b { color: var(--txt); font-weight: 600; margin-left: 4px; }
+
+.cp-dias { list-style: none; margin: 4px 0 0; padding: 0; }
+.cp-dias li { display: grid; grid-template-columns: 44px 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px 0; font-size: 14.5px;
+  animation: cp-fila .4s var(--curva) both; animation-delay: calc(var(--k) * 60ms + 120ms); }
+.cp-dias li + li { border-top: 1px solid var(--linea); }
+@keyframes cp-fila { from { opacity: 0; translate: -6px 0; } }
+.cp-dia { color: var(--txt); font-weight: 600; }
+.cp-cielo { color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-temp { color: var(--mut); font-variant-numeric: tabular-nums; }
+.cp-temp b { color: var(--txt); font-weight: 600; }
+
+.cp-ciudad { display: flex; align-items: center; gap: 8px; margin-top: 12px; border-bottom: 1px solid var(--linea-2); transition: border-color .25s; }
+.cp-ciudad:focus-within { border-color: var(--acento); }
+/* 16 px: con menos, Safari en iPhone acerca la página entera al tocar el campo. */
+.cp-ciudad input { flex: 1; min-width: 0; padding: 10px 2px; border: 0; background: none; color: var(--txt); font: inherit; font-size: 16px; outline: none; }
+.cp-ciudad input::placeholder { color: var(--mut); }
+.cp-ciudad button { display: grid; place-items: center; min-width: 38px; height: 34px; padding: 0 10px; border-radius: 10px; color: var(--mut); font-weight: 600; font-size: 14px; transition: color .2s, background .2s; }
+.cp-ciudad button:hover { color: var(--txt); background: var(--linea); }
+.cp-ciudad button:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+.cp-ciudad button[aria-busy] svg { animation: cp-girar 1s linear infinite; }
+@keyframes cp-girar { to { rotate: 360deg; } }
+.cp-nota { margin: 10px 0 0; color: var(--mut); font-size: 12.5px; }
+
+/* Tema claro: el cielo dibujado viene pensado para fondo oscuro (nube, luna y copos casi blancos); aquí, tonos que se leen sobre blanco. */
+:root[data-tema="claro"] .cp .it { color: #64748b; }
+:root[data-tema="claro"] .cp .it .it-nube, :root[data-tema="claro"] .cp .it .it-niebla line { stroke: #64748b; }
+:root[data-tema="claro"] .cp .it .it-sol, :root[data-tema="claro"] .cp .it .it-rayo { fill: #d97706; stroke: #d97706; }
+:root[data-tema="claro"] .cp .it .it-rayos line { stroke: #d97706; }
+:root[data-tema="claro"] .cp .it[data-cielo="luna"] .it-sol, :root[data-tema="claro"] .cp .it[data-cielo="luna-nube"] .it-sol { fill: #64748b; stroke: #64748b; }
+:root[data-tema="claro"] .cp .it .it-gotas line { stroke: #2563eb; }
+:root[data-tema="claro"] .cp .it .it-copos line { stroke: #0284c7; }
+:root[data-tema="claro"] .cp-astro { fill: #64748b; }
+:root[data-tema="claro"] .cp-astro-halo { fill: color-mix(in srgb, #64748b 14%, transparent); }
+:root[data-tema="claro"] .cp-arco-hecho { stroke: #d97706; }
+:root[data-tema="claro"] .cp-arco[data-dia] .cp-astro { fill: #d97706; }
+
+@media (pointer: coarse) { .cp-ciudad button, .cp-cerrar { min-width: 44px; height: 44px; } .cp-cerrar { width: 44px; } }
+@media (max-width: 820px) {
+  /* En celular cuelga de la píldora y no pasa del alto de la pantalla: lo que sobra se desplaza dentro. */
+  .cp-panel { max-height: calc(100svh - 230px); overflow: auto; overscroll-behavior: contain; padding: 18px 20px 16px; }
+  .cp-grados { font-size: 72px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-panel, .cp-arco-hecho { transition: none; }
+  .cp-dias li, .cp-arco[data-dia] .cp-astro-halo, .cp-ciudad button[aria-busy] svg { animation: none; }
+}

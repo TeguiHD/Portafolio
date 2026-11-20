@@ -58,7 +58,7 @@ function indicador(id: string, symbol: string, name: string, serie: Serie | unde
 async function cargarMonedas(): Promise<PulseFinanceItem[]> {
   const monedas = await pedirJson<Moneda[]>(
     `${COINGECKO_API}/coins/markets?vs_currency=usd&ids=bitcoin,ethereum&order=market_cap_desc&per_page=2&page=1&sparkline=true&price_change_percentage=24h`,
-    { revalidate: 600, plazo: 5000 }
+    { plazo: 5000 }
   );
   return monedas.map((m) => ({
     id: m.id,
@@ -75,7 +75,7 @@ async function cargarMonedas(): Promise<PulseFinanceItem[]> {
 }
 
 async function cargarIndicadores(): Promise<PulseFinanceItem[]> {
-  const datos = await pedirJson<Indicadores>(MINDICADOR_API, { revalidate: 1800, plazo: 5000 });
+  const datos = await pedirJson<Indicadores>(MINDICADOR_API, { plazo: 5000 });
   return [
     indicador("uf", "UF", "Unidad de Fomento", datos.uf),
     indicador("utm", "UTM", "Unidad Tributaria Mensual", datos.utm),

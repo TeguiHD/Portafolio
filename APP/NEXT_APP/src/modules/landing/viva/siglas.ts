@@ -1,0 +1,72 @@
+// Generado por .superpowers/brainstorm/maqueta/fuentes/a-sitio-herramientas.py. No editar a mano.
+
+/** Lo que la materia escribe en el centro cuando se elige cada herramienta (por slug). */
+export const SIGLAS: Record<string, string> = {
+    "convertir-imagen": ".webp",
+    "recortar-imagen": "16:9",
+    "quitar-fondo": "sin fondo",
+    "convertir-ico": ".ico",
+    "comprimir-imagen": "menos peso",
+    "redimensionar": "W×H",
+    "paleta-colores": "#HEX",
+    "marca-agua": "©",
+    "favicon": "16→512",
+    "qr": "QR",
+    "claves": "Generador",
+    "ascii": " .:-=+*#%@",
+    "enlaces": "wa.me",
+    "aleatorio": "sorteo",
+    "unidades": "km → mi",
+    "base64": "Conversor",
+    "binario": "0101",
+    "impuestos": "Calculadora",
+    "regex": "/^\\d+$/",
+    "jwt": "eyJ…",
+    "json": "{ }",
+    "dns": "A MX TXT",
+    "nginx": "server { }",
+    "esteganografia": "U+200B",
+    "esteganografia-imagen": "LSB",
+    "metadatos": "EXIF",
+    "reverse-shell": "nc -lvnp",
+    "banner-ascii": "MOTD",
+    "subredes": "Calculadora"
+};
+
+/** El dibujo del ícono de cada herramienta (contenido de un <svg viewBox="0 0 24 24">), tomado de ToolIcons.tsx. */
+export const ICONOS: Record<string, string> = {
+    "convertir-imagen": "<rect x=\"2\" y=\"3\" width=\"9\" height=\"9\" rx=\"1\"/><circle cx=\"5\" cy=\"6\" r=\"1\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M11 10L8 7l-4 5\"/><path d=\"M14 10l3-3m0 0l3 3m-3-3v8\"/><rect x=\"13\" y=\"14\" width=\"9\" height=\"7\" rx=\"1\"/><text x=\"15\" y=\"19.5\" font-size=\"4.5\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">WP</text>",
+    "recortar-imagen": "<path d=\"M6 2v4M2 6h4M18 22v-4M22 18h-4\"/><rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"1\"/><path d=\"M6 10h12M10 6v12\"/>",
+    "quitar-fondo": "<path d=\"M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9\"/><path d=\"M17 3l4 4M21 3l-4 4\"/><circle cx=\"9\" cy=\"10\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M5 16l4-4 3 3 2-2 4 4\"/>",
+    "convertir-ico": "<rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"3\"/><rect x=\"7\" y=\"7\" width=\"4\" height=\"4\" rx=\".5\" fill=\"currentColor\" stroke=\"none\" opacity=\".5\"/><rect x=\"13\" y=\"7\" width=\"4\" height=\"4\" rx=\".5\" fill=\"currentColor\" stroke=\"none\" opacity=\".3\"/><rect x=\"7\" y=\"13\" width=\"4\" height=\"4\" rx=\".5\" fill=\"currentColor\" stroke=\"none\" opacity=\".3\"/><rect x=\"13\" y=\"13\" width=\"4\" height=\"4\" rx=\".5\" fill=\"currentColor\" stroke=\"none\" opacity=\".5\"/>",
+    "comprimir-imagen": "<path d=\"M4 14l4-4 3 3 2-2 4 4\"/><rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"M9 4v16M15 4v16\" stroke-dasharray=\"2 2\"/>",
+    "redimensionar": "<rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\"/><path d=\"M15 4v16M4 15h16\" stroke-dasharray=\"3 2\"/><circle cx=\"15\" cy=\"15\" r=\"2\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M18 12l3 3m0 0l-3 3M12 18l3 3m0 0l3-3\"/>",
+    "paleta-colores": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"7\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"8\" cy=\"10\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"16\" cy=\"10\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"15\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M15 14c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z\" fill=\"currentColor\" stroke=\"none\"/>",
+    "marca-agua": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"1.5\"/><path d=\"M21 15l-5-5L5 21\"/><text x=\"8\" y=\"14\" font-size=\"6\" fill=\"currentColor\" font-family=\"sans-serif\" stroke=\"none\" opacity=\".5\">©</text>",
+    "favicon": "<rect x=\"2\" y=\"2\" width=\"8\" height=\"8\" rx=\"1\"/><rect x=\"14\" y=\"2\" width=\"4\" height=\"4\" rx=\".5\"/><rect x=\"20\" y=\"2\" width=\"2\" height=\"2\" rx=\".25\"/><path d=\"M6 14v4a2 2 0 002 2h4\"/><path d=\"M14 14l3-3m0 0l3 3m-3-3v7\"/>",
+    "qr": "<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"3\" height=\"3\"/><path d=\"M18 14h3v3M14 18h3v3M18 18h3v3\"/><rect x=\"5.5\" y=\"5.5\" width=\"2\" height=\"2\" fill=\"currentColor\" stroke=\"none\"/><rect x=\"16.5\" y=\"5.5\" width=\"2\" height=\"2\" fill=\"currentColor\" stroke=\"none\"/><rect x=\"5.5\" y=\"16.5\" width=\"2\" height=\"2\" fill=\"currentColor\" stroke=\"none\"/>",
+    "claves": "<rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/><circle cx=\"12\" cy=\"16\" r=\"1\" fill=\"currentColor\"/><path d=\"M12 17v2\"/>",
+    "ascii": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"10\" rx=\"1\"/><circle cx=\"5.5\" cy=\"6.5\" r=\"1\"/><path d=\"M14 11l-3-3-5 5\"/><text x=\"16\" y=\"7\" font-size=\"4\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">@#</text><text x=\"16\" y=\"11\" font-size=\"4\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">*.</text><path d=\"M15 15l3-3m0 0l3 3m-3-3v8\"/>",
+    "enlaces": "<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>",
+    "aleatorio": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\" fill=\"currentColor\"/><circle cx=\"15.5\" cy=\"8.5\" r=\"1.5\" fill=\"currentColor\"/><circle cx=\"8.5\" cy=\"15.5\" r=\"1.5\" fill=\"currentColor\"/><circle cx=\"15.5\" cy=\"15.5\" r=\"1.5\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"12\" r=\"1.5\" fill=\"currentColor\"/>",
+    "unidades": "<path d=\"M12 3v18\"/><path d=\"M5 7l7-4 7 4\"/><path d=\"M3 12l2-5h0l3 5a4 4 0 0 1-5 0z\"/><path d=\"M16 12l2-5h0l3 5a4 4 0 0 1-5 0z\"/>",
+    "base64": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><path d=\"M21 15l-5-5L5 21\"/><path d=\"M14 14l1 1\"/><path d=\"M17 11l2 2\"/><text x=\"16\" y=\"8\" font-size=\"5\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">01</text>",
+    "binario": "<text x=\"3\" y=\"10\" font-size=\"8\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">01</text><text x=\"3\" y=\"20\" font-size=\"8\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">10</text><path d=\"M14 6l4-4m0 0l4 4m-4-4v12\"/><path d=\"M14 18l4 4m0 0l4-4m-4 4V10\"/>",
+    "impuestos": "<rect x=\"4\" y=\"2\" width=\"16\" height=\"20\" rx=\"2\"/><rect x=\"6\" y=\"4\" width=\"12\" height=\"4\" rx=\"1\"/><path d=\"M7 10h2m4 0h2m4 0h2M7 14h2m4 0h2m4 0h2M7 18h2m4 0h6\"/>",
+    "regex": "<path d=\"M16 18l6-6-6-6\"/><path d=\"M8 6l-6 6 6 6\"/><path d=\"M14.5 4l-5 16\"/>",
+    "jwt": "<path d=\"M12 2L2 7l10 5 10-5-10-5z\"/><path d=\"M2 17l10 5 10-5\"/><path d=\"M2 12l10 5 10-5\"/><circle cx=\"12\" cy=\"12\" r=\"2\" fill=\"currentColor\" stroke=\"none\"/>",
+    "json": "<path d=\"M8 3H6a2 2 0 00-2 2v2M8 21H6a2 2 0 01-2-2v-2M16 3h2a2 2 0 012 2v2M16 21h2a2 2 0 002-2v-2\"/><text x=\"6\" y=\"14\" font-size=\"10\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">{}</text>",
+    "dns": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z\"/><circle cx=\"12\" cy=\"12\" r=\"2\" fill=\"currentColor\" stroke=\"none\"/>",
+    "nginx": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M8 7v10M8 7l8 10M16 7v10\"/>",
+    "esteganografia": "<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/><path d=\"M9 12l2 2 4-4\"/><rect x=\"5\" y=\"7\" width=\"4\" height=\"3.5\" rx=\".7\"/><path d=\"M6 7V6a1 1 0 0 1 2 0v1\"/>",
+    "esteganografia-imagen": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><path d=\"M21 15l-5-5L5 21\"/><path d=\"M14 3v4h4\"/><path d=\"M17 8l-3-5\"/><rect x=\"14\" y=\"14\" width=\"4\" height=\"4\" rx=\".5\" fill=\"currentColor\" stroke=\"none\" opacity=\".3\"/>",
+    "metadatos": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><path d=\"M21 15l-5-5L5 21\"/><path d=\"M15 3h6v6\"/><path d=\"M10 14l5-5\"/><circle cx=\"18\" cy=\"6\" r=\"2\" fill=\"currentColor\" stroke=\"none\" opacity=\".5\"/>",
+    "reverse-shell": "<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"M6 8l4 4-4 4\"/><path d=\"M12 16h6\"/>",
+    "banner-ascii": "<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><text x=\"5\" y=\"13\" font-size=\"6\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">Aa</text><path d=\"M16 8h2M16 12h4M16 16h3\"/>",
+    "subredes": "<circle cx=\"12\" cy=\"5\" r=\"3\"/><circle cx=\"5\" cy=\"19\" r=\"3\"/><circle cx=\"19\" cy=\"19\" r=\"3\"/><path d=\"M12 8v4M12 12l-5.5 5M12 12l5.5 5\"/>"
+};
+
+/** Un color por categoría pública del catálogo. */
+export const COLOR_CATEGORIA: Record<string, string> = {
+    "imágenes": "#60a5fa", "generación": "#5eead4", "conversión": "#fbbf24", "productividad": "#a78bfa", "seguridad": "#fb7185", "redes": "#34d399",
+};

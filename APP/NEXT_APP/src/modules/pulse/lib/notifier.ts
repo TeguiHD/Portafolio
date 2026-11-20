@@ -1,4 +1,4 @@
-import { getPulseNews } from "@/modules/pulse/lib/news-service";
+import { getPulseNewsCached } from "@/modules/pulse/lib/news-service";
 import { isPulsePushConfigured, notifySubscribersAboutNews } from "@/modules/pulse/lib/push-service";
 
 declare global {
@@ -9,7 +9,9 @@ const DEFAULT_INTERVAL_MS = 15 * 60 * 1000;
 
 async function runPulsePushCycle() {
   try {
-    const items = await getPulseNews();
+    // Forzada y por la caché compartida: la ronda de feeds que dispara el aviso es la misma que luego sirve el blog
+    // (antes eran dos rondas independientes, una del aviso y otra de la página).
+    const { valor: items } = await getPulseNewsCached(true);
     await notifySubscribersAboutNews(items);
   } catch (error) {
     console.error("[Pulse Push Notifier] Error:", error);

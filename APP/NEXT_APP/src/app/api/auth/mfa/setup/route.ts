@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { ipCliente } from "@/lib/ip-cliente";
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { initializeMFASetup, verifyMFA } from '@/lib/mfa'
@@ -16,9 +17,7 @@ import { verifyPassword } from '@/lib/security.server'
 import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
-    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        request.headers.get('x-real-ip') ||
-        '127.0.0.1'
+    return ipCliente(request.headers)
 }
 
 // GET - Check MFA status

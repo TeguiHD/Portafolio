@@ -1,0 +1,11 @@
+/* Firma de cierre. Copiado de la maqueta aprobada. */
+#firma { flex-direction: column; justify-content: center; gap: 0; padding: 60px 0; min-height: 78svh; }
+#ancla-firma { width: min(880px, 92vw); height: 190px; }
+#firma p { color: var(--mut); font-size: 15px; }
+#firma { min-height: 62svh; padding-bottom: 20px; }
+
+/* Celular: la firma sin tanto aire alrededor (dejaba media pantalla vacía antes del pie). */
+@media (max-width: 760px) { #firma { min-height: 0; padding: 56px 0 40px; } #ancla-firma { height: 120px; } }
+/* Con «menos movimiento» la materia no responde al cursor ni al toque, y sin JavaScript no hay materia: la invitación prometía
+   algo que no pasa. Se oculta sin mover nada. */
+@media (prefers-reduced-motion: reduce), (scripting: none) { #firma p { visibility: hidden; } }

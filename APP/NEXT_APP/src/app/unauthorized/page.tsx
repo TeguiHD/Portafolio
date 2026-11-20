@@ -18,7 +18,7 @@ export default async function UnauthorizedPage() {
 
                 {/* Title */}
                 <h1 className="text-2xl font-bold text-white mb-2">
-                    Acceso Denegado
+                    Acceso denegado
                 </h1>
 
                 {/* Message */}
@@ -37,20 +37,16 @@ export default async function UnauthorizedPage() {
                         href="/admin/landing"
                         className="px-6 py-3 rounded-xl bg-accent-1/20 text-accent-1 font-medium hover:bg-accent-1/30 transition-colors border border-accent-1/30"
                     >
-                        Ir a mi Panel
+                        Ir a mi panel
                     </Link>
                     <Link
                         href="/"
                         className="px-6 py-3 rounded-xl bg-white/5 text-neutral-300 font-medium hover:bg-white/10 transition-colors border border-white/10"
                     >
-                        Volver al Inicio
+                        Volver al inicio
                     </Link>
                 </div>
 
-                {/* Security notice */}
-                <p className="mt-8 text-xs text-neutral-600">
-                    Este intento de acceso ha sido registrado.
-                </p>
             </div>
         </div>
     )

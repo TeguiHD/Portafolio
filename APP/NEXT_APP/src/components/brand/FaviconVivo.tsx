@@ -5,8 +5,8 @@ import { useEffect } from "react";
 /**
  * El icono de la pestaña, vivo.
  *
- * Dibuja la marca «n.» en un lienzo: el punto va tomando el color de la sección que se
- * está leyendo, el mismo tinte que usa el fondo. Si la pestaña deja de verse, el icono
+ * Dibuja la marca —la «n» con su partícula de acento en el hombro, como `src/app/icon.svg`— en un lienzo: en la
+ * portada, la partícula toma el color de la sección que se está leyendo. Si la pestaña deja de verse, el icono
  * se apaga y el título avisa de que aquí sigue todo; al volver, se recupera tal cual.
  *
  * Cada repintado escribe un `data:` nuevo en el `<link rel="icon">` y el navegador anota
@@ -18,23 +18,21 @@ import { useEffect } from "react";
  * Con movimiento reducido no anima: deja el icono en su color de siempre.
  */
 
-/** El mismo mapa de tintes que el fondo vivo, para que icono y página digan lo mismo. */
+/** Las secciones de la portada y su tinte. Fuera de la portada, la partícula se queda en el acento y no repinta. */
 const TINTES: Record<string, string> = {
-  hero: "#5eead4",
-  "tools-belt": "#8bd5c3",
-  vault: "#f59e0b",
-  casos: "#f5b04a",
-  tecnologias: "#a78bfa",
-  architecture: "#fb7185",
-  contact: "#f59e0b",
+  inicio: "#5eead4",
+  proyectos: "#7dd3fc",
+  herramientas: "#a78bfa",
+  blog: "#fbbf24",
+  contacto: "#5eead4",
+  firma: "#5eead4",
 };
 
-/** Fuera de la portada, el punto recorre la paleta del sitio. */
-const PALETA = ["#2dd4bf", "#a78bfa", "#f59e0b", "#60a5fa"];
+const PALETA = ["#5eead4"];
 const TITULO_AUSENTE = "Aquí te espero · nicoholas.dev";
 /** Dos pasos de color por segundo; quieto no escribe nada. */
 const PASO_MS = 500;
-const RADIO = 4.4;
+const RADIO = 2.8;
 
 interface Rgb { r: number; g: number; b: number }
 
@@ -65,23 +63,32 @@ export function FaviconVivo() {
 
     const teja = new Path2D();
     teja.roundRect(0, 0, 64, 64, 15);
-    const letra = new Path2D("M16 43.5V25.5 M16 32.5C16 25.4 21.5 22 26.8 22 32.4 22 37 26.1 37 33v10.5");
+    // La «n» sólida centrada como en icon.svg: translate(32 32) scale(1.05) translate(-26.6 -32.8).
+    const letra = new Path2D("M16 44V25.5 M16 32.5C16 25.2 21.6 21.6 26.8 21.6 32.6 21.6 37.2 25.9 37.2 33V44");
+    const fondo = (apagado: boolean) => {
+      if (apagado) return "#0a0d12";
+      const g = c.createRadialGradient(51, 9, 0, 51, 9, 64);
+      g.addColorStop(0, "#15574f"); g.addColorStop(0.5, "#0c1b20"); g.addColorStop(1, "#07080c");
+      return g;
+    };
 
     let ultima = "";
     const pintar = (color: Rgb, radio: number, apagado = false) => {
       const clave = `${color.r},${color.g},${color.b}|${radio}|${apagado}`;
       if (clave === ultima) return;
       ultima = clave;
+      c.setTransform(1, 0, 0, 1, 0, 0);
       c.clearRect(0, 0, 64, 64);
-      c.fillStyle = apagado ? "#0a0d12" : "#0B0F14";
+      c.fillStyle = fondo(apagado);
       c.fill(teja);
+      c.setTransform(1.05, 0, 0, 1.05, 32 - 26.6 * 1.05, 32 - 32.8 * 1.05);
       c.strokeStyle = apagado ? "#5b6574" : "#F5F8FA";
-      c.lineWidth = 8.5;
+      c.lineWidth = 8.6;
       c.lineCap = "round";
       c.stroke(letra);
       c.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
       c.beginPath();
-      c.arc(48.5, 43.5, radio, 0, Math.PI * 2);
+      c.arc(37.2, 25.6, radio, 0, Math.PI * 2);
       c.fill();
       enlace.href = lienzo.toDataURL("image/png");
     };
@@ -93,7 +100,6 @@ export function FaviconVivo() {
 
     let destino = PALETA[0];
     let actual = aRgb(PALETA[0]);
-    let paso = 0;
     let reloj: number | null = null;
 
     // El color sigue a la sección que cruza el centro de la pantalla, como el fondo.
@@ -115,15 +121,13 @@ export function FaviconVivo() {
     });
 
     const latir = () => {
-      paso++;
-      // Sin secciones que seguir (el resto del sitio), el punto recorre la paleta.
-      if (!observando) destino = PALETA[Math.floor(paso / 30) % PALETA.length];
       actual = acercar(actual, aRgb(destino));
       pintar(actual, RADIO);
     };
 
+    // Solo la portada tiene secciones que seguir; en el resto del sitio el ícono queda quieto (sin reloj).
     const arrancar = () => {
-      if (reloj !== null || quieto) return;
+      if (reloj !== null || quieto || !observando) return;
       reloj = window.setInterval(latir, PASO_MS);
     };
     const parar = () => {
@@ -135,7 +139,7 @@ export function FaviconVivo() {
     const cambioVisibilidad = () => {
       if (document.hidden) {
         parar();
-        pintar({ r: 100, g: 116, b: 139 }, 4.2, true);
+        pintar({ r: 100, g: 116, b: 139 }, 2.6, true);
         tituloGuardado = document.title;
         document.title = TITULO_AUSENTE;
       } else {
@@ -145,7 +149,7 @@ export function FaviconVivo() {
       }
     };
 
-    pintar(quieto ? aRgb("#2dd4bf") : actual, RADIO);
+    pintar(quieto ? aRgb(PALETA[0]) : actual, RADIO);
     arrancar();
     document.addEventListener("visibilitychange", cambioVisibilidad);
 

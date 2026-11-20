@@ -16,18 +16,33 @@ interface ResolvedLocation {
   source: "coordinates" | "city" | "ip";
 }
 
-function fetchJson<T>(url: string, revalidate: number) {
-  return pedirJson<T>(url, { revalidate, plazo: 5000 });
+// Memoria corta por URL (antes la daba la caché de fetch de Next, que guardaba en disco cada coordenada sin podar).
+const memoria = new Map<string, { hasta: number; valor: unknown }>();
+
+async function fetchJson<T>(url: string, segundos: number): Promise<T> {
+  const ahora = Date.now();
+  const guardado = memoria.get(url);
+  if (guardado && guardado.hasta > ahora) return guardado.valor as T;
+  const valor = await pedirJson<T>(url, { plazo: 5000 });
+  memoria.set(url, { hasta: ahora + segundos * 1000, valor });
+  if (memoria.size > 200) memoria.delete(memoria.keys().next().value as string);
+  return valor;
 }
+
+/** La ciudad escrita no existe (o no parece un topónimo): se responde 404 para que la cápsula lo diga. */
+class LugarNoEncontrado extends Error {}
 
 /**
  * La ciudad la escribe quien visita y viaja dentro de una URL hacia el geocodificador:
- * se acota el largo y se dejan solo letras y los signos de un topónimo.
+ * se acota el largo y se dejan solo letras y los signos de un topónimo. Antes, lo que no
+ * pasaba el filtro se cambiaba en silencio por Santiago: se pedía «Iquique 2» y se veía
+ * el tiempo de Santiago sin aviso.
  */
 function ciudadValida(valor: string | null): string {
   const limpio = (valor ?? "").trim().slice(0, MAX_CIUDAD);
   if (!limpio) return DEFAULT_CITY;
-  return /^[\p{L}\p{M}][\p{L}\p{M} '.,-]*$/u.test(limpio) ? limpio : DEFAULT_CITY;
+  if (!/^[\p{L}\p{M}][\p{L}\p{M} '.,-]*$/u.test(limpio)) throw new LugarNoEncontrado(limpio);
+  return limpio;
 }
 
 /** Coordenada dentro de su rango; cualquier otra cosa se descarta. */
@@ -63,7 +78,7 @@ async function resolveCityLocation(city: string): Promise<ResolvedLocation> {
       : undefined) || results[0];
 
   if (!fallback) {
-    throw new Error("Location not found");
+    throw new LugarNoEncontrado(city);
   }
 
   return {
@@ -87,7 +102,6 @@ async function resolveCityLocation(city: string): Promise<ResolvedLocation> {
 async function resolveLocation(searchParams: URLSearchParams): Promise<ResolvedLocation> {
   const lat = coordenadaValida(searchParams.get("lat"), 90);
   const lon = coordenadaValida(searchParams.get("lon"), 180);
-  const city = ciudadValida(searchParams.get("city"));
 
   if (lat !== null && lon !== null) {
     try {
@@ -113,12 +127,17 @@ async function resolveLocation(searchParams: URLSearchParams): Promise<ResolvedL
     }
   }
 
-  return resolveCityLocation(city);
+  return resolveCityLocation(ciudadValida(searchParams.get("city")));
 }
 
+/**
+ * «2026-11-20» (fecha local del lugar, sin hora) → «vie». Se lee en UTC: `new Date("2026-11-20")` es la medianoche UTC
+ * y, formateada con la zona del servidor (Santiago, UTC−3), caía en el día anterior: el pronóstico decía «jue» para hoy.
+ */
 function buildDayLabel(value: string) {
   return new Intl.DateTimeFormat("es-CL", {
     weekday: "short",
+    timeZone: "UTC",
   })
     .format(new Date(value))
     .replace(".", "");
@@ -199,6 +218,9 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
+    if (error instanceof LugarNoEncontrado) {
+      return NextResponse.json({ error: "No encontré esa ciudad." }, { status: 404 });
+    }
     console.error("[Pulse Context] Error:", error);
     return NextResponse.json({ error: "No fue posible cargar contexto local." }, { status: 500 });
   }

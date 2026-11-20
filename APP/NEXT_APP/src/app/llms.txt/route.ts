@@ -1,5 +1,6 @@
 import { TOOLS_SEO } from "@/lib/seo/tools-content";
 import { SITE_URL, SITE_NAME } from "@/lib/seo/metadata";
+import { casos } from "@/modules/landing/portada/datos/casos";
 
 /**
  * /llms.txt — mapa del sitio legible por modelos de lenguaje.
@@ -16,11 +17,30 @@ export function GET() {
         .map((t) => `- [${t.h1}](${SITE_URL}/herramientas/${t.slug}): ${t.description}`)
         .join("\n");
 
+    // Los proyectos salen de los mismos datos de la portada (no se agrega nada que la página no muestre).
+    const proyectos = casos
+        .map((c) => `- ${c.title} (${c.category}): ${c.description}${c.external ? ` ${c.href}` : c.href.startsWith("/herramientas") ? ` ${SITE_URL}${c.href}` : " Sistema privado."}`)
+        .join("\n");
+
     const body = `# ${SITE_NAME}
 
 > Portafolio y conjunto de ${Object.keys(TOOLS_SEO).length} herramientas web gratuitas
 > para desarrollo y diseño, en español. Sin registro. Mantenido por
 > ${SITE_NAME}, desarrollador full stack.
+
+## Qué se puede contratar
+
+Desarrollo web a medida, en Chile y a distancia:
+
+- Tiendas en línea y sitios web.
+- Sistemas internos e intranets (por ejemplo, gestión de cursos y certificados).
+- Herramientas web y automatizaciones.
+
+Contacto: contacto@nicoholas.dev o el formulario «Conversemos» en ${SITE_URL}/#contacto.
+
+## Proyectos
+
+${proyectos}
 
 ## Sobre el autor
 

@@ -1,0 +1,43 @@
+/* Sobre mí (prefijo sm-), con el lenguaje de la portada (clase viva-portada del esqueleto). */
+.sm-migas { padding-top: 96px; }
+.sm-migas nav { max-width: none; margin: 0; padding: 0; }
+#inicio.sm-cab { padding-block: 24px 40px; min-height: auto; display: block; }
+.sm-cab h1 { margin: 0; font-size: clamp(64px, 10.4vw, 150px); font-weight: 800; letter-spacing: -.065em; line-height: .9; }
+.sm-cab h1 i, .sm-contacto h2 i { color: var(--acento); font-style: normal; }
+.sm-lead { margin: 30px 0 0; max-width: 30ch; font-size: clamp(22px, 2.4vw, 32px); line-height: 1.25; letter-spacing: -.02em; color: var(--txt); }
+.sm-lead strong { font-weight: 750; }
+.sm-desc { margin: 16px 0 0; max-width: 52ch; color: var(--mut); font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; }
+.sm-cab #ancla-firma { width: min(880px, 92vw); height: clamp(110px, 16vw, 190px); margin-top: 26px; }
+
+.sm h2 { font-size: clamp(34px, 4.6vw, 62px); }
+.sm-stack { display: grid; grid-template-columns: minmax(240px, 380px) minmax(0, 1fr); align-items: center; gap: 24px clamp(30px, 6vw, 80px); margin-top: 26px; }
+.sm-stack #ancla-marca { height: min(40vh, 360px); }
+.sm-logos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 18px; }
+.sm-logos button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 6px 10px; border-radius: 14px; color: var(--txt); text-align: left; transition: background .25s; }
+.sm-logos svg { width: 26px; height: 26px; flex: none; fill: currentColor; color: var(--mut); transition: color .25s, scale .35s var(--curva); }
+.sm-logos span { font-weight: 650; font-size: 16.5px; }
+.sm-logos small { margin-left: auto; font: 500 12px var(--mono); color: var(--mut); text-align: right; } /* «Base de datos» puede partirse en dos líneas */
+.sm-logos button:hover, .sm-logos button[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 12%, transparent); }
+.sm-logos button:hover svg, .sm-logos button[aria-pressed="true"] svg { color: var(--c); scale: 1.12; }
+.sm-logos button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.sm-tambien { margin: 18px 0 0; color: var(--mut); font-size: 15px; }
+
+.sm-anios { list-style: none; margin: 30px 0 0; padding: 0; border-top: 1px solid var(--linea); }
+.sm-anios li { display: grid; grid-template-columns: minmax(110px, 200px) minmax(0, 1fr); align-items: baseline; gap: 6px 30px; padding: 22px 4px; border-bottom: 1px solid var(--linea); font-size: clamp(18px, 1.8vw, 23px); font-weight: 600; letter-spacing: -.015em; }
+.sm-anio { font: 700 clamp(30px, 4vw, 52px)/1 var(--font-inter, Inter), sans-serif; letter-spacing: -.05em; color: transparent; -webkit-text-stroke: 1.2px color-mix(in srgb, var(--acento) 70%, transparent); }
+
+.sm-proyectos { display: grid; gap: 0; margin-top: 30px; border-top: 1px solid var(--linea); }
+.sm-proyectos article { padding: 28px 4px; border-bottom: 1px solid var(--linea); }
+.sm-proyectos h3 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -.03em; }
+.sm-proyectos h3 span { font-weight: 450; color: var(--mut); }
+.sm-proyectos p { margin: 12px 0 14px; max-width: 72ch; color: var(--mut); font-size: 16px; line-height: 1.65; }
+
+#contacto.sm-contacto { padding-block: 120px 150px; }
+.sm-contacto p { max-width: 46ch; margin: 18px auto 0; color: var(--mut); font-size: 17px; }
+.sm-redes { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 14px 28px; margin-top: 30px; }
+
+@media (max-width: 820px) {
+  .sm-migas { padding-top: 84px; }
+  .sm-stack { grid-template-columns: 1fr; } .sm-stack #ancla-marca { height: 200px; }
+  .sm-anios li { grid-template-columns: 1fr; }
+}

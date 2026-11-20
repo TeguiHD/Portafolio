@@ -146,7 +146,7 @@ function aResumen(m: MonedaCG): CriptoResumen {
 async function cargarLista(): Promise<CriptoResumen[]> {
   const monedas = await pedirJson<MonedaCG[]>(
     `${COINGECKO}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=24&page=1&sparkline=true&price_change_percentage=24h`,
-    { plazo: 7000, revalidate: 60 },
+    { plazo: 7000 },
   );
   return monedas.map(aResumen);
 }
@@ -162,7 +162,7 @@ async function cargarOperaciones(simbolo: string): Promise<Operacion[]> {
   if (par.length > 14) return [];
   const crudas = await pedirJson<Array<{ price: string; qty: string; time: number; isBuyerMaker: boolean }>>(
     `${BINANCE}/trades?symbol=${par}&limit=200`,
-    { plazo: 6000, revalidate: 30 },
+    { plazo: 6000 },
   );
   return crudas
     .map((o) => ({
@@ -210,7 +210,7 @@ async function cargarVivo(simbolo: string): Promise<CriptoVivo> {
   const [ticker, operaciones] = await Promise.allSettled([
     pedirJson<{ lastPrice: string; priceChangePercent: string; highPrice: string; lowPrice: string; quoteVolume: string }>(
       `${BINANCE}/ticker/24hr?symbol=${par}`,
-      { plazo: 5000, revalidate: 5 },
+      { plazo: 5000 },
     ),
     cargarOperaciones(simbolo),
   ]);
@@ -236,7 +236,7 @@ async function cargarDetalle(id: string, rango: Rango): Promise<CriptoDetalle> {
   const [historico, lista] = await Promise.all([
     pedirJson<{ prices?: Array<[number, number]> }>(
       `${COINGECKO}/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${dias}`,
-      { plazo: 8000, revalidate: 60 },
+      { plazo: 8000 },
     ),
     cacheLista.leer(cargarLista).then((r) => r.valor).catch(() => [] as CriptoResumen[]),
   ]);
@@ -285,7 +285,8 @@ export async function GET(peticion: Request) {
       const { valor } = await vivoCache(moneda.simbolo).leer(() => cargarVivo(moneda.simbolo));
       return NextResponse.json(valor, { headers: { "Cache-Control": "public, max-age=5" } });
     }
-    const rango: Rango = rangoCrudo in RANGOS ? (rangoCrudo as Rango) : "7";
+    // `in` aceptaba también «toString» o «constructor» (heredadas): se pedía «days=undefined» y se abría una caché por cada una.
+    const rango: Rango = Object.hasOwn(RANGOS, rangoCrudo) ? (rangoCrudo as Rango) : "7";
     const { valor, rancio } = await detalleCache(`${id}-${rango}`).leer(() => cargarDetalle(id, rango));
     return NextResponse.json({ ...valor, rancio }, { headers: { "Cache-Control": "public, max-age=30" } });
   } catch {

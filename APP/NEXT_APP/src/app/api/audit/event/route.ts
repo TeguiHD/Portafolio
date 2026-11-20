@@ -1,66 +1,80 @@
+import { hashEmail } from "@/lib/security.server";
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { auth } from "@/lib/auth";
-import { createAuditLog, AuditActions, AuditCategory } from "@/lib/audit";
+import { createAuditLog, AuditActions } from "@/lib/audit";
+import { checkRateLimit } from "@/lib/redis";
 
-const PUBLIC_ALLOWED_ACTIONS = new Set<string>([AuditActions.LOGIN_FAILED]);
-const MAX_METADATA_SIZE = 2_000;
+/**
+ * Lista cerrada de lo que el navegador puede anotar en la auditoría (todo en la categoría «auth»):
+ * sin sesión solo el intento fallido; con sesión, la entrada y la salida. El resto de acciones las registra
+ * el servidor donde ocurren: un usuario no puede escribir «permiso concedido» o «usuario borrado» a mano.
+ */
+const SIN_SESION = new Set<string>([AuditActions.LOGIN_FAILED]);
+const CON_SESION = new Set<string>([AuditActions.LOGIN_SUCCESS, AuditActions.LOGOUT]);
+
+// Límites por ventana: de sobra para uso real, cortos para inundar la tabla.
+const LIMITE_IP = { veces: 20, segundos: 300 };
+const LIMITE_USUARIO = { veces: 10, segundos: 60 };
+
+/**
+ * Solo campos conocidos y cortos. Del intento fallido se guarda la huella del correo (la misma con que se buscan los
+ * usuarios), no el correo: alcanza para ver si apuntan a una cuenta real sin dejar direcciones en texto plano.
+ */
+function metadatosSeguros(action: string, metadata: unknown): Record<string, string> {
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
+    const m = metadata as Record<string, unknown>;
+    const salida: Record<string, string> = {};
+    if (action === AuditActions.LOGIN_FAILED) {
+        if (typeof m.email === "string" && m.email.trim()) salida.emailHash = hashEmail(m.email.trim().toLowerCase().slice(0, 254));
+        if (typeof m.reason === "string") salida.reason = m.reason.slice(0, 100);
+    }
+    return salida;
+}
 
 /**
  * POST /api/audit/event
- * Records an audit event from the client side
- * Used for login/logout events that can't be logged server-side in Edge runtime
+ * Registra un evento de acceso desde el navegador (la pantalla de acceso no puede hacerlo en el servidor).
  */
 export async function POST(request: NextRequest) {
     try {
         const session = await auth();
-        const body = await request.json();
-        const { action, category, metadata } = body;
+        const body: unknown = await request.json().catch(() => null);
+        const { action, category, metadata } = (body && typeof body === "object" ? body : {}) as {
+            action?: unknown; category?: unknown; metadata?: unknown;
+        };
 
-        // Validate action
-        const validActions = Object.values(AuditActions);
-        if (!validActions.includes(action)) {
-            return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        if (typeof action !== "string" || (category !== undefined && category !== "auth")) {
+            return NextResponse.json({ error: "Acción no permitida" }, { status: 400 });
+        }
+        const userId = session?.user?.id ?? null;
+        const permitidas = userId ? CON_SESION : SIN_SESION;
+        if (!permitidas.has(action)) {
+            return NextResponse.json({ error: "Acción no permitida" }, { status: userId ? 403 : 401 });
         }
 
-        // Validate category
-        const validCategories: AuditCategory[] = ["auth", "users", "security", "tools", "quotations", "system"];
-        if (!validCategories.includes(category)) {
-            return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+        const ipAddress = ipCliente(request.headers);
+        const limite = userId ? LIMITE_USUARIO : LIMITE_IP;
+        const cuota = await checkRateLimit(`audit-event:${userId ?? `ip:${ipAddress}`}`, limite.veces, limite.segundos);
+        if (!cuota.allowed) {
+            return NextResponse.json(
+                { error: "Demasiados eventos; espera un momento" },
+                { status: 429, headers: { "Retry-After": String(cuota.resetIn) } },
+            );
         }
-
-        // Security: prevent unauthenticated forging of privileged audit events
-        if (!session?.user?.id) {
-            if (category !== "auth" || !PUBLIC_ALLOWED_ACTIONS.has(action)) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
-        }
-
-        // Guard against oversized metadata payloads (log flooding / storage abuse)
-        if (metadata !== undefined) {
-            const metadataSize = JSON.stringify(metadata).length;
-            if (metadataSize > MAX_METADATA_SIZE) {
-                return NextResponse.json({ error: "Metadata too large" }, { status: 400 });
-            }
-        }
-
-        // Get client info
-        const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0] ||
-            request.headers.get("x-real-ip") ||
-            "unknown";
-        const userAgent = request.headers.get("user-agent") || undefined;
 
         await createAuditLog({
             action,
-            category,
-            userId: session?.user?.id || null,
-            metadata: (metadata && typeof metadata === "object") ? metadata : {},
+            category: "auth",
+            userId,
+            metadata: metadatosSeguros(action, metadata),
             ipAddress,
-            userAgent,
+            userAgent: request.headers.get("user-agent")?.slice(0, 500) || undefined,
         });
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Audit Event API] Error:", error);
-        return NextResponse.json({ error: "Failed to log event" }, { status: 500 });
+        return NextResponse.json({ error: "No se pudo registrar el evento" }, { status: 500 });
     }
 }

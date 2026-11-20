@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { Campo, Esperando } from "@/modules/portal/PaginaAcceso";
 
 const MINIMO = 8;
 
-/** Cuánto aguanta la clave, dicho en palabras y no en una barra de colores sin sentido. */
-function fuerza(clave: string): { texto: string; tono: string; ancho: number } {
+/** Cuánto aguanta la clave, dicho en palabras (la barra acompaña; el color nunca va solo). */
+function fuerza(clave: string): { texto: string; color: string; ancho: number } {
     let puntos = 0;
     if (clave.length >= MINIMO) puntos += 1;
     if (clave.length >= 14) puntos += 1;
@@ -14,12 +16,12 @@ function fuerza(clave: string): { texto: string; tono: string; ancho: number } {
     if (/\d/.test(clave)) puntos += 1;
     if (/[^\w\s]/.test(clave)) puntos += 1;
     if (clave.length >= 20) puntos += 1;
-    if (puntos <= 2) return { texto: "débil", tono: "text-red-400", ancho: 33 };
-    if (puntos <= 4) return { texto: "razonable", tono: "text-amber-400", ancho: 66 };
-    return { texto: "fuerte", tono: "text-emerald-400", ancho: 100 };
+    if (puntos <= 2) return { texto: "débil", color: "var(--error)", ancho: 33 };
+    if (puntos <= 4) return { texto: "razonable", color: "#d97706", ancho: 66 };
+    return { texto: "fuerte", color: "var(--sube)", ancho: 100 };
 }
 
-export function FormularioCambioClave({ obligatorio }: { obligatorio: boolean }) {
+export function FormularioCambioClave({ obligatorio, usuarioCorreo }: { obligatorio: boolean; usuarioCorreo: string }) {
     const router = useRouter();
     const [actual, setActual] = useState("");
     const [nueva, setNueva] = useState("");
@@ -30,7 +32,15 @@ export function FormularioCambioClave({ obligatorio }: { obligatorio: boolean })
 
     const medida = fuerza(nueva);
     const coincide = nueva.length > 0 && nueva === repetir;
-    const puede = actual.length > 0 && nueva.length >= MINIMO && coincide && !enviando;
+    // Las mismas reglas que revisa el servidor, dichas antes de enviar: cada envío rechazado gasta uno de los cinco intentos.
+    const problema = nueva.length > 0 && actual.length > 0 && nueva === actual
+        ? "La nueva clave no puede ser la misma que la actual."
+        : usuarioCorreo.length > 3 && nueva.toLowerCase().includes(usuarioCorreo)
+            ? "La clave no puede contener tu correo."
+            : null;
+    const puede = actual.length > 0 && nueva.length >= MINIMO && coincide && !problema && !enviando;
+    // «No son iguales» recién cuando ya se escribió lo suficiente: antes aparecía con la primera letra.
+    const noCoincide = repetir.length > 0 && !coincide && (repetir.length >= nueva.length || !nueva.startsWith(repetir));
 
     async function enviar(e: React.FormEvent) {
         e.preventDefault();
@@ -57,95 +67,35 @@ export function FormularioCambioClave({ obligatorio }: { obligatorio: boolean })
         }
     }
 
-    if (listo) {
-        return (
-            <p className="mt-8 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
-                Clave cambiada. Entrando al panel…
-            </p>
-        );
-    }
+    if (listo) return <p className="pa-hecho" role="status">Clave cambiada. Entrando al panel…</p>;
 
     return (
-        <form onSubmit={enviar} className="mt-8 space-y-5">
-            <div>
-                <label htmlFor="actual" className="block text-sm font-medium text-neutral-300">
-                    {obligatorio ? "Clave temporal" : "Clave actual"}
-                </label>
-                <input
-                    id="actual"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={actual}
-                    onChange={(e) => setActual(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-neutral-100 outline-none transition focus:border-accent-1/60 focus:ring-2 focus:ring-accent-1/20"
-                />
-            </div>
-
-            <div>
-                <label htmlFor="nueva" className="block text-sm font-medium text-neutral-300">
-                    Clave nueva
-                </label>
-                <input
-                    id="nueva"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={MINIMO}
-                    required
-                    value={nueva}
-                    onChange={(e) => setNueva(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-neutral-100 outline-none transition focus:border-accent-1/60 focus:ring-2 focus:ring-accent-1/20"
-                />
-                <div className="mt-2 flex items-center gap-3">
-                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-                        <div
-                            className={`h-full rounded-full transition-all duration-300 ${medida.ancho === 100 ? "bg-emerald-400" : medida.ancho === 66 ? "bg-amber-400" : "bg-red-400"
-                                }`}
-                            style={{ width: `${nueva ? medida.ancho : 0}%` }}
-                        />
+        <>
+            <form onSubmit={enviar} className="pa-form">
+                <Campo etiqueta={obligatorio ? "Clave temporal" : "Clave actual"} name="actual" clave valor={actual} alCambiar={setActual} autoComplete="current-password" required autoFocus />
+                <div>
+                    <Campo etiqueta="Clave nueva" name="nueva" clave valor={nueva} alCambiar={setNueva} autoComplete="new-password" minLength={MINIMO} required />
+                    <div className="pa-fuerza" style={{ "--w": `${nueva ? medida.ancho : 0}%`, "--c": nueva ? medida.color : undefined } as CSSProperties}>
+                        <span aria-hidden="true"><i /></span>
+                        {nueva ? <b>{medida.texto}</b> : <small>mínimo {MINIMO} caracteres</small>}
                     </div>
-                    <span className={`text-xs ${nueva ? medida.tono : "text-neutral-500"}`}>
-                        {nueva ? medida.texto : `mínimo ${MINIMO} caracteres`}
-                    </span>
+                    {problema ? <p className="pa-error" style={{ marginTop: 10 }}>{problema}</p> : null}
                 </div>
+                <div>
+                    <Campo etiqueta="Repite la clave nueva" name="repetir" clave valor={repetir} alCambiar={setRepetir} autoComplete="new-password" required />
+                    {noCoincide ? <p className="pa-error" style={{ marginTop: 10 }}>Las dos claves no son iguales.</p> : null}
+                </div>
+                {error ? <p role="alert" className="pa-error">{error}</p> : null}
+                <button type="submit" className="boton lleno" disabled={!puede} aria-busy={enviando}>
+                    {enviando ? <>Cambiando <Esperando /></> : "Cambiar clave"}
+                </button>
+            </form>
+            <div className="pa-pie">
+                <p>Con {MINIMO} caracteres cumple, pero tres palabras sin relación entre sí aguantan mucho más que una palabra con números al final, y se recuerdan mejor.</p>
+                {/* Con la clave temporal no hay otra salida que cambiarla: en un equipo prestado, cerrar la pestaña dejaba
+                    la sesión abierta. */}
+                {obligatorio ? <button type="button" className="pa-alterno" onClick={() => void signOut({ callbackUrl: "/acceso" })}>Salir sin cambiarla</button> : null}
             </div>
-
-            <div>
-                <label htmlFor="repetir" className="block text-sm font-medium text-neutral-300">
-                    Repite la clave nueva
-                </label>
-                <input
-                    id="repetir"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={repetir}
-                    onChange={(e) => setRepetir(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-neutral-100 outline-none transition focus:border-accent-1/60 focus:ring-2 focus:ring-accent-1/20"
-                />
-                {repetir.length > 0 && !coincide && (
-                    <p className="mt-2 text-xs text-red-400">Las dos claves no son iguales.</p>
-                )}
-            </div>
-
-            {error && (
-                <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-                    {error}
-                </p>
-            )}
-
-            <button
-                type="submit"
-                disabled={!puede}
-                className="w-full rounded-xl bg-accent-1 px-4 py-2.5 font-medium text-neutral-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-                {enviando ? "Cambiando…" : "Cambiar clave"}
-            </button>
-
-            <p className="text-xs leading-relaxed text-neutral-500">
-                Con {MINIMO} caracteres cumple, pero tres palabras sin relación entre sí
-                aguantan mucho más que una palabra con números al final, y se recuerdan mejor.
-            </p>
-        </form>
+        </>
     );
 }

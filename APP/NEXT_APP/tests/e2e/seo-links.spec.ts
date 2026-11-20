@@ -11,7 +11,7 @@ test.describe("Enlaces y 404", () => {
         // caso en que la página no tenía ningún <main> real.
         const links = page.locator("main a");
         expect(await links.count()).toBeGreaterThanOrEqual(4);
-        await expect(page.locator('a[href="/herramientas"]')).toBeVisible();
+        await expect(page.locator('main a[href="/herramientas"]')).toBeVisible();
 
         // Las herramientas curadas del propio 404 deben ser enlaces vivos:
         // esta es la comprobación cuya ausencia permitió que los slugs

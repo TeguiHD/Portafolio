@@ -14,6 +14,7 @@ type Figura = "sol" | "luna" | "sol-nube" | "luna-nube" | "nube" | "niebla" | "l
 /** Código WMO → figura. Los tramos son los de Open-Meteo. */
 export function figuraDelCielo(codigo: number, dia = true): Figura {
   if (codigo >= 95) return "tormenta";
+  if (codigo === 85 || codigo === 86) return "nieve"; // chubascos de nieve
   if (codigo >= 80) return "chubasco";
   if (codigo >= 71 && codigo <= 77) return "nieve";
   if (codigo >= 61) return "lluvia";

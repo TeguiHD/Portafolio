@@ -1,96 +1,75 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Navbar } from "@/modules/landing/layout/Navbar";
-import { FooterSection } from "@/modules/landing/sections/FooterSection";
+import { Esqueleto } from "@/modules/esqueleto/Esqueleto";
+import { CabeceraBlog } from "@/modules/landing/viva/Blog";
 import { Capsula } from "@/modules/pulse/blog/Capsula";
-import { Noticias } from "@/modules/pulse/blog/Noticias";
-import {
-  EsqueletoNoticias,
-  EsqueletoPanel,
-  PanelGitHub,
-  PanelMercado,
-  PanelRadar,
-} from "@/modules/pulse/blog/Paneles";
+import { EnGitHub } from "@/modules/pulse/blog/EnGitHub";
+import { Indice } from "@/modules/pulse/blog/Indice";
+import { Mercado } from "@/modules/pulse/blog/Mercado";
+import { Radar } from "@/modules/pulse/blog/Radar";
 import { PulseNotificationToggle } from "@/modules/pulse/components/PulseNotificationToggle";
 import { getPulseNewsCached } from "@/modules/pulse/lib/news-service";
 import "@/modules/pulse/blog/blog.css";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { blogSchema, breadcrumbSchema } from "@/lib/seo/schemas";
+import "@/modules/pulse/blog/pagina.css";
 
 export const metadata: Metadata = {
-  title: "Blog",
-  description:
-    "Pulso digital: noticias de seguridad, IA y desarrollo reunidas de fuentes oficiales, con el mercado y la actividad técnica del día.",
+  title: "Blog de seguridad, IA y desarrollo",
+  description: "Titulares de seguridad, inteligencia artificial y desarrollo de fuentes oficiales, actualizados cada día, con UF, dólar y cripto, y lo que estoy construyendo.",
   alternates: { canonical: "/blog" },
   openGraph: {
     type: "website",
     url: "/blog",
-    title: "Pulso digital — noticias, seguridad y mercado",
-    description:
-      "Noticias de seguridad, IA y desarrollo reunidas de fuentes oficiales, con el mercado y la actividad técnica del día.",
+    title: "Blog de seguridad, IA y desarrollo",
+    description: "Titulares de seguridad, inteligencia artificial y desarrollo de fuentes oficiales, actualizados cada día, con UF, dólar y cripto, y lo que estoy construyendo.",
+    // Al definir openGraph propio se pierde la imagen general: se declara de nuevo.
+    images: ["/opengraph-image"],
   },
 };
 
 /**
- * Las noticias se pintan en el servidor y llegan dentro del HTML: antes la página
- * salía vacía y todo empezaba después de hidratar, así que quien llegaba (o un
- * buscador) veía un titular y dos frases. El `Suspense` deja que la cabecera se pinte
- * mientras la tanda de fuentes termina.
+ * Los titulares se pintan en el servidor y llegan dentro del HTML: quien llega sin JavaScript (o un buscador) los lee
+ * igual. El `Suspense` deja que la cabecera se pinte mientras la tanda de fuentes termina.
  */
-async function SeccionNoticias() {
+async function SeccionIndice() {
   try {
     const { valor: items } = await getPulseNewsCached();
-    return <Noticias inicial={items} />;
+    return <Indice inicial={items} />;
   } catch {
     return (
-      <p className="pulso-fallo">
-        Las fuentes no responden ahora mismo. Vuelve a cargar en un par de minutos.
-      </p>
+      <section id="indice" className="plano" aria-label="Titulares">
+        <div className="ancho"><p className="bp-vacio">Las fuentes no responden ahora mismo. Vuelve a cargar en un par de minutos.</p></div>
+      </section>
     );
   }
 }
 
+/** /blog: el tambor como cabecera; debajo, todo lo de hoy, en lo que trabajo y el radar. */
 export default function BlogPage() {
   return (
-    <div className="pulso">
-      <Navbar />
-      <main id="main-content" className="pulso-wrap">
-        <header className="pulso-cab">
-          <div>
-            <p className="pulso-cejilla">Pulso digital</p>
-            <h1>
-              Noticias, seguridad y <span className="t">mercado en vivo</span>
-            </h1>
-            <p className="pulso-lede">
-              Lo que publican CISA, NIST, OWASP, el CVE Program, los blogs de producto y la comunidad, reunido y
-              ordenado en un solo sitio. Junto al mercado del día y la actividad técnica reciente.
-            </p>
-          </div>
-          <div className="pulso-cab-acciones">
+    // `portada` activa el lenguaje de secciones de la portada (títulos que suben, número fantasma, planos): el blog lo comparte.
+    <Esqueleto portada>
+      <main id="main-content" className="bp">
+        <JsonLd schema={[blogSchema(), breadcrumbSchema([{ name: "Inicio", path: "" }, { name: "Blog", path: "/blog" }])]} />
+        <CabeceraBlog
+          acciones={<>
             <Capsula />
             <PulseNotificationToggle />
-          </div>
-        </header>
-
-        <div className="pulso-cuerpo">
-          <div>
-            <Suspense fallback={<EsqueletoNoticias />}>
-              <SeccionNoticias />
-            </Suspense>
-          </div>
-
-          <aside className="pulso-lado" aria-label="Señales del día">
-            <Suspense fallback={<EsqueletoPanel titulo="Mercado" />}>
-              <PanelMercado />
-            </Suspense>
-            <Suspense fallback={<EsqueletoPanel titulo="GitHub" />}>
-              <PanelGitHub />
-            </Suspense>
-            <Suspense fallback={<EsqueletoPanel titulo="Radar" filas={2} />}>
-              <PanelRadar />
-            </Suspense>
-          </aside>
-        </div>
+            <a className="enlace-ir" href="#indice">Todo lo de hoy ↓</a>
+          </>}
+          extra={<Mercado />}
+        />
+        {/* Sin Suspense: los titulares van en el HTML inicial y se ven también sin JavaScript (la cabecera ya
+            espera las mismas noticias, así que no se pierde tiempo). */}
+        <SeccionIndice />
+        <Suspense fallback={null}>
+          <EnGitHub />
+        </Suspense>
+        <Suspense fallback={null}>
+          <Radar />
+        </Suspense>
       </main>
-      <FooterSection />
-    </div>
+    </Esqueleto>
   );
 }

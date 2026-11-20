@@ -4,9 +4,8 @@ import { crearCache, pedirJson } from "@/modules/pulse/lib/red";
 
 const GITHUB_API = "https://api.github.com";
 
-function fetchJson<T>(url: string, revalidate: number) {
+function fetchJson<T>(url: string) {
   return pedirJson<T>(url, {
-    revalidate,
     plazo: 5000,
     cabeceras: { Accept: "application/vnd.github+json" },
   });
@@ -23,7 +22,7 @@ export async function getPulseDevActivity(): Promise<PulseDevActivityData> {
       html_url: string;
       followers: number;
       public_repos: number;
-    }>(`${GITHUB_API}/users/${PULSE_GITHUB_USERNAME}`, 900),
+    }>(`${GITHUB_API}/users/${PULSE_GITHUB_USERNAME}`),
     fetchJson<Array<{
       id: number;
       name: string;
@@ -35,14 +34,14 @@ export async function getPulseDevActivity(): Promise<PulseDevActivityData> {
       forks_count: number;
       updated_at: string;
       fork: boolean;
-    }>>(`${GITHUB_API}/users/${PULSE_GITHUB_USERNAME}/repos?sort=updated&per_page=8`, 900),
+    }>>(`${GITHUB_API}/users/${PULSE_GITHUB_USERNAME}/repos?sort=updated&per_page=8`),
     fetchJson<Array<{
       id: string;
       type: string;
       repo: { name: string };
       payload?: { commits?: Array<unknown>; ref_type?: string; action?: string };
       created_at: string;
-    }>>(`${GITHUB_API}/users/${PULSE_GITHUB_USERNAME}/events/public?per_page=8`, 300),
+    }>>(`${GITHUB_API}/users/${PULSE_GITHUB_USERNAME}/events/public?per_page=8`),
   ]);
 
   if (perfilRes.status === "rejected" && reposRes.status === "rejected" && eventosRes.status === "rejected") {
@@ -61,7 +60,8 @@ export async function getPulseDevActivity(): Promise<PulseDevActivityData> {
       fullName: repo.full_name,
       description: repo.description ?? "Repositorio actualizado recientemente.",
       url: repo.html_url,
-      language: repo.language ?? "Texto plano",
+      // Sin lenguaje detectado GitHub manda null: no es «texto plano» (así salía en «En lo que trabajo»); la sección dice «Código».
+      language: repo.language ?? "",
       stars: repo.stargazers_count,
       forks: repo.forks_count,
       updatedAt: repo.updated_at,
@@ -77,6 +77,7 @@ export async function getPulseDevActivity(): Promise<PulseDevActivityData> {
   })) satisfies PulseGitHubEvent[];
 
   const languageCounts = featuredRepos.reduce<Record<string, number>>((accumulator, repo) => {
+    if (!repo.language) return accumulator;
     accumulator[repo.language] = (accumulator[repo.language] ?? 0) + 1;
     return accumulator;
   }, {});

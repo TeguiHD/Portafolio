@@ -1,0 +1,66 @@
+/* El formulario de contacto: un <dialog> modal que sube desde abajo. En celular ocupa el ancho, como una hoja. */
+.ct-dialogo { margin: auto; padding: 0; width: min(560px, 100% - 32px); max-height: calc(100svh - 32px); overflow: auto; overscroll-behavior: contain;
+  border: 1px solid var(--linea-2); border-radius: 28px; color: var(--txt); text-align: left;
+  background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--acento) 13%, transparent), transparent 62%), var(--fondo-2);
+  opacity: 0; translate: 0 28px;
+  transition: opacity .3s, translate .4s var(--curva), overlay .4s allow-discrete, display .4s allow-discrete; }
+.ct-dialogo[open] { opacity: 1; translate: 0 0; }
+@starting-style { .ct-dialogo[open] { opacity: 0; translate: 0 28px; } }
+/* El fondo se oscurece sin desenfocar: detrás sigue moviéndose la materia. overflow + overscroll evitan que la página se desplace debajo. */
+.ct-dialogo::backdrop { background: rgb(4 6 10 / 0); overflow: hidden; overscroll-behavior: contain;
+  transition: background .4s, overlay .4s allow-discrete, display .4s allow-discrete; }
+.ct-dialogo[open]::backdrop { background: rgb(4 6 10 / .74); }
+@starting-style { .ct-dialogo[open]::backdrop { background: rgb(4 6 10 / 0); } }
+:root[data-tema="claro"] .ct-dialogo { background: radial-gradient(120% 70% at 100% 0%, rgb(13 148 136 / .14), transparent 62%), #fff; box-shadow: 0 40px 90px -40px rgb(13 40 60 / .55); }
+:root[data-tema="claro"] .ct-dialogo[open]::backdrop { background: rgb(13 30 44 / .5); }
+
+.ct-form { display: grid; gap: 22px; padding: 30px 32px 28px; }
+.ct-form header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ct-form h3 { font-size: clamp(30px, 4.4vw, 42px); line-height: 1; letter-spacing: -.04em; font-weight: 800; }
+.ct-cerrar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: var(--mut); border: 1px solid var(--linea-2); cursor: pointer; transition: color .25s, border-color .25s, rotate .4s var(--curva); }
+.ct-cerrar:hover { color: var(--txt); border-color: var(--acento); rotate: 90deg; }
+
+.ct-campo { display: grid; gap: 4px; }
+.ct-campo label { font-size: 15px; font-weight: 600; color: var(--mut); transition: color .25s; }
+.ct-campo label small { font-weight: 400; font-size: 13.5px; opacity: .8; margin-left: 6px; }
+.ct-campo:focus-within label { color: var(--acento); }
+/* Campos de una sola línea: sin caja, con un subrayado que se llena de izquierda a derecha al enfocar. */
+.ct-campo input, .ct-campo textarea { width: 100%; padding: 8px 0 10px; border: 0; border-radius: 0; outline: 0; color: var(--txt); font: inherit; font-size: 18px; resize: none; field-sizing: content; max-height: 34svh;
+  background: linear-gradient(var(--acento), var(--acento)) left bottom / 0% 2px no-repeat, linear-gradient(var(--linea-2), var(--linea-2)) left bottom / 100% 1px no-repeat;
+  transition: background-size .45s var(--curva); }
+.ct-campo textarea { min-height: 4lh; }
+.ct-campo input:focus-visible, .ct-campo textarea:focus-visible { background-size: 100% 2px, 100% 1px; }
+.ct-campo :is(input, textarea):user-invalid { background-image: linear-gradient(var(--error), var(--error)), linear-gradient(var(--error), var(--error)); background-size: 100% 2px, 100% 1px; }
+.ct-campo :is(input, textarea):autofill { -webkit-text-fill-color: var(--txt); transition: background-color 9999s; }
+/* El error no depende solo del color: lleva su signo. */
+.ct-error { display: none; align-items: center; gap: 8px; margin-top: 6px; font-size: 14.5px; color: var(--error); }
+.ct-error::before { content: "!"; flex: none; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--font-inter, Inter), sans-serif; color: var(--fondo-2); background: var(--error); }
+.ct-campo :is(input, textarea):user-invalid ~ .ct-error { display: flex; }
+/* Cuánto queda del mensaje: aparece cerca del tope (maxLength corta en silencio lo que se pega de más). */
+.ct-cuenta { margin-top: 6px; font: 500 13.5px var(--mono); color: var(--mut); text-align: right; }
+.ct-cuenta[data-tope] { font: 14.5px var(--font-inter, Inter), sans-serif; color: var(--error); text-align: left; }
+.ct-fallo { font-size: 15.5px; color: var(--error); }
+.ct-fallo:empty { display: none; }
+
+.ct-form footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 20px; margin-top: 4px; }
+.ct-form footer a { font: 500 14.5px var(--mono); color: var(--mut); text-decoration: none; border-bottom: 1px solid var(--linea-2); padding-bottom: 3px; transition: color .25s, border-color .25s; }
+.ct-form footer a:hover { color: var(--txt); border-color: var(--acento); }
+.ct-form .boton[data-enviando] { cursor: progress; opacity: .75; }
+.ct-form .boton[data-enviando] svg { animation: ct-vuela 1s var(--curva) infinite; }
+@keyframes ct-vuela { 0% { translate: -4px 4px; opacity: 0; } 40% { opacity: 1; } 100% { translate: 6px -6px; opacity: 0; } }
+.ct-cerrar:focus-visible, .ct-form footer a:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+/* Trampa para bots: fuera de la vista y del teclado. */
+.ct-trampa { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .ct-dialogo { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 26px 26px 0 0; border-inline: 0; border-bottom: 0; max-height: 92svh; translate: 0 60px; }
+  @starting-style { .ct-dialogo[open] { translate: 0 60px; } }
+  .ct-form { padding: 26px 22px calc(22px + env(safe-area-inset-bottom)); gap: 20px; }
+  .ct-form footer { flex-direction: column-reverse; align-items: stretch; text-align: center; }
+  .ct-form footer a { border: 0; }
+  .ct-form .boton { justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ct-dialogo, .ct-dialogo::backdrop, .ct-campo input, .ct-campo textarea { transition: none; }
+  .ct-form .boton[data-enviando] svg { animation: none; }
+}

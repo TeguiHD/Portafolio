@@ -1,0 +1,159 @@
+/* Portal de clientes y acceso (prefijos pa-, po- y pv-). Tokens del tema: valen en claro y oscuro. */
+
+/* ---- Puertas: ingreso, código, panel, cambio de clave ---- */
+.pa { padding-top: 120px; }
+.pa-escena { display: block; padding-bottom: 110px; min-height: 72svh; }
+.pa-rejilla { display: grid; grid-template-columns: minmax(0, 520px) minmax(200px, 1fr); align-items: center; gap: 30px 70px; }
+.pa-sello { margin: 0 0 14px; font: 600 14px var(--mono); color: var(--acento); }
+.pa h1 { margin: 0; font-size: clamp(40px, 5.8vw, 80px); font-weight: 800; letter-spacing: -.055em; line-height: .98; color: var(--txt); overflow-wrap: anywhere; }
+.pa h1[data-largo] { font-size: clamp(32px, 4.2vw, 56px); letter-spacing: -.045em; line-height: 1.05; text-wrap: balance; }
+.pa-texto { margin: 18px 0 0; max-width: 44ch; color: var(--mut); font-size: clamp(16px, 1.5vw, 18.5px); line-height: 1.55; }
+.pa-texto p { margin: 0; }
+.pa-texto p + p { margin-top: 8px; }
+.pa-texto strong { color: var(--txt); font-weight: 600; }
+.pa-escena #ancla-texto { height: clamp(140px, 19vw, 230px); }
+
+.pa-form { display: grid; gap: 24px; margin-top: 38px; max-width: 440px; }
+.pa-campo { display: grid; gap: 4px; }
+.pa-campo label { font-size: 15px; font-weight: 600; color: var(--mut); transition: color .25s; }
+.pa-campo:focus-within label { color: var(--acento); }
+.pa-linea { position: relative; display: flex; align-items: center;
+  background: linear-gradient(var(--acento), var(--acento)) left bottom / 0% 2px no-repeat, linear-gradient(var(--linea-2), var(--linea-2)) left bottom / 100% 1px no-repeat;
+  transition: background-size .45s var(--curva); }
+.pa-campo:focus-within .pa-linea { background-size: 100% 2px, 100% 1px; }
+.pa-linea input { flex: 1; min-width: 0; padding: 8px 0 10px; border: 0; border-radius: 0; outline: 0; background: none; color: var(--txt); font: inherit; font-size: 18px; }
+.pa-linea input:autofill { -webkit-text-fill-color: var(--txt); transition: background-color 9999s; }
+.pa-linea input[data-codigo] { font-family: var(--mono); letter-spacing: .12em; }
+.pa-ver { flex: none; display: grid; place-items: center; width: 40px; height: 40px; margin-right: -8px; border: 0; border-radius: 50%; background: none; color: var(--mut); cursor: pointer; transition: color .2s, background .2s; }
+.pa-ver:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 7%, transparent); }
+.pa-ver:focus-visible, .pa-alterno:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.pa-error { display: flex; align-items: flex-start; gap: 9px; margin: 0; font-size: 15px; line-height: 1.45; color: var(--error); }
+.pa-error::before { content: "!"; flex: none; margin-top: 1px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--font-inter, Inter), sans-serif; color: var(--fondo-2); background: var(--error); }
+.pa-form .boton { justify-content: center; }
+.pa-form .boton:disabled { opacity: .45; cursor: not-allowed; translate: none; }
+.pa-form .boton[aria-busy="true"] { cursor: progress; }
+.pa-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; margin-top: 30px; font-size: 15px; color: var(--mut); }
+.pa-pie p { margin: 0; max-width: 46ch; line-height: 1.5; }
+.pa-pie a, .pa-alterno { color: var(--txt); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--linea-2); padding-bottom: 2px; transition: border-color .25s; background: none; border-top: 0; border-inline: 0; font-size: inherit; cursor: pointer; }
+.pa-pie a:hover, .pa-alterno:hover { border-bottom-color: var(--acento); }
+.pa-alterno { justify-self: start; font-weight: 500; color: var(--mut); padding-inline: 0; }
+.pa-hecho { margin: 34px 0 0; font-size: 18px; color: var(--sube); }
+
+/* Fuerza de la clave nueva: palabra + barra; el color nunca va solo. */
+.pa-fuerza { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 13.5px; color: var(--mut); }
+.pa-fuerza span { flex: 1; height: 3px; border-radius: 3px; background: var(--linea-2); overflow: hidden; }
+.pa-fuerza span i { display: block; height: 100%; width: var(--w, 0%); border-radius: inherit; background: var(--c, var(--mut)); transition: width .3s var(--curva), background .3s; }
+.pa-fuerza b { font-weight: 600; color: var(--c, var(--mut)); }
+
+/* Esperando al servidor: tres puntos. */
+.pa-espera { display: inline-flex; gap: 4px; }
+.pa-espera i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pa-salta 1s infinite ease-in-out; }
+.pa-espera i:nth-child(2) { animation-delay: .15s; }
+.pa-espera i:nth-child(3) { animation-delay: .3s; }
+@keyframes pa-salta { 0%, 80%, 100% { opacity: .3; translate: 0 0; } 40% { opacity: 1; translate: 0 -3px; } }
+
+/* El admin viendo como el cliente: una línea fija, no una caja. */
+.pa-vista { position: fixed; inset: auto 0 0; z-index: 90; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 16px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); font-size: 14.5px;
+  color: #3b2a04; background: #fbbf24; }
+.pa-vista button { border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* ---- Mis documentos ---- */
+.po-salir { margin-top: 26px; }
+.po-lista { margin-top: 56px; }
+.po-lista h2 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--mut); }
+.po-lista h2 small { font: 500 13px var(--mono); margin-left: 4px; }
+.po-lista ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--linea); }
+.po-fila a { display: grid; grid-template-columns: 108px minmax(0, 1fr) auto; align-items: center; gap: 6px 28px; padding: 22px 4px; border-bottom: 1px solid var(--linea); color: inherit; text-decoration: none; transition: background .25s; }
+.po-folio { font: 500 14px var(--mono); color: var(--mut); }
+.po-nombre { display: block; font-size: clamp(19px, 2vw, 24px); font-weight: 700; letter-spacing: -.02em; color: var(--txt); }
+.po-fecha { display: block; margin-top: 3px; font-size: 14.5px; color: var(--mut); }
+.po-estado { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 14.5px; color: var(--c, var(--mut)); }
+.po-estado::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.po-estado[data-tono="firmada"] { --c: var(--sube); }
+.po-estado[data-tono="cambio"] { --c: #f59e0b; }
+.po-estado[data-tono="pendiente"] { --c: var(--acento); }
+:root[data-tema="claro"] .po-estado[data-tono="cambio"] { --c: #b45309; }
+.po-ir { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--txt); white-space: nowrap; }
+.po-ir svg { transition: translate .25s var(--curva); }
+.po-fila a:focus-visible { outline: 2px solid var(--acento); outline-offset: -2px; }
+@media (hover: hover) {
+  .po-fila a:hover { background: color-mix(in srgb, var(--txt) 4%, transparent); }
+  .po-fila a:hover .po-ir svg { translate: 4px 0; }
+}
+.po-vacio { margin: 0; padding: 26px 4px; border-bottom: 1px solid var(--linea); color: var(--mut); }
+.po-nota { margin: 22px 0 0; font-size: 14px; color: var(--mut); }
+
+/* ---- Visor de la propuesta: el documento conserva su diseño; cambia lo que lo rodea ---- */
+.pv { min-height: 100vh; background: var(--fondo-2); color: var(--txt); font-family: var(--font-inter, Inter), system-ui, sans-serif; }
+.pv-barra { position: fixed; inset: 0 0 auto; z-index: 50; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 64px; padding: 0 clamp(12px, 3vw, 28px);
+  background: color-mix(in srgb, var(--fondo) 88%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--linea); }
+.pv-lado { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.pv-volver { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px 8px 6px; border-radius: 10px; color: var(--mut); text-decoration: none; font-size: 15px; transition: color .2s, background .2s; }
+.pv-volver:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
+.pv-quien { min-width: 0; padding-left: 14px; border-left: 1px solid var(--linea-2); }
+.pv-quien b { display: block; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-quien small { display: block; font: 500 12.5px var(--mono); color: var(--mut); }
+.pv-acciones { display: flex; align-items: center; gap: 8px; }
+.pv-boton { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--linea-2); background: transparent; color: var(--txt); font: 600 14.5px var(--font-inter, Inter), sans-serif; cursor: pointer; text-decoration: none; transition: background .2s, border-color .2s, translate .18s var(--curva); }
+.pv-boton:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); border-color: color-mix(in srgb, var(--txt) 26%, transparent); }
+.pv-boton.lleno { border-color: transparent; background: var(--boton); color: var(--boton-tinta); box-shadow: 0 10px 26px -14px var(--acento); }
+.pv-boton.lleno:hover { translate: 0 -1px; background: color-mix(in srgb, var(--boton) 88%, #fff); }
+.pv-boton[aria-expanded="true"] { background: color-mix(in srgb, var(--txt) 8%, transparent); }
+.pv-boton:focus-visible, .pv-volver:focus-visible, .pv-compartir :is(a, button):focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.pv-solo-ancho { display: none; }
+.pv-envoltura { position: relative; }
+.pv-compartir { position: absolute; right: 0; top: 50px; z-index: 51; width: 250px; padding: 8px; border-radius: 16px; border: 1px solid var(--linea-2); background: var(--sup);
+  box-shadow: 0 24px 50px -24px rgb(0 0 0 / .55); animation: pv-entra .22s var(--curva); }
+.pv-compartir p { margin: 6px 10px 8px; font-size: 13.5px; color: var(--mut); }
+.pv-compartir :is(a, button) { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 10px; border: 0; border-radius: 10px; background: none; color: var(--txt); font: 500 15px var(--font-inter, Inter), sans-serif; text-decoration: none; cursor: pointer; text-align: left; }
+.pv-compartir :is(a, button):hover { background: color-mix(in srgb, var(--txt) 6%, transparent); }
+.pv-compartir svg { color: var(--mut); }
+.pv-compartir .hecho svg { color: var(--sube); }
+.pv-cubre { position: fixed; inset: 0; z-index: 49; }
+@keyframes pv-entra { from { opacity: 0; translate: 0 -6px; } }
+
+.pv-firma { position: fixed; inset: 64px 0 auto; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 16px; font-size: 14.5px; text-align: center;
+  background: color-mix(in srgb, var(--fondo) 92%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--linea); color: var(--txt); }
+.pv-firma::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--sube); }
+.pv-firma[data-cambio]::before { background: #f59e0b; }
+.pv-firma strong { font-weight: 600; }
+.pv-vista { position: fixed; inset: auto 0 0; z-index: 50; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 16px; padding: 10px 16px; font-size: 14.5px; color: #3b2a04; background: #fbbf24; }
+.pv-vista button { border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pv-hoja { padding: 84px clamp(0px, 3vw, 32px) 40px; }
+.pv-hoja[data-firma] { padding-top: 128px; }
+.pv-hoja iframe { display: block; width: 100%; max-width: 1100px; min-height: 100vh; margin: 0 auto; border: 0; background: #fff; border-radius: 4px; box-shadow: 0 30px 80px -40px rgb(0 0 0 / .6); }
+:root[data-tema="claro"] .pv-hoja iframe { box-shadow: 0 2px 6px rgb(13 40 60 / .08), 0 30px 70px -40px rgb(13 40 60 / .45); }
+
+@media (min-width: 900px) { .pv-solo-ancho { display: inline; } }
+@media (max-width: 760px) {
+  .pa { padding-top: 96px; }
+  .pa-rejilla { grid-template-columns: 1fr; }
+  .pa-escena #ancla-texto { order: -1; height: 76px; }
+  .pa h1 { font-size: clamp(36px, 10.5vw, 48px); }
+  .pa h1[data-largo] { font-size: clamp(30px, 8.4vw, 40px); }
+  .pa-form { margin-top: 28px; gap: 20px; }
+  .pa-ver { width: 44px; height: 44px; }
+  .po-fila a { grid-template-columns: minmax(0, 1fr) auto; }
+  .po-folio { grid-column: 1 / -1; }
+  .po-ir { align-self: start; margin-top: 4px; }
+  .pv-quien { display: none; }
+  .pv-volver span { display: none; }
+  .pv-boton, .pv-volver { min-height: 44px; }
+  .pv-boton { min-width: 44px; justify-content: center; }
+  /* La constancia de firma ocupa dos o tres líneas en el celular: fija, tapaba el comienzo del documento. Aquí va en el
+     flujo, bajo la barra. */
+  .pv-firma { position: relative; inset: auto; margin-top: 64px; }
+  .pv-hoja[data-firma] { padding-top: 16px; }
+  .pv-hoja { padding-inline: 0; }
+  .pv-hoja iframe { border-radius: 0; }
+}
+@media print {
+  .pv { background: #fff; }
+  .pv-barra, .pv-firma, .pv-vista, .pv-compartir, .pv-cubre { display: none !important; }
+  .pv-hoja, .pv-hoja[data-firma] { padding: 0; }
+  .pv-hoja iframe { box-shadow: none; max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pa-espera i, .pv-compartir { animation: none; }
+  .pa-linea, .pa-fuerza span i { transition: none; }
+}

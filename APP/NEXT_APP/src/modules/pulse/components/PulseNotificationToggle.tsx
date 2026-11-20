@@ -24,6 +24,21 @@ function base64UrlToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
+/** Error con un texto pensado para quien usa la página (los del navegador llegan en inglés y en jerga). */
+class AvisoError extends Error {}
+
+/**
+ * El service worker listo, con plazo. `serviceWorker.ready` no termina nunca si el registro falló (ventana privada de
+ * Firefox, almacenamiento bloqueado): la campana se quedaba girando para siempre.
+ */
+function trabajadorListo(): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, rechazar) =>
+      window.setTimeout(() => rechazar(new AvisoError("El navegador no dejó preparar los avisos. Recarga la página e inténtalo de nuevo.")), 10_000)),
+  ]);
+}
+
 export function PulseNotificationToggle() {
   const [supported, setSupported] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -83,7 +98,7 @@ export function PulseNotificationToggle() {
 
   const subscribe = async () => {
     if (!supported) {
-      setMessage("Tu navegador no soporta Web Push.");
+      setMessage("Este navegador no recibe avisos.");
       return;
     }
 
@@ -97,17 +112,17 @@ export function PulseNotificationToggle() {
       setPermission(requestedPermission);
 
       if (requestedPermission !== "granted") {
-        setMessage("Debes permitir notificaciones para activar el radar.");
+        setMessage("Sin permiso del navegador no se pueden enviar avisos.");
         return;
       }
 
       const keyResponse = await fetch("/api/pulse/push/public-key");
       if (!keyResponse.ok) {
-        throw new Error("Push no configurado en el servidor.");
+        throw new AvisoError("Los avisos no están disponibles ahora mismo.");
       }
 
       const { publicKey } = (await keyResponse.json()) as { publicKey: string };
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await trabajadorListo();
       const existing = await registration.pushManager.getSubscription();
       const subscription =
         existing ??
@@ -116,16 +131,21 @@ export function PulseNotificationToggle() {
           applicationServerKey: base64UrlToUint8Array(publicKey),
         }));
 
-      await fetch("/api/pulse/push/subscribe", {
+      // Si el servidor no la guarda, el navegador quedaba suscrito y la campana decía «activado» sin que llegara nada.
+      const guardada = await fetch("/api/pulse/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subscription: subscription.toJSON() }),
-      });
+      }).then((r) => r.ok, () => false);
+      if (!guardada) {
+        await subscription.unsubscribe().catch(() => undefined);
+        throw new AvisoError("No se pudo guardar la suscripción. Inténtalo de nuevo en un rato.");
+      }
 
       setSubscribed(true);
-      setMessage("Radar push activado. Te avisaré cuando llegue una señal nueva.");
+      setMessage("Avisos activados. Te avisaré cuando llegue una señal nueva.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No se pudo activar el radar push.");
+      setMessage(error instanceof AvisoError ? error.message : "No se pudieron activar los avisos. Inténtalo de nuevo en un rato.");
     } finally {
       setLoading(false);
     }
@@ -138,22 +158,25 @@ export function PulseNotificationToggle() {
     setMessage(null);
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await trabajadorListo();
       const subscription = await registration.pushManager.getSubscription();
 
       if (subscription) {
-        await fetch("/api/pulse/push/unsubscribe", {
+        // Primero en el navegador: quitar los avisos no puede depender de que el servidor responda. Si no se entera,
+        // el servicio de avisos le contesta «ya no existe» en el próximo envío y la suscripción se borra sola.
+        const endpoint = subscription.endpoint;
+        await subscription.unsubscribe();
+        void fetch("/api/pulse/push/unsubscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: subscription.endpoint }),
-        });
-        await subscription.unsubscribe();
+          body: JSON.stringify({ endpoint }),
+        }).catch(() => undefined);
       }
 
       setSubscribed(false);
-      setMessage("Radar push desactivado.");
+      setMessage("Avisos desactivados.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No se pudo desactivar el radar push.");
+      setMessage(error instanceof AvisoError ? error.message : "No se pudieron desactivar los avisos. Inténtalo de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -182,6 +205,13 @@ export function PulseNotificationToggle() {
     setPreguntando(false);
     disparador.current?.focus();
   };
+
+  // La nota bajo la campana se va sola: antes quedaba encima del contenido hasta volver a pulsar la campana.
+  useEffect(() => {
+    if (!message || preguntando) return;
+    const reloj = window.setTimeout(() => setMessage(null), 6000);
+    return () => window.clearTimeout(reloj);
+  }, [message, preguntando]);
 
   // Escape cierra, el foco entra al panel y el fondo no se desplaza mientras está abierto.
   useEffect(() => {
@@ -235,7 +265,7 @@ export function PulseNotificationToggle() {
           <Bell aria-hidden="true" width={17} height={17} />
         )}
       </button>
-      {message ? (
+      {message && !preguntando ? (
         <p className="pulso-campana-nota" role="status">
           {message}
         </p>
@@ -283,6 +313,8 @@ export function PulseNotificationToggle() {
                       <li>Busca «Notificaciones» y cámbialo a «Permitir» o quita el bloqueo.</li>
                       <li>Vuelve aquí: la campana se entera sola, sin recargar.</li>
                     </ol>
+                    {/* «Volver a comprobar» contesta aquí: la nota de la campana quedaba tapada por el propio diálogo. */}
+                    {message ? <p className="pulso-dialogo-pie" role="status">{message}</p> : null}
                     <div className="pulso-dialogo-botones">
                       <button type="button" className="pulso-dialogo-no" onClick={cerrarPregunta}>
                         Entendido

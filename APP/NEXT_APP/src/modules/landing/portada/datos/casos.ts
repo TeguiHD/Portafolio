@@ -17,6 +17,12 @@ export const casos = [
     imageAlt: "Portada real de la tienda Flores D&D con un arreglo floral.",
     visualLabel: "Captura del sitio",
     fondo: "linear-gradient(135deg,#3f1d2e,#7c2d12)",
+    // Portada «Materia viva»: nombre y tipo cortos, y las capturas reales que arma la materia.
+    corto: "FloresDyD",
+    tipo: "Tienda en línea a medida",
+    direccion: "floresdyd.cl",
+    esquema: false,
+    vistas: [{ nombre: "Portada", escritorio: "/images/projects/viva/py-flores-portada-escritorio.jpg", celular: "/images/projects/viva/py-flores-portada-celular.jpg" }, { nombre: "Catálogo", escritorio: "/images/projects/viva/py-flores-catalogo-escritorio.jpg", celular: "/images/projects/viva/py-flores-catalogo-celular.jpg" }, { nombre: "Producto", escritorio: "/images/projects/viva/py-flores-producto-escritorio.jpg", celular: "/images/projects/viva/py-flores-producto-celular.jpg" }],
   },
   {
     id: "otec",
@@ -32,6 +38,12 @@ export const casos = [
     imageAlt: "Esquema del alcance OTEC: intranet, cursos, aula virtual y certificados.",
     visualLabel: "Esquema del proyecto",
     fondo: "linear-gradient(135deg,#0f2a3a,#134e4a)",
+    // Sistema privado: no se publican pantallas. La portada dibuja su esquema.
+    corto: "Intranet OTEC",
+    tipo: "Sistema privado: se muestra su esquema, no su interfaz",
+    direccion: "intranet · acceso privado",
+    esquema: true,
+    vistas: [],
   },
   {
     id: "herramientas",
@@ -47,6 +59,11 @@ export const casos = [
     imageAlt: "Interfaz real del catálogo de herramientas con acceso a QR y realidad aumentada.",
     visualLabel: "Captura del producto",
     fondo: "linear-gradient(135deg,#1e1b4b,#0f172a)",
+    corto: "Herramientas",
+    tipo: "Producto propio",
+    direccion: "nicoholas.dev/herramientas",
+    esquema: false,
+    vistas: [{ nombre: "Catálogo", escritorio: "/images/projects/viva/py-tools-catalogo-escritorio.jpg", celular: "/images/projects/viva/py-tools-catalogo-celular.jpg" }, { nombre: "Código QR", escritorio: "/images/projects/viva/py-tools-qr-escritorio.jpg", celular: "/images/projects/viva/py-tools-qr-celular.jpg" }, { nombre: "Recortar", escritorio: "/images/projects/viva/py-tools-recortar-escritorio.jpg", celular: "/images/projects/viva/py-tools-recortar-celular.jpg" }],
   },
 ] as const;
 

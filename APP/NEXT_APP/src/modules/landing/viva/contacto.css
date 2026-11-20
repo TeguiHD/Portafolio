@@ -1,0 +1,20 @@
+/* Contacto. Copiado de la maqueta aprobada. */
+#contacto { min-height: 86svh; }
+.ct-pre { font-size: clamp(20px, 2.3vw, 32px); font-weight: 300; color: var(--mut); letter-spacing: -.01em; }
+.ct-titulo { font-size: clamp(50px, 11.2vw, 176px); line-height: .92; letter-spacing: -.06em; margin: 4px 0 44px; }
+.ct-titulo i { color: var(--acento); font-style: normal; }
+.ct-fila { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; }
+.ct-correo { display: inline-flex; align-items: center; gap: 16px; padding: 18px 20px 18px 28px; border-radius: 999px; border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 70%, transparent);
+  font: 500 clamp(16px, 2vw, 24px) var(--mono); color: var(--txt); transition: border-color .3s, background .3s; }
+.ct-correo i { font: 500 13.5px var(--font-inter, Inter), sans-serif; font-style: normal; color: var(--mut); padding: 6px 12px; border-radius: 999px; background: var(--linea); transition: color .3s, background .3s; }
+.ct-correo:hover { border-color: var(--acento); } .ct-correo:hover i { color: var(--boton-tinta); background: var(--boton); }
+.ct-ir { width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; background: var(--boton); color: var(--boton-tinta); transition: scale .35s var(--curva); }
+.ct-ir svg { transition: rotate .45s var(--curva); } .ct-ir:hover { scale: 1.08; } .ct-ir:hover svg { rotate: 45deg; }
+.ct-correo:focus-visible, .ct-ir:focus-visible, .ct-redes a:focus-visible { outline: 2px solid var(--acento); outline-offset: 4px; }
+.ct-redes { display: flex; justify-content: center; gap: 30px; margin-top: 34px; color: var(--mut); font-size: 16px; }
+.ct-redes a { transition: color .25s; } .ct-redes a:hover { color: var(--txt); }
+:root[data-tema="claro"] .ct-correo { background: #fff; box-shadow: 0 2px 6px rgb(13 40 60 / .08), 0 24px 44px -24px rgb(13 60 80 / .45); }
+.centro { text-align: center; }
+.centro .bajada { margin: 22px auto 0; }
+.centro .acciones { justify-content: center; }
+.ct-correo, .ct-ir { cursor: pointer; border: 0; } .ct-correo { border: 1px solid var(--linea-2); }

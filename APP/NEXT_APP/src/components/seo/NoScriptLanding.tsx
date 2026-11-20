@@ -1,15 +1,14 @@
 /**
- * Contenido de respaldo para la home cuando no se ejecuta JavaScript.
+ * Contenido de respaldo para la portada cuando no se ejecuta JavaScript.
  *
- * La home renderiza el Hero en servidor y difiere 7 secciones a
- * `IntersectionObserver`, así que el HTML servido lleva ~700 caracteres de
- * texto. Googlebot ejecuta JS y ve la página completa, pero GPTBot, ClaudeBot,
- * PerplexityBot y CCBot no renderizan: para ellos la home estaba casi vacía y
- * sin un solo enlace interno a las 29 herramientas.
+ * La portada ya sale del servidor con sus secciones (proyectos, herramientas, contacto),
+ * pero las herramientas van como íconos en órbita: sin JavaScript no hay cómo llegar a cada una.
+ * Googlebot ejecuta JS; GPTBot, ClaudeBot, PerplexityBot y CCBot no. Para ellos, y para quien
+ * navega sin scripts, este bloque enlaza las herramientas una por una.
  *
- * Este bloque va dentro de <noscript>, así que no altera lo que ve un usuario
- * normal, y su contenido sale del mismo registro que alimenta metadata,
- * sitemap y JSON-LD — no puede contradecir a la página real.
+ * Va dentro de <noscript>, así que no altera lo que ve un visitante normal, y su contenido sale
+ * del mismo registro que alimenta metadata, sitemap y JSON-LD: no puede contradecir a la página.
+ * Estilos en src/modules/esqueleto/esqueleto.css (.sin-js).
  */
 import Link from "next/link";
 import { TOOLS_SEO } from "@/lib/seo/tools-content";
@@ -22,57 +21,27 @@ export function NoScriptLanding() {
 
     return (
         <noscript>
-            <section
-                aria-label="Contenido del sitio sin JavaScript"
-                className="mx-auto max-w-5xl px-4 py-16 sm:px-6"
-            >
-                <h2 className="text-2xl font-bold text-white">
-                    {tools.length} herramientas gratuitas para desarrollo y diseño
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
-                    Utilidades de uso diario, en español y sin registro. Cada una tiene
-                    su propia página con instrucciones.
-                </p>
-
-                <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="ancho sin-js" role="region" aria-label="Contenido del sitio sin JavaScript">
+                <h2>{tools.length} herramientas gratuitas para desarrollo y diseño</h2>
+                <p>Utilidades de uso diario, en español y sin registro. Cada una tiene su propia página con instrucciones.</p>
+                <ul className="sin-js-lista">
                     {tools.map((tool) => (
                         <li key={tool.slug}>
-                            <Link
-                                href={`/herramientas/${tool.slug}`}
-                                className="font-medium text-[#00B8A9]"
-                            >
-                                {tool.h1}
-                            </Link>
-                            <span className="block text-xs leading-relaxed text-neutral-500">
-                                {tool.description}
-                            </span>
+                            <Link href={`/herramientas/${tool.slug}`}>{tool.h1}</Link>
+                            <span>{tool.description}</span>
                         </li>
                     ))}
                 </ul>
 
-                <h2 className="mt-12 text-2xl font-bold text-white">Quién mantiene el sitio</h2>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
-                    {SITE_NAME} — {jobTitle}.{" "}
-                    <Link href="/sobre-mi" className="text-[#00B8A9]">
-                        Sobre mí
-                    </Link>
-                    .
-                </p>
+                <h2>Quién mantiene el sitio</h2>
+                <p>{SITE_NAME} — {jobTitle}. <Link href="/sobre-mi">Sobre mí</Link>.</p>
 
-                <h2 className="mt-12 text-2xl font-bold text-white">Más del sitio</h2>
-                <ul className="mt-3 space-y-1 text-sm text-neutral-400">
-                    <li>
-                        <Link href="/herramientas" className="text-[#00B8A9]">
-                            Índice de herramientas
-                        </Link>
-                    </li>
-                    <li>
-                        <Link href="/blog" className="text-[#00B8A9]">
-                            Blog
-                        </Link>
-                    </li>
+                <h2>Más del sitio</h2>
+                <ul>
+                    <li><Link href="/herramientas">Índice de herramientas</Link></li>
+                    <li><Link href="/blog">Blog</Link></li>
                 </ul>
-            </section>
+            </div>
         </noscript>
     );
 }

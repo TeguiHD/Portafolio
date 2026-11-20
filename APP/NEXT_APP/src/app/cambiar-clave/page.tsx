@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hashEmail } from "@/lib/security.server";
 import { FormularioCambioClave } from "./formulario";
+import { PaginaAcceso } from "@/modules/portal/PaginaAcceso";
 
 /**
  * Cambio de clave, obligatorio cuando viene de una temporal.
@@ -32,24 +33,12 @@ export default async function CambiarClave() {
     }
 
     return (
-        <main className="min-h-screen bg-neutral-950 px-4 py-16 text-neutral-100">
-            <div className="mx-auto w-full max-w-md">
-                <h1 className="text-2xl font-semibold tracking-tight">
-                    {usuario.mustChangePassword ? "Cambia tu contraseña" : "Cambiar contraseña"}
-                </h1>
-                {usuario.mustChangePassword ? (
-                    <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-                        La clave con la que entraste es temporal. Elige una propia para seguir:
-                        hasta entonces el panel queda cerrado.
-                    </p>
-                ) : (
-                    <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-                        Al cambiarla se cerrarán tus demás sesiones abiertas.
-                    </p>
-                )}
-
-                <FormularioCambioClave obligatorio={usuario.mustChangePassword} />
-            </div>
-        </main>
+        <PaginaAcceso palabra="clave" sello="Panel"
+            titulo={usuario.mustChangePassword ? "Cambia tu contraseña." : "Cambiar contraseña."}
+            texto={<p>{usuario.mustChangePassword
+                ? "La clave con la que entraste es temporal. Elige una propia: hasta entonces el panel queda cerrado."
+                : "Al cambiarla se cerrarán tus demás sesiones abiertas."}</p>}>
+            <FormularioCambioClave obligatorio={usuario.mustChangePassword} usuarioCorreo={session.user.email.split("@")[0]?.toLowerCase() ?? ""} />
+        </PaginaAcceso>
     );
 }

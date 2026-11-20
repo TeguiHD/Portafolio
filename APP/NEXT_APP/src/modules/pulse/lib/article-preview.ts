@@ -93,7 +93,9 @@ export async function fetchArticlePreview(url: string) {
 
   try {
     const html = await pedirTexto(url, {
-      revalidate: 3600,
+      // La imagen y la entradilla están en <head>: con los primeros 64 KB basta.
+      maxBytes: 64 * 1024,
+      truncar: true,
       plazo: 4000,
       comprobarDestino: true,
       tipos: ["html", "xml"],

@@ -71,9 +71,12 @@ export async function destinoPermitido(url: string): Promise<boolean> {
   }
 }
 
+// Sin la caché de fetch de Next: copia la respuesta entera en memoria y en disco (.next/cache/fetch-cache, sin poda)
+// saltándose el tope de tamaño de abajo. Cada servicio ya guarda lo suyo con crearCache.
 interface Opciones {
-  /** Segundos que Next puede reutilizar la respuesta. */
-  revalidate?: number;
+  /** Bytes que se leen como máximo; con `truncar`, lo que sobra se descarta en vez de fallar. */
+  maxBytes?: number;
+  truncar?: boolean;
   /** Plazo máximo en milisegundos. */
   plazo?: number;
   cabeceras?: Record<string, string>;
@@ -86,7 +89,7 @@ interface Opciones {
 /** Saltos de redirección que se siguen; más que esto es un bucle o una trampa. */
 const MAX_SALTOS = 3;
 
-async function pedir(url: string, { revalidate, plazo = 6000, cabeceras, comprobarDestino, tipos }: Opciones) {
+async function pedir(url: string, { plazo = 6000, cabeceras, comprobarDestino, tipos, maxBytes = MAX_BYTES, truncar }: Opciones) {
   let destino = url;
   let respuesta: Response;
   const vencimiento = AbortSignal.timeout(plazo);
@@ -103,7 +106,7 @@ async function pedir(url: string, { revalidate, plazo = 6000, cabeceras, comprob
         headers: { "User-Agent": AGENTE, ...cabeceras },
         redirect: comprobarDestino ? "manual" : "follow",
         signal: vencimiento,
-        ...(revalidate === undefined ? { cache: "no-store" as const } : { next: { revalidate } }),
+        cache: "no-store",
       });
     } catch (error) {
       throw new ErrorDeRed(destino, error instanceof Error && error.name === "TimeoutError" ? `sin respuesta en ${plazo} ms` : "no se pudo conectar");
@@ -121,12 +124,12 @@ async function pedir(url: string, { revalidate, plazo = 6000, cabeceras, comprob
     if (!tipos.some((t) => tipo.includes(t))) throw new ErrorDeRed(destino, `tipo inesperado: ${tipo || "sin tipo"}`);
   }
   const declarado = Number(respuesta.headers.get("content-length") ?? 0);
-  if (declarado > MAX_BYTES) throw new ErrorDeRed(destino, "respuesta demasiado grande");
+  if (declarado > maxBytes && !truncar) throw new ErrorDeRed(destino, "respuesta demasiado grande");
   return respuesta;
 }
 
-/** Lee como mucho MAX_BYTES, aunque el servidor no declare el tamaño. */
-async function leerAcotado(respuesta: Response, url: string): Promise<string> {
+/** Lee como mucho `maxBytes`, aunque el servidor no declare el tamaño. */
+async function leerAcotado(respuesta: Response, url: string, maxBytes = MAX_BYTES, truncar = false): Promise<string> {
   const cuerpo = respuesta.body;
   if (!cuerpo) return "";
   const lector = cuerpo.getReader();
@@ -136,11 +139,13 @@ async function leerAcotado(respuesta: Response, url: string): Promise<string> {
     for (;;) {
       const { done, value } = await lector.read();
       if (done) break;
-      total += value.byteLength;
-      if (total > MAX_BYTES) {
+      if (total + value.byteLength > maxBytes) {
         await lector.cancel();
-        throw new ErrorDeRed(url, "respuesta demasiado grande");
+        if (!truncar) throw new ErrorDeRed(url, "respuesta demasiado grande");
+        trozos.push(value.subarray(0, maxBytes - total));
+        break;
       }
+      total += value.byteLength;
       trozos.push(value);
     }
   } finally {
@@ -161,7 +166,7 @@ export async function pedirJson<T>(url: string, opciones: Opciones = {}): Promis
 
 export async function pedirTexto(url: string, opciones: Opciones = {}): Promise<string> {
   const respuesta = await pedir(url, opciones);
-  return leerAcotado(respuesta, url);
+  return leerAcotado(respuesta, url, opciones.maxBytes, opciones.truncar);
 }
 
 interface Guardado<T> {

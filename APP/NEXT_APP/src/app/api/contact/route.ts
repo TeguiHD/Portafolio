@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { prisma } from "@/lib/prisma";
-import { sanitizeInput } from "@/lib/security";
 import { checkRateLimit } from "@/lib/redis";
 import { SecurityLogger } from "@/lib/security-logger";
 import { logger } from "@/lib/logger";
@@ -89,11 +89,7 @@ function hashIP(ip: string): string {
  * Get client IP from request
  */
 function getClientIP(request: NextRequest): string {
-    return (
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
-        "unknown"
-    );
+    return ipCliente(request.headers);
 }
 
 export async function POST(request: NextRequest) {
@@ -122,7 +118,10 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Parse body
-        const body = await request.json();
+        const body = await request.json().catch(() => null);
+        if (!body || typeof body !== "object") {
+            return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
+        }
 
         // 3. Honeypot check - if filled, it's a bot
         if (body.website) {
@@ -173,47 +172,59 @@ export async function POST(request: NextRequest) {
         }
 
         // 6. Validate formats
-        const sanitizedEmail = sanitizeInput(email.trim());
-        const sanitizedName = name ? sanitizeInput(name.trim()) : null;
-        const sanitizedMessage = sanitizeInput(message.trim());
+        // Los largos se miden sobre lo que la persona escribió, igual que el formulario (maxLength): medidos después de
+        // escapar, cada «/» o comilla sumaba 5 caracteres y un mensaje de 1.990 con un par de enlaces se rechazaba por «largo».
+        // Los saltos de línea se cuentan como uno (\r\n → \n), como los cuenta el navegador.
+        const rawEmail = email.trim();
+        const rawName = typeof name === "string" ? name.trim() : "";
+        const rawMessage = message.replace(/\r\n?/g, "\n").trim();
 
-        if (!EMAIL_REGEX.test(sanitizedEmail)) {
+        if (!EMAIL_REGEX.test(rawEmail)) {
             return NextResponse.json(
                 { error: "Email inválido" },
                 { status: 400 }
             );
         }
 
-        if (sanitizedEmail.length > MAX_EMAIL_LENGTH) {
+        if (rawEmail.length > MAX_EMAIL_LENGTH) {
             return NextResponse.json(
                 { error: "Email demasiado largo" },
                 { status: 400 }
             );
         }
 
-        if (sanitizedName && sanitizedName.length > MAX_NAME_LENGTH) {
+        if (rawName.length > MAX_NAME_LENGTH) {
             return NextResponse.json(
                 { error: "Nombre demasiado largo" },
                 { status: 400 }
             );
         }
 
-        if (sanitizedMessage.length < 10) {
+        if (rawMessage.length < 10) {
             return NextResponse.json(
                 { error: "Mensaje muy corto (mínimo 10 caracteres)" },
                 { status: 400 }
             );
         }
 
-        if (sanitizedMessage.length > MAX_MESSAGE_LENGTH) {
+        if (rawMessage.length > MAX_MESSAGE_LENGTH) {
             return NextResponse.json(
                 { error: `Mensaje muy largo (máximo ${MAX_MESSAGE_LENGTH} caracteres)` },
                 { status: 400 }
             );
         }
 
+        // Se guarda el texto tal cual (sin caracteres de control): el panel lo muestra con React, que ya escapa. Escaparlo
+        // aquí dejaba «https:&#x2F;&#x2F;…» y «O&#x27;Higgins» a la vista y rompía la búsqueda en el panel.
+        // Fuera los caracteres de control (salvo tabulación y saltos de línea).
+        const sinControl = (texto: string) => Array.from(texto).filter((c) => { const n = c.codePointAt(0)!; return n === 9 || n === 10 || n === 13 || (n >= 32 && n !== 127); }).join("");
+        const sanitizedEmail = sinControl(rawEmail);
+        const sanitizedName = rawName ? sinControl(rawName) : null;
+        const sanitizedMessage = sinControl(rawMessage);
+
         // 7. Spam detection
-        const { score: spamScore, reasons: spamReasons } = calculateSpamScore(sanitizedMessage, sanitizedEmail);
+        // Sobre el texto sin escapar: escapado, «https://» queda «https:&#x2F;&#x2F;» y los enlaces nunca se contaban.
+        const { score: spamScore, reasons: spamReasons } = calculateSpamScore(rawMessage, rawEmail);
         const isSpam = spamScore >= 50;
 
         if (isSpam) {

@@ -1,0 +1,132 @@
+/* ============================================================================
+   Esqueleto de «Materia viva»: lo que comparten todas las páginas públicas.
+   Todo va bajo .viva para no tocar el panel ni las pantallas de acceso.
+   Variables en src/app/tokens.css. Regla de la casa: nada que se escale lleva
+   box-shadow (deja costuras); el brillo va con degradados.
+   ============================================================================ */
+html:has(.viva) { scroll-behavior: smooth; }
+/* El fondo va en el body, no en .viva: el lienzo de la materia es fijo y un fondo en .viva lo taparía. */
+html:has(.viva) body { background: var(--fondo); }
+html:has(.viva.solo-oscuro) body { background: #08090d; }
+
+.viva { position: relative; min-height: 100svh; color: var(--txt); overflow-x: clip;
+  font: 400 17px/1.6 var(--font-inter, Inter), system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+/* Las páginas que aún no se rediseñan por dentro se quedan en oscuro, aunque el visitante haya elegido claro. */
+/* También en <html>: el lienzo de la materia y sus luces viven fuera de .viva y leen de ahí. */
+html:has(.viva.solo-oscuro), .viva.solo-oscuro { --fondo: #08090d; --fondo-2: #0e1117; --sup: #121722; --linea: #ffffff14; --linea-2: #ffffff29;
+  --txt: #e8edf3; --mut: #93a1b5; --acento: #5eead4; --acento-tinta: #06231f; --cerca: #7dd3fc;
+  --particula: 203 213 225; --particula-acento: 94 234 212; --boton: #5eead4; --boton-tinta: #06231f; }
+.viva::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(60vw 50vh at 85% 8%, color-mix(in srgb, var(--acento) 11%, transparent), transparent 70%), radial-gradient(50vw 50vh at 0% 70%, color-mix(in srgb, var(--cerca) 8%, transparent), transparent 70%); }
+:root[data-tema="claro"] .viva:not(.solo-oscuro)::before { background: radial-gradient(60vw 52vh at 88% 4%, rgb(13 148 136 / .26), transparent 70%), radial-gradient(54vw 52vh at -4% 62%, rgb(3 105 161 / .2), transparent 70%), radial-gradient(46vw 40vh at 60% 104%, rgb(245 158 11 / .16), transparent 70%); }
+.viva > #contenido, .viva > main, .viva > footer { position: relative; z-index: 1; }
+.viva > #contenido:focus, .viva > main:focus { outline: none; }
+
+/* --- Piezas comunes --- */
+.viva [hidden] { display: none !important; }
+/* El margen lateral vive en una variable: las filas deslizables que llegan al borde (temas, familias) lo usan para salirse justo eso. */
+.viva { --margen: 24px; }
+.viva .ancho { width: min(1180px, 100% - 2 * var(--margen)); margin-inline: auto; }
+.viva .boton { --mx: 50%; --my: 50%; position: relative; display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 14px;
+  font-weight: 600; font-size: 16px; isolation: isolate; overflow: hidden; text-decoration: none; cursor: pointer; border: 0; transition: translate .18s var(--curva), box-shadow .25s; }
+.viva .boton::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .25s;
+  background: radial-gradient(140px circle at var(--mx) var(--my), #ffffff55, transparent 65%); }
+.viva .boton:hover::before { opacity: 1; }
+.viva .boton:hover { translate: 0 -2px; }
+.viva .boton:active { translate: 0 1px; transition-duration: .05s; }
+.viva .boton.lleno { background: var(--boton); color: var(--boton-tinta); box-shadow: 0 1px 0 #ffffff66 inset, 0 10px 30px -12px var(--acento); }
+.viva .boton.linea { border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 60%, transparent); color: var(--txt); }
+.viva .boton.chico { padding: 10px 16px; border-radius: 999px; font-size: 15px; }
+.viva .boton svg { transition: translate .25s var(--curva); }
+.viva .boton:hover svg.flecha { translate: 3px -3px; }
+.viva .boton:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+:root[data-tema="claro"] .viva:not(.solo-oscuro) .boton.linea { background: #fff; box-shadow: 0 2px 4px rgb(13 40 60 / .07), 0 16px 30px -18px rgb(13 40 60 / .4); }
+:root[data-tema="claro"] .viva:not(.solo-oscuro) .boton.lleno { box-shadow: 0 1px 0 #ffffff55 inset, 0 16px 34px -12px rgb(13 118 110 / .65); }
+
+.viva .vivo { display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px 7px 12px; border-radius: 999px; border: 1px solid var(--linea-2); font-size: 14.5px; color: var(--mut); background: color-mix(in srgb, var(--sup) 55%, transparent); }
+.viva .vivo b { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--acento); }
+/* El latido es un anillo que crece y se apaga con scale y opacity (antes, box-shadow: repintaba en cada cuadro). */
+.viva .vivo b::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--acento); animation: latido 2.2s infinite; }
+@keyframes latido { from { scale: 1; opacity: .7; } 70% { scale: 3.25; opacity: 0; } to { scale: 3.25; opacity: 0; } }
+.viva .enlace-ir { font-weight: 600; display: inline-flex; gap: 8px; align-items: center; padding-bottom: 6px; border-bottom: 1px solid var(--linea-2); color: var(--txt); text-decoration: none; transition: gap .25s var(--curva), border-color .25s; }
+.viva .enlace-ir:hover { gap: 13px; border-color: var(--acento); }
+.viva .enlace-ir:focus-visible { outline: 2px solid var(--acento); outline-offset: 4px; }
+
+/* --- Avisos breves al pie («Correo copiado», «Mensaje enviado»). Ver avisos.ts --- */
+/* Vacía no se ve (sin fondo ni borde), pero no se oculta: la región del lector de pantalla tiene que existir antes que el texto.
+   Ancho de su contenido hasta el de la pantalla: un aviso largo («No se pudo copiar: …») se parte en vez de salirse. */
+.viva > .avisos { position: fixed; inset: auto auto 28px 50%; translate: -50% 0; z-index: 40; display: grid; gap: 10px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); margin: 0; padding: 0; border: 0; background: none; color: inherit; overflow: visible; pointer-events: none; }
+.viva .aviso { display: flex; align-items: center; gap: 10px; padding: 12px 18px 12px 14px; border-radius: 999px; border: 1px solid var(--linea-2); background: var(--sup); color: var(--txt); box-shadow: 0 18px 50px -16px #000a; animation: aviso-sube .45s var(--curva); font-size: 15.5px; text-wrap: balance; }
+.viva .aviso:not(:has(svg)) { padding-left: 18px; }
+.viva .aviso.fuera { opacity: 0; translate: 0 12px; transition: opacity .3s, translate .3s; }
+.viva .aviso path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: aviso-traza .45s .15s forwards; }
+@keyframes aviso-sube { from { opacity: 0; translate: 0 18px; scale: .94; } }
+@keyframes aviso-traza { to { stroke-dashoffset: 0; } }
+@media (max-width: 820px) { .viva > .avisos { bottom: 84px; } }
+@media (prefers-reduced-motion: reduce) { .viva .aviso, .viva .aviso path { animation: none; stroke-dashoffset: 0; } }
+
+/* --- La portada: secciones, títulos, revelado y planos de profundidad --- */
+.viva-portada section { position: relative; display: flex; align-items: center; padding: 104px 0; overflow-x: clip; }
+.viva-portada section > .ancho { position: relative; z-index: 1; }
+.viva-portada h1 { font-size: clamp(54px, 9.2vw, 138px); line-height: .94; letter-spacing: -.045em; font-weight: 300; margin: 26px 0 28px; }
+.viva-portada h1 strong { font-weight: 800; display: block; }
+.viva-portada h2 { font-size: clamp(36px, 5vw, 68px); line-height: 1.02; letter-spacing: -.035em; font-weight: 800; }
+.viva-portada .bajada { max-width: 34ch; font-size: clamp(18px, 1.6vw, 21px); color: var(--mut); }
+.viva-portada .acciones { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+.viva-portada .linea-r { display: block; overflow: hidden; padding-bottom: .06em; }
+.viva-portada .linea-r > span { display: block; translate: 0 108%; transition: translate .9s var(--curva); transition-delay: calc(var(--i, 0) * 90ms); }
+.viva-portada .visto .linea-r > span { translate: 0 0; }
+.viva-portada [data-sube] { opacity: 0; translate: 0 22px; transition: opacity .7s var(--curva), translate .7s var(--curva); transition-delay: calc(var(--i, 0) * 80ms + 120ms); }
+.viva-portada .visto [data-sube], .viva-portada [data-sube].visto { opacity: 1; translate: 0 0; }
+/* Lo que está arriba al cargar (#inicio de la portada y de «Sobre mí», la cabecera del blog con data-al-cargar) no espera
+   al JavaScript: entra con una animación de CSS desde el primer pintado. Y sin partir invisible: un texto con opacidad 0
+   no cuenta como pintado, así que el LCP esperaba a la hidratación y a que el observador le pusiera «visto» (~3 s en
+   celular). Solo se desliza; la opacidad queda en 1. */
+.viva-portada :is(#inicio, [data-al-cargar]) .linea-r > span, .viva-portada :is(#inicio, [data-al-cargar]) [data-sube] { translate: 0 0; opacity: 1; transition: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .viva-portada :is(#inicio, [data-al-cargar]) .linea-r > span { animation: al-cargar-linea .9s var(--curva) both; animation-delay: calc(var(--i, 0) * 90ms); }
+  .viva-portada :is(#inicio, [data-al-cargar]) [data-sube] { animation: al-cargar-sube .7s var(--curva) both; animation-delay: calc(var(--i, 0) * 80ms + 120ms); }
+}
+@keyframes al-cargar-linea { from { translate: 0 108%; } }
+@keyframes al-cargar-sube { from { translate: 0 22px; } }
+/* Plano del fondo: una cifra o palabra enorme, en contorno, que se mueve más lento que el contenido */
+.viva-portada .fantasma { position: absolute; right: -1vw; top: 4%; z-index: 0; font: 800 clamp(150px, 29vw, 440px)/.8 var(--font-inter, Inter), sans-serif; letter-spacing: -.06em; color: transparent;
+  -webkit-text-stroke: 1.5px var(--linea-2); opacity: .5; pointer-events: none; user-select: none; white-space: nowrap; }
+:root[data-tema="claro"] .viva-portada .fantasma { -webkit-text-stroke-color: rgb(13 19 28 / .2); opacity: .9; }
+/* Cada sección se acerca al entrar y se aleja al salir */
+@supports (animation-timeline: view()) { @media (prefers-reduced-motion: no-preference) and (min-width: 761px) {
+  .viva-portada section.plano > .ancho { animation: plano linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
+  .viva-portada .fantasma { animation: deriva linear both; animation-timeline: view(); }
+} }
+@keyframes plano { 0% { scale: .88; opacity: .1; } 24% { scale: 1; opacity: 1; } 76% { scale: 1; opacity: 1; } 100% { scale: .93; opacity: .15; } }
+@keyframes deriva { from { translate: 0 34%; } to { translate: 0 -50%; } }
+/* Sin JavaScript nada se queda escondido: lo que se revela al entrar en pantalla sale ya visible, y la captura del primer proyecto también. */
+@media (scripting: none) {
+  .viva-portada .linea-r > span, .viva-portada [data-sube] { transition: none; translate: 0 0; opacity: 1; }
+  .viva-portada .pr-foto { opacity: 1; }
+}
+/* El respaldo sin JavaScript de la portada (NoScriptLanding): los enlaces a cada herramienta. */
+.viva .sin-js { padding: 40px 0 96px; position: relative; z-index: 1; }
+.viva .sin-js h2 { font-size: clamp(24px, 3vw, 32px); letter-spacing: -.02em; line-height: 1.15; margin: 48px 0 10px; }
+.viva .sin-js p, .viva .sin-js li { color: var(--mut); font-size: 16px; max-width: 70ch; }
+.viva .sin-js a { color: var(--acento); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.viva .sin-js-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 16px 28px; margin-top: 20px; }
+.viva .sin-js-lista span { display: block; font-size: 14.5px; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+@media (prefers-reduced-motion: reduce) {
+  html:has(.viva) { scroll-behavior: auto; }
+  .viva .vivo b::after { animation: none; opacity: 0; }
+  .viva-portada .linea-r > span, .viva-portada [data-sube] { transition: none; translate: 0 0; opacity: 1; }
+}
+
+/* --- Celular: lectura primero. Sin cifras fantasma detrás de los títulos, secciones más compactas y sin el acercar/alejar
+   por scroll (en pantallas chicas dejaba el contenido desteñido y achicado mientras se leía). --- */
+@media (max-width: 760px) {
+  .viva-portada section { padding: 72px 0; }
+  .viva-portada .fantasma { display: none; }
+  .viva-portada h2 { font-size: clamp(32px, 9vw, 40px); }
+  .viva { --margen: 20px; }
+  .viva-portada .acciones { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 28px; }
+  .viva-portada .acciones .boton { justify-content: center; width: 100%; padding: 15px 20px; }
+}
+

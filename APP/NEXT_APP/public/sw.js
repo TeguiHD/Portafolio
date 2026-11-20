@@ -3,9 +3,20 @@
 // Portfolio PWA Service Worker
 // Handles offline functionality and caching
 
-const CACHE_NAME = "portfolio-pwa-v3";
-const STATIC_CACHE = "portfolio-static-v3";
-const DYNAMIC_CACHE = "portfolio-dynamic-v3";
+// v6 (19-11-2026): las cachés se podan (antes crecían con cada despliegue); al activarse borra las anteriores.
+const CACHE_NAME = "portfolio-pwa-v6";
+const STATIC_CACHE = "portfolio-static-v6";
+const DYNAMIC_CACHE = "portfolio-dynamic-v6";
+// Entradas máximas por caché: los paquetes de Next cambian de nombre en cada despliegue y sin tope se acumulan.
+const MAX_STATIC = 150;
+const MAX_DYNAMIC = 40;
+
+/** Borra las entradas más viejas (cache.keys() devuelve en orden de inserción). */
+async function podar(nombre, maximo) {
+    const cache = await caches.open(nombre);
+    const claves = await cache.keys();
+    for (let i = 0; i < claves.length - maximo; i++) await cache.delete(claves[i]);
+}
 
 // Lo que se guarda nada más instalar.
 //
@@ -15,11 +26,12 @@ const DYNAMIC_CACHE = "portfolio-dynamic-v3";
 // activarse nunca: el PWA no funcionaba. Tampoco tiene sentido guardar páginas privadas
 // en una caché del navegador.
 const STATIC_ASSETS = [
+    "/",
     "/blog",
     "/herramientas",
     "/manifest.json",
-    "/icon-192.png",
-    "/icon-512.png",
+    "/icon-192.png?v=4",
+    "/icon-512.png?v=4",
     "/offline.html",
 ];
 
@@ -29,9 +41,6 @@ const API_CACHE_PATTERNS = [
     "/api/pulse/finance",
     "/api/pulse/dev",
     "/api/pulse/context",
-    "/api/finance/accounts",
-    "/api/finance/categories",
-    "/api/finance/transactions/summary",
 ];
 
 // Install event - cache static assets
@@ -88,6 +97,19 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
+    // Fuera del service worker (v5):
+    // - Navegaciones internas de Next (RSC: cabecera «RSC» o parámetro «_rsc»). Guardarlas mostraba contenido viejo y,
+    //   tras un despliegue, podían apuntar a paquetes que ya no existen.
+    // - Panel, portal de clientes, acceso y APIs privadas: no quedan copias en el dispositivo.
+    // - Otros dominios: los maneja el navegador, salvo el modelo de quitar fondo (URL versionada → caché primero).
+    if (request.headers.get("RSC") || url.searchParams.has("_rsc")) return;
+    if (url.origin !== self.location.origin) {
+        if (url.hostname === "staticimgly.com") event.respondWith(cacheFirst(request));
+        return;
+    }
+    if (/^\/(admin|cotizacion|acceso|cambiar-clave|aprobar)(\/|$)/.test(url.pathname)) return;
+    if (url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/pulse/")) return;
+
     // API requests - Network first, fallback to cache
     if (url.pathname.startsWith("/api/")) {
         event.respondWith(networkFirst(request));
@@ -122,7 +144,7 @@ async function cacheFirst(request) {
         const response = await fetch(request);
         if (response.ok) {
             const cache = await caches.open(STATIC_CACHE);
-            cache.put(request, response.clone());
+            cache.put(request, response.clone()).then(() => podar(STATIC_CACHE, MAX_STATIC));
         }
         return response;
     } catch {
@@ -138,7 +160,7 @@ async function networkFirst(request) {
         // Cache successful API responses
         if (response.ok && shouldCacheAPI(request.url)) {
             const cache = await caches.open(DYNAMIC_CACHE);
-            cache.put(request, response.clone());
+            cache.put(request, response.clone()).then(() => podar(DYNAMIC_CACHE, MAX_DYNAMIC));
         }
 
         return response;
@@ -181,7 +203,8 @@ async function staleWhileRevalidate(request) {
         .then((response) => {
             if (response.ok) {
                 const cache = caches.open(DYNAMIC_CACHE);
-                cache.then((c) => c.put(request, response.clone()));
+                const copia = response.clone();
+                cache.then((c) => c.put(request, copia)).then(() => podar(DYNAMIC_CACHE, MAX_DYNAMIC));
             }
             return response;
         })
@@ -291,9 +314,9 @@ self.addEventListener("push", (event) => {
 
     const options = {
         body: data.body || "Tienes una nueva notificación",
-        icon: data.icon || "/icon-192.png",
-        badge: data.badge || "/badge-72.png",
-        image: data.image || "/icon-512.png",
+        icon: data.icon || "/icon-192.png?v=4",
+        badge: data.badge || "/badge-72.png?v=4",
+        image: data.image || "/icon-512.png?v=4",
         tag: data.tag || "digital-pulse-news",
         renotify: true,
         vibrate: [100, 50, 100],

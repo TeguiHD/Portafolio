@@ -42,6 +42,11 @@ function cantidad(n: number) {
   return new Intl.NumberFormat("es-CL", { maximumFractionDigits: n < 1 ? 5 : 3 }).format(n);
 }
 
+/** «+1,23%», con coma decimal como se escribe en Chile (antes salía «+1.23%»). */
+function porcentaje(n: number) {
+  return new Intl.NumberFormat("es-CL", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "exceptZero" }).format(n / 100);
+}
+
 function compacto(n: number) {
   return new Intl.NumberFormat("es-CL", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 }
@@ -348,6 +353,9 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
   const [rango, setRango] = useState<"1" | "7" | "30" | "365">("7");
   const [datos, setDatos] = useState<CriptoDetalle | null>(null);
   const [estado, setEstado] = useState<"cargando" | "listo" | "fallo">("cargando");
+  const [rangoFallido, setRangoFallido] = useState<string | null>(null);
+  /** El rango del histórico que está en pantalla (puede ir por detrás del botón mientras llega el nuevo). */
+  const rangoVisto = useRef<CriptoDetalle["rango"] | null>(null);
   const { vivo, direccion } = useVivo(id, estado === "listo");
 
   useEffect(() => {
@@ -357,10 +365,20 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: CriptoDetalle) => {
         if (!enPie) return;
+        rangoVisto.current = d.rango;
         setDatos(d);
         setEstado("listo");
       })
-      .catch(() => enPie && setEstado((e) => (e === "listo" ? e : "fallo")));
+      .catch(() => {
+        if (!enPie) return;
+        setEstado((e) => (e === "listo" ? e : "fallo"));
+        // Con un histórico ya en pantalla, el botón marcado no puede decir «1 año» mientras se ve el de 7 días.
+        const visto = rangoVisto.current;
+        if (visto && visto !== rango) {
+          setRangoFallido(RANGOS.find((x) => x.id === rango)?.nombre ?? null);
+          setRango(visto);
+        }
+      });
     return () => {
       enPie = false;
     };
@@ -404,7 +422,7 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
             <div className="mrc-ficha-precio">
               <strong data-destello={direccion ?? undefined}>{precio !== null ? dinero(precio) : "—"}</strong>
               <span className={sube ? "sube" : "baja"}>
-                {cambio !== null ? `${cambio >= 0 ? "+" : ""}${cambio.toFixed(2)}% · 24 h` : "sin dato de 24 h"}
+                {cambio !== null ? `${porcentaje(cambio)} · 24 h` : "sin dato de 24 h"}
               </span>
             </div>
           </div>
@@ -433,13 +451,14 @@ function Ficha({ id, alVolver }: { id: string; alVolver: () => void }) {
         </div>
       ) : null}
 
-      <div className="mrc-rangos" role="group" aria-label="Rango del histórico">
+      <div className="mrc-rangos" role="group" aria-label="Rango del histórico" aria-busy={Boolean(datos) && datos?.rango !== rango}>
         {RANGOS.map((x) => (
-          <button key={x.id} type="button" className="mrc-rango" aria-pressed={rango === x.id} onClick={() => setRango(x.id)}>
+          <button key={x.id} type="button" className="mrc-rango" aria-pressed={rango === x.id} onClick={() => { setRangoFallido(null); setRango(x.id); }}>
             {x.nombre}
           </button>
         ))}
       </div>
+      {rangoFallido ? <p className="mrc-vacio" role="status">No llegó el histórico de {rangoFallido}; sigue el anterior.</p> : null}
 
       {estado === "fallo" && !datos ? (
         <p className="pulso-fallo">La fuente de mercado no responde ahora mismo. Vuelve en unos minutos.</p>
@@ -534,6 +553,8 @@ export function Mercado() {
   useEffect(() => {
     if (!abierto || monedas.length > 0) return;
     let vivo = true;
+    // Al reabrir tras un fallo se vuelve a pedir: mientras tanto, el hueso de carga y no el error de la vez anterior.
+    setEstado("cargando");
     fetch("/api/pulse/cripto", { signal: AbortSignal.timeout(12_000) })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { monedas: CriptoResumen[] }) => {
@@ -608,10 +629,7 @@ export function Mercado() {
                       <Chispa valores={m.chispa} sube={m.cambio24h >= 0} />
                       <span className="mrc-precio">
                         <strong>{dinero(m.precio)}</strong>
-                        <small className={m.cambio24h >= 0 ? "sube" : "baja"}>
-                          {m.cambio24h >= 0 ? "+" : ""}
-                          {m.cambio24h.toFixed(2)}%
-                        </small>
+                        <small className={m.cambio24h >= 0 ? "sube" : "baja"}>{porcentaje(m.cambio24h)}</small>
                       </span>
                     </button>
                   </li>

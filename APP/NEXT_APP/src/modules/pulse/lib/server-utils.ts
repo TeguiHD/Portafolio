@@ -248,7 +248,8 @@ function leerValor(item: {
   const distancia = ((ultimo - largo) / largo) * 100; // % respecto a su media reciente
   const impulso = ((corto - largo) / largo) * 100; // hacia dónde se mueve la media corta
   const dia = item.changePercent;
-  const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+  // «+1,23%» con coma decimal, como el resto de las cifras del blog (antes «+1.23%»).
+  const pct = (n: number) => new Intl.NumberFormat("es-CL", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "exceptZero" }).format(n / 100);
   const base = `${pct(dia)} en el día · ${pct(distancia)} respecto a su media reciente`;
 
   if (dia <= -4 && distancia <= -2) {

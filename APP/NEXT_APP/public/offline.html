@@ -1,161 +1,52 @@
-<!DOCTYPE html>
-<html lang="es">
+<!doctype html>
+<html lang="es-CL">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0a0a0a">
-    <title>Sin Conexión - Finanzas</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-            color: white;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            text-align: center;
-            max-width: 400px;
-        }
-
-        .icon {
-            width: 120px;
-            height: 120px;
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 24px;
-        }
-
-        .icon svg {
-            width: 60px;
-            height: 60px;
-            color: #3b82f6;
-        }
-
-        h1 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-
-        p {
-            color: #9ca3af;
-            margin-bottom: 24px;
-            line-height: 1.5;
-        }
-
-        .retry-btn {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 12px 32px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .retry-btn:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-        }
-
-        .retry-btn:active {
-            transform: translateY(0);
-        }
-
-        .features {
-            margin-top: 48px;
-            padding-top: 24px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .features h3 {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .feature-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            font-size: 14px;
-            color: #9ca3af;
-        }
-
-        .feature-item span {
-            font-size: 18px;
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Se vuelve a intentar sola: el service worker sirve esta página en la dirección que se pidió, así que recargar es reintentar. -->
+<meta http-equiv="refresh" content="25">
+<title>Sin conexión — nicoholas.dev</title>
+<meta name="theme-color" content="#08090d" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
+<style>
+  /* Página sin conexión de nicoholas.dev: se guarda al instalar la app y no depende de nada de la red (sin fuentes ni scripts). */
+  :root { --fondo: #08090d; --txt: #e8edf3; --mut: #93a1b5; --acento: #5eead4; --linea: #ffffff29; --punto: #cbd5e138; color-scheme: dark; }
+  @media (prefers-color-scheme: light) { :root { --fondo: #f5f4f0; --txt: #0d131c; --mut: #4b5563; --acento: #0d9488; --linea: #0b111a2e; --punto: #0d131c24; color-scheme: light; } }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; place-items: center; padding: 24px; background: var(--fondo); color: var(--txt);
+    font: 400 17px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  /* La materia, quieta: una rejilla de partículas que se desvanece hacia los bordes, con dos luces detrás. */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1;
+    background: radial-gradient(60vw 50vh at 85% 8%, color-mix(in srgb, var(--acento) 14%, transparent), transparent 70%),
+                radial-gradient(50vw 50vh at 0% 80%, color-mix(in srgb, #38bdf8 9%, transparent), transparent 70%); }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle, var(--punto) 1.1px, transparent 1.6px) 0 0 / 22px 22px;
+    mask-image: radial-gradient(ellipse at 50% 45%, #000 0%, transparent 72%); animation: deriva 18s linear infinite; }
+  @keyframes deriva { to { background-position: 22px 22px; } }
+  main { width: min(560px, 100%); }
+  .marca { width: 76px; height: 76px; display: block; margin-bottom: 34px; filter: drop-shadow(0 18px 40px #0009); }
+  h1 { margin: 0; font-size: clamp(54px, 15vw, 96px); font-weight: 800; letter-spacing: -.06em; line-height: .9; }
+  h1 i { color: var(--acento); font-style: normal; }
+  p { margin: 22px 0 0; max-width: 34ch; color: var(--mut); font-size: 18px; }
+  .acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 26px; margin-top: 34px; }
+  .boton { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 14px; background: var(--acento); color: #06231f;
+    font-weight: 650; text-decoration: none; }
+  .boton:focus-visible, .enlace:focus-visible { outline: 2px solid var(--acento); outline-offset: 4px; }
+  .enlace { color: var(--txt); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--linea); padding-bottom: 2px; }
+  .nota { margin-top: 40px; font-size: 14px; }
+  @media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
-                      d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a5 5 0 01-1.414-7.072m2.829 2.829L9.88 8.464M4.878 16.364A9 9 0 018.464 4.878m-4.243 11.486L3 21" />
-            </svg>
-        </div>
-
-        <h1>Sin conexión</h1>
-        <p>
-            No hay conexión a internet. Verifica tu conexión e intenta nuevamente.
-        </p>
-
-        <button class="retry-btn" onclick="window.location.reload()">
-            Reintentar
-        </button>
-
-        <div class="features">
-            <h3>Disponible offline</h3>
-            <div class="feature-list">
-                <div class="feature-item">
-                    <span>📊</span>
-                    Ver datos cacheados
-                </div>
-                <div class="feature-item">
-                    <span>📝</span>
-                    Agregar transacciones (se sincronizarán)
-                </div>
-                <div class="feature-item">
-                    <span>📱</span>
-                    Escanear boletas guardadas
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Auto-retry when online
-        window.addEventListener('online', () => {
-            window.location.reload();
-        });
-    </script>
+<main>
+  <svg class="marca" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="g1" cx="80%" cy="14%" r="78%"><stop offset="0" stop-color="#15574f"/><stop offset=".5" stop-color="#0c1b20"/><stop offset="1" stop-color="#07080c"/></radialGradient><radialGradient id="g2" cx="8%" cy="96%" r="60%"><stop offset="0" stop-color="#0b3a5a" stop-opacity=".55"/><stop offset="1" stop-color="#0b3a5a" stop-opacity="0"/></radialGradient><radialGradient id="h" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#5eead4" stop-opacity=".7"/><stop offset="1" stop-color="#5eead4" stop-opacity="0"/></radialGradient></defs><rect width="64" height="64" rx="15" fill="url(#g1)"/><rect width="64" height="64" rx="15" fill="url(#g2)"/><rect x=".75" y=".75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="1.5"/><g transform="translate(32 32) scale(1.08) translate(-26.6 -32.8)"><circle cx="20.70" cy="18.40" r="0.63" fill="#eef2f6"/><circle cx="23.25" cy="18.40" r="0.82" fill="#eef2f6"/><circle cx="25.80" cy="18.40" r="0.90" fill="#eef2f6"/><circle cx="28.35" cy="18.40" r="0.89" fill="#eef2f6"/><circle cx="30.90" cy="18.40" r="0.79" fill="#eef2f6"/><circle cx="33.45" cy="18.40" r="0.55" fill="#eef2f6"/><circle cx="15.60" cy="20.95" r="0.72" fill="#eef2f6"/><circle cx="18.15" cy="20.95" r="0.86" fill="#eef2f6"/><circle cx="20.70" cy="20.95" r="1.09" fill="#eef2f6"/><circle cx="23.25" cy="20.95" r="1.18" fill="#eef2f6"/><circle cx="25.80" cy="20.95" r="1.21" fill="#eef2f6"/><circle cx="28.35" cy="20.95" r="1.20" fill="#eef2f6"/><circle cx="30.90" cy="20.95" r="1.16" fill="#eef2f6"/><circle cx="33.45" cy="20.95" r="1.04" fill="#eef2f6"/><circle cx="36.00" cy="20.95" r="0.75" fill="#eef2f6"/><circle cx="13.05" cy="23.50" r="0.89" fill="#eef2f6"/><circle cx="15.60" cy="23.50" r="1.15" fill="#eef2f6"/><circle cx="18.15" cy="23.50" r="1.15" fill="#eef2f6"/><circle cx="20.70" cy="23.50" r="1.22" fill="#eef2f6"/><circle cx="23.25" cy="23.50" r="1.17" fill="#eef2f6"/><circle cx="25.80" cy="23.50" r="1.12" fill="#eef2f6"/><circle cx="28.35" cy="23.50" r="1.12" fill="#eef2f6"/><circle cx="30.90" cy="23.50" r="1.19" fill="#eef2f6"/><circle cx="33.45" cy="23.50" r="1.22" fill="#eef2f6"/><circle cx="13.05" cy="26.05" r="0.96" fill="#eef2f6"/><circle cx="15.60" cy="26.05" r="1.21" fill="#eef2f6"/><circle cx="18.15" cy="26.05" r="1.22" fill="#eef2f6"/><circle cx="20.70" cy="26.05" r="1.08" fill="#eef2f6"/><circle cx="23.25" cy="26.05" r="0.83" fill="#eef2f6"/><circle cx="25.80" cy="26.05" r="0.64" fill="#eef2f6"/><circle cx="28.35" cy="26.05" r="0.66" fill="#eef2f6"/><circle cx="30.90" cy="26.05" r="0.90" fill="#eef2f6"/><circle cx="33.45" cy="26.05" r="1.15" fill="#eef2f6"/><circle cx="13.05" cy="28.60" r="0.95" fill="#eef2f6"/><circle cx="15.60" cy="28.60" r="1.21" fill="#eef2f6"/><circle cx="18.15" cy="28.60" r="1.16" fill="#eef2f6"/><circle cx="20.70" cy="28.60" r="0.80" fill="#eef2f6"/><circle cx="33.45" cy="28.60" r="0.97" fill="#eef2f6"/><circle cx="36.00" cy="28.60" r="1.21" fill="#eef2f6"/><circle cx="38.55" cy="28.60" r="1.11" fill="#eef2f6"/><circle cx="41.10" cy="28.60" r="0.63" fill="#eef2f6"/><circle cx="13.05" cy="31.15" r="0.96" fill="#eef2f6"/><circle cx="15.60" cy="31.15" r="1.21" fill="#eef2f6"/><circle cx="18.15" cy="31.15" r="1.09" fill="#eef2f6"/><circle cx="20.70" cy="31.15" r="0.58" fill="#eef2f6"/><circle cx="33.45" cy="31.15" r="0.83" fill="#eef2f6"/><circle cx="36.00" cy="31.15" r="1.18" fill="#eef2f6"/><circle cx="38.55" cy="31.15" r="1.16" fill="#eef2f6"/><circle cx="41.10" cy="31.15" r="0.74" fill="#eef2f6"/><circle cx="13.05" cy="33.70" r="0.96" fill="#eef2f6"/><circle cx="15.60" cy="33.70" r="1.22" fill="#eef2f6"/><circle cx="18.15" cy="33.70" r="1.08" fill="#eef2f6"/><circle cx="33.45" cy="33.70" r="0.79" fill="#eef2f6"/><circle cx="36.00" cy="33.70" r="1.18" fill="#eef2f6"/><circle cx="38.55" cy="33.70" r="1.16" fill="#eef2f6"/><circle cx="41.10" cy="33.70" r="0.76" fill="#eef2f6"/><circle cx="13.05" cy="36.25" r="0.95" fill="#eef2f6"/><circle cx="15.60" cy="36.25" r="1.21" fill="#eef2f6"/><circle cx="18.15" cy="36.25" r="1.08" fill="#eef2f6"/><circle cx="33.45" cy="36.25" r="0.79" fill="#eef2f6"/><circle cx="36.00" cy="36.25" r="1.18" fill="#eef2f6"/><circle cx="38.55" cy="36.25" r="1.16" fill="#eef2f6"/><circle cx="41.10" cy="36.25" r="0.76" fill="#eef2f6"/><circle cx="13.05" cy="38.80" r="0.96" fill="#eef2f6"/><circle cx="15.60" cy="38.80" r="1.21" fill="#eef2f6"/><circle cx="18.15" cy="38.80" r="1.08" fill="#eef2f6"/><circle cx="33.45" cy="38.80" r="0.79" fill="#eef2f6"/><circle cx="36.00" cy="38.80" r="1.18" fill="#eef2f6"/><circle cx="38.55" cy="38.80" r="1.16" fill="#eef2f6"/><circle cx="41.10" cy="38.80" r="0.76" fill="#eef2f6"/><circle cx="13.05" cy="41.35" r="0.96" fill="#eef2f6"/><circle cx="15.60" cy="41.35" r="1.22" fill="#eef2f6"/><circle cx="18.15" cy="41.35" r="1.08" fill="#eef2f6"/><circle cx="33.45" cy="41.35" r="0.79" fill="#eef2f6"/><circle cx="36.00" cy="41.35" r="1.18" fill="#eef2f6"/><circle cx="38.55" cy="41.35" r="1.16" fill="#eef2f6"/><circle cx="41.10" cy="41.35" r="0.76" fill="#eef2f6"/><circle cx="13.05" cy="43.90" r="0.96" fill="#eef2f6"/><circle cx="15.60" cy="43.90" r="1.21" fill="#eef2f6"/><circle cx="18.15" cy="43.90" r="1.08" fill="#eef2f6"/><circle cx="33.45" cy="43.90" r="0.79" fill="#eef2f6"/><circle cx="36.00" cy="43.90" r="1.18" fill="#eef2f6"/><circle cx="38.55" cy="43.90" r="1.16" fill="#eef2f6"/><circle cx="41.10" cy="43.90" r="0.76" fill="#eef2f6"/><circle cx="13.05" cy="46.45" r="0.77" fill="#eef2f6"/><circle cx="15.60" cy="46.45" r="1.03" fill="#eef2f6"/><circle cx="18.15" cy="46.45" r="0.90" fill="#eef2f6"/><circle cx="33.45" cy="46.45" r="0.61" fill="#eef2f6"/><circle cx="36.00" cy="46.45" r="0.99" fill="#eef2f6"/><circle cx="38.55" cy="46.45" r="0.98" fill="#eef2f6"/><circle cx="41.10" cy="46.45" r="0.58" fill="#eef2f6"/><circle cx="26.8" cy="33.7" r="0.67" fill="#eef2f6" fill-opacity="0.24"/><circle cx="29.4" cy="35.0" r="0.41" fill="#eef2f6" fill-opacity="0.25"/><circle cx="37.9" cy="9.9" r="0.69" fill="#eef2f6" fill-opacity="0.34"/><circle cx="13.2" cy="8.7" r="0.53" fill="#eef2f6" fill-opacity="0.16"/><circle cx="7.4" cy="29.3" r="0.50" fill="#eef2f6" fill-opacity="0.32"/><circle cx="29.9" cy="37.5" r="0.52" fill="#eef2f6" fill-opacity="0.28"/><circle cx="51.9" cy="53.8" r="0.64" fill="#eef2f6" fill-opacity="0.29"/><circle cx="19.3" cy="11.2" r="0.62" fill="#eef2f6" fill-opacity="0.23"/><circle cx="44.9" cy="25.8" r="0.69" fill="#eef2f6" fill-opacity="0.32"/><circle cx="37.2" cy="24.6" r="6.4" fill="url(#h)"/><circle cx="37.2" cy="24.6" r="2.35" fill="#5eead4"/></g></svg>
+  <h1>Sin conexión<i>.</i></h1>
+  <p>Esta página necesita internet. Cuando vuelva la señal, se carga sola.</p>
+  <div class="acciones">
+    <a class="boton" href="">Volver a intentar</a>
+    <a class="enlace" href="/">Ir a la portada</a>
+  </div>
+  <p class="nota">nicoholas.dev</p>
+</main>
 </body>
 </html>

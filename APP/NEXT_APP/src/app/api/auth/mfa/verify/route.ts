@@ -8,15 +8,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { ipCliente } from "@/lib/ip-cliente";
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { verifyMFA, useRecoveryCode } from '@/lib/mfa'
 import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
-    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        request.headers.get('x-real-ip') ||
-        '127.0.0.1'
+    return ipCliente(request.headers)
 }
 
 // Rate limiting for MFA attempts (in-memory, per-process)

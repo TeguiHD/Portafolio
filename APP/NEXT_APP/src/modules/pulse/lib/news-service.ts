@@ -49,7 +49,6 @@ const CATEGORY_TARGETS: Partial<Record<PulseNewsItem["category"], number>> = {
 interface FeedSourceOptions {
   maxItems?: number;
   providerLabel?: string;
-  revalidate?: number;
   forceCategory?: PulseNewsItem["category"];
   keywords?: string[];
   requiredKeywords?: string[];
@@ -458,13 +457,12 @@ function enforceBalancedSelection(items: PulseNewsItem[], maxItems: number, maxP
 }
 
 /** Los feeds son públicos y lentos a ratos: con plazo, uno caído no retrasa al resto. */
-function fetchJson<T>(url: string, revalidate: number) {
-  return pedirJson<T>(url, { revalidate, plazo: 6000 });
+function fetchJson<T>(url: string) {
+  return pedirJson<T>(url, { plazo: 6000 });
 }
 
-function fetchText(url: string, revalidate: number) {
+function fetchText(url: string) {
   return pedirTexto(url, {
-    revalidate,
     plazo: 6000,
     cabeceras: { Accept: "application/rss+xml, application/xml, text/xml, text/html" },
   });
@@ -482,7 +480,7 @@ async function fetchCisaKevItems() {
       dueDate?: string;
       knownRansomwareCampaignUse?: string;
     }>;
-  }>(CISA_KEV_API, 1800);
+  }>(CISA_KEV_API);
 
   return (payload.vulnerabilities ?? []).slice(0, 6).map((entry, index) => {
     const cveId = entry.cveID || `KEV-${index + 1}`;
@@ -514,7 +512,7 @@ async function fetchFeedSource(
   fallbackCategory: PulseNewsItem["category"],
   options?: FeedSourceOptions
 ) {
-  const xml = await fetchText(url, options?.revalidate ?? 1800);
+  const xml = await fetchText(url);
   const feedItems = parseFeedItems(xml).filter((item) => item.title && item.url);
   const selected: PulseNewsItem[] = [];
 
@@ -563,7 +561,6 @@ async function fetchFeedCollection(sources: FeedSourceDescriptor[]) {
       fetchFeedSource(source.url, source.source, source.fallbackCategory, {
         maxItems: source.maxItems,
         providerLabel: source.providerLabel,
-        revalidate: source.revalidate,
         forceCategory: source.forceCategory,
         keywords: source.keywords,
         requiredKeywords: source.requiredKeywords,
@@ -621,7 +618,8 @@ async function enrichNewsItems(items: PulseNewsItem[]) {
 
     return {
       ...original,
-      excerpt: truncateExcerpt(original.excerpt) || "Señal técnica capturada por el Command Center.",
+      // Sin resumen antes que uno inventado: la ficha lo presenta como «tomado del propio medio».
+      excerpt: truncateExcerpt(resumenUtil(original.excerpt, original.title)) || undefined,
       imageUrl: original.imageUrl || buildPulsePlaceholderImage(original.source, original.category, original.title),
       imageAlt: original.imageAlt || original.title,
       sourceDomain: original.sourceDomain || "",
@@ -668,8 +666,8 @@ const MINIMO_RAZONABLE = 8;
  * la nueva llega muy por debajo de la anterior, se mezclan: lo reciente manda y lo de
  * antes rellena, con el mismo reparto por fuente y por tema que el resto del blog.
  */
-export function getPulseNewsCached(forzar = false) {
-  return cacheNoticias.leer(async () => {
+export async function getPulseNewsCached(forzar = false) {
+  const leido = await cacheNoticias.leer(async () => {
     const frescas = await getPulseNews();
     const previas = cacheNoticias.verGuardado()?.valor ?? [];
     const coja = frescas.length < MINIMO_RAZONABLE || frescas.length < previas.length * 0.6;
@@ -679,4 +677,14 @@ export function getPulseNewsCached(forzar = false) {
     }
     return frescas;
   }, forzar);
+  return { ...leido, valor: conEtiquetaAlDia(leido.valor) };
+}
+
+/**
+ * «Publicado hace 5 min» se escribía al traer la tanda y viajaba congelado en la caché: veinte minutos después (o un día,
+ * si las fuentes fallaban y se servía lo guardado) seguía diciendo «5 min», y las notas viejas mezcladas en una tanda
+ * coja arrastraban la etiqueta de cuando llegaron. Se recalcula al servir; las sin fecha conocida se quedan como están.
+ */
+function conEtiquetaAlDia(items: PulseNewsItem[]): PulseNewsItem[] {
+  return items.map((n) => (n.publishedAt === UNKNOWN_PUBLISHED_AT ? n : { ...n, timestampLabel: buildTimestampLabel(n.publishedAt) }));
 }

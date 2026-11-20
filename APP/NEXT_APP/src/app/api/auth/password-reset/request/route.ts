@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/redis";
@@ -15,11 +16,7 @@ const MAX_REQUESTS_PER_IP_PER_HOUR = 20;
 const RESET_WINDOW_SECONDS = 60 * 60;
 
 function getClientIp(request: NextRequest): string {
-    return (
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
-        "unknown"
-    );
+    return ipCliente(request.headers);
 }
 
 export async function POST(request: NextRequest) {
