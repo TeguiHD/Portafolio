@@ -40,35 +40,33 @@ export function useToast() {
     return context
 }
 
-// Toast icons and colors
-const toastConfig: Record<ToastType, { icon: typeof CheckCircle; bgColor: string; borderColor: string; iconColor: string }> = {
+// Íconos y color de cada tipo. El aviso vive en el layout raíz, fuera de .panel: tema-panel.css no lo alcanza, así
+// que los colores salen de los tokens del sitio (cambian solos con el tema) o llevan su variante para tema claro.
+// Las clases van completas: Tailwind solo genera las que lee tal cual en el código.
+const toastConfig: Record<ToastType, { icon: typeof CheckCircle; iconColor: string; barColor: string }> = {
     success: {
         icon: CheckCircle,
-        bgColor: 'bg-emerald-500/10',
-        borderColor: 'border-emerald-500/30',
-        iconColor: 'text-emerald-400',
+        iconColor: 'text-[var(--sube)]',
+        barColor: 'bg-[var(--sube)]',
     },
     error: {
         icon: AlertCircle,
-        bgColor: 'bg-red-500/10',
-        borderColor: 'border-red-500/30',
-        iconColor: 'text-red-400',
+        iconColor: 'text-[var(--error)]',
+        barColor: 'bg-[var(--error)]',
     },
     warning: {
         icon: AlertTriangle,
-        bgColor: 'bg-amber-500/10',
-        borderColor: 'border-amber-500/30',
-        iconColor: 'text-amber-400',
+        iconColor: 'text-amber-400 [:root[data-tema=claro]_&]:text-amber-700',
+        barColor: 'bg-amber-400 [:root[data-tema=claro]_&]:bg-amber-600',
     },
     info: {
         icon: Info,
-        bgColor: 'bg-blue-500/10',
-        borderColor: 'border-blue-500/30',
-        iconColor: 'text-blue-400',
+        iconColor: 'text-[var(--cerca)]',
+        barColor: 'bg-[var(--cerca)]',
     },
 }
 
-// Individual Toast component — pure CSS animations, no framer-motion
+// Individual Toast component — pure CSS, no framer-motion
 function ToastItem({ toast, onRemove, exiting }: { toast: Toast; onRemove: () => void; exiting?: boolean }) {
     const config = toastConfig[toast.type]
     const Icon = config.icon
@@ -85,46 +83,40 @@ function ToastItem({ toast, onRemove, exiting }: { toast: Toast; onRemove: () =>
 
     return (
         <div
-            className={`
-                relative flex items-start gap-3 p-4 pr-10 rounded-xl 
-                backdrop-blur-xl border shadow-2xl
-                ${config.bgColor} ${config.borderColor}
-                transition-all duration-300 ease-out
-                ${exiting
-                    ? 'opacity-0 translate-x-24 scale-95'
-                    : 'animate-[toast-in_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]'
-                }
-            `}
+            className={`relative flex items-start gap-3 overflow-hidden rounded-xl border border-[var(--linea-2)] bg-[var(--sup)] p-4 pr-12 text-[var(--txt)] shadow-[0_24px_50px_-24px_rgb(0_0_0/0.45)] transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none ${exiting ? 'opacity-0' : 'opacity-100'}`}
         >
             {/* Icon */}
-            <Icon className={`w-5 h-5 mt-0.5 ${config.iconColor} flex-shrink-0`} />
+            <Icon size={18} aria-hidden="true" className={`mt-0.5 shrink-0 ${config.iconColor}`} />
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-                <p className="font-medium text-white text-sm">{toast.title}</p>
+                <p className="text-sm font-medium text-[var(--txt)]">{toast.title}</p>
                 {toast.message && (
-                    <p className="text-neutral-300 text-sm mt-1">{toast.message}</p>
+                    <p className="mt-1 text-sm text-[var(--mut)]">{toast.message}</p>
                 )}
             </div>
 
             {/* Close button */}
             <button
+                type="button"
                 onClick={onRemove}
-                className="absolute right-2 top-2 p-1.5 rounded-lg hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
+                aria-label="Cerrar aviso"
+                className="absolute right-1 top-1 inline-grid size-11 place-items-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] hover:text-[var(--txt)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)] sm:size-9"
             >
-                <X className="w-4 h-4" />
+                <X size={16} aria-hidden="true" />
             </button>
 
-            {/* Progress bar — CSS transition instead of motion.div */}
+            {/* Tiempo que le queda: barra que se vacía (sin barra si se pide menos movimiento) */}
             <div
                 ref={progressRef}
+                aria-hidden="true"
                 style={{
                     transform: 'scaleX(1)',
                     transitionProperty: 'transform',
                     transitionDuration: `${(toast.duration || 5000)}ms`,
                     transitionTimingFunction: 'linear',
                 }}
-                className={`absolute bottom-0 left-0 right-0 h-1 origin-left rounded-b-xl ${config.iconColor.replace('text-', 'bg-')}`}
+                className={`absolute bottom-0 left-0 right-0 h-0.5 origin-left motion-reduce:hidden ${config.barColor}`}
             />
         </div>
     )
@@ -175,8 +167,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <ToastContext.Provider value={{ toasts, addToast, removeToast, success, error, warning, info }}>
             {children}
 
-            {/* Toast container - highest z-index */}
-            <div className="fixed top-4 right-4 z-[99999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+            {/* Toast container - highest z-index. Está desde la carga para que los lectores de pantalla anuncien lo que entra. */}
+            <div role="region" aria-label="Avisos" aria-live="polite" className="fixed top-4 right-4 z-[99999] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3 pointer-events-none">
                 {toasts.map(toast => (
                     <div key={toast.id} className="pointer-events-auto">
                         <ToastItem toast={toast} onRemove={() => removeToast(toast.id)} exiting={toast.exiting} />

@@ -4,9 +4,10 @@
  */
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useId, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import type { SocialNetwork } from "../utils/latex-templates-enhanced";
+import { CAMPO, ENLACE, FOCO, INTERRUPTOR } from "./estilos";
 
 // Available social networks with their icons and placeholders
 export const AVAILABLE_NETWORKS = {
@@ -93,6 +94,7 @@ interface SocialNetworksEditorProps {
 
 export function SocialNetworksEditor({ networks, onChange }: SocialNetworksEditorProps) {
     const [isAdding, setIsAdding] = useState(false);
+    const base = useId();
 
     const addNetwork = (networkType: NetworkType) => {
         const newNetwork: SocialNetwork = {
@@ -119,103 +121,83 @@ export function SocialNetworksEditor({ networks, onChange }: SocialNetworksEdito
     ) as NetworkType[];
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <label className="block text-sm text-neutral-400">Redes Sociales</label>
+        <div role="group" aria-labelledby={`${base}-t`} className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+                <p id={`${base}-t`} className="text-sm text-[var(--mut)]">Redes sociales</p>
                 {availableToAdd.length > 0 && (
                     <button
                         type="button"
                         onClick={() => setIsAdding(!isAdding)}
-                        className="text-sm text-accent-1 hover:text-accent-1/80 flex items-center gap-1"
+                        aria-expanded={isAdding}
+                        aria-controls={`${base}-redes`}
+                        className={`${ENLACE} min-h-11 text-sm sm:min-h-0`}
                     >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
+                        <Plus className="size-4" aria-hidden="true" />
                         Agregar red
                     </button>
                 )}
             </div>
 
-            {/* Add network selector */}
-            <AnimatePresence>
-                {isAdding && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="flex flex-wrap gap-2 p-3 rounded-xl bg-white/5 border border-accent-1/10"
-                    >
-                        {availableToAdd.map((networkType) => {
-                            const network = AVAILABLE_NETWORKS[networkType];
-                            return (
-                                <button
-                                    key={networkType}
-                                    type="button"
-                                    onClick={() => addNetwork(networkType)}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-accent-1/20 text-neutral-300 hover:text-accent-1 transition-colors text-sm"
-                                >
-                                    {network.icon}
-                                    {networkType}
-                                </button>
-                            );
-                        })}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ul id={`${base}-redes`} hidden={!isAdding} className="flex flex-wrap gap-2 rounded-xl border border-[var(--linea)] bg-[var(--sup)] p-3">
+                {availableToAdd.map((networkType) => {
+                    const network = AVAILABLE_NETWORKS[networkType];
+                    return (
+                        <li key={networkType}>
+                            <button type="button" onClick={() => addNetwork(networkType)} className={INTERRUPTOR}>
+                                <span className="text-[var(--mut)] [&_svg]:size-4" aria-hidden="true">{network.icon}</span>
+                                {networkType}
+                            </button>
+                        </li>
+                    );
+                })}
+            </ul>
 
-            {/* Current networks */}
-            <div className="space-y-3">
-                <AnimatePresence>
+            {networks.length > 0 && (
+                <ul className="space-y-3">
                     {networks.map((network, index) => {
                         const config = AVAILABLE_NETWORKS[network.network];
+                        const fid = `${base}-${index}`;
                         return (
-                            <motion.div
-                                key={`${network.network}-${index}`}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                className="flex items-center gap-3"
-                            >
-                                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 text-neutral-400">
+                            <li key={`${network.network}-${index}`} className="flex items-end gap-3">
+                                <span
+                                    aria-hidden="true"
+                                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-[var(--linea)] text-[var(--mut)] sm:size-10 [&_svg]:size-[18px]"
+                                >
                                     {config.icon}
-                                </div>
-                                <div className="flex-1">
-                                    <div className="text-xs text-neutral-500 mb-1">{network.network}</div>
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <label htmlFor={fid} className="mb-1 block text-xs text-[var(--mut)]">{network.network}</label>
                                     <input
+                                        id={fid}
                                         type="text"
                                         value={network.username || ""}
                                         onChange={(e) => updateNetwork(index, e.target.value)}
                                         placeholder={config.placeholder}
-                                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-accent-1/20 text-white text-sm focus:outline-none focus:border-accent-1/50"
+                                        className={CAMPO}
                                     />
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => removeNetwork(index)}
-                                    className="p-2 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    aria-label={`Quitar ${network.network}`}
+                                    className={`inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-red-500/10 hover:text-red-400 sm:size-10 ${FOCO}`}
                                 >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
+                                    <Trash2 className="size-4" aria-hidden="true" />
                                 </button>
-                            </motion.div>
+                            </li>
                         );
                     })}
-                </AnimatePresence>
+                </ul>
+            )}
 
-                {networks.length === 0 && !isAdding && (
-                    <div className="text-center py-6 text-neutral-500 text-sm">
-                        No hay redes sociales configuradas.
-                        <button
-                            type="button"
-                            onClick={() => setIsAdding(true)}
-                            className="text-accent-1 hover:underline ml-1"
-                        >
-                            Agregar una
-                        </button>
-                    </div>
-                )}
-            </div>
+            {networks.length === 0 && !isAdding && (
+                <p className="text-sm text-[var(--mut)]">
+                    No hay redes sociales configuradas.{" "}
+                    <button type="button" onClick={() => setIsAdding(true)} className={`${ENLACE} underline`}>
+                        Agregar una
+                    </button>
+                </p>
+            )}
         </div>
     );
 }

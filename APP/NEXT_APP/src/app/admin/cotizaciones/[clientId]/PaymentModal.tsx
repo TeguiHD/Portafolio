@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { DollarSign, X, CreditCard, Banknote, Building2, Wallet, Bitcoin, HelpCircle, Calendar, FileText, Check } from "lucide-react";
+import { useState, useEffect, useCallback, useId, useTransition } from "react";
+import { DollarSign, CreditCard, Banknote, Building2, Wallet, Bitcoin, HelpCircle, FileText, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useCallback } from "react";
 import type { PaymentMethod } from '@/generated/prisma/client';
+import Ventana from "@/modules/quotations/components/Ventana";
+import { AREA, BARRA, BOTON, BOTON_MINI, CAMPO, ETIQUETA, OPCION, TITULO_SECCION } from "@/modules/quotations/estilos";
+import { cobrosDePropuestaAction, registrarPagoAction, type CobrosDePropuesta } from "@/app/admin/gestion-comercial/pagos/actions";
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -19,374 +21,360 @@ interface PaymentModalProps {
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: typeof DollarSign }[] = [
     { value: "TRANSFER", label: "Transferencia", icon: Building2 },
     { value: "CASH", label: "Efectivo", icon: Banknote },
-    { value: "CREDIT_CARD", label: "Tarjeta de Crédito", icon: CreditCard },
-    { value: "DEBIT_CARD", label: "Tarjeta de Débito", icon: Wallet },
+    { value: "CREDIT_CARD", label: "Tarjeta de crédito", icon: CreditCard },
+    { value: "DEBIT_CARD", label: "Tarjeta de débito", icon: Wallet },
     { value: "CHECK", label: "Cheque", icon: FileText },
     { value: "PAYPAL", label: "PayPal", icon: DollarSign },
-    { value: "CRYPTO", label: "Crypto", icon: Bitcoin },
+    { value: "CRYPTO", label: "Cripto", icon: Bitcoin },
     { value: "OTHER", label: "Otro", icon: HelpCircle },
 ];
 
-interface Payment {
-    id: string;
-    amount: number;
-    method: PaymentMethod;
-    reference: string | null;
-    notes: string | null;
-    paidAt: string;
+type Cuota = CobrosDePropuesta["cuotas"][number];
+
+const hoyChile = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
+const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Santiago" });
+const pesos = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
+const nombreCuota = (c: { numero: number | null; de: number | null }) => (c.numero && c.de ? `Cuota ${c.numero} de ${c.de}` : "Cuota");
+
+export default function PaymentModal({ isOpen, ...props }: PaymentModalProps) {
+    if (!isOpen) return null;
+    // Se monta al abrir: el formulario parte limpio y el historial se carga cada vez.
+    return <Contenido {...props} />;
 }
 
-export default function PaymentModal({
-    isOpen,
+/**
+ * Registra un pago recibido con las mismas reglas que Pagos (registrarPagoAction): si la propuesta tiene cuotas por
+ * cobrar, el pago salda una de ellas en vez de sumar un registro aparte que dejaba la cuota pendiente para siempre
+ * en «Hoy» y en Comercial.
+ */
+function Contenido({
     onClose,
     quotationId,
     quotationFolio,
-    total,
-    totalPaid,
+    total: totalInicial,
+    totalPaid: pagadoInicial,
     onPaymentRegistered
-}: PaymentModalProps) {
+}: Omit<PaymentModalProps, "isOpen">) {
     const [amount, setAmount] = useState("");
     const [method, setMethod] = useState<PaymentMethod>("TRANSFER");
     const [reference, setReference] = useState("");
     const [notes, setNotes] = useState("");
-    const [paidAt, setPaidAt] = useState(new Date().toISOString().split("T")[0]);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [payments, setPayments] = useState<Payment[]>([]);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    // Hoy en Chile (toISOString da el día siguiente en la noche).
+    const [paidAt, setPaidAt] = useState(hoyChile);
+    const [cuotaId, setCuotaId] = useState("");
+    const [isSubmitting, startSubmit] = useTransition();
+    const [datos, setDatos] = useState<CobrosDePropuesta | null>(null);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const id = useId();
 
-    const remaining = total - totalPaid;
+    // Lo leído del servidor manda; mientras carga, lo que trajo la tarjeta.
+    const total = datos?.total ?? totalInicial;
+    const totalPaid = datos?.pagado ?? pagadoInicial;
+    const remaining = Math.max(0, total - totalPaid);
     const percentagePaid = total > 0 ? Math.min(100, (totalPaid / total) * 100) : 0;
+    const cuotas = datos?.cuotas ?? [];
+    const cuota = cuotas.find((c) => c.id === cuotaId);
+    const payments = datos?.pagos ?? [];
 
-    const loadPaymentHistory = useCallback(async () => {
+    const elegirCuota = useCallback((c: Cuota | undefined) => {
+        setCuotaId(c?.id ?? "");
+        setAmount(c ? String(Math.round(c.monto)) : "");
+    }, []);
+
+    const cargar = useCallback(async () => {
         setIsLoadingHistory(true);
         try {
-            const response = await fetch(`/api/quotations/payments?quotationId=${quotationId}`);
-            const data = await response.json();
-            if (data.success) {
-                setPayments(data.payments || []);
+            const r = await cobrosDePropuestaAction(quotationId);
+            if (r.success) {
+                setDatos(r.datos);
+                // La cuota que vence antes (o la atrasada) queda elegida: es la que se suele estar pagando.
+                elegirCuota(r.datos.cuotas[0]);
+            } else {
+                setError(r.error);
             }
-        } catch (error) {
-            console.error("Error loading payments:", error);
+        } catch {
+            setError("No se pudieron leer los pagos: revisa la conexión");
         } finally {
             setIsLoadingHistory(false);
         }
-    }, [quotationId]);
+    }, [quotationId, elegirCuota]);
 
     useEffect(() => {
-        if (isOpen) {
-            loadPaymentHistory();
-        }
-    }, [isOpen, loadPaymentHistory]);
+        cargar();
+    }, [cargar]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
 
-        const amountNum = parseFloat(amount);
-        if (isNaN(amountNum) || amountNum <= 0) {
-            toast.error("Ingresa un monto válido");
+        const amountNum = Number(amount);
+        if (!Number.isFinite(amountNum) || amountNum <= 0) {
+            setError("Escribe un monto mayor que cero");
             return;
         }
 
-        if (amountNum > remaining) {
-            toast.error(`El monto excede el saldo pendiente ($${remaining.toLocaleString("es-CL")})`);
+        if (amountNum > remaining + 0.5) {
+            setError(`El monto supera lo que falta por pagar (${pesos(remaining)})`);
             return;
         }
 
-        setIsSubmitting(true);
-        try {
-            const response = await fetch("/api/quotations/payments", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+        startSubmit(async () => {
+            try {
+                const r = await registrarPagoAction({
                     quotationId,
+                    cuotaId: cuota?.id,
                     amount: amountNum,
+                    fecha: paidAt,
                     method,
-                    reference: reference.trim() || null,
-                    notes: notes.trim() || null,
-                    paidAt: new Date(paidAt).toISOString(),
-                }),
-            });
+                    status: "PAID",
+                    // Al saldar una cuota se conserva su número (sin esto quedaría en blanco).
+                    installmentNumber: cuota?.numero && cuota.de ? cuota.numero : undefined,
+                    totalInstallments: cuota?.numero && cuota.de ? cuota.de : undefined,
+                    reference: reference.trim() || undefined,
+                    notes: notes.trim() || undefined,
+                });
+                if (!r.success) {
+                    setError(r.error);
+                    return;
+                }
 
-            const data = await response.json();
+                const anuladas = r.anuladas === 1 ? "la cuota que quedaba" : `las ${r.anuladas} cuotas que quedaban`;
+                toast.success(r.completa
+                    ? `Pago registrado: la propuesta quedó pagada y completada${r.anuladas ? ` (se anularon ${anuladas} por cobrar)` : ""}`
+                    : cuota ? `${nombreCuota(cuota)} pagada` : "Pago registrado");
 
-            if (!response.ok) {
-                throw new Error(data.error || "Error al registrar pago");
+                setReference("");
+                setNotes("");
+                onPaymentRegistered?.();
+
+                if (r.completa) {
+                    onClose();
+                    return;
+                }
+                // Lo que queda: la cuota siguiente, si hay.
+                await cargar();
+            } catch {
+                setError("No se pudo registrar el pago: revisa la conexión");
             }
-
-            toast.success(data.isFullyPaid
-                ? "¡Pago completo registrado! Cotización completada."
-                : "Pago registrado exitosamente"
-            );
-
-            // Reset form
-            setAmount("");
-            setReference("");
-            setNotes("");
-
-            // Reload history
-            await loadPaymentHistory();
-
-            // Notify parent
-            onPaymentRegistered?.();
-
-            if (data.isFullyPaid) {
-                onClose();
-            }
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Error al registrar pago");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString("es-CL", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
         });
     };
 
-    const getMethodIcon = (m: PaymentMethod) => {
+    const getMethodIcon = (m: string) => {
         const found = PAYMENT_METHODS.find(pm => pm.value === m);
         return found?.icon || HelpCircle;
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-700 flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-500/20 rounded-lg">
-                            <DollarSign className="w-5 h-5 text-emerald-400" />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-white">Registrar Pago</h2>
-                            <p className="text-sm text-slate-400">{quotationFolio}</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+        <Ventana
+            titulo="Registrar pago"
+            descripcion={quotationFolio}
+            icono={<DollarSign size={18} />}
+            alCerrar={onClose}
+            ancho="max-w-2xl"
+        >
+            <dl className="grid grid-cols-3 gap-x-4 border-y border-[var(--linea)] py-4">
+                <div className="flex min-w-0 flex-col">
+                    <dt className="order-2 text-[13px] text-[var(--mut)]">Total</dt>
+                    <dd className="order-1 break-words text-base font-bold tabular-nums text-[var(--txt)] sm:text-xl">{pesos(total)}</dd>
                 </div>
+                <div className="flex min-w-0 flex-col">
+                    <dt className="order-2 text-[13px] text-[var(--mut)]">Pagado</dt>
+                    <dd className="order-1 break-words text-base font-bold tabular-nums text-emerald-400 sm:text-xl">{pesos(totalPaid)}</dd>
+                </div>
+                <div className="flex min-w-0 flex-col">
+                    <dt className="order-2 text-[13px] text-[var(--mut)]">Falta</dt>
+                    <dd className={`order-1 break-words text-base font-bold tabular-nums sm:text-xl ${remaining > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                        {pesos(remaining)}
+                    </dd>
+                </div>
+            </dl>
+            <div className="mt-3">
+                <div className={BARRA} role="progressbar" aria-label="Pagado" aria-valuenow={Math.round(percentagePaid)} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${percentagePaid}%` }} />
+                </div>
+                <p className="mt-1 text-right text-xs tabular-nums text-[var(--mut)]">{percentagePaid.toFixed(0)}% pagado</p>
+            </div>
 
-                <div className="overflow-y-auto flex-1 p-6">
-                    {/* Payment Summary */}
-                    <div className="bg-slate-800/50 rounded-xl p-4 mb-6">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-slate-400">Total Cotización</span>
-                            <span className="text-white font-bold text-lg">${total.toLocaleString("es-CL")}</span>
+            {remaining > 0 && (
+                <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+                    {cuotas.length > 0 && (
+                        <div>
+                            <label htmlFor={`${id}-cuota`} className={ETIQUETA}>Qué se pagó</label>
+                            <select
+                                id={`${id}-cuota`}
+                                value={cuotaId}
+                                onChange={(e) => elegirCuota(cuotas.find((c) => c.id === e.target.value))}
+                                className={CAMPO}
+                            >
+                                {cuotas.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {nombreCuota(c)} · {pesos(c.monto)}
+                                        {c.vence ? ` · ${c.estado === "OVERDUE" ? "venció" : "vence"} el ${fechaCorta(c.vence)}` : ""}
+                                    </option>
+                                ))}
+                                <option value="">Otro pago, fuera de las cuotas</option>
+                            </select>
                         </div>
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-slate-400">Total Pagado</span>
-                            <span className="text-emerald-400 font-bold">${totalPaid.toLocaleString("es-CL")}</span>
-                        </div>
-                        <div className="flex items-center justify-between mb-4">
-                            <span className="text-slate-400">Saldo Pendiente</span>
-                            <span className={`font-bold ${remaining > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                                ${remaining.toLocaleString("es-CL")}
-                            </span>
-                        </div>
-                        {/* Progress Bar */}
-                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
-                                style={{ width: `${percentagePaid}%` }}
+                    )}
+
+                    <div>
+                        <label htmlFor={`${id}-monto`} className={ETIQUETA}>Monto del pago</label>
+                        <div className="relative">
+                            <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--mut)]">$</span>
+                            <input
+                                id={`${id}-monto`}
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                value={amount ? Number(amount).toLocaleString("es-CL") : ""}
+                                onChange={(e) => {
+                                    // Solo dígitos: el peso chileno no lleva decimales.
+                                    setAmount(e.target.value.replace(/\D/g, "").slice(0, 13));
+                                }}
+                                placeholder={Math.round(remaining).toLocaleString("es-CL")}
+                                className={`${CAMPO} pl-7 tabular-nums`}
+                                aria-invalid={error ? true : undefined}
+                                aria-describedby={error ? `${id}-error` : undefined}
+                                required
+                                data-autofocus
                             />
                         </div>
-                        <p className="text-center text-sm text-slate-400 mt-2">
-                            {percentagePaid.toFixed(0)}% pagado
-                        </p>
+                        {!cuota && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                <button type="button" onClick={() => setAmount(String(Math.round(remaining)))} className={BOTON_MINI}>
+                                    Todo lo que falta ({Math.round(remaining).toLocaleString("es-CL")})
+                                </button>
+                                <button type="button" onClick={() => setAmount(String(Math.floor(remaining / 2)))} className={BOTON_MINI}>
+                                    La mitad
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    {remaining > 0 && (
-                        <form onSubmit={handleSubmit} className="space-y-5 mb-6">
-                            {/* Amount */}
-                            <div>
-                                <label className="block text-sm font-medium text-white mb-2">
-                                    Monto del Pago
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">$</span>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={amount ? Number(amount).toLocaleString("es-CL") : ""}
-                                        onChange={(e) => {
-                                            // Extraer solo dígitos para el valor interno
-                                            const raw = e.target.value.replace(/\D/g, "");
-                                            setAmount(raw);
-                                        }}
-                                        placeholder={remaining.toLocaleString("es-CL")}
-                                        className="w-full pl-8 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
-                                        required
-                                    />
-                                </div>
-                                <div className="flex gap-2 mt-2">
+                    <fieldset>
+                        <legend className={ETIQUETA}>Medio de pago</legend>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {PAYMENT_METHODS.map((pm) => {
+                                const PMIcon = pm.icon;
+                                return (
                                     <button
+                                        key={pm.value}
                                         type="button"
-                                        onClick={() => setAmount(remaining.toString())}
-                                        className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+                                        onClick={() => setMethod(pm.value)}
+                                        aria-pressed={method === pm.value}
+                                        className={`${OPCION} flex min-h-11 items-center gap-2 p-3 text-sm`}
                                     >
-                                        Pagar todo ({remaining.toLocaleString("es-CL")})
+                                        <PMIcon size={16} aria-hidden="true" className={method === pm.value ? "text-[var(--acento)]" : "text-[var(--mut)]"} />
+                                        <span className="text-[var(--txt)]">{pm.label}</span>
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setAmount(Math.floor(remaining / 2).toString())}
-                                        className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
-                                    >
-                                        50%
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Payment Method */}
-                            <div>
-                                <label className="block text-sm font-medium text-white mb-2">
-                                    Método de Pago
-                                </label>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {PAYMENT_METHODS.map((pm) => {
-                                        const PMIcon = pm.icon;
-                                        return (
-                                            <button
-                                                key={pm.value}
-                                                type="button"
-                                                onClick={() => setMethod(pm.value)}
-                                                className={`p-3 rounded-lg border text-center transition-colors ${method === pm.value
-                                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-                                                    : "border-slate-700 text-slate-400 hover:border-slate-600"
-                                                    }`}
-                                            >
-                                                <PMIcon className="w-5 h-5 mx-auto mb-1" />
-                                                <span className="text-xs">{pm.label}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                {/* Date */}
-                                <div>
-                                    <label className="flex items-center gap-2 text-sm font-medium text-white mb-2">
-                                        <Calendar className="w-4 h-4 text-slate-400" />
-                                        Fecha de Pago
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={paidAt}
-                                        onChange={(e) => setPaidAt(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
-                                    />
-                                </div>
-
-                                {/* Reference */}
-                                <div>
-                                    <label className="block text-sm font-medium text-white mb-2">
-                                        Referencia (opcional)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={reference}
-                                        onChange={(e) => setReference(e.target.value)}
-                                        placeholder="Nº de operación..."
-                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Notes */}
-                            <div>
-                                <label className="block text-sm font-medium text-white mb-2">
-                                    Notas (opcional)
-                                </label>
-                                <textarea
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    placeholder="Notas adicionales..."
-                                    rows={2}
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 resize-none"
-                                />
-                            </div>
-
-                            {/* Submit */}
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Registrando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Check className="w-4 h-4" />
-                                        Registrar Pago
-                                    </>
-                                )}
-                            </button>
-                        </form>
-                    )}
-
-                    {remaining <= 0 && (
-                        <div className="text-center py-8 mb-6">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/20 mb-4">
-                                <Check className="w-8 h-8 text-emerald-400" />
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-2">¡Cotización Pagada!</h3>
-                            <p className="text-slate-400">Esta cotización ya ha sido pagada en su totalidad.</p>
+                                );
+                            })}
                         </div>
-                    )}
+                    </fieldset>
 
-                    {/* Payment History */}
-                    {payments.length > 0 && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <h3 className="text-sm font-medium text-white mb-3">Historial de Pagos</h3>
-                            <div className="space-y-2">
-                                {payments.map((payment) => {
-                                    const MethodIcon = getMethodIcon(payment.method);
-                                    return (
-                                        <div
-                                            key={payment.id}
-                                            className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-slate-700 rounded-lg">
-                                                    <MethodIcon className="w-4 h-4 text-slate-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-white font-medium">
-                                                        ${payment.amount.toLocaleString("es-CL")}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500">
-                                                        {formatDate(payment.paidAt)}
-                                                        {payment.reference && ` • ${payment.reference}`}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <label htmlFor={`${id}-fecha`} className={ETIQUETA}>Fecha del pago</label>
+                            <input
+                                id={`${id}-fecha`}
+                                type="date"
+                                value={paidAt}
+                                onChange={(e) => setPaidAt(e.target.value)}
+                                required
+                                className={CAMPO}
+                            />
                         </div>
-                    )}
+                        <div>
+                            <label htmlFor={`${id}-ref`} className={ETIQUETA}>Referencia (opcional)</label>
+                            <input
+                                id={`${id}-ref`}
+                                type="text"
+                                value={reference}
+                                onChange={(e) => setReference(e.target.value)}
+                                maxLength={100}
+                                placeholder="N.º de operación"
+                                className={CAMPO}
+                            />
+                        </div>
+                    </div>
 
-                    {isLoadingHistory && (
-                        <div className="text-center py-4">
-                            <span className="w-6 h-6 border-2 border-slate-700 border-t-slate-400 rounded-full animate-spin inline-block" />
-                        </div>
-                    )}
+                    <div>
+                        <label htmlFor={`${id}-notas`} className={ETIQUETA}>Notas (opcional)</label>
+                        <textarea
+                            id={`${id}-notas`}
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows={2}
+                            maxLength={500}
+                            className={AREA}
+                        />
+                    </div>
+
+                    {error && <p id={`${id}-error`} role="alert" className="text-sm text-red-400">{error}</p>}
+
+                    <button type="submit" disabled={isSubmitting || isLoadingHistory} aria-busy={isSubmitting} className={`${BOTON} w-full`}>
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                Registrando…
+                            </>
+                        ) : (
+                            <>
+                                <Check size={16} aria-hidden="true" />
+                                {cuota ? `Registrar pago de la ${nombreCuota(cuota).toLowerCase()}` : "Registrar pago"}
+                            </>
+                        )}
+                    </button>
+                </form>
+            )}
+
+            {remaining <= 0 && !isLoadingHistory && (
+                <div className="py-8 text-center">
+                    <Check className="mx-auto mb-3 text-emerald-400" size={28} aria-hidden="true" />
+                    <h3 className="text-lg font-semibold text-[var(--txt)]">Propuesta pagada</h3>
+                    <p className="mt-1 text-[var(--mut)]">Ya se pagó completa.</p>
+                    {error && <p role="alert" className="mt-2 text-sm text-red-400">{error}</p>}
                 </div>
-            </div>
-        </div>
+            )}
+
+            {payments.length > 0 && (
+                <section aria-labelledby={`${id}-historial`} className="mt-8">
+                    <h3 id={`${id}-historial`} className={`${TITULO_SECCION} mb-2`}>Pagos recibidos</h3>
+                    <ul className="border-t border-[var(--linea)]">
+                        {payments.map((payment) => {
+                            const MethodIcon = getMethodIcon(payment.metodo);
+                            const nombreMedio = PAYMENT_METHODS.find((pm) => pm.value === payment.metodo)?.label ?? payment.metodo;
+                            const detalle = [
+                                fechaCorta(payment.fecha),
+                                payment.numero && payment.de ? nombreCuota(payment) : null,
+                                payment.referencia,
+                            ].filter(Boolean).join(" · ");
+                            return (
+                                <li key={payment.id} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-3">
+                                    <span className="flex min-w-0 items-center gap-3">
+                                        <MethodIcon size={16} aria-hidden="true" className="shrink-0 text-[var(--mut)]" />
+                                        <span className="min-w-0">
+                                            <span className="block text-sm text-[var(--txt)]">{nombreMedio}</span>
+                                            <span className="block truncate text-xs text-[var(--mut)]">{detalle}</span>
+                                        </span>
+                                    </span>
+                                    <span className="shrink-0 font-semibold tabular-nums text-[var(--txt)]">
+                                        {pesos(payment.monto)}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </section>
+            )}
+
+            {isLoadingHistory && (
+                <p role="status" className="mt-4 flex items-center justify-center gap-2 text-sm text-[var(--mut)]">
+                    <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                    Cargando pagos…
+                </p>
+            )}
+        </Ventana>
     );
 }

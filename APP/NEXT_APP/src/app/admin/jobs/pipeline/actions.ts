@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { hasPermission } from "@/lib/permission-check";
 import { createAuditLog } from "@/lib/audit";
 import type { Role, JobApplicationStatus } from "@/generated/prisma/client";
+import { STATUS_LABELS } from "../types";
 
 const ALLOWED_TRANSITIONS: Record<JobApplicationStatus, JobApplicationStatus[]> = {
     PENDING: ["CV_ADAPTED", "CV_SENT", "INTERVIEW", "REJECTED", "CLOSED"],
@@ -26,7 +27,7 @@ type AuthCheck =
 async function assertManagePermission(): Promise<AuthCheck> {
     const session = await auth();
     if (!session?.user?.id) {
-        return { ok: false, error: "Unauthorized" };
+        return { ok: false, error: "Tu sesión expiró. Vuelve a entrar." };
     }
     const can = await hasPermission(
         session.user.id,
@@ -34,7 +35,7 @@ async function assertManagePermission(): Promise<AuthCheck> {
         "jobs.applications.manage"
     );
     if (!can) {
-        return { ok: false, error: "Forbidden" };
+        return { ok: false, error: "No tienes permiso para gestionar postulaciones." };
     }
     return { ok: true, userId: session.user.id };
 }
@@ -53,15 +54,15 @@ export async function moveApplicationStatusAction(
         where: { id: applicationId, userId },
         select: { id: true, status: true },
     });
-    if (!existing) return { error: "Postulacion no encontrada" };
+    if (!existing) return { error: "Postulación no encontrada" };
 
     if (existing.status === targetStatus) {
-        return { error: "La postulacion ya tiene ese estado" };
+        return { error: "La postulación ya tiene ese estado" };
     }
 
     const allowed = ALLOWED_TRANSITIONS[existing.status] || [];
     if (!allowed.includes(targetStatus)) {
-        return { error: `Transicion no permitida: ${existing.status} -> ${targetStatus}` };
+        return { error: `No se puede pasar de «${STATUS_LABELS[existing.status]}» a «${STATUS_LABELS[targetStatus]}»` };
     }
 
     if (targetStatus === "CLOSED" && closureReason && closureReason.length > 500) {
@@ -123,13 +124,13 @@ export async function addApplicationNoteAction(
     const { userId } = authCheck;
 
     const trimmed = note.trim().slice(0, 500);
-    if (!trimmed) return { error: "La nota no puede estar vacia" };
+    if (!trimmed) return { error: "La nota no puede estar vacía" };
 
     const existing = await prisma.jobApplication.findFirst({
         where: { id: applicationId, userId },
         select: { id: true, status: true },
     });
-    if (!existing) return { error: "Postulacion no encontrada" };
+    if (!existing) return { error: "Postulación no encontrada" };
 
     try {
         await prisma.jobApplicationEvent.create({
@@ -159,7 +160,7 @@ export async function deleteApplicationAction(applicationId: string): Promise<Ac
         where: { id: applicationId, userId },
         select: { id: true },
     });
-    if (!existing) return { error: "Postulacion no encontrada" };
+    if (!existing) return { error: "Postulación no encontrada" };
 
     try {
         await prisma.jobApplication.delete({ where: { id: applicationId } });
@@ -176,6 +177,6 @@ export async function deleteApplicationAction(applicationId: string): Promise<Ac
         return { success: true };
     } catch (error) {
         console.error("[pipeline.delete]", error);
-        return { error: "No se pudo eliminar la postulacion" };
+        return { error: "No se pudo eliminar la postulación" };
     }
 }

@@ -18,37 +18,37 @@ const STATUS_CONFIG: Record<QuotationStatus, {
 }> = {
     DRAFT: {
         label: "Borrador",
-        bg: "bg-slate-500/20",
-        text: "text-slate-400",
+        bg: "bg-[color-mix(in_srgb,var(--txt)_7%,transparent)]",
+        text: "text-[var(--mut)]",
         icon: FileEdit,
     },
     PENDING: {
         label: "Pendiente",
-        bg: "bg-amber-500/20",
+        bg: "bg-amber-500/10",
         text: "text-amber-400",
         icon: Clock,
     },
     REVISION: {
-        label: "En Revisión",
-        bg: "bg-blue-500/20",
+        label: "En revisión",
+        bg: "bg-blue-500/10",
         text: "text-blue-400",
         icon: RefreshCw,
     },
     APPROVED: {
         label: "Aprobada",
-        bg: "bg-emerald-500/20",
+        bg: "bg-emerald-500/10",
         text: "text-emerald-400",
         icon: CheckCircle,
     },
     REJECTED: {
         label: "Rechazada",
-        bg: "bg-red-500/20",
+        bg: "bg-red-500/10",
         text: "text-red-400",
         icon: XCircle,
     },
     COMPLETED: {
         label: "Completada",
-        bg: "bg-purple-500/20",
+        bg: "bg-purple-500/10",
         text: "text-purple-400",
         icon: Trophy,
     },
@@ -75,11 +75,8 @@ export default function QuotationStatusBadge({
     };
 
     return (
-        <span className={`
-            inline-flex items-center gap-1.5 rounded-full font-medium
-            ${config.bg} ${config.text} ${sizeClasses[size]}
-        `}>
-            {showIcon && <Icon size={iconSizes[size]} />}
+        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full font-medium ${config.bg} ${config.text} ${sizeClasses[size]}`}>
+            {showIcon && <Icon size={iconSizes[size]} aria-hidden="true" />}
             {config.label}
         </span>
     );

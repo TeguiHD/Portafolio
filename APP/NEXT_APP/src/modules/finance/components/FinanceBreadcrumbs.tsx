@@ -1,35 +1,35 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { FOCO } from "./estilos";
 
 interface BreadcrumbItem {
     label: string;
     href: string;
-    icon?: string;
 }
 
-// Map of routes to labels
-const routeLabels: Record<string, { label: string; icon: string }> = {
-    "/admin/finance": { label: "Finanzas", icon: "💰" },
-    "/admin/finance/transactions": { label: "Transacciones", icon: "📝" },
-    "/admin/finance/transactions/new": { label: "Nueva", icon: "➕" },
-    "/admin/finance/transactions/batch": { label: "Lote", icon: "📦" },
-    "/admin/finance/budgets": { label: "Presupuestos", icon: "📋" },
-    "/admin/finance/budgets/new": { label: "Nuevo", icon: "➕" },
-    "/admin/finance/goals": { label: "Metas", icon: "🎯" },
-    "/admin/finance/goals/new": { label: "Nueva", icon: "➕" },
-    "/admin/finance/accounts": { label: "Cuentas", icon: "🏦" },
-    "/admin/finance/accounts/new": { label: "Nueva", icon: "➕" },
-    "/admin/finance/categories": { label: "Categorías", icon: "📊" },
-    "/admin/finance/categories/new": { label: "Nueva", icon: "➕" },
-    "/admin/finance/recurring": { label: "Recurrentes", icon: "🔄" },
-    "/admin/finance/recurring/new": { label: "Nuevo", icon: "➕" },
-    "/admin/finance/reminders": { label: "Recordatorios", icon: "🔔" },
-    "/admin/finance/reports": { label: "Reportes", icon: "📈" },
-    "/admin/finance/settings": { label: "Configuración", icon: "⚙️" },
-    "/admin/finance/ai": { label: "Asistente IA", icon: "🤖" },
+// Nombres de las rutas de Finanzas
+const routeLabels: Record<string, string> = {
+    "/admin/finance": "Finanzas",
+    "/admin/finance/transactions": "Transacciones",
+    "/admin/finance/transactions/new": "Nueva",
+    "/admin/finance/transactions/batch": "Lote",
+    "/admin/finance/budgets": "Presupuestos",
+    "/admin/finance/budgets/new": "Nuevo",
+    "/admin/finance/goals": "Metas",
+    "/admin/finance/goals/new": "Nueva",
+    "/admin/finance/accounts": "Cuentas",
+    "/admin/finance/accounts/new": "Nueva",
+    "/admin/finance/categories": "Categorías",
+    "/admin/finance/categories/new": "Nueva",
+    "/admin/finance/recurring": "Recurrentes",
+    "/admin/finance/recurring/new": "Nuevo",
+    "/admin/finance/reminders": "Recordatorios",
+    "/admin/finance/reports": "Reportes",
+    "/admin/finance/settings": "Configuración",
+    "/admin/finance/ai": "Asistente",
 };
 
 interface FinanceBreadcrumbsProps {
@@ -41,121 +41,46 @@ interface FinanceBreadcrumbsProps {
     backUrl?: string;
 }
 
+/**
+ * Enlace «volver» de las pantallas internas de Finanzas (nueva, editar, lote). En las pantallas de primer nivel no
+ * pinta nada: ahí ya están las migas del armazón y la fila de secciones (NavFinanzas).
+ */
 export function FinanceBreadcrumbs({
     extraItems = [],
     showBackButton = true,
     backUrl
 }: FinanceBreadcrumbsProps) {
-    const pathname = usePathname();
+    const pathname = usePathname() ?? "";
 
-    // Generate breadcrumbs from current path
-    const generateBreadcrumbs = (): BreadcrumbItem[] => {
-        const paths = pathname.split("/").filter(Boolean);
-        const breadcrumbs: BreadcrumbItem[] = [];
+    const breadcrumbs: BreadcrumbItem[] = [];
+    let currentPath = "";
+    for (const path of pathname.split("/").filter(Boolean)) {
+        currentPath += `/${path}`;
+        // Los segmentos con id no tienen nombre propio
+        if (path.startsWith("[") || /^[a-f0-9-]{36}$/i.test(path)) continue;
+        const label = routeLabels[currentPath];
+        if (label) breadcrumbs.push({ label, href: currentPath });
+    }
+    breadcrumbs.push(...extraItems);
 
-        let currentPath = "";
-        for (const path of paths) {
-            currentPath += `/${path}`;
-
-            // Skip dynamic segments like [id]
-            if (path.startsWith("[") || /^[a-f0-9-]{36}$/i.test(path)) {
-                continue;
-            }
-
-            const routeInfo = routeLabels[currentPath];
-            if (routeInfo) {
-                breadcrumbs.push({
-                    label: routeInfo.label,
-                    href: currentPath,
-                    icon: routeInfo.icon,
-                });
-            }
-        }
-
-        return breadcrumbs;
-    };
-
-    const breadcrumbs = [...generateBreadcrumbs(), ...extraItems];
-
-    // Determine back URL
-    const parentPath = breadcrumbs.length > 1
-        ? breadcrumbs[breadcrumbs.length - 2].href
-        : "/admin/finance";
-    const actualBackUrl = backUrl || parentPath;
-
-    if (breadcrumbs.length <= 1) {
-        return null; // Don't show breadcrumbs on main finance page
+    // Finanzas › Sección: primer nivel, sin enlace propio
+    if (!showBackButton || breadcrumbs.length <= 2) {
+        return null;
     }
 
-    // Note: Since this component is conditionally rendered and depends on pathname,
-    // we use a simple approach - the animation only triggers after initial render
+    const parent = breadcrumbs[breadcrumbs.length - 2];
+    const href = backUrl || parent.href;
+    const label = backUrl ? "Volver" : `Volver a ${parent.label}`;
+
     return (
-        <motion.nav
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 mb-6"
-        >
-            {/* Back Button */}
-            {showBackButton && (
-                <a
-                    href={actualBackUrl}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm text-neutral-400 hover:text-white bg-neutral-800/50 hover:bg-neutral-800 rounded-lg transition-all mr-2"
-                >
-                    <ChevronLeft className="w-4 h-4" />
-                    <span className="hidden sm:inline">Volver</span>
-                </a>
-            )}
-
-            {/* Breadcrumb Trail */}
-            <div className="flex items-center gap-1 text-sm overflow-x-auto">
-                {breadcrumbs.map((crumb, index) => {
-                    const isLast = index === breadcrumbs.length - 1;
-
-                    return (
-                        <div key={crumb.href} className="flex items-center">
-                            {index > 0 && (
-                                <ChevronRight className="w-4 h-4 text-neutral-600 mx-1 flex-shrink-0" />
-                            )}
-
-                            {isLast ? (
-                                <span className="flex items-center gap-1.5 text-white font-medium px-2 py-1">
-                                    {crumb.icon && <span className="text-base">{crumb.icon}</span>}
-                                    <span className="truncate max-w-[150px]">{crumb.label}</span>
-                                </span>
-                            ) : (
-                                <a
-                                    href={crumb.href}
-                                    className="flex items-center gap-1.5 text-neutral-400 hover:text-white px-2 py-1 rounded-md hover:bg-neutral-800/50 transition-colors"
-                                >
-                                    {crumb.icon && <span className="text-base">{crumb.icon}</span>}
-                                    <span className="truncate max-w-[100px]">{crumb.label}</span>
-                                </a>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-        </motion.nav>
-    );
-}
-
-/**
- * Simplified back button component for pages that just need a back link
- */
-export function FinanceBackButton({
-    href,
-    label = "Volver"
-}: {
-    href: string;
-    label?: string;
-}) {
-    return (
-        <a
-            href={href}
-            className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors mb-4"
-        >
-            <ChevronLeft className="w-4 h-4" />
-            {label}
-        </a>
+        <nav aria-label="Volver" className="mb-4">
+            <Link
+                href={href}
+                className={`-ml-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] sm:min-h-10 ${FOCO}`}
+            >
+                <ChevronLeft aria-hidden="true" className="size-4" />
+                {label}
+            </Link>
+        </nav>
     );
 }

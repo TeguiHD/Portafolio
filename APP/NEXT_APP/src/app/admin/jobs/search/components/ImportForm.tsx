@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 import { toast } from "sonner";
-import { Link2, Loader2, Sparkles } from "lucide-react";
+import { Link2, Loader2 } from "lucide-react";
 import { parseJsonResponse } from "../../utils";
+import { BOTON, BOTON_SEC, CAMPO, ETIQUETA } from "../../estilos";
 
 const SUPPORTED_SOURCES = [
     "LinkedIn",
@@ -22,9 +23,11 @@ const SUPPORTED_SOURCES = [
     "BNE",
 ];
 
-export function ImportForm({ onImported }: { onImported: () => void }) {
+/** Formulario de importación; va dentro del diálogo de la búsqueda, que pone el título. */
+export function ImportForm({ onImported, onCancel }: { onImported: () => void; onCancel?: () => void }) {
     const [url, setUrl] = useState("");
     const [busy, setBusy] = useState(false);
+    const id = useId();
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -45,72 +48,58 @@ export function ImportForm({ onImported }: { onImported: () => void }) {
             if (!response.ok) {
                 throw new Error(payload.error || "No se pudo importar la vacante");
             }
-            toast.success("Vacante importada correctamente");
+            toast.success("Vacante importada");
             setUrl("");
             onImported();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Error importando");
+            toast.error(error instanceof Error ? error.message : "Error al importar");
         } finally {
             setBusy(false);
         }
     }
 
     return (
-        <div className="glass-panel rounded-2xl border border-white/10 p-5 sm:p-6 bg-[#0a0f1c]/60 backdrop-blur-xl">
-            <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-lg bg-accent-1/10 border border-accent-1/20">
-                    <Sparkles className="w-4 h-4 text-accent-1" />
-                </div>
-                <div>
-                    <h2 className="text-base font-semibold text-white">Importar desde URL</h2>
-                    <p className="text-xs text-neutral-400">
-                        Pega el link de una oferta para extraer los datos automaticamente
-                    </p>
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label htmlFor={`${id}-url`} className={ETIQUETA}>URL de la oferta</label>
+                <input
+                    id={`${id}-url`}
+                    type="url"
+                    inputMode="url"
+                    autoComplete="off"
+                    autoFocus
+                    value={url}
+                    onChange={(event) => setUrl(event.target.value)}
+                    placeholder="https://…"
+                    aria-describedby={`${id}-portales`}
+                    className={CAMPO}
+                    disabled={busy}
+                />
+                <p id={`${id}-portales`} className="mt-2 text-xs leading-relaxed text-[var(--mut)]">
+                    Funciona con {SUPPORTED_SOURCES.slice(0, -1).join(", ")} y {SUPPORTED_SOURCES[SUPPORTED_SOURCES.length - 1]}.
+                </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="relative">
-                    <Link2 className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                        type="url"
-                        value={url}
-                        onChange={(event) => setUrl(event.target.value)}
-                        placeholder="https://..."
-                        className="w-full rounded-xl bg-[#0f172a] border border-white/10 pl-9 pr-3 py-2.5 text-sm text-white placeholder-neutral-600 focus:border-accent-1/40 focus:outline-none transition-colors"
-                        disabled={busy}
-                    />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    {SUPPORTED_SOURCES.map((source) => (
-                        <span
-                            key={source}
-                            className="text-[10px] uppercase tracking-wider font-medium text-neutral-500 px-2 py-1 rounded-md bg-white/[0.03] border border-white/5"
-                        >
-                            {source}
-                        </span>
-                    ))}
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={busy}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-accent-1 to-accent-2 text-white text-sm font-semibold hover:shadow-lg hover:shadow-accent-1/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                >
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                {onCancel && (
+                    <button type="button" onClick={onCancel} className={BOTON_SEC}>
+                        Cancelar
+                    </button>
+                )}
+                <button type="submit" disabled={busy} className={BOTON}>
                     {busy ? (
                         <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Importando...
+                            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                            Importando…
                         </>
                     ) : (
                         <>
-                            <Link2 className="w-4 h-4" />
+                            <Link2 className="size-4" aria-hidden="true" />
                             Importar vacante
                         </>
                     )}
                 </button>
-            </form>
-        </div>
+            </div>
+        </form>
     );
 }

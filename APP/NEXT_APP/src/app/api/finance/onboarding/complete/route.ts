@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { accesoFinanzas } from "../../_lib/acceso";
 
 // POST /api/finance/onboarding/complete
 // Mark finance onboarding as complete and create default categories
 export async function POST(_request: NextRequest) {
     try {
-        const session = await auth();
+        // Crea categorías: con permiso de categorías, o de finanzas (igual que crear la primera cuenta).
+        const acceso = await accesoFinanzas("finance.categories.manage", "finance.view");
+        if (!acceso.ok) return acceso.respuesta;
 
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
-
-        const userId = session.user.id;
+        const userId = acceso.userId;
 
         // Create default categories if they don't exist
         const existingCategories = await prisma.financeCategory.count({

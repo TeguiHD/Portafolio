@@ -1,71 +1,77 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { ReferrerIcon, getReferrerDisplayName } from "@/components/admin/ReferrerIcons";
-import { AnalyticsPageSkeleton } from "@/components/ui/Skeleton";
-
-type AnalyticsData = {
-    pageViews: number;
-    uniqueVisitors: number;
-    pageViewsByDay: { date: string; label: string; views: number }[];
-    ctaClicks: Record<string, number>;
-    topReferrers: { source: string | null; visits: number }[];
-    topPages: { path: string; visits: number }[];
-};
+import type { DatosVisitas } from "./datos";
 
 type DateRangeOption = {
     label: string;
+    detalle: string;
     days: number;
 };
 
 const dateRangeOptions: DateRangeOption[] = [
-    { label: "Hoy", days: 1 },
-    { label: "7 días", days: 7 },
-    { label: "30 días", days: 30 },
-    { label: "90 días", days: 90 },
+    { label: "Hoy", detalle: "hoy", days: 1 },
+    { label: "7 días", detalle: "últimos 7 días", days: 7 },
+    { label: "30 días", detalle: "últimos 30 días", days: 30 },
+    { label: "90 días", detalle: "últimos 90 días", days: 90 },
 ];
 
-// Path to friendly name mapping
+// Nombres legibles de las rutas públicas (el panel, el portal y /api no se cuentan).
 const pathDisplayNames: Record<string, string> = {
     "/": "Inicio",
-    "/tools": "Herramientas",
-    "/tools/qr": "Generador QR",
-    "/tools/base64-converter": "Convertidor Base64",
-    "/tools/unidades": "Convertidor Unidades",
-    "/tools/regex": "Regex Tester",
-    "/admin": "Dashboard Admin",
-    "/admin/analytics": "Analytics",
-    "/login": "Login",
+    "/herramientas": "Herramientas",
+    "/blog": "Blog",
+    "/privacidad": "Privacidad",
+    "/terminos": "Términos",
 };
 
 function getPathDisplayName(path: string): string {
-    // Check exact match first
     if (pathDisplayNames[path]) return pathDisplayNames[path];
 
-    // Check prefix matches for tool pages
-    if (path.startsWith("/tools/")) {
-        const toolName = path.replace("/tools/", "").replace(/-/g, " ");
-        return toolName.charAt(0).toUpperCase() + toolName.slice(1);
-    }
-
-    if (path.startsWith("/admin/")) {
-        const section = path.replace("/admin/", "").replace(/-/g, " ");
-        return "Admin: " + section.charAt(0).toUpperCase() + section.slice(1);
+    for (const prefijo of ["/herramientas/", "/blog/"]) {
+        if (path.startsWith(prefijo)) {
+            const nombre = path.slice(prefijo.length).replace(/-/g, " ");
+            const seccion = prefijo === "/blog/" ? "Blog: " : "";
+            return seccion + nombre.charAt(0).toUpperCase() + nombre.slice(1);
+        }
     }
 
     return path;
 }
 
-export default function AnalyticsPageClient() {
-    const [data, setData] = useState<AnalyticsData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [selectedDays, setSelectedDays] = useState(7);
+// El mismo formato que «Hoy»: así la cifra de 30 días se lee igual en las dos pantallas.
+const numero = new Intl.NumberFormat("es-CL");
+
+const H2 = "text-[15px] font-semibold text-[var(--mut)]";
+const FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]";
+
+function Cargando() {
+    return (
+        <div role="status" className="flex h-36 items-center justify-center border-t border-[var(--linea)]">
+            <span className="sr-only">Cargando…</span>
+            <div aria-hidden="true" className="size-6 rounded-full border-2 border-[var(--acento)] border-t-transparent animate-spin motion-reduce:animate-none" />
+        </div>
+    );
+}
+
+/** Globo con la cifra de un día (se ve al pasar el puntero o al tocar un punto o una barra). */
+function Globo({ valor, etiqueta }: { valor: number; etiqueta: string }) {
+    return (
+        <div className="rounded-lg border border-[var(--linea-2)] bg-[var(--sup)] px-3 py-1.5 text-center shadow-lg">
+            <p className="text-base font-bold tabular-nums text-[var(--txt)]">{numero.format(valor)}</p>
+            <p className="text-[11px] text-[var(--mut)]">{etiqueta}</p>
+        </div>
+    );
+}
+
+export default function AnalyticsPageClient({ inicial }: { inicial: DatosVisitas }) {
+    const [data, setData] = useState<DatosVisitas>(inicial);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedDays, setSelectedDays] = useState(inicial.days);
     const [chartType, setChartType] = useState<"area" | "bar">("area");
 
-    // Track if chart animations have already played (for optimization)
-    const hasAnimatedRef = useRef(false);
-    const dataLoadCountRef = useRef(0);
     const areaChartRef = useRef<HTMLDivElement>(null);
 
     // Chart hover/click states (for tooltips - works on mobile with click)
@@ -73,35 +79,34 @@ export default function AnalyticsPageClient() {
     const [pointPositions, setPointPositions] = useState<{ x: number; y: number }[]>([]);
     const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
 
-    const loadData = useCallback(async (days: number) => {
+    // Si se cambia de rango varias veces seguidas, solo vale la última respuesta.
+    const pedidoRef = useRef(0);
+
+    const loadData = async (days: number) => {
+        const pedido = ++pedidoRef.current;
         setLoading(true);
+        setError(null);
         try {
             const res = await fetch(`/api/analytics?days=${days}`, { cache: "no-store" });
-            if (!res.ok) throw new Error("Failed to fetch analytics");
-            const json = await res.json();
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json: DatosVisitas = await res.json();
+            if (pedido !== pedidoRef.current) return;
             setData(json);
-            dataLoadCountRef.current += 1;
-        } catch (error) {
-            console.error("Analytics page error", error);
+        } catch {
+            if (pedido !== pedidoRef.current) return;
+            setError("No se pudieron cargar las visitas de ese rango. Vuelve a intentarlo.");
+            setSelectedDays(data.days);
         } finally {
-            setLoading(false);
-            // Mark animations as played after first successful load
-            if (!hasAnimatedRef.current) {
-                setTimeout(() => { hasAnimatedRef.current = true; }, 1500);
-            }
+            if (pedido === pedidoRef.current) setLoading(false);
         }
-    }, []);
-
-    useEffect(() => {
-        loadData(selectedDays);
-    }, [selectedDays, loadData]);
-
-    const handleDateRangeChange = (days: number) => {
-        setSelectedDays(days);
     };
 
-    // Only animate charts on first data load (not on chart type switch)
-    const shouldAnimateCharts = !hasAnimatedRef.current;
+    // El rango inicial ya viene del servidor: solo se pide a la API cuando cambia.
+    const handleDateRangeChange = (days: number) => {
+        if (days === selectedDays) return;
+        setSelectedDays(days);
+        void loadData(days);
+    };
 
     const maxViews = useMemo(() => {
         if (!data?.pageViewsByDay?.length) return 0;
@@ -131,7 +136,8 @@ export default function AnalyticsPageClient() {
 
     const topPages = useMemo(() => {
         if (!data?.topPages) return [];
-        const totalViews = data.topPages.reduce((acc, p) => acc + p.visits, 0) || 1;
+        // Porcentaje sobre todas las visitas del rango, no solo sobre las diez páginas de la lista.
+        const totalViews = data.pageViews || 1;
         return data.topPages.map((page) => ({
             path: page.path,
             displayName: getPathDisplayName(page.path),
@@ -141,98 +147,97 @@ export default function AnalyticsPageClient() {
     }, [data]);
 
     const overviewStats = [
-        { label: "Visitas totales", value: data?.pageViews ?? "--" },
-        { label: "Visitantes únicos", value: data?.uniqueVisitors ?? "--" },
-        { label: "Eventos CTA", value: ctaEntries.reduce((acc, c) => acc + c.clicks, 0) || "0" },
-        { label: "Páginas únicas", value: topPages.length },
+        { label: "Visitas", value: data.pageViews },
+        { label: "Visitantes (IP distintas)", value: data.uniqueVisitors },
+        { label: "Clics en botones", value: ctaEntries.reduce((acc, c) => acc + c.clicks, 0) },
+        { label: "Páginas distintas", value: data.uniquePages },
+        ...(data.quotations !== null ? [{ label: "Propuestas enviadas", value: data.quotations }] : []),
     ];
 
-    const selectedOption = dateRangeOptions.find(opt => opt.days === selectedDays);
-
-    // Show full page skeleton on initial load only
-    if (loading && !data) {
-        return <AnalyticsPageSkeleton />;
-    }
+    // Lo que se muestra es siempre el rango de los datos cargados, no el botón recién pulsado.
+    const shownOption = dateRangeOptions.find(opt => opt.days === data.days);
+    const rangoTexto = shownOption?.detalle ?? `últimos ${data.days} días`;
+    const resumenGrafico = `${numero.format(data.pageViews)} visitas en ${rangoTexto}; el día con más tuvo ${numero.format(maxViews)}.`;
 
     return (
-        <div className="space-y-4 sm:space-y-6">
-            {/* Header with Date Range Selector */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="max-w-[1180px] space-y-10">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-white">Analytics</h1>
-                    <p className="text-sm sm:text-base text-neutral-400 mt-1">
-                        Métricas de tu portafolio - {selectedOption?.label || `${selectedDays} días`}
+                    <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-[var(--txt)]">Visitas</h1>
+                    <p className="mt-1 max-w-[60ch] text-[15px] text-[var(--mut)]">
+                        Sitio público, {rangoTexto} (días en hora de Chile). No cuenta el panel, el portal ni el acceso.
                     </p>
                 </div>
 
-                {/* Date Range Selector */}
-                <div className="flex gap-2 flex-wrap">
+                {/* Selector de rango */}
+                <div className="flex w-fit flex-wrap gap-1 rounded-xl border border-[var(--linea-2)] p-1" role="group" aria-label="Rango de fechas">
                     {dateRangeOptions.map((option) => (
                         <button
                             key={option.days}
+                            type="button"
+                            aria-pressed={selectedDays === option.days}
                             onClick={() => handleDateRangeChange(option.days)}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${selectedDays === option.days
-                                ? "bg-accent-1 text-white"
-                                : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white border border-white/10"
+                            className={`min-h-10 max-sm:min-h-11 rounded-lg px-3 text-sm font-medium transition-colors duration-150 motion-reduce:transition-none ${FOCO} ${selectedDays === option.days
+                                ? "bg-[var(--acento)] text-[var(--acento-tinta)]"
+                                : "text-[var(--mut)] hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] hover:text-[var(--txt)]"
                                 }`}
                         >
                             {option.label}
                         </button>
                     ))}
                 </div>
-            </div>
+            </header>
 
-            {/* Overview Stats */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-                {overviewStats.map((stat, idx) => (
-                    <motion.div
-                        key={stat.label}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="glass-panel rounded-xl sm:rounded-2xl border border-accent-1/20 p-3 sm:p-5"
-                    >
-                        <p className="text-xs sm:text-sm text-neutral-400 truncate">{stat.label}</p>
-                        <p className="text-xl sm:text-2xl font-bold text-white mt-1">{loading ? "--" : stat.value}</p>
-                        <span className="text-[10px] sm:text-xs text-neutral-500">{selectedOption?.label || `${selectedDays} días`}</span>
-                    </motion.div>
+            {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+
+            {/* Cifras del rango */}
+            <dl
+                aria-label={`Cifras de ${rangoTexto}`}
+                aria-live="polite"
+                aria-busy={loading}
+                className={`grid grid-cols-2 border-t border-[var(--linea)] ${overviewStats.length > 4 ? "sm:grid-cols-3 lg:grid-cols-5" : "lg:grid-cols-4"}`}
+            >
+                {overviewStats.map((stat) => (
+                    <div key={stat.label} className="flex flex-col-reverse border-b border-[var(--linea)] py-4 pr-4 lg:[&:not(:first-child)]:border-l lg:[&:not(:first-child)]:pl-5">
+                        <dt className="text-[13.5px] text-[var(--mut)]">{stat.label}</dt>
+                        <dd className="text-[28px] font-bold tracking-tight tabular-nums text-[var(--txt)]">{loading ? "…" : numero.format(stat.value)}</dd>
+                    </div>
                 ))}
-            </div>
+            </dl>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {/* Page Views Chart */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.2 }}
-                    className="glass-panel rounded-xl sm:rounded-2xl border border-accent-1/20 p-4 sm:p-6"
-                >
-                    <div className="flex items-center justify-between mb-4 sm:mb-6">
-                        <h3 className="font-semibold text-white text-sm sm:text-base">Visitas por día</h3>
+            <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,1fr)] lg:gap-14">
+                {/* Visitas por día */}
+                <section aria-labelledby="visitas-dia" className="min-w-0">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                        <h2 id="visitas-dia" className={`${H2} flex items-baseline gap-2`}>
+                            Visitas por día
+                            {!loading && <small className="font-mono text-[12.5px] font-medium">máx. {numero.format(maxViews)}</small>}
+                        </h2>
 
-                        {/* Chart Type Toggle */}
-                        <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+                        {/* Tipo de gráfico */}
+                        <div className="flex gap-1" role="group" aria-label="Tipo de gráfico">
                             <button
+                                type="button"
                                 onClick={() => setChartType("area")}
-                                className={`p-1.5 rounded transition-all ${chartType === "area" ? "bg-accent-1 text-white shadow-lg" : "text-neutral-400 hover:text-white hover:bg-white/5"}`}
+                                className={`grid size-10 max-sm:size-11 place-items-center rounded-lg transition-colors duration-150 motion-reduce:transition-none ${FOCO} ${chartType === "area" ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--acento)]" : "text-[var(--mut)] hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] hover:text-[var(--txt)]"}`}
                                 title="Área"
+                                aria-label="Gráfico de área"
+                                aria-pressed={chartType === "area"}
                             >
-                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                    <path d="M2 17L7 12L12 15L17 8L22 12V20H2V17Z" fill="currentColor" fillOpacity="0.4" />
+                                <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M2 17L7 12L12 15L17 8L22 12V20H2V17Z" fill="currentColor" fillOpacity="0.3" />
                                     <path d="M2 17L7 12L12 15L17 8L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <circle cx="7" cy="12" r="1.5" fill="currentColor" />
-                                    <circle cx="12" cy="15" r="1.5" fill="currentColor" />
-                                    <circle cx="17" cy="8" r="1.5" fill="currentColor" />
                                 </svg>
                             </button>
                             <button
+                                type="button"
                                 onClick={() => setChartType("bar")}
-                                className={`p-1.5 rounded transition-all ${chartType === "bar" ? "bg-accent-1 text-white shadow-lg" : "text-neutral-400 hover:text-white hover:bg-white/5"}`}
+                                className={`grid size-10 max-sm:size-11 place-items-center rounded-lg transition-colors duration-150 motion-reduce:transition-none ${FOCO} ${chartType === "bar" ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--acento)]" : "text-[var(--mut)] hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] hover:text-[var(--txt)]"}`}
                                 title="Barras"
+                                aria-label="Gráfico de barras"
+                                aria-pressed={chartType === "bar"}
                             >
-                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                     <rect x="4" y="14" width="4" height="6" rx="1" fill="currentColor" />
                                     <rect x="10" y="8" width="4" height="12" rx="1" fill="currentColor" />
                                     <rect x="16" y="11" width="4" height="9" rx="1" fill="currentColor" />
@@ -242,14 +247,12 @@ export default function AnalyticsPageClient() {
                     </div>
 
                     {loading ? (
-                        <div className="h-36 sm:h-48 flex items-center justify-center">
-                            <div className="w-6 h-6 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-                        </div>
+                        <Cargando />
                     ) : chartType === "bar" ? (
-                        /* Bar Chart with Axes */
-                        <div className="relative" onClick={() => setSelectedBarIndex(null)}>
-                            {/* Y-Axis */}
-                            <div className="absolute left-0 top-0 bottom-8 w-8 flex flex-col justify-between text-[9px] sm:text-[10px] text-neutral-500 font-medium">
+                        /* Barras con eje */
+                        <div className="relative border-t border-[var(--linea)] pt-4" onClick={() => setSelectedBarIndex(null)}>
+                            {/* Eje Y */}
+                            <div aria-hidden="true" className="absolute left-0 top-4 bottom-12 flex w-8 flex-col justify-between font-mono text-[10px] text-[var(--mut)]">
                                 <span>{maxViews}</span>
                                 <span>{Math.round(maxViews * 0.75)}</span>
                                 <span>{Math.round(maxViews * 0.5)}</span>
@@ -257,31 +260,23 @@ export default function AnalyticsPageClient() {
                                 <span>0</span>
                             </div>
 
-                            {/* Chart area with scroll */}
-                            <div className="ml-9 relative">
-                                {/* Scroll indicator left */}
-                                <div className="absolute left-0 top-0 bottom-8 w-6 bg-gradient-to-r from-[#1a1a2e] to-transparent z-10 pointer-events-none opacity-0 transition-opacity" id="scroll-left-indicator" />
-
-                                {/* Scroll indicator right */}
-                                {selectedDays > 14 && (
-                                    <div className="absolute right-0 top-0 bottom-8 w-8 bg-gradient-to-l from-[#1a1a2e] to-transparent z-10 pointer-events-none flex items-center justify-end pr-1">
-                                        <svg className="w-4 h-4 text-neutral-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </div>
-                                )}
-
-                                {/* Scrollable container with padding for tooltips */}
+                            <div className="relative ml-9">
+                                {/* Contenedor que se desliza de lado (dentro de su caja; la página no) */}
                                 <div
-                                    className="overflow-x-auto overflow-y-visible pb-2"
-                                    style={{ scrollbarWidth: 'thin' }}
+                                    className={`overflow-x-auto overflow-y-visible pb-2 rounded-md ${FOCO}`}
+                                    style={{ scrollbarWidth: "thin" }}
+                                    tabIndex={data.days > 14 ? 0 : undefined}
+                                    role={data.days > 14 ? "region" : undefined}
+                                    aria-label={data.days > 14 ? "Barras por día (se desliza de lado)" : undefined}
                                 >
                                     <div
+                                        role="img"
+                                        aria-label={resumenGrafico}
                                         className="flex items-end gap-1 pt-14"
                                         style={{
-                                            minWidth: selectedDays > 14 ? `${selectedDays * 36}px` : 'auto',
-                                            height: '180px',
-                                            paddingRight: selectedDays > 14 ? '20px' : '0'
+                                            minWidth: data.days > 14 ? `${data.days * 36}px` : "auto",
+                                            height: "180px",
+                                            paddingRight: data.days > 14 ? "20px" : "0",
                                         }}
                                     >
                                         {(data?.pageViewsByDay || []).map((day, idx) => {
@@ -290,72 +285,38 @@ export default function AnalyticsPageClient() {
                                             return (
                                                 <div
                                                     key={day.date}
-                                                    className={`flex-1 min-w-[28px] max-w-[45px] flex flex-col items-center h-full relative ${isSelected ? '' : 'group/bar'}`}
+                                                    className={`relative flex h-full min-w-[28px] max-w-[45px] flex-1 flex-col items-center ${isSelected ? "" : "group/bar"}`}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setSelectedBarIndex(isSelected ? null : idx);
                                                     }}
                                                 >
-                                                    {/* Tooltip Cloud */}
+                                                    {/* Globo */}
                                                     <div
-                                                        className={`absolute left-1/2 -translate-x-1/2 transition-all duration-150 pointer-events-none ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/bar:opacity-100'}`}
-                                                        style={{ bottom: 'calc(100% + 8px)', zIndex: 50 }}
+                                                        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap transition-opacity duration-150 motion-reduce:transition-none ${isSelected ? "opacity-100" : "opacity-0 group-hover/bar:opacity-100"}`}
+                                                        style={{ bottom: "calc(100% + 8px)", zIndex: 50 }}
                                                     >
-                                                        <div
-                                                            className="px-3 py-2 rounded-lg whitespace-nowrap"
-                                                            style={{
-                                                                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                                                                border: '1px solid rgba(34, 211, 238, 0.5)',
-                                                                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(34, 211, 238, 0.15)'
-                                                            }}
-                                                        >
-                                                            <p className="text-cyan-300 font-bold text-lg text-center">{day.views}</p>
-                                                            <p className="text-neutral-400 text-[10px] text-center">{day.label}</p>
-                                                        </div>
-                                                        {/* Arrow */}
-                                                        <div
-                                                            className="absolute left-1/2 w-3 h-3 rotate-45"
-                                                            style={{
-                                                                transform: 'translateX(-50%)',
-                                                                bottom: '-6px',
-                                                                background: '#0f172a',
-                                                                borderRight: '1px solid rgba(34, 211, 238, 0.5)',
-                                                                borderBottom: '1px solid rgba(34, 211, 238, 0.5)'
-                                                            }}
-                                                        />
+                                                        <Globo valor={day.views} etiqueta={day.label} />
                                                     </div>
 
-                                                    {/* Bar container */}
-                                                    <div className="flex-1 flex flex-col items-center justify-end w-full">
-                                                        {/* Bar */}
-                                                        <motion.div
-                                                            initial={shouldAnimateCharts ? { height: 0, opacity: 0 } : false}
-                                                            animate={{ height: `${barHeight}%`, opacity: 1 }}
-                                                            transition={shouldAnimateCharts ? { delay: Math.min(0.03 + idx * 0.012, 0.5), duration: 0.3, ease: "easeOut" } : { duration: 0 }}
-                                                            className={`w-full rounded-t cursor-pointer relative transition-all ${isSelected ? 'brightness-125' : 'group-hover/bar:brightness-125'}`}
-                                                            style={{
-                                                                minHeight: '8px',
-                                                                background: 'linear-gradient(180deg, #22d3ee 0%, #0891b2 50%, #0e7490 100%)',
-                                                                boxShadow: isSelected ? '0 0 20px rgba(34, 211, 238, 0.5)' : '0 0 10px rgba(34, 211, 238, 0.3)'
-                                                            }}
+                                                    <div className="flex w-full flex-1 flex-col items-center justify-end">
+                                                        <div
+                                                            className={`relative w-full cursor-pointer rounded-t bg-[var(--acento)] transition-opacity duration-150 motion-reduce:transition-none ${isSelected ? "opacity-100" : "opacity-75 group-hover/bar:opacity-100"}`}
+                                                            style={{ minHeight: "8px", height: `${barHeight}%` }}
                                                         >
-                                                            {/* Inner highlight */}
-                                                            <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-white/25 to-transparent rounded-t" />
-
-                                                            {/* Value inside bar */}
                                                             {barHeight > 20 && (
                                                                 <div className="absolute inset-0 flex items-center justify-center">
-                                                                    <span className="text-[10px] sm:text-xs font-bold text-white drop-shadow-lg">
+                                                                    <span className="text-[10px] sm:text-xs font-bold tabular-nums text-[var(--acento-tinta)]">
                                                                         {day.views}
                                                                     </span>
                                                                 </div>
                                                             )}
-                                                        </motion.div>
+                                                        </div>
                                                     </div>
 
-                                                    {/* X-Axis Label */}
-                                                    <span className={`text-[8px] sm:text-[10px] whitespace-nowrap mt-1.5 font-medium transition-colors ${isSelected ? 'text-cyan-400' : 'text-neutral-500 group-hover/bar:text-cyan-400'}`}>
-                                                        {selectedDays > 30 ? day.date.slice(8) : day.label}
+                                                    {/* Eje X */}
+                                                    <span className={`mt-1.5 whitespace-nowrap font-mono text-[9px] sm:text-[10px] transition-colors duration-150 motion-reduce:transition-none ${isSelected ? "text-[var(--acento)]" : "text-[var(--mut)] group-hover/bar:text-[var(--txt)]"}`}>
+                                                        {data.days > 30 ? day.date.slice(8) : day.label}
                                                     </span>
                                                 </div>
                                             );
@@ -363,33 +324,21 @@ export default function AnalyticsPageClient() {
                                     </div>
                                 </div>
 
-                                {/* X-Axis line */}
-                                <div className="absolute left-0 right-0 bottom-7 h-px bg-neutral-700" />
+                                {/* Línea del eje X */}
+                                <div aria-hidden="true" className="absolute left-0 right-0 bottom-7 h-px bg-[var(--linea-2)]" />
                             </div>
 
-                            {/* Scroll hint text */}
-                            {selectedDays > 14 && (
-                                <div className="text-center mt-1">
-                                    <span className="text-[9px] text-neutral-500 flex items-center justify-center gap-1">
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-                                        </svg>
-                                        Desliza para ver más
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                        </svg>
-                                    </span>
-                                </div>
+                            {data.days > 14 && (
+                                <p className="mt-1 text-center text-xs text-[var(--mut)]">Desliza para ver más días</p>
                             )}
                         </div>
                     ) : (
-                        /* Area Chart */
-                        <div className="relative" onClick={() => setHoveredPoint(null)}>
-                            {/* SVG Chart */}
-                            <div className="h-40 sm:h-48 relative" ref={areaChartRef}>
+                        /* Área */
+                        <div className="relative border-t border-[var(--linea)] pt-4" onClick={() => setHoveredPoint(null)}>
+                            <div className="relative h-40 sm:h-48" ref={areaChartRef}>
                                 {(() => {
                                     const chartData = data?.pageViewsByDay || [];
-                                    if (chartData.length === 0) return <p className="text-neutral-500 text-sm">Sin datos</p>;
+                                    if (chartData.length === 0) return <p className="text-sm text-[var(--mut)]">Sin datos</p>;
 
                                     const width = 400;
                                     const height = 150;
@@ -405,7 +354,7 @@ export default function AnalyticsPageClient() {
                                         label: d.label,
                                     }));
 
-                                    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                                    const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
                                     const areaPath = `${linePath} L ${points[points.length - 1].x} ${padding.top + chartHeight} L ${points[0].x} ${padding.top + chartHeight} Z`;
 
                                     const handlePointInteraction = (i: number, p: typeof points[0], e: React.MouseEvent<SVGCircleElement>) => {
@@ -415,18 +364,17 @@ export default function AnalyticsPageClient() {
                                             return;
                                         }
 
-                                        // Get the actual position of the circle element relative to the container
+                                        // Posición real del punto dentro del contenedor, para poner el globo encima.
                                         const circle = e.currentTarget;
                                         const container = areaChartRef.current;
                                         if (container) {
                                             const containerRect = container.getBoundingClientRect();
                                             const circleRect = circle.getBoundingClientRect();
-
-                                            // Calculate pixel position relative to container
                                             const relativeX = circleRect.left - containerRect.left + circleRect.width / 2;
                                             const relativeY = circleRect.top - containerRect.top;
-
-                                            setPointPositions([{ x: relativeX, y: relativeY }]);
+                                            // El globo no se sale de la caja en los extremos (en celular ensancharía la página).
+                                            const x = Math.min(Math.max(relativeX, 48), Math.max(containerRect.width - 48, 48));
+                                            setPointPositions([{ x, y: relativeY }]);
                                         }
 
                                         setHoveredPoint({ index: i, views: p.views, label: p.label });
@@ -434,8 +382,8 @@ export default function AnalyticsPageClient() {
 
                                     return (
                                         <>
-                                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-                                                {/* Grid lines */}
+                                            <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label={resumenGrafico}>
+                                                {/* Líneas guía */}
                                                 {[0, 25, 50, 75, 100].map(pct => (
                                                     <line
                                                         key={pct}
@@ -443,55 +391,35 @@ export default function AnalyticsPageClient() {
                                                         y1={padding.top + chartHeight * (1 - pct / 100)}
                                                         x2={width - padding.right}
                                                         y2={padding.top + chartHeight * (1 - pct / 100)}
-                                                        stroke="rgba(255,255,255,0.08)"
+                                                        style={{ stroke: "var(--linea)" }}
                                                         strokeWidth="1"
                                                         strokeDasharray="4,4"
                                                     />
                                                 ))}
 
-                                                {/* Gradient definition */}
-                                                <defs>
-                                                    <linearGradient id="areaGradientCyan" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.5" />
-                                                        <stop offset="60%" stopColor="#06b6d4" stopOpacity="0.15" />
-                                                        <stop offset="100%" stopColor="#0891b2" stopOpacity="0.02" />
-                                                    </linearGradient>
-                                                </defs>
+                                                {/* Relleno */}
+                                                <path d={areaPath} style={{ fill: "var(--acento)" }} fillOpacity="0.12" />
 
-                                                {/* Area fill */}
-                                                <motion.path
-                                                    d={areaPath}
-                                                    fill="url(#areaGradientCyan)"
-                                                    initial={shouldAnimateCharts ? { opacity: 0 } : false}
-                                                    animate={{ opacity: 1 }}
-                                                    transition={shouldAnimateCharts ? { duration: 0.6, delay: 0.2 } : { duration: 0 }}
-                                                />
-
-                                                {/* Line */}
-                                                <motion.path
+                                                {/* Línea */}
+                                                <path
                                                     d={linePath}
                                                     fill="none"
-                                                    stroke="#22d3ee"
+                                                    style={{ stroke: "var(--acento)" }}
                                                     strokeWidth="2.5"
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
-                                                    initial={shouldAnimateCharts ? { pathLength: 0 } : false}
-                                                    animate={{ pathLength: 1 }}
-                                                    transition={shouldAnimateCharts ? { duration: 0.8, ease: "easeOut" } : { duration: 0 }}
                                                 />
 
-                                                {/* Data points - interactive */}
+                                                {/* Puntos (se tocan o se señalan para ver la cifra) */}
                                                 {points.map((p, i) => (
                                                     <circle
                                                         key={i}
                                                         cx={p.x}
                                                         cy={p.y}
-                                                        r={hoveredPoint?.index === i ? "8" : "6"}
-                                                        fill={hoveredPoint?.index === i ? "#22d3ee" : "#0e7490"}
-                                                        stroke="#22d3ee"
+                                                        r={hoveredPoint?.index === i ? "7" : "5"}
+                                                        style={{ fill: hoveredPoint?.index === i ? "var(--acento)" : "var(--sup)", stroke: "var(--acento)" }}
                                                         strokeWidth="2"
                                                         className="cursor-pointer"
-                                                        style={{ transition: 'all 0.15s ease' }}
                                                         onMouseEnter={(e) => handlePointInteraction(i, p, e)}
                                                         onMouseLeave={() => setHoveredPoint(null)}
                                                         onClick={(e) => handlePointInteraction(i, p, e)}
@@ -499,39 +427,17 @@ export default function AnalyticsPageClient() {
                                                 ))}
                                             </svg>
 
-                                            {/* HTML Tooltip overlay - using pixel positions */}
                                             {hoveredPoint !== null && pointPositions.length > 0 && (
                                                 <div
-                                                    className="absolute pointer-events-none"
+                                                    className="pointer-events-none absolute"
                                                     style={{
                                                         left: `${pointPositions[0].x}px`,
                                                         top: `${pointPositions[0].y}px`,
-                                                        transform: 'translate(-50%, calc(-100% - 12px))',
-                                                        zIndex: 50
+                                                        transform: "translate(-50%, calc(-100% - 10px))",
+                                                        zIndex: 50,
                                                     }}
                                                 >
-                                                    <div
-                                                        className="px-3 py-2 rounded-lg"
-                                                        style={{
-                                                            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                                                            border: '1px solid rgba(34, 211, 238, 0.5)',
-                                                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(34, 211, 238, 0.15)'
-                                                        }}
-                                                    >
-                                                        <p className="text-cyan-300 font-bold text-lg text-center">{hoveredPoint.views}</p>
-                                                        <p className="text-neutral-400 text-[10px] text-center">{hoveredPoint.label}</p>
-                                                    </div>
-                                                    {/* Arrow pointing down */}
-                                                    <div
-                                                        className="absolute left-1/2 w-3 h-3 rotate-45"
-                                                        style={{
-                                                            transform: 'translateX(-50%)',
-                                                            bottom: '-6px',
-                                                            background: '#0f172a',
-                                                            borderRight: '1px solid rgba(34, 211, 238, 0.5)',
-                                                            borderBottom: '1px solid rgba(34, 211, 238, 0.5)'
-                                                        }}
-                                                    />
+                                                    <Globo valor={hoveredPoint.views} etiqueta={hoveredPoint.label} />
                                                 </div>
                                             )}
                                         </>
@@ -539,152 +445,97 @@ export default function AnalyticsPageClient() {
                                 })()}
                             </div>
 
-                            {/* X-axis labels (HTML for proper rendering) */}
-                            <div className="flex justify-between px-2 mt-1">
+                            {/* Etiquetas del eje X */}
+                            <div aria-hidden="true" className="mt-1 flex justify-between px-2">
                                 {(() => {
                                     const chartData = data?.pageViewsByDay || [];
                                     const step = Math.max(1, Math.ceil(chartData.length / 7));
                                     return chartData
                                         .filter((_, i) => i % step === 0 || i === chartData.length - 1)
                                         .map((day, i) => (
-                                            <span key={i} className="text-[10px] sm:text-xs text-neutral-500 font-medium">
-                                                {selectedDays > 14 ? day.date.slice(8) : day.label}
+                                            <span key={i} className="font-mono text-[11px] sm:text-xs text-[var(--mut)]">
+                                                {data.days > 14 ? day.date.slice(8) : day.label}
                                             </span>
                                         ));
                                 })()}
                             </div>
-
-                            {/* Stats overlay */}
-                            <div className="absolute top-2 right-2 flex gap-3 text-[10px] sm:text-xs bg-black/30 rounded-lg px-2 py-1">
-                                <span className="text-neutral-400">Max: <span className="text-cyan-400 font-semibold">{maxViews}</span></span>
-                            </div>
                         </div>
                     )}
-                </motion.div>
+                </section>
 
-                {/* Top Pages */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.25 }}
-                    className="glass-panel rounded-xl sm:rounded-2xl border border-accent-1/20 p-4 sm:p-6"
-                >
-                    <h3 className="font-semibold text-white mb-4 sm:mb-6 text-sm sm:text-base">Páginas más visitadas</h3>
+                {/* Páginas más visitadas */}
+                <section aria-labelledby="visitas-paginas" className="min-w-0">
+                    <h2 id="visitas-paginas" className={`${H2} mb-2`}>Páginas más visitadas</h2>
                     {loading ? (
-                        <div className="h-36 sm:h-48 flex items-center justify-center">
-                            <div className="w-6 h-6 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-                        </div>
+                        <Cargando />
+                    ) : topPages.length === 0 ? (
+                        <p className="border-t border-[var(--linea)] py-4 text-sm text-[var(--mut)]">Sin datos de páginas en el periodo.</p>
                     ) : (
-                        <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                            {topPages.slice(0, 6).map((page, idx) => (
-                                <div key={page.path}>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="text-xs sm:text-sm text-neutral-300 truncate pr-2 flex-1">
-                                            {page.displayName}
-                                        </span>
-                                        <span className="text-xs sm:text-sm font-medium text-accent-1 whitespace-nowrap">
-                                            {page.visits} <span className="text-neutral-500">({page.percentage}%)</span>
+                        <ul className="border-t border-[var(--linea)]">
+                            {topPages.slice(0, 6).map((page) => (
+                                <li key={page.path} className="border-b border-[var(--linea)] px-1 py-3">
+                                    <div className="flex items-baseline justify-between gap-3">
+                                        <span className="min-w-0 flex-1 truncate text-sm text-[var(--txt)]" title={page.path}>{page.displayName}</span>
+                                        <span className="shrink-0 text-sm font-semibold tabular-nums text-[var(--txt)]">
+                                            {numero.format(page.visits)} <span className="font-normal text-[var(--mut)]">({page.percentage}%)</span>
                                         </span>
                                     </div>
-                                    <div className="h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            whileInView={{ width: `${page.percentage}%` }}
-                                            viewport={{ once: true }}
-                                            transition={{ delay: 0.3 + idx * 0.05, duration: 0.5 }}
-                                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"
-                                        />
+                                    <div aria-hidden="true" className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--linea)]">
+                                        <div className="h-full rounded-full bg-[var(--acento)]" style={{ width: `${page.percentage}%` }} />
                                     </div>
-                                </div>
+                                </li>
                             ))}
-                            {topPages.length === 0 && (
-                                <p className="text-sm text-neutral-500">Sin datos de páginas en el periodo.</p>
-                            )}
-                        </div>
+                        </ul>
                     )}
-                </motion.div>
+                </section>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {/* CTA Performance */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.3 }}
-                    className="glass-panel rounded-xl sm:rounded-2xl border border-accent-1/20 p-4 sm:p-6"
-                >
-                    <h3 className="font-semibold text-white mb-4 sm:mb-6 text-sm sm:text-base">Clics en CTAs</h3>
+            <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
+                {/* Clics en botones */}
+                <section aria-labelledby="visitas-clics" className="min-w-0">
+                    <h2 id="visitas-clics" className={`${H2} mb-2`}>Clics en botones</h2>
                     {loading ? (
-                        <div className="h-36 flex items-center justify-center">
-                            <div className="w-6 h-6 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-                        </div>
+                        <Cargando />
+                    ) : ctaEntries.length === 0 ? (
+                        <p className="border-t border-[var(--linea)] py-4 text-sm text-[var(--mut)]">Sin clics registrados en el periodo.</p>
                     ) : (
-                        <div className="space-y-3 sm:space-y-4">
-                            {ctaEntries.map((cta, idx) => (
-                                <div key={cta.action}>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="text-xs sm:text-sm text-neutral-300 truncate pr-2">{cta.action}</span>
-                                        <span className="text-xs sm:text-sm font-medium text-accent-1">{cta.clicks}</span>
+                        <ul className="border-t border-[var(--linea)]">
+                            {ctaEntries.map((cta) => (
+                                <li key={cta.action} className="border-b border-[var(--linea)] px-1 py-3">
+                                    <div className="flex items-baseline justify-between gap-3">
+                                        <span className="min-w-0 flex-1 truncate text-sm text-[var(--txt)]">{cta.action}</span>
+                                        <span className="shrink-0 text-sm font-semibold tabular-nums text-[var(--txt)]">
+                                            {numero.format(cta.clicks)} <span className="font-normal text-[var(--mut)]">({cta.percentage}%)</span>
+                                        </span>
                                     </div>
-                                    <div className="h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            whileInView={{ width: `${cta.percentage}%` }}
-                                            viewport={{ once: true }}
-                                            transition={{ delay: 0.4 + idx * 0.05, duration: 0.5 }}
-                                            className="h-full bg-gradient-to-r from-accent-1 to-accent-2 rounded-full"
-                                        />
+                                    <div aria-hidden="true" className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--linea)]">
+                                        <div className="h-full rounded-full bg-[var(--acento)]" style={{ width: `${cta.percentage}%` }} />
                                     </div>
-                                </div>
+                                </li>
                             ))}
-
-                            {ctaEntries.length === 0 && (
-                                <p className="text-sm text-neutral-500">Sin eventos de CTA en el periodo.</p>
-                            )}
-                        </div>
+                        </ul>
                     )}
-                </motion.div>
+                </section>
 
-                {/* Top Referrers */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.35 }}
-                    className="glass-panel rounded-xl sm:rounded-2xl border border-accent-1/20 p-4 sm:p-6"
-                >
-                    <h3 className="font-semibold text-white mb-4 sm:mb-6 text-sm sm:text-base">Fuentes de tráfico</h3>
+                {/* Fuentes de tráfico */}
+                <section aria-labelledby="visitas-fuentes" className="min-w-0">
+                    <h2 id="visitas-fuentes" className={`${H2} mb-2`}>Fuentes de tráfico</h2>
                     {loading ? (
-                        <div className="h-36 flex items-center justify-center">
-                            <div className="w-6 h-6 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-                        </div>
+                        <Cargando />
+                    ) : referrers.length === 0 ? (
+                        <p className="border-t border-[var(--linea)] py-4 text-sm text-[var(--mut)]">Sin fuentes registradas en el periodo.</p>
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                        <ul className="border-t border-[var(--linea)]">
                             {referrers.map((ref, idx) => (
-                                <motion.div
-                                    key={`${ref.source}-${idx}`}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    whileInView={{ opacity: 1, scale: 1 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: 0.4 + idx * 0.05 }}
-                                    className="flex items-center gap-3 p-2 sm:p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
-                                >
-                                    <ReferrerIcon source={ref.source} className="flex-shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-medium text-white">{ref.visits}</p>
-                                        <p className="text-[10px] sm:text-xs text-neutral-500 truncate">{ref.displayName}</p>
-                                    </div>
-                                </motion.div>
+                                <li key={`${ref.source}-${idx}`} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                    <ReferrerIcon source={ref.source} />
+                                    <span className="min-w-0 flex-1 truncate text-sm text-[var(--txt)]" title={ref.source ?? undefined}>{ref.displayName}</span>
+                                    <span className="shrink-0 text-sm font-semibold tabular-nums text-[var(--txt)]">{numero.format(ref.visits)}</span>
+                                </li>
                             ))}
-
-                            {referrers.length === 0 && (
-                                <p className="col-span-full text-sm text-neutral-500">Sin referers registrados.</p>
-                            )}
-                        </div>
+                        </ul>
                     )}
-                </motion.div>
+                </section>
             </div>
         </div>
     );

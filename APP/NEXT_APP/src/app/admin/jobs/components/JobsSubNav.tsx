@@ -2,71 +2,38 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-    LayoutDashboard,
-    Search,
-    GitCompareArrows,
-    Columns3,
-} from "lucide-react";
+import { LayoutDashboard, Search, GitCompareArrows, ListChecks } from "lucide-react";
 
 const TABS = [
-    {
-        href: "/admin/jobs",
-        label: "Dashboard",
-        icon: LayoutDashboard,
-        exact: true,
-    },
-    {
-        href: "/admin/jobs/search",
-        label: "Buscar Vacantes",
-        icon: Search,
-        exact: false,
-    },
-    {
-        href: "/admin/jobs/analysis",
-        label: "Analisis & Adaptacion",
-        icon: GitCompareArrows,
-        exact: false,
-    },
-    {
-        href: "/admin/jobs/pipeline",
-        label: "Pipeline",
-        icon: Columns3,
-        exact: false,
-    },
+    { href: "/admin/jobs", label: "Resumen", icon: LayoutDashboard, exact: true },
+    { href: "/admin/jobs/search", label: "Buscar vacantes", icon: Search, exact: false },
+    { href: "/admin/jobs/analysis", label: "Análisis y adaptación", icon: GitCompareArrows, exact: false },
+    { href: "/admin/jobs/pipeline", label: "Seguimiento", icon: ListChecks, exact: false },
 ];
 
 function isActive(pathname: string, tab: (typeof TABS)[number]): boolean {
-    if (tab.exact) {
-        return pathname === tab.href;
-    }
-    return pathname.startsWith(tab.href);
+    return tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
 }
 
 export function JobsSubNav() {
     const pathname = usePathname();
 
     return (
-        <nav
-            aria-label="Navegacion de empleos"
-            className="relative overflow-x-auto rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-1.5 shadow-lg"
-        >
-            <ul className="flex items-center gap-1 min-w-max">
+        // Las pestañas se desplazan dentro de su franja en celular; la página nunca se mueve de lado.
+        <nav aria-label="Secciones de postulaciones" className="overflow-x-auto border-b border-[var(--linea)] [scrollbar-width:thin]">
+            <ul className="flex min-w-max items-stretch gap-1">
                 {TABS.map((tab) => {
                     const active = isActive(pathname, tab);
                     const Icon = tab.icon;
                     return (
-                        <li key={tab.href}>
+                        <li key={tab.href} className="flex">
                             <Link
                                 href={tab.href}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap ${
-                                    active
-                                        ? "bg-gradient-to-br from-accent-1/20 to-accent-2/10 text-white border border-accent-1/30 shadow-md"
-                                        : "text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent"
-                                }`}
+                                aria-current={active ? "page" : undefined}
+                                className="-mb-px inline-flex min-h-11 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 text-sm font-medium text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] aria-[current=page]:border-[var(--acento)] aria-[current=page]:text-[var(--txt)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]"
                             >
-                                <Icon className="w-4 h-4" />
-                                <span>{tab.label}</span>
+                                <Icon className="size-4" aria-hidden="true" />
+                                {tab.label}
                             </Link>
                         </li>
                     );

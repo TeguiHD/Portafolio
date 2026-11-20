@@ -5,6 +5,10 @@ import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import type { Role, QuotationStatus } from '@/generated/prisma/client';
 
+const ESTADOS: Record<QuotationStatus, string> = {
+    DRAFT: "borrador", PENDING: "pendiente", REVISION: "en revisión", APPROVED: "aprobada", REJECTED: "rechazada", COMPLETED: "completada",
+};
+
 /**
  * PUT /api/quotations/status - Update quotation status
  */
@@ -53,17 +57,16 @@ export async function PUT(request: NextRequest) {
             );
         }
 
-        // Verify ownership or shared access
+        // Verify ownership or shared access (sin traer el htmlContent ni el código: solo lo que se compara).
         const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
-            include: {
-                client: {
-                    include: { sharedWith: true }
-                }
+            select: {
+                userId: true, status: true, isDeleted: true,
+                client: { select: { userId: true, sharedWith: { select: { sharedWithUserId: true, permission: true } } } },
             },
         });
 
-        if (!quotation) {
+        if (!quotation || quotation.isDeleted) {
             return NextResponse.json(
                 { error: "Cotización no encontrada" },
                 { status: 404 }
@@ -84,6 +87,11 @@ export async function PUT(request: NextRequest) {
             );
         }
 
+        // Si cambió mientras la página estaba abierta (por ejemplo, el cliente la firmó), se dice en palabras.
+        if (quotation.status === newStatus) {
+            return NextResponse.json({ error: `Ya está ${ESTADOS[quotation.status]}.` }, { status: 409 });
+        }
+
         const result = await updateQuotationStatus({
             quotationId,
             newStatus: newStatus as QuotationStatus,
@@ -92,8 +100,12 @@ export async function PUT(request: NextRequest) {
         });
 
         if (!result.success) {
+            // El servicio responde con los nombres internos (APPROVED, PENDING): aquí se dicen en castellano.
+            const error = result.error?.startsWith("No se puede cambiar de")
+                ? `No se puede pasar de ${ESTADOS[quotation.status]} a ${ESTADOS[newStatus as QuotationStatus]}.`
+                : result.error;
             return NextResponse.json(
-                { error: result.error },
+                { error },
                 { status: 400 }
             );
         }

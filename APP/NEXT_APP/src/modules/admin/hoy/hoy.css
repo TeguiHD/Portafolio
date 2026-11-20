@@ -1,0 +1,45 @@
+/* Escritorio «Hoy» del panel (prefijo hoy-). Tokens del sitio; sin tarjetas: filas, líneas y cifras. */
+.hoy { max-width: 1180px; }
+.hoy-fecha { margin: 0; font: 600 13.5px var(--mono); color: var(--acento); }
+.hoy h1 { margin: 6px 0 0; font-size: clamp(40px, 4.6vw, 64px); font-weight: 800; letter-spacing: -.05em; line-height: 1; color: var(--txt); }
+.hoy-resumen { margin: 12px 0 0; max-width: 60ch; color: var(--mut); font-size: 17px; }
+.hoy-cifras { display: flex; margin: 36px 0 0; border-block: 1px solid var(--linea); }
+.hoy-cifras > div { flex: 1; display: flex; flex-direction: column-reverse; padding: 16px 20px 14px; border-left: 1px solid var(--linea); }
+.hoy-cifras > div:first-child { border-left: 0; padding-left: 2px; }
+.hoy-cifras dt { color: var(--mut); font-size: 13.5px; }
+.hoy-cifras dd { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.03em; color: var(--txt); }
+.hoy-cifras small { margin-left: 8px; font: 600 12.5px var(--mono); letter-spacing: 0; color: var(--sube); }
+.hoy-cifras small[data-baja] { color: var(--baja); }
+.hoy-rejilla { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 56px; margin-top: 44px; align-items: start; }
+.hoy h2 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 15px; font-weight: 600; color: var(--mut); }
+.hoy h2 small { font: 500 12.5px var(--mono); }
+.hoy-lista { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--linea); }
+.hoy-lista a { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 3px 16px; padding: 16px 4px; border-bottom: 1px solid var(--linea); color: var(--txt); text-decoration: none; transition: background .2s; }
+.hoy-lista i { grid-row: 1; width: 8px; height: 8px; border-radius: 50%; background: var(--acento); }
+.hoy-lista a[data-tono="aviso"] i { background: #f59e0b; }
+.hoy-lista a[data-tono="suave"] i { background: var(--mut); }
+.hoy-lista b { font-weight: 600; font-size: 16px; }
+.hoy-lista span { grid-column: 2; color: var(--mut); font-size: 14px; }
+.hoy-lista em { grid-row: 1 / span 2; grid-column: 3; font-style: normal; font-weight: 600; font-size: 14.5px; white-space: nowrap; }
+.hoy-lista a:focus-visible, .hoy-ir:focus-visible { outline: 2px solid var(--acento); outline-offset: -2px; }
+@media (hover: hover) { .hoy-lista a:hover { background: color-mix(in srgb, var(--txt) 4%, transparent); } }
+.hoy-vacio, .hoy-suave { margin: 0; padding: 18px 2px; color: var(--mut); border-top: 1px solid var(--linea); }
+.hoy-lado { display: grid; gap: 40px; }
+.hoy-servidor dl { display: grid; gap: 14px; margin: 14px 0 0; }
+.hoy-medida { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 12px; font-size: 14px; }
+.hoy-medida dt { color: var(--mut); }
+.hoy-medida dd { margin: 0; display: grid; grid-template-columns: 1fr 52px; align-items: center; gap: 12px; }
+.hoy-medida s { height: 6px; border-radius: 6px; background: var(--linea-2); overflow: hidden; text-decoration: none; }
+.hoy-medida s i { display: block; height: 100%; border-radius: inherit; background: var(--acento); }
+.hoy-medida[data-alto] s i { background: #f59e0b; }
+.hoy-medida b { text-align: right; font: 600 13px var(--mono); color: var(--txt); }
+.hoy-ir { display: inline-block; margin-top: 16px; font-size: 14.5px; font-weight: 600; color: var(--txt); text-decoration: none; border-bottom: 1px solid var(--linea-2); padding-bottom: 2px; }
+.hoy-ir:hover { border-color: var(--acento); }
+.hoy-curva svg { display: block; width: 100%; height: 120px; margin-top: 10px; }
+.hoy-ejes { display: flex; justify-content: space-between; margin: 6px 0 0; font: 500 12px var(--mono); color: var(--mut); }
+@media (max-width: 900px) {
+  .hoy-cifras { flex-wrap: wrap; }
+  .hoy-cifras > div { flex: 1 1 45%; border-left: 0; border-top: 1px solid var(--linea); padding-left: 2px; }
+  .hoy-cifras > div:nth-child(-n+2) { border-top: 0; }
+  .hoy-rejilla { grid-template-columns: 1fr; gap: 40px; }
+}

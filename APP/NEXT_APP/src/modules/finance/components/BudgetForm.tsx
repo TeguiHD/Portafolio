@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { formatCurrency } from "@/lib/currency";
+import { AYUDA, BOTON, BOTON_SEC, CAMPO, CASILLA, CIFRA, ETIQUETA, GIRA, MARCA } from "./estilos";
+import { numeroCL } from "@/lib/tools/numeros";
+
+/** Monto escrito a la chilena («150.000», «19,5»). Antes era type=number y «150.000» se leía como 150. */
+const monto = (texto: string) => numeroCL(texto) ?? NaN;
 
 interface Category {
     id: string;
@@ -42,7 +47,11 @@ const PERIODS = [
     { value: "YEARLY", label: "Anual" },
 ];
 
+const ERROR_CAMPO = "mt-1.5 text-sm text-red-400";
+const CASILLA_FILA = "flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 sm:min-h-10";
+
 export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
+    const id = useId();
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [formData, setFormData] = useState({
@@ -75,10 +84,13 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
     const validate = () => {
         const newErrors: Record<string, string> = {};
         if (!formData.name.trim()) newErrors.name = "El nombre es requerido";
-        if (!formData.amount || parseFloat(formData.amount) <= 0) {
+        if (!formData.amount || !(monto(formData.amount) > 0)) {
             newErrors.amount = "El monto debe ser mayor a 0";
         }
         setErrors(newErrors);
+        // El foco va al primer campo con error para que se lea su mensaje.
+        const primero = Object.keys(newErrors)[0];
+        if (primero) document.getElementById(`${id}-${primero}`)?.focus();
         return Object.keys(newErrors).length === 0;
     };
 
@@ -91,7 +103,7 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
             await onSubmit({
                 name: formData.name.trim(),
                 categoryId: formData.categoryId || null,
-                amount: parseFloat(formData.amount),
+                amount: monto(formData.amount),
                 period: formData.period,
                 alertAt75: formData.alertAt75,
                 alertAt90: formData.alertAt90,
@@ -106,34 +118,36 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name */}
+            {/* Nombre */}
             <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor={`${id}-name`} className={ETIQUETA}>
                     Nombre del presupuesto *
                 </label>
                 <input
+                    id={`${id}-name`}
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                             text-white placeholder-gray-500 focus:outline-none focus:border-blue-500
-                             focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    aria-required="true"
+                    aria-invalid={errors.name ? true : undefined}
+                    aria-describedby={errors.name ? `${id}-name-error` : undefined}
+                    className={CAMPO}
                     placeholder="Ej: Comida del mes"
                 />
-                {errors.name && <p className="mt-1 text-sm text-red-400">{errors.name}</p>}
+                {errors.name && <p id={`${id}-name-error`} role="alert" className={ERROR_CAMPO}>{errors.name}</p>}
             </div>
 
-            {/* Category */}
+            {/* Categoría */}
             <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor={`${id}-categoria`} className={ETIQUETA}>
                     Categoría (opcional)
                 </label>
                 <select
+                    id={`${id}-categoria`}
                     value={formData.categoryId}
                     onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                             text-white focus:outline-none focus:border-blue-500
-                             focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    aria-describedby={`${id}-categoria-ayuda`}
+                    className={CAMPO}
                 >
                     <option value="">Todas las categorías de gasto</option>
                     {categories.map((cat) => (
@@ -142,44 +156,45 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
                         </option>
                     ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-500">
+                <p id={`${id}-categoria-ayuda`} className={AYUDA}>
                     Si no seleccionas categoría, el presupuesto aplica a todos los gastos
                 </p>
             </div>
 
-            {/* Amount and Period */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Monto y período */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-amount`} className={ETIQUETA}>
                         Monto límite *
                     </label>
                     <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                        <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">$</span>
                         <input
-                            type="number"
-                            step="0.01"
-                            min="0"
+                            id={`${id}-amount`}
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
                             value={formData.amount}
                             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                            className="w-full pl-8 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                     text-white placeholder-gray-500 focus:outline-none focus:border-blue-500
-                                     focus:ring-2 focus:ring-blue-500/20 transition-all"
-                            placeholder="0.00"
+                            aria-required="true"
+                            aria-invalid={errors.amount ? true : undefined}
+                            aria-describedby={errors.amount ? `${id}-amount-error` : undefined}
+                            className={`${CAMPO} pl-7 ${CIFRA}`}
+                            placeholder="150.000"
                         />
                     </div>
-                    {errors.amount && <p className="mt-1 text-sm text-red-400">{errors.amount}</p>}
+                    {errors.amount && <p id={`${id}-amount-error`} role="alert" className={ERROR_CAMPO}>{errors.amount}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-periodo`} className={ETIQUETA}>
                         Período
                     </label>
                     <select
+                        id={`${id}-periodo`}
                         value={formData.period}
                         onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                 text-white focus:outline-none focus:border-blue-500
-                                 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        className={CAMPO}
                     >
                         {PERIODS.map((p) => (
                             <option key={p.value} value={p.value}>
@@ -190,115 +205,72 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
                 </div>
             </div>
 
-            {/* Preview */}
+            {/* Vista previa */}
             {formData.amount && (
-                <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
-                    <p className="text-sm text-gray-400">Vista previa:</p>
-                    <p className="text-white font-medium mt-1">
-                        {selectedCategory ? `${selectedCategory.icon} ${selectedCategory.name}` : "Todos los gastos"}
+                <div className="rounded-lg bg-[var(--fondo-2)] px-4 py-3">
+                    <p className="text-sm text-[var(--mut)]">Vista previa:</p>
+                    <p className="mt-1 font-medium text-[var(--txt)]">
+                        {selectedCategory ? `${selectedCategory.icon ?? ""} ${selectedCategory.name}`.trim() : "Todos los gastos"}
                         {" — "}
-                        <span className="text-blue-400">
-                            {formatCurrency(parseFloat(formData.amount) || 0)}
+                        <span className={`font-semibold ${CIFRA}`}>
+                            {formatCurrency(monto(formData.amount) || 0)}
                         </span>
                         {" "}
-                        <span className="text-gray-500">
+                        <span className="text-[var(--mut)]">
                             {PERIODS.find((p) => p.value === formData.period)?.label.toLowerCase()}
                         </span>
                     </p>
                 </div>
             )}
 
-            {/* Alerts */}
-            <div>
-                <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Alertas de presupuesto
-                </label>
-                <div className="space-y-3">
-                    <label className="flex items-center gap-3 cursor-pointer group">
+            {/* Alertas */}
+            <fieldset>
+                <legend className={ETIQUETA}>Alertas de presupuesto</legend>
+                <div className="mt-1 space-y-1">
+                    <label className={CASILLA_FILA}>
                         <input
                             type="checkbox"
                             checked={formData.alertAt75}
                             onChange={(e) => setFormData({ ...formData, alertAt75: e.target.checked })}
-                            className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-yellow-500
-                                     focus:ring-yellow-500/20 focus:ring-2"
+                            className={CASILLA}
                         />
-                        <span className="text-gray-300 group-hover:text-white transition-colors">
-                            Alertar al 75% del presupuesto
-                        </span>
-                        <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">
-                            Advertencia
-                        </span>
+                        <span className="text-[15px] text-[var(--txt)]">Alertar al 75% del presupuesto</span>
+                        <span className={`${MARCA} bg-amber-500/10 text-amber-400`}>Advertencia</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className={CASILLA_FILA}>
                         <input
                             type="checkbox"
                             checked={formData.alertAt90}
                             onChange={(e) => setFormData({ ...formData, alertAt90: e.target.checked })}
-                            className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-orange-500
-                                     focus:ring-orange-500/20 focus:ring-2"
+                            className={CASILLA}
                         />
-                        <span className="text-gray-300 group-hover:text-white transition-colors">
-                            Alertar al 90% del presupuesto
-                        </span>
-                        <span className="text-xs px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full">
-                            Peligro
-                        </span>
+                        <span className="text-[15px] text-[var(--txt)]">Alertar al 90% del presupuesto</span>
+                        <span className={`${MARCA} bg-red-500/10 text-red-400`}>Peligro</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className={CASILLA_FILA}>
                         <input
                             type="checkbox"
                             checked={formData.alertAt100}
                             onChange={(e) => setFormData({ ...formData, alertAt100: e.target.checked })}
-                            className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-red-500
-                                     focus:ring-red-500/20 focus:ring-2"
+                            className={CASILLA}
                         />
-                        <span className="text-gray-300 group-hover:text-white transition-colors">
-                            Alertar al superar el presupuesto
-                        </span>
-                        <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">
-                            Excedido
-                        </span>
+                        <span className="text-[15px] text-[var(--txt)]">Alertar al superar el presupuesto</span>
+                        <span className={`${MARCA} bg-red-500/10 text-red-400`}>Excedido</span>
                     </label>
                 </div>
-            </div>
+            </fieldset>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 rounded-xl
-                             hover:bg-gray-700 transition-all font-medium"
-                >
+            {/* Acciones */}
+            <div className="flex flex-col-reverse gap-3 border-t border-[var(--linea)] pt-5 sm:flex-row sm:justify-end">
+                <button type="button" onClick={onCancel} className={BOTON_SEC}>
                     Cancelar
                 </button>
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 
-                             text-white rounded-xl hover:from-blue-500 hover:to-blue-400
-                             transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button type="submit" disabled={loading} className={BOTON}>
                     {loading ? (
-                        <span className="flex items-center justify-center gap-2">
-                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    fill="none"
-                                />
-                                <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                />
-                            </svg>
+                        <>
+                            <span aria-hidden="true" className={GIRA} />
                             Guardando...
-                        </span>
+                        </>
                     ) : budget ? (
                         "Actualizar"
                     ) : (

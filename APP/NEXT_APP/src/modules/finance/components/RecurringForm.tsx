@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
+import { AYUDA, BOTON, BOTON_SEC, CAMPO, ERROR, ETIQUETA, GIRA, OPCION, OPCION_NO, OPCION_SI } from "./estilos";
+import { hoyChile } from "../fechas";
+import { numeroCL } from "@/lib/tools/numeros";
+
+/** Monto escrito a la chilena («25.000», «19,5»). Antes era type=number y «25.000» se leía como 25. */
+const monto = (texto: string) => numeroCL(texto) ?? NaN;
 
 interface Category {
     id: string;
@@ -14,31 +20,52 @@ interface Account {
     icon: string | null;
 }
 
+/**
+ * Lo que guarda la API (modelo RecurringPayment). No hay columnas de tipo, notas ni «crear automáticamente»:
+ * el tipo sale de la categoría (sin categoría, o de gasto, es gasto) y por eso aquí solo filtra las categorías.
+ */
 interface RecurringPaymentData {
     id?: string;
     name: string;
     amount: number;
-    type: string;
+    /** Derivado de la categoría por la API; solo sirve para abrir el formulario en la pestaña correcta. */
+    type?: string;
     categoryId: string | null;
     accountId: string | null;
     frequency: string;
     startDate: string;
     endDate: string | null;
     dayOfMonth: number | null;
-    description: string | null;
-    autoCreate: boolean;
-    notifyBefore?: number;
-    notifyDaysBefore?: number | null;
+    reminderDays?: number;
     isActive?: boolean;
+}
+
+/** Lo que se manda a POST/PUT /api/finance/recurring. La moneda la pone el servidor (la de la cuenta, o CLP). */
+interface RecurringPaymentPayload {
+    id?: string;
+    name: string;
+    amount: number;
+    categoryId: string | null;
+    accountId: string | null;
+    frequency: string;
+    startDate: string;
+    endDate: string | null;
+    dayOfMonth: number | null;
+    reminderDays: number;
 }
 
 interface RecurringFormProps {
     payment?: RecurringPaymentData;
     initialData?: RecurringPaymentData;
-    onSubmit?: (data: Omit<RecurringPaymentData, "id"> & { id?: string }) => Promise<void>;
+    onSubmit?: (data: RecurringPaymentPayload) => Promise<void>;
     onSuccess?: () => void;
     onCancel?: () => void;
 }
+
+const TIPOS = [
+    { value: "EXPENSE", label: "Gasto" },
+    { value: "INCOME", label: "Ingreso" },
+] as const;
 
 const FREQUENCIES = [
     { value: "DAILY", label: "Diario" },
@@ -51,25 +78,25 @@ const FREQUENCIES = [
 
 export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCancel }: RecurringFormProps) {
     const data = payment || initialData;
+    const id = useId();
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
-    const notifyValue = data?.notifyBefore ?? data?.notifyDaysBefore ?? 3;
     const [formData, setFormData] = useState({
         name: data?.name || "",
         amount: data?.amount?.toString() || "",
-        type: data?.type || "EXPENSE",
+        type: data?.type === "INCOME" ? "INCOME" : "EXPENSE",
         categoryId: data?.categoryId || "",
         accountId: data?.accountId || "",
-        frequency: data?.frequency || "MONTHLY",
-        startDate: data?.startDate ? data.startDate.split("T")[0] : new Date().toISOString().split("T")[0],
+        // La base guarda la frecuencia en minúsculas («monthly»); el select usa mayúsculas.
+        frequency: (data?.frequency || "MONTHLY").toUpperCase(),
+        startDate: data?.startDate ? data.startDate.split("T")[0] : hoyChile(),
         endDate: data?.endDate ? data.endDate.split("T")[0] : "",
         dayOfMonth: data?.dayOfMonth?.toString() || "",
-        description: data?.description || "",
-        autoCreate: data?.autoCreate ?? true,
-        notifyBefore: notifyValue,
+        reminderDays: data?.reminderDays ?? 3,
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         try {
@@ -103,10 +130,17 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
     const validate = () => {
         const newErrors: Record<string, string> = {};
         if (!formData.name.trim()) newErrors.name = "El nombre es requerido";
-        if (!formData.amount || parseFloat(formData.amount) <= 0) {
+        if (!formData.amount || !(monto(formData.amount) > 0)) {
             newErrors.amount = "El monto debe ser mayor a 0";
         }
         if (!formData.startDate) newErrors.startDate = "La fecha de inicio es requerida";
+        if (formData.endDate && formData.startDate && formData.endDate < formData.startDate) {
+            newErrors.endDate = "La fecha de fin no puede ser anterior a la de inicio";
+        }
+        // Sin categoría de ingreso, «Marcar pagado» lo registraría como gasto.
+        if (formData.type === "INCOME" && !formData.categoryId) {
+            newErrors.category = "Elige una categoría de ingreso";
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -116,21 +150,20 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
         if (!validate()) return;
 
         setLoading(true);
+        setSaveError(null);
         try {
-            const submitData = {
+            const submitData: RecurringPaymentPayload = {
                 id: data?.id,
                 name: formData.name.trim(),
-                amount: parseFloat(formData.amount),
-                type: formData.type,
+                amount: monto(formData.amount),
                 categoryId: formData.categoryId || null,
                 accountId: formData.accountId || null,
                 frequency: formData.frequency,
                 startDate: new Date(formData.startDate).toISOString(),
                 endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
-                dayOfMonth: formData.dayOfMonth ? parseInt(formData.dayOfMonth) : null,
-                description: formData.description || null,
-                autoCreate: formData.autoCreate,
-                notifyBefore: formData.notifyBefore,
+                // El día del mes solo vale para los mensuales (el campo se oculta en las demás frecuencias).
+                dayOfMonth: formData.frequency === "MONTHLY" && formData.dayOfMonth ? parseInt(formData.dayOfMonth, 10) : null,
+                reminderDays: formData.reminderDays,
             };
 
             if (onSubmit) {
@@ -149,89 +182,102 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
                 });
 
                 if (!res.ok) {
-                    throw new Error("Error al guardar");
+                    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+                    throw new Error(body?.error || "Error al guardar");
                 }
             }
 
             onSuccess?.();
+        } catch (error) {
+            const detalle = error instanceof Error && error.message !== "Error al guardar" ? ` (${error.message})` : "";
+            setSaveError(`No se pudo guardar el pago recurrente${detalle}. Revisa los datos e inténtalo de nuevo.`);
         } finally {
             setLoading(false);
         }
     };
 
+    const campoError = (campo: string) =>
+        errors[campo]
+            ? { "aria-invalid": true as const, "aria-describedby": `${id}-${campo}-error` }
+            : {};
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Type Toggle */}
-            <div className="flex bg-gray-800/50 rounded-xl p-1">
-                <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, type: "EXPENSE", categoryId: "" })}
-                    className={`flex-1 py-3 rounded-lg font-medium transition-all ${formData.type === "EXPENSE"
-                        ? "bg-red-500/20 text-red-400"
-                        : "text-gray-400 hover:text-white"
-                        }`}
-                >
-                    💸 Gasto
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, type: "INCOME", categoryId: "" })}
-                    className={`flex-1 py-3 rounded-lg font-medium transition-all ${formData.type === "INCOME"
-                        ? "bg-green-500/20 text-green-400"
-                        : "text-gray-400 hover:text-white"
-                        }`}
-                >
-                    💰 Ingreso
-                </button>
-            </div>
+            {/* Tipo */}
+            <fieldset>
+                <legend className={ETIQUETA}>Tipo</legend>
+                <div className="grid grid-cols-2 gap-2">
+                    {TIPOS.map((t) => (
+                        <label
+                            key={t.value}
+                            className={`${OPCION} cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--acento)] ${formData.type === t.value ? OPCION_SI : OPCION_NO}`}
+                        >
+                            <input
+                                type="radio"
+                                name={`${id}-tipo`}
+                                value={t.value}
+                                checked={formData.type === t.value}
+                                onChange={() => setFormData({ ...formData, type: t.value, categoryId: "" })}
+                                className="sr-only"
+                            />
+                            {t.label}
+                        </label>
+                    ))}
+                </div>
+                <p className={AYUDA}>El tipo lo define la categoría: un ingreso necesita una categoría de ingreso.</p>
+            </fieldset>
 
-            {/* Name */}
+            {/* Nombre */}
             <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor={`${id}-name`} className={ETIQUETA}>
                     Nombre *
                 </label>
                 <input
+                    id={`${id}-name`}
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                             text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    className={CAMPO}
                     placeholder="Ej: Netflix, Arriendo, Sueldo"
+                    aria-required="true"
+                    {...campoError("name")}
                 />
-                {errors.name && <p className="mt-1 text-sm text-red-400">{errors.name}</p>}
+                {errors.name && <p id={`${id}-name-error`} role="alert" className={`${ERROR} mt-2`}>{errors.name}</p>}
             </div>
 
-            {/* Amount and Frequency */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Monto y frecuencia */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-amount`} className={ETIQUETA}>
                         Monto *
                     </label>
                     <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                        <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">$</span>
                         <input
-                            type="number"
-                            step="0.01"
-                            min="0"
+                            id={`${id}-amount`}
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
                             value={formData.amount}
                             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                            className="w-full pl-8 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                     text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                            placeholder="0.00"
+                            className={`${CAMPO} pl-7 tabular-nums`}
+                            placeholder="25.000"
+                            aria-required="true"
+                            {...campoError("amount")}
                         />
                     </div>
-                    {errors.amount && <p className="mt-1 text-sm text-red-400">{errors.amount}</p>}
+                    {errors.amount && <p id={`${id}-amount-error`} role="alert" className={`${ERROR} mt-2`}>{errors.amount}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-frequency`} className={ETIQUETA}>
                         Frecuencia
                     </label>
                     <select
+                        id={`${id}-frequency`}
                         value={formData.frequency}
                         onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                 text-white focus:outline-none focus:border-blue-500"
+                        className={CAMPO}
                     >
                         {FREQUENCIES.map((f) => (
                             <option key={f.value} value={f.value}>
@@ -242,58 +288,63 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
                 </div>
             </div>
 
-            {/* Day of Month (for monthly) */}
+            {/* Día del mes (solo mensual) */}
             {formData.frequency === "MONTHLY" && (
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-day`} className={ETIQUETA}>
                         Día del mes (opcional)
                     </label>
                     <input
+                        id={`${id}-day`}
                         type="number"
+                        inputMode="numeric"
                         min="1"
                         max="31"
                         value={formData.dayOfMonth}
                         onChange={(e) => setFormData({ ...formData, dayOfMonth: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                        className={`${CAMPO} tabular-nums sm:max-w-[12rem]`}
                         placeholder="1-31"
+                        aria-describedby={`${id}-day-help`}
                     />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p id={`${id}-day-help`} className={AYUDA}>
                         Si no especificas, usará la fecha de inicio como referencia
                     </p>
                 </div>
             )}
 
-            {/* Category and Account */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Categoría y cuenta */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Categoría
+                    <label htmlFor={`${id}-category`} className={ETIQUETA}>
+                        Categoría{formData.type === "INCOME" ? " *" : ""}
                     </label>
                     <select
+                        id={`${id}-category`}
                         value={formData.categoryId}
                         onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                 text-white focus:outline-none focus:border-blue-500"
+                        className={CAMPO}
+                        aria-required={formData.type === "INCOME" ? true : undefined}
+                        {...campoError("category")}
                     >
-                        <option value="">Sin categoría</option>
+                        <option value="">{formData.type === "INCOME" ? "Elige una categoría" : "Sin categoría"}</option>
                         {filteredCategories.map((cat) => (
                             <option key={cat.id} value={cat.id}>
                                 {cat.icon} {cat.name}
                             </option>
                         ))}
                     </select>
+                    {errors.category && <p id={`${id}-category-error`} role="alert" className={`${ERROR} mt-2`}>{errors.category}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-account`} className={ETIQUETA}>
                         Cuenta
                     </label>
                     <select
+                        id={`${id}-account`}
                         value={formData.accountId}
                         onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                 text-white focus:outline-none focus:border-blue-500"
+                        className={CAMPO}
                     >
                         <option value="">Sin cuenta asignada</option>
                         {accounts.map((acc) => (
@@ -305,98 +356,84 @@ export function RecurringForm({ payment, initialData, onSubmit, onSuccess, onCan
                 </div>
             </div>
 
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Fechas */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-start`} className={ETIQUETA}>
                         Fecha de inicio *
                     </label>
                     <input
+                        id={`${id}-start`}
                         type="date"
                         value={formData.startDate}
                         onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                 text-white focus:outline-none focus:border-blue-500"
+                        className={CAMPO}
+                        aria-required="true"
+                        {...campoError("startDate")}
                     />
-                    {errors.startDate && <p className="mt-1 text-sm text-red-400">{errors.startDate}</p>}
+                    {errors.startDate && <p id={`${id}-startDate-error`} role="alert" className={`${ERROR} mt-2`}>{errors.startDate}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor={`${id}-end`} className={ETIQUETA}>
                         Fecha de fin (opcional)
                     </label>
                     <input
+                        id={`${id}-end`}
                         type="date"
                         value={formData.endDate}
                         min={formData.startDate}
                         onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                                 text-white focus:outline-none focus:border-blue-500"
+                        className={CAMPO}
+                        {...campoError("endDate")}
                     />
+                    {errors.endDate && <p id={`${id}-endDate-error`} role="alert" className={`${ERROR} mt-2`}>{errors.endDate}</p>}
                 </div>
             </div>
 
-            {/* Options */}
-            <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={formData.autoCreate}
-                        onChange={(e) => setFormData({ ...formData, autoCreate: e.target.checked })}
-                        className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-blue-500"
-                    />
-                    <span className="text-gray-300">Crear transacción automáticamente en la fecha</span>
-                </label>
-
-                <div className="flex items-center gap-3">
-                    <span className="text-gray-300">Notificar</span>
+            {/* Aviso en Recordatorios. No hay «crear transacción automáticamente» ni notas: el esquema no los guarda. */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label htmlFor={`${id}-notify`} className={ETIQUETA}>
+                        Avisar en Recordatorios
+                    </label>
                     <select
-                        value={formData.notifyBefore}
-                        onChange={(e) => setFormData({ ...formData, notifyBefore: parseInt(e.target.value) })}
-                        className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm"
+                        id={`${id}-notify`}
+                        value={formData.reminderDays}
+                        onChange={(e) => setFormData({ ...formData, reminderDays: parseInt(e.target.value, 10) })}
+                        className={CAMPO}
                     >
                         <option value={0}>El mismo día</option>
                         <option value={1}>1 día antes</option>
                         <option value={3}>3 días antes</option>
                         <option value={7}>1 semana antes</option>
+                        {![0, 1, 3, 7].includes(formData.reminderDays) && (
+                            <option value={formData.reminderDays}>{formData.reminderDays} días antes</option>
+                        )}
                     </select>
                 </div>
             </div>
 
-            {/* Description */}
-            <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Notas (opcional)
-                </label>
-                <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={2}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl
-                             text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
-                    placeholder="Notas adicionales..."
-                />
-            </div>
+            {saveError && (
+                <p role="alert" className={ERROR}>
+                    {saveError}
+                </p>
+            )}
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 rounded-xl hover:bg-gray-700"
-                >
-                    Cancelar
-                </button>
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className={`flex-1 px-4 py-3 rounded-xl font-medium disabled:opacity-50
-                              ${formData.type === "EXPENSE"
-                            ? "bg-gradient-to-r from-red-600 to-red-500 text-white"
-                            : "bg-gradient-to-r from-green-600 to-green-500 text-white"
-                        }`}
-                >
-                    {loading ? "Guardando..." : payment ? "Actualizar" : "Crear pago recurrente"}
+            {/* Acciones */}
+            <div className="flex flex-col-reverse gap-3 border-t border-[var(--linea)] pt-5 sm:flex-row sm:justify-end">
+                {onCancel && (
+                    <button type="button" onClick={onCancel} className={BOTON_SEC}>
+                        Cancelar
+                    </button>
+                )}
+                <button type="submit" disabled={loading} className={BOTON}>
+                    {loading ? (
+                        <>
+                            <span aria-hidden="true" className={GIRA} />
+                            Guardando…
+                        </>
+                    ) : data?.id ? "Guardar cambios" : "Crear pago recurrente"}
                 </button>
             </div>
         </form>

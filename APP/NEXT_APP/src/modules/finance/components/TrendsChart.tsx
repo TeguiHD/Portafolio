@@ -1,6 +1,9 @@
 "use client";
 
 import { formatCurrency } from "@/lib/currency";
+import { CifrasFinanzas } from "./Piezas";
+import { anclaGlobo, montoEje, topeEje } from "./escala";
+import { CIFRA, ENLACE, SERIES } from "./estilos";
 
 export interface TrendData {
     key: string;
@@ -24,162 +27,135 @@ interface TrendsChartProps {
     };
 }
 
+/**
+ * Ingresos y gastos mes a mes: dos líneas sobre un solo eje, puntos por mes, globo al pasar el puntero y la tabla
+ * con los mismos datos. Las líneas van en un SVG estirado (con trazo que no se deforma) y los puntos en HTML,
+ * así siguen redondos a cualquier ancho.
+ */
 export function TrendsChart({ data, summary }: TrendsChartProps) {
-    const maxValue = Math.max(...data.map((d) => Math.max(d.income, d.expenses)), 1);
+    const n = data.length;
+    const tope = topeEje(Math.max(...data.map((d) => Math.max(d.income, d.expenses)), 1));
+    const x = (i: number) => ((i + 0.5) / Math.max(n, 1)) * 100;
+    const y = (v: number) => 100 - Math.min(Math.max(v / tope, 0), 1) * 100;
+    const linea = (campo: "income" | "expenses") => data.map((d, i) => `${i === 0 ? "M" : "L"} ${x(i)} ${y(d[campo])}`).join(" ");
+    // En celular se ven menos nombres de mes para que no se monten
+    const pasoCelular = n > 12 ? 3 : n > 6 ? 2 : 1;
+    const pasoAncho = n > 12 ? 2 : 1;
 
     return (
         <div className="space-y-6">
-            {/* Line Chart Area */}
-            <div className="relative h-64">
-                <svg viewBox={`0 0 ${data.length * 60} 200`} className="w-full h-full" preserveAspectRatio="none">
-                    {/* Grid lines */}
-                    {[0.25, 0.5, 0.75, 1].map((ratio) => (
-                        <line
-                            key={ratio}
-                            x1="0"
-                            y1={200 - ratio * 180}
-                            x2={data.length * 60}
-                            y2={200 - ratio * 180}
-                            stroke="#374151"
-                            strokeDasharray="4"
-                        />
-                    ))}
+            <figure className={`m-0 ${SERIES}`}>
+                <figcaption className="mb-5">
+                    <ul className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm text-[var(--mut)]">
+                        <li className="flex items-center gap-2">
+                            <i aria-hidden="true" className="h-0.5 w-4 rounded-full bg-[var(--serie-ingreso)]" />
+                            Ingresos
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <i aria-hidden="true" className="h-0.5 w-4 rounded-full bg-[var(--serie-gasto)]" />
+                            Gastos
+                        </li>
+                    </ul>
+                </figcaption>
 
-                    {/* Income area */}
-                    <path
-                        d={`
-                            M 30 ${200 - (data[0]?.income / maxValue) * 180}
-                            ${data.map((d, i) => `L ${30 + i * 60} ${200 - (d.income / maxValue) * 180}`).join(" ")}
-                            L ${30 + (data.length - 1) * 60} 200
-                            L 30 200
-                            Z
-                        `}
-                        fill="url(#incomeGradient)"
-                        className="opacity-30"
-                    />
+                {n === 0 ? (
+                    <p className="text-sm text-[var(--mut)]">Todavía no hay meses con movimientos.</p>
+                ) : (
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2">
+                        <div aria-hidden="true" className={`relative h-56 w-12 text-right text-xs text-[var(--mut)] ${CIFRA}`}>
+                            <span className="absolute top-0 right-0 -translate-y-1/2">{montoEje(tope)}</span>
+                            <span className="absolute top-1/2 right-0 -translate-y-1/2">{montoEje(tope / 2)}</span>
+                            <span className="absolute right-0 bottom-0 translate-y-1/2">$0</span>
+                        </div>
 
-                    {/* Expense area */}
-                    <path
-                        d={`
-                            M 30 ${200 - (data[0]?.expenses / maxValue) * 180}
-                            ${data.map((d, i) => `L ${30 + i * 60} ${200 - (d.expenses / maxValue) * 180}`).join(" ")}
-                            L ${30 + (data.length - 1) * 60} 200
-                            L 30 200
-                            Z
-                        `}
-                        fill="url(#expenseGradient)"
-                        className="opacity-30"
-                    />
+                        <div
+                            role="img"
+                            aria-label="Ingresos y gastos de cada mes. Los mismos datos están en la tabla «Ver los datos por mes»."
+                            className="relative h-56 border-b border-[var(--linea-2)]"
+                        >
+                            <div aria-hidden="true" className="absolute inset-x-0 top-0 border-t border-[var(--linea)]" />
+                            <div aria-hidden="true" className="absolute inset-x-0 top-1/2 border-t border-[var(--linea)]" />
 
-                    {/* Income line */}
-                    <path
-                        d={`M ${data.map((d, i) => `${30 + i * 60} ${200 - (d.income / maxValue) * 180}`).join(" L ")}`}
-                        fill="none"
-                        stroke="#22C55E"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
+                            <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible">
+                                <path d={linea("income")} fill="none" stroke="var(--serie-ingreso)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                                <path d={linea("expenses")} fill="none" stroke="var(--serie-gasto)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                            </svg>
 
-                    {/* Expense line */}
-                    <path
-                        d={`M ${data.map((d, i) => `${30 + i * 60} ${200 - (d.expenses / maxValue) * 180}`).join(" L ")}`}
-                        fill="none"
-                        stroke="#EF4444"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
+                            {data.map((d, i) => (
+                                <div key={d.key} className="group absolute inset-y-0" style={{ left: `${(i / n) * 100}%`, width: `${100 / n}%` }}>
+                                    {/* Guía vertical del mes bajo el puntero */}
+                                    <div aria-hidden="true" className="absolute inset-y-0 left-1/2 hidden border-l border-[var(--linea-2)] group-hover:block" />
+                                    <i aria-hidden="true" className="absolute left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--serie-ingreso)] shadow-[0_0_0_2px_var(--fondo)]" style={{ top: `${y(d.income)}%` }} />
+                                    <i aria-hidden="true" className="absolute left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--serie-gasto)] shadow-[0_0_0_2px_var(--fondo)]" style={{ top: `${y(d.expenses)}%` }} />
+                                    <div className={`pointer-events-none absolute top-0 z-10 hidden whitespace-nowrap rounded-lg border border-[var(--linea-2)] bg-[var(--sup)] px-3 py-2 text-xs text-[var(--txt)] shadow-lg group-hover:block ${anclaGlobo(i, n)} ${CIFRA}`}>
+                                        <p className="m-0 font-semibold">{d.label}</p>
+                                        <p className="m-0">Ingresos: {formatCurrency(d.income)}</p>
+                                        <p className="m-0">Gastos: {formatCurrency(d.expenses)}</p>
+                                        <p className="m-0 text-[var(--mut)]">Balance: {formatCurrency(d.balance)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
 
-                    {/* Data points */}
-                    {data.map((d, i) => (
-                        <g key={d.key}>
-                            {/* Income point */}
-                            <circle
-                                cx={30 + i * 60}
-                                cy={200 - (d.income / maxValue) * 180}
-                                r="5"
-                                fill="#22C55E"
-                                className="transition-all hover:r-7"
-                            />
-                            {/* Expense point */}
-                            <circle
-                                cx={30 + i * 60}
-                                cy={200 - (d.expenses / maxValue) * 180}
-                                r="5"
-                                fill="#EF4444"
-                                className="transition-all hover:r-7"
-                            />
-                        </g>
-                    ))}
+                        <div />
+                        <div aria-hidden="true" className="relative mt-1.5 h-4 text-xs text-[var(--mut)]">
+                            {data.map((d, i) => {
+                                const ultimo = i === n - 1;
+                                const enCelular = ultimo || i % pasoCelular === 0;
+                                const enAncho = ultimo || i % pasoAncho === 0;
+                                return (
+                                    <span
+                                        key={d.key}
+                                        className={`absolute -translate-x-1/2 ${enCelular ? "" : "max-md:hidden"} ${enAncho ? "" : "md:hidden"}`}
+                                        style={{ left: `${x(i)}%` }}
+                                    >
+                                        {d.monthName}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
-                    {/* Gradients */}
-                    <defs>
-                        <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#22C55E" />
-                            <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
-                        </linearGradient>
-                        <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#EF4444" />
-                            <stop offset="100%" stopColor="#EF4444" stopOpacity="0" />
-                        </linearGradient>
-                    </defs>
-                </svg>
+                {n > 0 && (
+                    <details className="mt-5">
+                        <summary className={`cursor-pointer text-sm ${ENLACE}`}>Ver los datos por mes</summary>
+                        <div className="mt-3 overflow-x-auto">
+                            <table className="w-full border-collapse text-sm">
+                                <caption className="sr-only">Ingresos, gastos y balance de cada mes</caption>
+                                <thead>
+                                    <tr className="border-b border-[var(--linea)]">
+                                        <th scope="col" className="py-2 pr-4 text-left text-sm font-medium text-[var(--mut)]">Mes</th>
+                                        <th scope="col" className="py-2 pr-4 text-right text-sm font-medium text-[var(--mut)]">Ingresos</th>
+                                        <th scope="col" className="py-2 pr-4 text-right text-sm font-medium text-[var(--mut)]">Gastos</th>
+                                        <th scope="col" className="py-2 text-right text-sm font-medium text-[var(--mut)]">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody className={CIFRA}>
+                                    {data.map((d) => (
+                                        <tr key={d.key} className="border-b border-[var(--linea)]">
+                                            <th scope="row" className="py-2 pr-4 text-left font-normal whitespace-nowrap text-[var(--txt)]">{d.label}</th>
+                                            <td className="py-2 pr-4 text-right whitespace-nowrap text-[var(--txt)]">{formatCurrency(d.income)}</td>
+                                            <td className="py-2 pr-4 text-right whitespace-nowrap text-[var(--txt)]">{formatCurrency(d.expenses)}</td>
+                                            <td className={`py-2 text-right whitespace-nowrap ${d.balance < 0 ? "text-[var(--baja)]" : "text-[var(--txt)]"}`}>{formatCurrency(d.balance)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                )}
+            </figure>
 
-                {/* Y-axis labels */}
-                <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 py-2">
-                    <span>{formatCurrency(maxValue)}</span>
-                    <span>{formatCurrency(maxValue * 0.75)}</span>
-                    <span>{formatCurrency(maxValue * 0.5)}</span>
-                    <span>{formatCurrency(maxValue * 0.25)}</span>
-                    <span>$0</span>
-                </div>
-            </div>
-
-            {/* X-axis labels */}
-            <div className="flex justify-between px-8 text-xs text-gray-500 overflow-x-auto">
-                {data.map((d) => (
-                    <span key={d.key} className="flex-shrink-0">
-                        {d.monthName}
-                    </span>
-                ))}
-            </div>
-
-            {/* Legend */}
-            <div className="flex items-center justify-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                    <div className="w-4 h-1 rounded bg-green-500" />
-                    <span className="text-gray-400">Ingresos</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-4 h-1 rounded bg-red-500" />
-                    <span className="text-gray-400">Gastos</span>
-                </div>
-            </div>
-
-            {/* Summary Stats */}
-            <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-800">
-                <div className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">Prom. Ingresos</p>
-                    <p className="text-lg font-semibold text-green-400">{formatCurrency(summary.avgIncome)}</p>
-                </div>
-                <div className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">Prom. Gastos</p>
-                    <p className="text-lg font-semibold text-red-400">{formatCurrency(summary.avgExpenses)}</p>
-                </div>
-                <div className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">Prom. Balance</p>
-                    <p className={`text-lg font-semibold ${summary.avgBalance >= 0 ? "text-blue-400" : "text-orange-400"}`}>
-                        {formatCurrency(summary.avgBalance)}
-                    </p>
-                </div>
-                <div className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">Tasa de Ahorro</p>
-                    <p className={`text-lg font-semibold ${summary.avgSavingsRate >= 0 ? "text-green-400" : "text-red-400"}`}>
-                        {summary.avgSavingsRate}%
-                    </p>
-                </div>
-            </div>
+            <CifrasFinanzas
+                etiqueta="Promedios mensuales"
+                cifras={[
+                    { nombre: "Ingreso promedio", valor: formatCurrency(summary.avgIncome) },
+                    { nombre: "Gasto promedio", valor: formatCurrency(summary.avgExpenses) },
+                    { nombre: "Balance promedio", valor: formatCurrency(summary.avgBalance), tono: summary.avgBalance < 0 ? "baja" : undefined },
+                    { nombre: "Tasa de ahorro", valor: `${summary.avgSavingsRate} %`, tono: summary.avgSavingsRate < 0 ? "baja" : undefined },
+                ]}
+            />
         </div>
     );
 }

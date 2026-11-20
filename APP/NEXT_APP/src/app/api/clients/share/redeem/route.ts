@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { auth } from "@/lib/auth";
 import { redeemShareCode } from "@/services/sharing-service";
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
         const { checkRateLimitAtomic } = await import("@/lib/rate-limit");
         const { SecurityLogger, shouldBlockIp } = await import("@/lib/security-logger");
 
-        const ip = request.headers.get("x-forwarded-for") || "unknown";
+        const ip = ipCliente(request.headers);
 
         // Check if IP is already blocked due to threat score
         if (shouldBlockIp(ip)) {

@@ -127,6 +127,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
                 ...data,
                 deadline: data.deadline !== undefined ? (data.deadline ? new Date(data.deadline) : null) : undefined,
                 completed,
+                // Fecha de logro: se marca al completarse y se borra si deja de estarlo.
+                completedAt: completed ? (existing.completed ? undefined : new Date()) : null,
             },
         });
 
@@ -174,7 +176,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         const oldPercentage = (existing.currentAmount / existing.targetAmount) * 100;
         const newPercentage = (newAmount / existing.targetAmount) * 100;
 
-        const updates: Prisma.SavingsGoalUpdateInput = { currentAmount: newAmount, completed };
+        const updates: Prisma.SavingsGoalUpdateInput = {
+            currentAmount: newAmount,
+            completed,
+            completedAt: completed ? (existing.completed ? undefined : new Date()) : null,
+        };
 
         // Mark milestones as achieved
         if (oldPercentage < 25 && newPercentage >= 25) updates.milestone25 = true;

@@ -1,31 +1,35 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useId } from "react";
 import { useRouter } from "next/navigation";
-import { UserCog, Building2, User, Mail, Phone, MapPin, Briefcase, FileText, Loader2, Save, X, Trash2 } from "lucide-react";
+import { UserCog, Building2, User, Mail, Phone, MapPin, Briefcase, FileText, Loader2, Save, Trash2 } from "lucide-react";
 import { updateClientContactAction, deleteClientAction, UpdateClientContactData } from "../../../modules/admin/clients/actions";
 import { formatRut, getRutError } from "@/lib/rut";
 import { toast } from "sonner";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import Ventana from "@/modules/quotations/components/Ventana";
+import { BOTON, BOTON_PELIGRO, BOTON_SEC, CAMPO, ERROR_CAMPO, TITULO_SECCION } from "@/modules/quotations/estilos";
 
 interface Client {
     id: string;
     name: string;
     slug: string;
-    email?: string;
-    company?: string;
-    rut?: string;
-    address?: string;
-    contactName?: string;
-    contactEmail?: string;
-    contactPhone?: string;
-    contactRole?: string;
+    email?: string | null;
+    company?: string | null;
+    rut?: string | null;
+    address?: string | null;
+    contactName?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    contactRole?: string | null;
 }
 
 interface Props {
     client: Client;
     onUpdate?: () => void;
     canDelete?: boolean;
+    /** Tras eliminar el cliente (p. ej. desde su ficha, para volver al directorio). Sin esto, se refresca la página. */
+    onDeleted?: () => void;
 }
 
 interface FormErrors {
@@ -35,10 +39,11 @@ interface FormErrors {
     contactEmail?: string;
 }
 
-export default function ContactInfoModal({ client, onUpdate, canDelete }: Props) {
+export default function ContactInfoModal({ client, onUpdate, canDelete, onDeleted }: Props) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const uid = useId();
     const [formData, setFormData] = useState<UpdateClientContactData>({
         name: client.name,
         company: client.company || "",
@@ -51,6 +56,7 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
         email: client.email || "",
     });
     const [errors, setErrors] = useState<FormErrors>({});
+    const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
 
     const validate = (): boolean => {
         const newErrors: FormErrors = {};
@@ -63,11 +69,11 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
         if (rutError) newErrors.rut = rutError;
 
         if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = "Email inválido";
+            newErrors.email = "Correo no válido";
         }
 
         if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
-            newErrors.contactEmail = "Email inválido";
+            newErrors.contactEmail = "Correo no válido";
         }
 
         setErrors(newErrors);
@@ -89,328 +95,179 @@ export default function ContactInfoModal({ client, onUpdate, canDelete }: Props)
     };
 
     const handleDelete = async () => {
-        if (!confirm("¿Estás seguro de que deseas eliminar este cliente? Se eliminarán lógicamente sus cotizaciones asociadas. Esta acción no se puede deshacer.")) return;
+        if (!(await confirmar({
+            titulo: `¿Eliminar a ${client.name}?`,
+            detalle: "Sus propuestas también se eliminan. No se puede deshacer.",
+            accion: "Eliminar",
+            peligro: true,
+        }))) return;
 
         try {
             setLoading(true);
             const res = await deleteClientAction(client.id);
             if (res.success) {
-                toast.success("Cliente eliminado correctamente");
+                toast.success("Cliente eliminado");
                 setOpen(false);
-                router.refresh();
-                if (onUpdate) onUpdate();
+                if (onDeleted) {
+                    onDeleted();
+                } else {
+                    router.refresh();
+                    if (onUpdate) onUpdate();
+                }
             } else {
-                toast.error(res.error || "Error al eliminar cliente");
+                setErrorGeneral(res.error || "No se pudo eliminar el cliente");
             }
         } catch {
-            toast.error("Error al procesar la solicitud");
+            setErrorGeneral("No se pudo eliminar el cliente");
         } finally {
             setLoading(false);
         }
     };
 
-    const modalRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        };
-
-        if (open) {
-            document.addEventListener("mousedown", handleClickOutside);
-            document.body.style.overflow = "hidden";
-        }
-
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-            document.body.style.overflow = "unset";
-        };
-    }, [open]);
-
-    useEffect(() => {
-        const handleEsc = (event: KeyboardEvent) => {
-            if (event.key === "Escape") setOpen(false);
-        };
-        if (open) window.addEventListener("keydown", handleEsc);
-        return () => window.removeEventListener("keydown", handleEsc);
-    }, [open]);
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorGeneral(null);
         if (!validate()) return;
 
         setLoading(true);
         try {
             const res = await updateClientContactAction(client.id, formData);
             if (res.success) {
-                toast.success("Información actualizada correctamente");
+                toast.success("Contacto actualizado");
                 setOpen(false);
                 if (onUpdate) onUpdate();
             } else {
-                toast.error(res.error || "Error al actualizar");
+                setErrorGeneral(res.error || "No se pudo guardar");
             }
         } catch {
-            toast.error("Error de conexión");
+            setErrorGeneral("No se pudo guardar: revisa la conexión");
         } finally {
             setLoading(false);
         }
     };
 
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
+    const abrir = () => {
+        // Cada vez que se abre parte de lo guardado, sin errores viejos.
+        setFormData({
+            name: client.name,
+            company: client.company || "",
+            rut: client.rut || "",
+            address: client.address || "",
+            contactName: client.contactName || "",
+            contactEmail: client.contactEmail || "",
+            contactPhone: client.contactPhone || "",
+            contactRole: client.contactRole || "",
+            email: client.email || "",
+        });
+        setErrors({});
+        setErrorGeneral(null);
+        setOpen(true);
+    };
 
-    if (!open) {
-        return (
+    const campo = (
+        nombre: keyof UpdateClientContactData,
+        etiqueta: React.ReactNode,
+        Icono: typeof User,
+        extra: { type?: string; placeholder?: string; maxLength: number; error?: string; required?: boolean; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; clase?: string; ancho?: string; autofocus?: boolean },
+    ) => (
+        <div className={extra.ancho}>
+            <label htmlFor={`${uid}-${nombre}`} className="mb-1.5 block text-sm font-medium text-[var(--txt)]">{etiqueta}</label>
+            <div className="relative">
+                <Icono size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" />
+                <input
+                    id={`${uid}-${nombre}`}
+                    name={nombre}
+                    type={extra.type ?? "text"}
+                    value={formData[nombre] ?? ""}
+                    onChange={extra.onChange ?? handleChange}
+                    placeholder={extra.placeholder}
+                    maxLength={extra.maxLength}
+                    required={extra.required}
+                    aria-invalid={extra.error ? true : undefined}
+                    aria-describedby={extra.error ? `${uid}-${nombre}-error` : undefined}
+                    className={`${CAMPO} pl-9 ${extra.clase ?? ""}`}
+                    data-autofocus={extra.autofocus || undefined}
+                />
+            </div>
+            {extra.error && <p id={`${uid}-${nombre}-error`} className={ERROR_CAMPO}>{extra.error}</p>}
+        </div>
+    );
+
+    return (
+        <>
             <button
-                onClick={() => setOpen(true)}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-center py-2 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-                title="Editar información de contacto"
+                type="button"
+                onClick={abrir}
+                className={`${BOTON_SEC} flex-1`}
+                aria-label={`Editar contacto de ${client.name}`}
             >
-                <UserCog size={16} className="text-indigo-400" />
-                <span className="hidden md:inline">Contacto</span>
+                <UserCog size={16} aria-hidden="true" />
+                <span>Contacto</span>
             </button>
-        );
-    }
 
-    if (!mounted) return null;
-
-    const fieldClass = (error?: string) =>
-        `w-full bg-slate-800 border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 outline-none text-white placeholder:text-slate-600 transition-colors ${
-            error ? "border-red-500 focus:ring-red-500" : "border-slate-700 focus:ring-indigo-500"
-        }`;
-
-    return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div
-                ref={modalRef}
-                className="bg-slate-900 border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
-            >
-                <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800 p-4 flex justify-between items-center z-10">
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-white">
-                        <UserCog className="text-indigo-500" />
-                        Información de Contacto
-                    </h2>
-                    <button
-                        onClick={() => setOpen(false)}
-                        className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800 rounded-lg"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {/* Empresa */}
-                    <div className="space-y-4">
-                        <h3 className="text-sm uppercase tracking-wider text-slate-500 font-bold flex items-center gap-2 border-b border-slate-800 pb-2">
-                            <Building2 size={16} /> Datos de la Empresa
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Nombre */}
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">
-                                    Nombre (Sistema) <span className="text-red-400">*</span>
-                                </label>
-                                <div className="relative">
-                                    <User className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        name="name"
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        maxLength={100}
-                                        className={fieldClass(errors.name)}
-                                        required
-                                    />
+            {open && (
+                <Ventana
+                    titulo="Datos de contacto"
+                    descripcion={client.name}
+                    icono={<UserCog size={18} />}
+                    alCerrar={() => setOpen(false)}
+                    ancho="max-w-2xl"
+                    cuerpo="p-0"
+                >
+                    {(cerrar) => (
+                        <form onSubmit={handleSubmit} className="space-y-8 p-4 sm:p-6">
+                            <fieldset className="space-y-4">
+                                <legend className={`${TITULO_SECCION} mb-3 flex items-center gap-2`}>
+                                    <Building2 size={16} aria-hidden="true" /> Empresa
+                                </legend>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    {campo("name", <>Nombre <span className="text-red-400" aria-hidden="true">*</span><span className="sr-only">(obligatorio)</span></>, User, { maxLength: 100, error: errors.name, required: true, autofocus: true })}
+                                    {campo("company", "Razón social", Building2, { maxLength: 100, placeholder: "Ej.: Servicios SpA" })}
+                                    {campo("rut", "RUT", FileText, { maxLength: 12, placeholder: "12.345.678-9", error: errors.rut, onChange: handleRutChange, clase: "font-mono" })}
+                                    {campo("email", "Correo para avisos", Mail, { type: "email", maxLength: 254, placeholder: "contacto@empresa.cl", error: errors.email })}
+                                    {campo("address", "Dirección", MapPin, { maxLength: 200, placeholder: "Av. Providencia 1234, of. 505", ancho: "md:col-span-2" })}
                                 </div>
-                                {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
-                            </div>
+                            </fieldset>
 
-                            {/* Razón Social */}
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Razón Social</label>
-                                <div className="relative">
-                                    <Building2 className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        name="company"
-                                        value={formData.company}
-                                        onChange={handleChange}
-                                        placeholder="Ej: Servicios SpA"
-                                        maxLength={100}
-                                        className={fieldClass()}
-                                    />
+                            <fieldset className="space-y-4">
+                                <legend className={`${TITULO_SECCION} mb-3 flex items-center gap-2`}>
+                                    <User size={16} aria-hidden="true" /> Representante o contacto
+                                </legend>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    {campo("contactName", "Nombre completo", User, { maxLength: 100, placeholder: "Juan Pérez" })}
+                                    {campo("contactRole", "Cargo", Briefcase, { maxLength: 100, placeholder: "Gerente general" })}
+                                    {campo("contactEmail", "Correo directo", Mail, { type: "email", maxLength: 254, placeholder: "juan@empresa.cl", error: errors.contactEmail })}
+                                    {campo("contactPhone", "Teléfono o WhatsApp", Phone, { type: "tel", maxLength: 20, placeholder: "+56 9 1234 5678" })}
                                 </div>
-                            </div>
+                            </fieldset>
 
-                            {/* RUT con auto-formato */}
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">RUT</label>
-                                <div className="relative">
-                                    <FileText className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        name="rut"
-                                        value={formData.rut}
-                                        onChange={handleRutChange}
-                                        placeholder="12.345.678-9"
-                                        maxLength={12}
-                                        className={`${fieldClass(errors.rut)} font-mono tracking-wide`}
-                                    />
-                                </div>
-                                {errors.rut && <p className="text-xs text-red-400">{errors.rut}</p>}
-                            </div>
+                            {canDelete && (
+                                <section aria-labelledby={`${uid}-eliminar`} className="flex flex-col justify-between gap-3 border-t border-[var(--linea)] pt-6 sm:flex-row sm:items-center">
+                                    <div>
+                                        <h3 id={`${uid}-eliminar`} className="text-sm font-semibold text-red-400">Eliminar cliente</h3>
+                                        <p className="mt-0.5 text-xs text-[var(--mut)]">Se eliminan el cliente y sus propuestas.</p>
+                                    </div>
+                                    <button type="button" onClick={handleDelete} disabled={loading} className={BOTON_PELIGRO}>
+                                        <Trash2 size={16} aria-hidden="true" />
+                                        Eliminar
+                                    </button>
+                                </section>
+                            )}
 
-                            {/* Email Sistema */}
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Email Sistema (Notificaciones)</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        placeholder="contacto@empresa.com"
-                                        maxLength={254}
-                                        className={fieldClass(errors.email)}
-                                    />
-                                </div>
-                                {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
-                            </div>
-
-                            {/* Dirección */}
-                            <div className="space-y-1 md:col-span-2">
-                                <label className="text-xs text-slate-400 font-medium">Dirección</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        name="address"
-                                        value={formData.address}
-                                        onChange={handleChange}
-                                        placeholder="Av. Providencia 1234, Of. 505"
-                                        maxLength={200}
-                                        className={fieldClass()}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Representante */}
-                    <div className="space-y-4">
-                        <h3 className="text-sm uppercase tracking-wider text-slate-500 font-bold flex items-center gap-2 border-b border-slate-800 pb-2">
-                            <User size={16} /> Representante / Contacto
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Nombre Completo</label>
-                                <div className="relative">
-                                    <User className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        name="contactName"
-                                        value={formData.contactName}
-                                        onChange={handleChange}
-                                        placeholder="Juan Pérez"
-                                        maxLength={100}
-                                        className={fieldClass()}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Cargo / Rol</label>
-                                <div className="relative">
-                                    <Briefcase className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        name="contactRole"
-                                        value={formData.contactRole}
-                                        onChange={handleChange}
-                                        placeholder="Gerente General"
-                                        maxLength={100}
-                                        className={fieldClass()}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Email Directo</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        type="email"
-                                        name="contactEmail"
-                                        value={formData.contactEmail}
-                                        onChange={handleChange}
-                                        placeholder="juan@empresa.com"
-                                        maxLength={254}
-                                        className={fieldClass(errors.contactEmail)}
-                                    />
-                                </div>
-                                {errors.contactEmail && <p className="text-xs text-red-400">{errors.contactEmail}</p>}
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Teléfono / WhatsApp</label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-2.5 text-slate-500 w-4 h-4" />
-                                    <input
-                                        type="tel"
-                                        name="contactPhone"
-                                        value={formData.contactPhone}
-                                        onChange={handleChange}
-                                        placeholder="+56 9 1234 5678"
-                                        maxLength={20}
-                                        className={fieldClass()}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Danger Zone */}
-                    {canDelete && (
-                        <div className="space-y-4 pt-4 border-t border-slate-800">
-                            <h3 className="text-sm uppercase tracking-wider text-red-500/80 font-bold flex items-center gap-2">
-                                <Trash2 size={16} /> Zona de Peligro
-                            </h3>
-                            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-red-200 font-medium">Eliminar Cliente</p>
-                                    <p className="text-xs text-red-400/60 mt-0.5">Esta acción eliminará el cliente y sus cotizaciones.</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleDelete}
-                                    disabled={loading}
-                                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/20 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
-                                >
-                                    Eliminar
+                            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--linea)] pt-4">
+                                {errorGeneral && <p role="alert" className="mr-auto text-sm text-red-400">{errorGeneral}</p>}
+                                <button type="button" onClick={cerrar} className={BOTON_SEC}>
+                                    Cancelar
+                                </button>
+                                <button type="submit" disabled={loading} className={BOTON}>
+                                    {loading ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+                                    Guardar cambios
                                 </button>
                             </div>
-                        </div>
+                        </form>
                     )}
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-                        <button
-                            type="button"
-                            onClick={() => setOpen(false)}
-                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                            Guardar Cambios
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>,
-        document.body
+                </Ventana>
+            )}
+        </>
     );
 }

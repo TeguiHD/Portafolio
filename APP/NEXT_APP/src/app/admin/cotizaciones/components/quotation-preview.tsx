@@ -95,12 +95,12 @@ export default function QuotationPreview({ data }: Props) {
                                                 <tr key={item.id}>
                                                     <td className="px-6 py-4 font-semibold">{item.name}</td>
                                                     <td className="px-6 py-4 text-slate-500">{item.provider}</td>
-                                                    <td className="px-6 py-4 text-right font-bold">${item.costMin.toLocaleString()}</td>
+                                                    <td className="px-6 py-4 text-right font-bold">${item.costMin.toLocaleString("es-CL")}</td>
                                                 </tr>
                                             ))}
                                             <tr className="bg-indigo-50/30">
                                                 <td colSpan={2} className="px-6 py-4 text-right font-bold text-slate-500 uppercase text-[10px]">Subtotal</td>
-                                                <td className="px-6 py-4 text-right font-bold text-indigo-600">${totalProviderCosts.toLocaleString()}</td>
+                                                <td className="px-6 py-4 text-right font-bold text-indigo-600">${totalProviderCosts.toLocaleString("es-CL")}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -120,7 +120,7 @@ export default function QuotationPreview({ data }: Props) {
                                                 <p className="text-xs text-slate-500 mt-1">{item.description}</p>
                                             </div>
                                             <div className="mt-4 md:mt-0 text-right">
-                                                <p className="text-xl font-bold text-slate-900">${item.price.toLocaleString()}</p>
+                                                <p className="text-xl font-bold text-slate-900">${item.price.toLocaleString("es-CL")}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -130,10 +130,10 @@ export default function QuotationPreview({ data }: Props) {
                                         <div key={item.id} className="p-6 bg-slate-50 rounded-2xl flex flex-col md:flex-row justify-between items-center border border-slate-100">
                                             <div>
                                                 <p className="font-bold text-slate-800">{item.description}</p>
-                                                <p className="text-xs text-slate-500 mt-1">{item.quantity ?? 1} x ${(item.unitPrice ?? 0).toLocaleString()}</p>
+                                                <p className="text-xs text-slate-500 mt-1">{item.quantity ?? 1} x ${(item.unitPrice ?? 0).toLocaleString("es-CL")}</p>
                                             </div>
                                             <div className="mt-4 md:mt-0 text-right">
-                                                <p className="text-xl font-bold text-slate-900">${((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}</p>
+                                                <p className="text-xl font-bold text-slate-900">${((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString("es-CL")}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -149,7 +149,7 @@ export default function QuotationPreview({ data }: Props) {
                             <p className="text-indigo-100 text-xs mt-1">Servicios Profesionales + Infraestructura</p>
                         </div>
                         <div className="text-right mt-4 md:mt-0">
-                            <p className="text-4xl font-bold">${grandTotal.toLocaleString()}</p>
+                            <p className="text-4xl font-bold">${grandTotal.toLocaleString("es-CL")}</p>
                             <p className="text-[10px] uppercase tracking-widest opacity-70">Pesos Chilenos (CLP)</p>
                         </div>
                     </div>

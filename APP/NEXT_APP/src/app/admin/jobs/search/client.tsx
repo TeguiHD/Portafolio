@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence } from "framer-motion";
-import { Search, Filter, Import, Inbox, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Search, SlidersHorizontal, Link2, ChevronLeft, ChevronRight, Plus, TriangleAlert } from "lucide-react";
+import DialogoFormulario from "@/app/admin/gestion-comercial/dialogo-formulario";
 import { ImportForm } from "./components/ImportForm";
 import { ManualVacancyForm } from "./components/ManualVacancyForm";
 import { AdvancedFiltersModal } from "./components/VacancyFilters";
@@ -11,6 +11,7 @@ import { VacancyCard } from "./components/VacancyCard";
 import { matchSearch } from "../utils";
 import { SOURCE_LABELS } from "../types";
 import type { WorkMode, CvVersionOption, VacancyItem } from "../types";
+import { BOTON, BOTON_SEC, BOTON_ICONO, CAMPO, ENLACE, FOCO } from "../estilos";
 
 const PAGE_SIZE = 9;
 
@@ -24,7 +25,9 @@ export default function SearchClient({
     cvVersions: CvVersionOption[];
 }) {
     const router = useRouter();
-    const [vacancies] = useState<VacancyItem[]>(initialVacancies);
+    // Se lee de las props (no de un useState) para que router.refresh() muestre la vacante recién importada.
+    const vacancies = initialVacancies;
+    const id = useId();
 
     const [search, setSearch] = useState("");
     const [sources, setSources] = useState<string[]>([]);
@@ -66,112 +69,94 @@ export default function SearchClient({
     const hasCv = cvVersions.length > 0;
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-
-            {/* CV warning */}
-            {!hasCv && (
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-200">
-                    No tienes versiones de CV. Crea una en el{" "}
-                    <a href="/admin/cv-editor" className="underline font-semibold">Editor CV</a>{" "}
-                    antes de ejecutar un análisis.
-                </div>
-            )}
-
-            {/* Page header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-white/10">
+        <div className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Explorador de Vacantes</h2>
-                    <p className="text-slate-400 mt-1">Busca ofertas y evalúa compatibilidad determinística.</p>
+                    <h2 className="text-xl font-semibold text-[var(--txt)]">Buscar vacantes</h2>
+                    <p className="mt-1 text-sm text-[var(--mut)]">
+                        Reúne ofertas y mide cuánto calzan con tu CV.
+                    </p>
                 </div>
-
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setModal("manual")}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.05] text-neutral-300 border border-white/10 text-sm font-medium hover:bg-white/10 hover:text-white transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Manual
+                <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setModal("manual")} className={BOTON_SEC}>
+                        <Plus className="size-4" aria-hidden="true" />
+                        Agregar a mano
                     </button>
-                    <button
-                        onClick={() => setModal("import")}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-sm font-semibold hover:bg-cyan-500/25 transition-colors"
-                    >
-                        <Import className="w-4 h-4" />
-                        Importar URL
+                    <button type="button" onClick={() => setModal("import")} className={BOTON}>
+                        <Link2 className="size-4" aria-hidden="true" />
+                        Importar desde URL
                     </button>
                 </div>
             </div>
 
-            {/* Search + filters row */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            {!hasCv && (
+                <p className="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--txt)]">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-400" aria-hidden="true" />
+                    <span>
+                        Aún no tienes versiones de CV. Crea una en{" "}
+                        <a href="/admin/cv-editor" className={`${ENLACE} underline`}>Currículum</a>{" "}
+                        antes de analizar una vacante.
+                    </span>
+                </p>
+            )}
+
+            <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <label htmlFor={`${id}-buscar`} className="sr-only">Buscar por cargo, empresa o lugar</label>
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--mut)]" aria-hidden="true" />
                     <input
-                        type="text"
+                        id={`${id}-buscar`}
+                        type="search"
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                        placeholder="Buscar rol o empresa..."
-                        className="w-full bg-[#05080f] border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                        placeholder="Buscar cargo, empresa o lugar"
+                        className={`${CAMPO} pl-9`}
                     />
                 </div>
                 <button
+                    type="button"
                     onClick={() => setFiltersOpen(true)}
-                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
-                        activeFilterCount > 0
-                            ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300"
-                            : "bg-white/[0.05] border-white/10 text-neutral-300 hover:bg-white/10 hover:text-white"
-                    }`}
+                    className={BOTON_SEC}
                 >
-                    <Filter className="w-4 h-4" />
+                    <SlidersHorizontal className="size-4" aria-hidden="true" />
                     Filtros
                     {activeFilterCount > 0 && (
-                        <span className="w-5 h-5 flex items-center justify-center rounded-full bg-cyan-500 text-cyan-950 text-[10px] font-bold">
+                        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--acento)] px-1.5 font-mono text-xs font-semibold text-[var(--acento-tinta)]">
                             {activeFilterCount}
+                            <span className="sr-only"> activos</span>
                         </span>
                     )}
                 </button>
             </div>
 
-            {/* Count */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-xs text-neutral-500 font-mono">
-                    {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
-                    {filtered.length !== vacancies.length && ` de ${vacancies.length}`}
-                </span>
-            </div>
+            <p aria-live="polite" className="font-mono text-xs text-[var(--mut)]">
+                {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
+                {filtered.length !== vacancies.length && ` de ${vacancies.length}`}
+            </p>
 
-            {/* Grid */}
             {filtered.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/40 p-16 text-center">
-                    <Inbox className="w-12 h-12 text-neutral-700 mx-auto mb-4" />
-                    <p className="text-neutral-400 text-lg mb-1">
-                        {vacancies.length === 0
-                            ? "Aún no tienes vacantes."
-                            : "No hay vacantes que coincidan."}
+                <div className="border-t border-[var(--linea)] py-10">
+                    <p className="text-base font-medium text-[var(--txt)]">
+                        {vacancies.length === 0 ? "Aún no tienes vacantes." : "Ninguna vacante coincide."}
                     </p>
-                    <p className="text-neutral-600 text-sm">
+                    <p className="mt-1 text-sm text-[var(--mut)]">
                         {vacancies.length === 0
-                            ? "Importa una desde una URL o créala manualmente."
-                            : "Prueba ajustando los filtros o importa nuevas ofertas."}
+                            ? "Importa una desde su URL o agrégala a mano."
+                            : "Prueba con otra búsqueda o ajusta los filtros."}
                     </p>
                     {vacancies.length === 0 && (
-                        <button
-                            onClick={() => setModal("import")}
-                            className="mt-6 px-5 py-2.5 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-sm font-semibold hover:bg-cyan-500/25 transition-colors"
-                        >
-                            Importar primera vacante
+                        <button type="button" onClick={() => setModal("import")} className={`${BOTON} mt-5`}>
+                            Importar la primera vacante
                         </button>
                     )}
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                        <AnimatePresence mode="popLayout">
-                            {paged.map((vacancy) => (
-                                <VacancyCard key={vacancy.id} vacancy={vacancy} />
-                            ))}
-                        </AnimatePresence>
-                    </div>
+                    <ul className="border-t border-[var(--linea)]">
+                        {paged.map((vacancy) => (
+                            <VacancyCard key={vacancy.id} vacancy={vacancy} />
+                        ))}
+                    </ul>
 
                     {totalPages > 1 && (
                         <Pagination
@@ -185,7 +170,6 @@ export default function SearchClient({
                 </>
             )}
 
-            {/* Advanced filters modal */}
             <AdvancedFiltersModal
                 isOpen={filtersOpen}
                 onClose={() => setFiltersOpen(false)}
@@ -199,22 +183,24 @@ export default function SearchClient({
                 }}
             />
 
-            {/* Import modal */}
             {modal === "import" && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={() => setModal("none")}>
-                    <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-                        <ImportForm onImported={() => { setModal("none"); reload(); }} />
-                    </div>
-                </div>
+                <DialogoFormulario
+                    titulo="Importar desde URL"
+                    descripcion="Pega el enlace de una oferta y se extraen sus datos."
+                    alCerrar={() => setModal("none")}
+                >
+                    {(cerrar) => <ImportForm onImported={() => { cerrar(); reload(); }} onCancel={cerrar} />}
+                </DialogoFormulario>
             )}
 
-            {/* Manual modal */}
             {modal === "manual" && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={() => setModal("none")}>
-                    <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-                        <ManualVacancyForm onCreated={() => { setModal("none"); reload(); }} />
-                    </div>
-                </div>
+                <DialogoFormulario
+                    titulo="Agregar vacante a mano"
+                    descripcion="Para ofertas sin enlace, como las que llegan por mensaje."
+                    alCerrar={() => setModal("none")}
+                >
+                    {(cerrar) => <ManualVacancyForm onCreated={() => { cerrar(); reload(); }} onCancel={cerrar} />}
+                </DialogoFormulario>
             )}
         </div>
     );
@@ -236,29 +222,33 @@ function Pagination({ page, totalPages, onPrev, onNext, onPage }: {
     }
 
     return (
-        <div className="flex items-center justify-center gap-1.5 pt-2">
-            <button onClick={onPrev} disabled={page === 1}
-                className="p-2 rounded-lg border border-white/10 bg-white/[0.02] text-neutral-400 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                <ChevronLeft className="w-4 h-4" />
+        <nav aria-label="Páginas de resultados" className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
+            <button type="button" onClick={onPrev} disabled={page === 1} aria-label="Página anterior" className={BOTON_ICONO}>
+                <ChevronLeft className="size-4" aria-hidden="true" />
             </button>
             {pages.map((p, i) =>
                 p === "..." ? (
-                    <span key={`e-${i}`} className="w-9 text-center text-xs text-neutral-600">…</span>
+                    <span key={`e-${i}`} aria-hidden="true" className="w-6 text-center text-sm text-[var(--mut)]">…</span>
                 ) : (
-                    <button key={p} onClick={() => onPage(p as number)}
-                        className={`w-9 h-9 rounded-lg border text-xs font-semibold transition-colors ${
+                    <button
+                        key={p}
+                        type="button"
+                        onClick={() => onPage(p)}
+                        aria-current={p === page ? "page" : undefined}
+                        aria-label={`Página ${p}`}
+                        className={`inline-flex size-11 items-center justify-center rounded-lg font-mono text-sm tabular-nums transition-colors duration-150 sm:size-10 ${
                             p === page
-                                ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-300"
-                                : "border-white/10 bg-white/[0.02] text-neutral-400 hover:text-white hover:border-white/20"
-                        }`}>
+                                ? "bg-[color-mix(in_srgb,var(--acento)_13%,transparent)] font-semibold text-[var(--txt)]"
+                                : "text-[var(--mut)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] hover:text-[var(--txt)]"
+                        } ${FOCO}`}
+                    >
                         {p}
                     </button>
                 )
             )}
-            <button onClick={onNext} disabled={page === totalPages}
-                className="p-2 rounded-lg border border-white/10 bg-white/[0.02] text-neutral-400 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                <ChevronRight className="w-4 h-4" />
+            <button type="button" onClick={onNext} disabled={page === totalPages} aria-label="Página siguiente" className={BOTON_ICONO}>
+                <ChevronRight className="size-4" aria-hidden="true" />
             </button>
-        </div>
+        </nav>
     );
 }

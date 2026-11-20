@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback, useId } from "react";
+import Link from "next/link";
+import { Check, ChevronRight, CircleAlert, LoaderCircle, X } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 import { useFinance } from "@/modules/finance/context/FinanceContext";
 import type { OCRData } from "@/modules/finance/components/OCRResultDisplay";
+import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+import { CabeceraFinanzas, CifrasFinanzas } from "@/modules/finance/components/Piezas";
+import {
+    AYUDA, BOTON, BOTON_SEC, CAMPO, CIFRA, ERROR, ETIQUETA, FOCO, GIRA, ICONO_PELIGRO, LISTA, MARCA, MARCA_NEUTRA,
+    SECCION, SOBRE, TARJETA, VACIO,
+} from "@/modules/finance/components/estilos";
+import { hoyChile } from "@/modules/finance/fechas";
 
 interface BatchResult {
     data: OCRData;
@@ -39,6 +48,43 @@ interface Category {
     type: "INCOME" | "EXPENSE";
 }
 
+/** «2026-11-19» → «19 nov 2026»; si no es una fecha válida, la deja como vino. */
+function fechaCorta(fecha: string) {
+    const d = new Date(`${fecha}T00:00:00`);
+    return Number.isNaN(d.getTime())
+        ? fecha
+        : d.toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Estado de guardado de una boleta: con palabra además del color. */
+function EstadoGuardado({ status }: { status: BatchTransaction["status"] }) {
+    if (status === "saved") {
+        return (
+            <span className={`${MARCA} bg-emerald-500/10 text-emerald-400`}>
+                <Check aria-hidden="true" className="size-3" />
+                Guardado
+            </span>
+        );
+    }
+    if (status === "error") {
+        return (
+            <span className={`${MARCA} bg-red-500/10 text-red-400`}>
+                <CircleAlert aria-hidden="true" className="size-3" />
+                Error
+            </span>
+        );
+    }
+    if (status === "saving") {
+        return (
+            <span className={MARCA_NEUTRA}>
+                <LoaderCircle aria-hidden="true" className="size-3 animate-spin motion-reduce:animate-none" />
+                Guardando
+            </span>
+        );
+    }
+    return null;
+}
+
 export default function BatchTransactionsPage() {
     const { triggerRefresh } = useFinance();
     const [transactions, setTransactions] = useState<BatchTransaction[]>([]);
@@ -47,6 +93,7 @@ export default function BatchTransactionsPage() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [defaultAccountId, setDefaultAccountId] = useState<string>("");
+    const base = useId();
 
     // Load batch results from sessionStorage
     useEffect(() => {
@@ -64,7 +111,7 @@ export default function BatchTransactionsPage() {
                     merchant: result.data.merchant?.value?.name || "",
                     categoryId: result.data.suggestedCategory?.categoryId || "",
                     accountId: "",
-                    transactionDate: result.data.emissionDate?.value || result.data.date?.value || new Date().toISOString().split("T")[0],
+                    transactionDate: result.data.emissionDate?.value || result.data.date?.value || hoyChile(),
                     notes: buildNotes(result.data),
                 }));
                 setTransactions(batchTransactions);
@@ -226,57 +273,80 @@ export default function BatchTransactionsPage() {
 
     if (transactions.length === 0) {
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 rounded-full bg-neutral-800 flex items-center justify-center mb-4">
-                    <svg className="w-10 h-10 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+            <div className="max-w-[1180px] pb-8">
+                <CabeceraFinanzas titulo="Registrar transacciones" />
+                <div className={`${VACIO} mt-8`}>
+                    <p className="font-medium text-[var(--txt)]">Sin transacciones</p>
+                    <p className="mt-1 text-sm">No hay boletas escaneadas para procesar.</p>
+                    <Link href="/admin/finance" className={`${BOTON_SEC} mt-4`}>
+                        Volver a Finanzas
+                    </Link>
                 </div>
-                <h2 className="text-xl font-semibold text-white mb-2">Sin transacciones</h2>
-                <p className="text-neutral-400 mb-6">No hay boletas escaneadas para procesar</p>
-                <a
-                    href="/admin/finance"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
-                >
-                    Volver a Finanzas
-                </a>
             </div>
         );
     }
 
+    const bloqueado = selectedTransaction?.status === "saved";
+
     return (
-        <div className="pb-24">
-            {/* Header */}
-            <div className="mb-6">
-                <div className="flex items-center gap-4 mb-2">
-                    <a
-                        href="/admin/finance"
-                        className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </a>
-                    <div>
-                        <h1 className="text-2xl font-bold text-white">Registrar Transacciones</h1>
-                        <p className="text-neutral-400 text-sm">
-                            {stats.total} boleta{stats.total !== 1 ? "s" : ""} escaneada{stats.total !== 1 ? "s" : ""} •
-                            Total: ${stats.totalAmount.toLocaleString("es-CL")}
-                        </p>
-                    </div>
-                </div>
+        <div className="max-w-[1180px] pb-8">
+            <FinanceBreadcrumbs backUrl="/admin/finance" />
+
+            <CabeceraFinanzas
+                titulo="Registrar transacciones"
+                bajada="Revisa los datos leídos de cada boleta y guárdalos como gastos."
+            >
+                <Link href="/admin/finance" className={BOTON_SEC}>
+                    {stats.saved === stats.total ? "Finalizar" : "Cancelar"}
+                </Link>
+                {stats.pending > 0 && (
+                    <button type="button" onClick={() => void saveAll()} disabled={isSaving} className={BOTON}>
+                        {isSaving ? (
+                            <>
+                                <span aria-hidden="true" className={GIRA} />
+                                Guardando…
+                            </>
+                        ) : (
+                            <>
+                                <Check aria-hidden="true" className="size-4" />
+                                Guardar todo ({stats.pending})
+                            </>
+                        )}
+                    </button>
+                )}
+            </CabeceraFinanzas>
+
+            <div className="mt-8">
+                <CifrasFinanzas
+                    etiqueta="Resumen del lote"
+                    cifras={[
+                        {
+                            nombre: `Boleta${stats.total !== 1 ? "s" : ""} escaneada${stats.total !== 1 ? "s" : ""}`,
+                            valor: stats.total,
+                        },
+                        {
+                            nombre: "Guardadas",
+                            valor: `${stats.saved} de ${stats.total}`,
+                            nota: stats.errors > 0 ? <span className="text-red-400">{stats.errors} con error</span> : undefined,
+                        },
+                        { nombre: "Total", valor: formatCurrency(stats.totalAmount) },
+                    ]}
+                />
+                <p aria-live="polite" className="sr-only">
+                    {isSaving ? "Guardando transacciones." : `${stats.saved} de ${stats.total} guardadas.`}
+                    {stats.errors > 0 ? ` ${stats.errors} con error.` : ""}
+                </p>
             </div>
 
-            {/* Main content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left - Transaction list */}
-                <div className="lg:col-span-1 space-y-3">
-                    {/* Quick actions */}
-                    <div className="bg-neutral-900/50 rounded-xl border border-neutral-800 p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm text-neutral-400">Cuenta por defecto</span>
-                        </div>
+            <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:gap-12">
+                {/* Lista de boletas */}
+                <section aria-labelledby={`${base}-lista`} className="min-w-0">
+                    <h2 id={`${base}-lista`} className={`${SECCION} mb-3`}>Boletas</h2>
+
+                    <div className="mb-5">
+                        <label htmlFor={`${base}-cuenta-defecto`} className={ETIQUETA}>Cuenta por defecto</label>
                         <select
+                            id={`${base}-cuenta-defecto`}
                             value={defaultAccountId}
                             onChange={(e) => {
                                 setDefaultAccountId(e.target.value);
@@ -285,7 +355,7 @@ export default function BatchTransactionsPage() {
                                     accountId: t.accountId || e.target.value,
                                 })));
                             }}
-                            className="w-full px-3 py-2 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1"
+                            className={CAMPO}
                         >
                             <option value="">Seleccionar</option>
                             {accounts.map((account) => (
@@ -294,167 +364,151 @@ export default function BatchTransactionsPage() {
                                 </option>
                             ))}
                         </select>
+                        <p className={AYUDA}>Se aplica a las boletas que aún no tienen cuenta.</p>
                     </div>
 
-                    {/* Transaction cards */}
-                    {transactions.map((transaction) => (
-                        <motion.div
-                            key={transaction.id}
-                            layout
-                            onClick={() => setSelectedId(transaction.id)}
-                            className={`relative bg-neutral-900/50 rounded-xl border p-4 cursor-pointer transition-all ${selectedId === transaction.id
-                                    ? "border-purple-500 ring-2 ring-purple-500/20"
-                                    : "border-neutral-800 hover:border-neutral-700"
-                                }`}
-                        >
-                            <div className="flex items-start gap-3">
-                                {/* Thumbnail */}
-                                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-800">
-                                    <img
-                                        src={transaction.imageData}
-                                        alt="Receipt"
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-
-                                {/* Info */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <p className="font-medium text-white truncate">
-                                            {transaction.merchant || "Sin comercio"}
-                                        </p>
-                                        {transaction.status === "saved" && (
-                                            <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">
-                                                ✓ Guardado
-                                            </span>
-                                        )}
-                                        {transaction.status === "error" && (
-                                            <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
-                                                Error
-                                            </span>
-                                        )}
-                                        {transaction.status === "saving" && (
-                                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full flex items-center gap-1">
-                                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                </svg>
-                                                Guardando
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-lg font-bold text-white">
-                                        ${transaction.amount.toLocaleString("es-CL")}
-                                    </p>
-                                    <p className="text-xs text-neutral-500">
-                                        {transaction.transactionDate}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Remove button */}
-                            {transaction.status !== "saved" && (
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeTransaction(transaction.id);
-                                    }}
-                                    className="absolute top-2 right-2 p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                    <ul className={`${LISTA} m-0 list-none p-0`}>
+                        {transactions.map((transaction) => {
+                            const elegida = selectedId === transaction.id;
+                            const nombre = transaction.merchant || "Sin comercio";
+                            return (
+                                <li
+                                    key={transaction.id}
+                                    className={`flex items-center gap-1 border-b border-[var(--linea)] ${elegida ? "bg-[color-mix(in_srgb,var(--acento)_10%,transparent)]" : ""}`}
                                 >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            )}
-                        </motion.div>
-                    ))}
-                </div>
+                                    <button
+                                        type="button"
+                                        aria-pressed={elegida}
+                                        onClick={() => setSelectedId(transaction.id)}
+                                        className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-3 text-left transition-colors duration-150 motion-reduce:transition-none ${SOBRE} ${FOCO}`}
+                                    >
+                                        {/* Miniatura de la boleta (decorativa: el nombre va al lado) */}
+                                        <img
+                                            src={transaction.imageData}
+                                            alt=""
+                                            className="size-12 shrink-0 rounded-lg bg-[var(--fondo-2)] object-cover"
+                                        />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <span className="truncate font-medium text-[var(--txt)]">{nombre}</span>
+                                                <EstadoGuardado status={transaction.status} />
+                                            </span>
+                                            <span className={`block font-semibold text-[var(--txt)] ${CIFRA}`}>
+                                                {formatCurrency(transaction.amount)}
+                                            </span>
+                                            <span className="block text-xs text-[var(--mut)]">
+                                                {fechaCorta(transaction.transactionDate)}
+                                            </span>
+                                        </span>
+                                        {elegida ? (
+                                            <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-[var(--acento)]" />
+                                        ) : null}
+                                    </button>
 
-                {/* Right - Edit form */}
-                <div className="lg:col-span-2">
+                                    {transaction.status !== "saved" && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeTransaction(transaction.id)}
+                                            aria-label={`Quitar ${nombre}`}
+                                            className={ICONO_PELIGRO}
+                                        >
+                                            <X aria-hidden="true" className="size-4" />
+                                        </button>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </section>
+
+                {/* Formulario de la boleta elegida */}
+                <section aria-labelledby={`${base}-editar`} className="min-w-0">
+                    <h2 id={`${base}-editar`} className={`${SECCION} mb-3`}>Datos de la boleta</h2>
+
                     {selectedTransaction ? (
-                        <div className="bg-neutral-900/50 rounded-xl border border-neutral-800 overflow-hidden">
-                            {/* Image preview header */}
-                            <div className="h-48 bg-neutral-950 relative">
+                        <div className={`${TARJETA} overflow-hidden`}>
+                            {/* Imagen de la boleta, con su fondo propio */}
+                            <div className="h-48 border-b border-[var(--linea)] bg-[var(--fondo-2)]">
                                 <img
                                     src={selectedTransaction.imageData}
-                                    alt="Receipt"
-                                    className="w-full h-full object-contain"
+                                    alt="Imagen de la boleta"
+                                    className="h-full w-full object-contain"
                                 />
                             </div>
 
-                            {/* Form */}
-                            <div className="p-6 space-y-4">
+                            <div className="space-y-4 p-4 sm:p-6">
                                 {selectedTransaction.status === "error" && (
-                                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                                    <p role="alert" className={ERROR}>
                                         {selectedTransaction.error}
-                                    </div>
+                                    </p>
                                 )}
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {/* Amount */}
+                                {bloqueado && (
+                                    <p className="flex items-center gap-1.5 text-sm text-emerald-400">
+                                        <Check aria-hidden="true" className="size-4" />
+                                        Transacción guardada.
+                                    </p>
+                                )}
+
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
-                                        <label className="block text-sm font-medium text-neutral-300 mb-2">
-                                            Monto
-                                        </label>
+                                        <label htmlFor={`${base}-monto`} className={ETIQUETA}>Monto</label>
                                         <input
-                                            type="number"
-                                            value={selectedTransaction.amount}
+                                            id={`${base}-monto`}
+                                            type="text"
+                                            inputMode="numeric"
+                                            autoComplete="off"
+                                            // Pesos con puntos de miles: con type=number, «12.990» se leía como 12,99.
+                                            value={selectedTransaction.amount ? Math.round(selectedTransaction.amount).toLocaleString("es-CL") : ""}
                                             onChange={(e) => updateTransaction(selectedTransaction.id, {
-                                                amount: parseFloat(e.target.value) || 0
+                                                amount: Number(e.target.value.replace(/\D/g, "").slice(0, 13)) || 0
                                             })}
-                                            disabled={selectedTransaction.status === "saved"}
-                                            className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white disabled:opacity-50"
+                                            disabled={bloqueado}
+                                            className={`${CAMPO} ${CIFRA}`}
                                         />
                                     </div>
 
-                                    {/* Date */}
                                     <div>
-                                        <label className="block text-sm font-medium text-neutral-300 mb-2">
-                                            Fecha
-                                        </label>
+                                        <label htmlFor={`${base}-fecha`} className={ETIQUETA}>Fecha</label>
                                         <input
+                                            id={`${base}-fecha`}
                                             type="date"
                                             value={selectedTransaction.transactionDate}
                                             onChange={(e) => updateTransaction(selectedTransaction.id, {
                                                 transactionDate: e.target.value
                                             })}
-                                            disabled={selectedTransaction.status === "saved"}
-                                            className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white disabled:opacity-50"
+                                            disabled={bloqueado}
+                                            className={CAMPO}
                                         />
                                     </div>
                                 </div>
 
-                                {/* Merchant */}
                                 <div>
-                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
-                                        Comercio
-                                    </label>
+                                    <label htmlFor={`${base}-comercio`} className={ETIQUETA}>Comercio</label>
                                     <input
+                                        id={`${base}-comercio`}
                                         type="text"
                                         value={selectedTransaction.merchant}
                                         onChange={(e) => updateTransaction(selectedTransaction.id, {
                                             merchant: e.target.value,
                                             description: e.target.value,
                                         })}
-                                        disabled={selectedTransaction.status === "saved"}
-                                        className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white disabled:opacity-50"
+                                        disabled={bloqueado}
+                                        className={CAMPO}
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {/* Account */}
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
-                                        <label className="block text-sm font-medium text-neutral-300 mb-2">
-                                            Cuenta
-                                        </label>
+                                        <label htmlFor={`${base}-cuenta`} className={ETIQUETA}>Cuenta</label>
                                         <select
+                                            id={`${base}-cuenta`}
                                             value={selectedTransaction.accountId}
                                             onChange={(e) => updateTransaction(selectedTransaction.id, {
                                                 accountId: e.target.value
                                             })}
-                                            disabled={selectedTransaction.status === "saved"}
-                                            className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white disabled:opacity-50"
+                                            disabled={bloqueado}
+                                            className={CAMPO}
                                         >
                                             <option value="">Seleccionar</option>
                                             {accounts.map((account) => (
@@ -465,18 +519,16 @@ export default function BatchTransactionsPage() {
                                         </select>
                                     </div>
 
-                                    {/* Category */}
                                     <div>
-                                        <label className="block text-sm font-medium text-neutral-300 mb-2">
-                                            Categoría
-                                        </label>
+                                        <label htmlFor={`${base}-categoria`} className={ETIQUETA}>Categoría</label>
                                         <select
+                                            id={`${base}-categoria`}
                                             value={selectedTransaction.categoryId}
                                             onChange={(e) => updateTransaction(selectedTransaction.id, {
                                                 categoryId: e.target.value
                                             })}
-                                            disabled={selectedTransaction.status === "saved"}
-                                            className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white disabled:opacity-50"
+                                            disabled={bloqueado}
+                                            className={CAMPO}
                                         >
                                             <option value="">Sin categoría</option>
                                             {expenseCategories.map((category) => (
@@ -488,82 +540,42 @@ export default function BatchTransactionsPage() {
                                     </div>
                                 </div>
 
-                                {/* Notes */}
                                 <div>
-                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
-                                        Notas
-                                    </label>
+                                    <label htmlFor={`${base}-notas`} className={ETIQUETA}>Notas</label>
                                     <textarea
+                                        id={`${base}-notas`}
                                         value={selectedTransaction.notes}
                                         onChange={(e) => updateTransaction(selectedTransaction.id, {
                                             notes: e.target.value
                                         })}
-                                        disabled={selectedTransaction.status === "saved"}
+                                        disabled={bloqueado}
                                         rows={2}
-                                        className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white disabled:opacity-50 resize-none"
+                                        className={`${CAMPO} resize-none`}
                                     />
                                 </div>
 
-                                {/* Individual save button */}
-                                {selectedTransaction.status !== "saved" && (
-                                    <button
-                                        onClick={() => saveTransaction(selectedTransaction)}
-                                        disabled={selectedTransaction.status === "saving" || !selectedTransaction.accountId}
-                                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-neutral-700 text-white font-medium rounded-xl transition-colors"
-                                    >
-                                        {selectedTransaction.status === "saving" ? "Guardando..." : "Guardar esta transacción"}
-                                    </button>
+                                {/* Guardar solo esta */}
+                                {!bloqueado && (
+                                    <div>
+                                        <button
+                                            type="button"
+                                            onClick={() => void saveTransaction(selectedTransaction)}
+                                            disabled={selectedTransaction.status === "saving" || !selectedTransaction.accountId}
+                                            className={`${BOTON_SEC} w-full`}
+                                        >
+                                            {selectedTransaction.status === "saving" ? "Guardando…" : "Guardar esta transacción"}
+                                        </button>
+                                        {!selectedTransaction.accountId && (
+                                            <p className={AYUDA}>Elige una cuenta para poder guardarla.</p>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex items-center justify-center text-neutral-500">
-                            Selecciona una boleta para editar
-                        </div>
+                        <p className={VACIO}>Selecciona una boleta para editar.</p>
                     )}
-                </div>
-            </div>
-
-            {/* Bottom action bar */}
-            <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-neutral-950/90 backdrop-blur-sm border-t border-neutral-800 p-4">
-                <div className="max-w-6xl mx-auto flex items-center justify-between">
-                    <div className="text-sm text-neutral-400">
-                        {stats.saved} de {stats.total} guardadas •
-                        Total: <span className="text-white font-medium">${stats.totalAmount.toLocaleString("es-CL")}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <a
-                            href="/admin/finance"
-                            className="px-4 py-2 text-neutral-400 hover:text-white transition-colors"
-                        >
-                            {stats.saved === stats.total ? "Finalizar" : "Cancelar"}
-                        </a>
-                        {stats.pending > 0 && (
-                            <button
-                                onClick={saveAll}
-                                disabled={isSaving}
-                                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-neutral-700 text-white font-medium rounded-xl transition-colors flex items-center gap-2"
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                        </svg>
-                                        Guardando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Guardar todo ({stats.pending})
-                                    </>
-                                )}
-                            </button>
-                        )}
-                    </div>
-                </div>
+                </section>
             </div>
         </div>
     );

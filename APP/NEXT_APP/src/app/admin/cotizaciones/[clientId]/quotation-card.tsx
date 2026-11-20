@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
     Globe, Lock, Clock, Copy, Check, ExternalLink, Settings,
-    Eye, EyeOff, Pencil, Trash2, DollarSign, ChevronDown
+    Eye, EyeOff, Pencil, Trash2, DollarSign, ChevronDown, PenLine, AlertTriangle
 } from "lucide-react";
 import AccessControlModal from "./access-control-modal";
 import EditQuotationModal from "./edit-quotation-modal";
@@ -13,9 +13,12 @@ import QuotationStatusBadge, {
     STATUS_CONFIG,
     type QuotationStatus
 } from "../components/QuotationStatusBadge";
-import { toggleVisibilityAction, deleteQuotationAction } from "./actions";
+import { toggleVisibilityAction, deleteQuotationAction, anularFirmaAction } from "./actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import { copiarTexto } from "@/lib/tools/copiar";
+import { BARRA, BOTON_PELIGRO, BOTON_SEC, CHIP, CHIP_NEUTRO, FOCO, SOBRE } from "@/modules/quotations/estilos";
 
 interface QuotationCardProps {
     quotation: {
@@ -30,26 +33,54 @@ interface QuotationCardProps {
         codeExpiresAt: Date | null;
         createdAt: Date;
         isVisible: boolean;
+        firma?: { nombre: string; fecha: string; documentoCambio: boolean } | null;
     };
     clientSlug: string;
     baseUrl: string;
     canEdit?: boolean;
     canDelete?: boolean;
+    /** Puede registrar pagos (permiso de Pagos y propuesta propia): las mismas reglas que Pagos. */
+    canCobrar?: boolean;
 }
 
-export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit = false, canDelete = false }: QuotationCardProps) {
+export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit = false, canDelete = false, canCobrar = false }: QuotationCardProps) {
     const [copied, setCopied] = useState(false);
     const [showAccessManager, setShowAccessManager] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const [isVisible, setIsVisible] = useState(quotation.isVisible);
     const [currentStatus, setCurrentStatus] = useState(quotation.status as QuotationStatus);
     const [isPending, startTransition] = useTransition();
+    const [anulando, startAnular] = useTransition();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isChangingStatus, setIsChangingStatus] = useState(false);
     const router = useRouter();
+    const menuEstado = useRef<HTMLDivElement>(null);
+
+    // Lo que llega del servidor manda: tras «Anular firma», un pago que la completa o la firma del cliente, la
+    // tarjeta se actualiza sin recargar (antes el estado y la visibilidad quedaban como al abrir la página).
+    const [previo, setPrevio] = useState({ status: quotation.status, isVisible: quotation.isVisible });
+    if (previo.status !== quotation.status || previo.isVisible !== quotation.isVisible) {
+        setPrevio({ status: quotation.status, isVisible: quotation.isVisible });
+        setCurrentStatus(quotation.status as QuotationStatus);
+        setIsVisible(quotation.isVisible);
+    }
+
+    // El menú de estado se cierra con Escape o al tocar fuera.
+    useEffect(() => {
+        if (!showStatusDropdown) return;
+        const fuera = (e: PointerEvent) => {
+            if (!menuEstado.current?.contains(e.target as Node)) setShowStatusDropdown(false);
+        };
+        const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") setShowStatusDropdown(false); };
+        document.addEventListener("pointerdown", fuera);
+        document.addEventListener("keydown", tecla);
+        return () => {
+            document.removeEventListener("pointerdown", fuera);
+            document.removeEventListener("keydown", tecla);
+        };
+    }, [showStatusDropdown]);
 
     const link = `${baseUrl}/cotizacion/${clientSlug}/${quotation.slug || quotation.folio}`;
     const isPublic = quotation.accessMode === "public";
@@ -60,10 +91,14 @@ export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit 
     const remaining = quotation.total - totalPaid;
     const percentagePaid = quotation.total > 0 ? Math.min(100, (totalPaid / quotation.total) * 100) : 0;
     const isApproved = currentStatus === "APPROVED";
-    const canRegisterPayment = isApproved && remaining > 0;
+    const canRegisterPayment = canCobrar && isApproved && remaining > 0;
+    const sinTotal = isApproved && quotation.total <= 0;
 
     const copyLink = async () => {
-        await navigator.clipboard.writeText(link);
+        if (!(await copiarTexto(link))) {
+            toast.error("No se pudo copiar el enlace");
+            return;
+        }
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -73,7 +108,7 @@ export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit 
             const result = await toggleVisibilityAction(quotation.id, !isVisible);
             if (result.success) {
                 setIsVisible(!isVisible);
-                toast.success(isVisible ? "Cotización ocultada" : "Cotización visible");
+                toast.success(isVisible ? "Propuesta oculta" : "Propuesta visible");
             } else {
                 toast.error(result.error || "Error al cambiar visibilidad");
             }
@@ -81,17 +116,23 @@ export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit 
     };
 
     const handleDelete = async () => {
+        if (!(await confirmar({
+            titulo: `¿Eliminar la propuesta ${quotation.folio}?`,
+            detalle: "No se puede deshacer.",
+            accion: "Eliminar",
+            peligro: true,
+        }))) return;
         setIsDeleting(true);
         try {
             const result = await deleteQuotationAction(quotation.id);
             if (result.success) {
-                toast.success("Cotización eliminada correctamente");
-                setShowDeleteConfirm(false);
+                toast.success("Propuesta eliminada");
+                router.refresh();
             } else {
-                toast.error(result.error || "Error al eliminar cotización");
+                toast.error(result.error || "No se pudo eliminar la propuesta");
             }
         } catch {
-            toast.error("Error al eliminar cotización");
+            toast.error("No se pudo eliminar la propuesta");
         } finally {
             setIsDeleting(false);
         }
@@ -122,6 +163,8 @@ export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit 
             router.refresh();
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Error al cambiar estado");
+            // Si cambió por fuera (el cliente firmó, otro pago), la tarjeta se pone al día.
+            router.refresh();
         } finally {
             setIsChangingStatus(false);
         }
@@ -131,7 +174,8 @@ export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit 
         return new Date(date).toLocaleDateString("es-CL", {
             day: "2-digit",
             month: "short",
-            year: "numeric"
+            year: "numeric",
+            timeZone: "America/Santiago",
         });
     };
 
@@ -146,222 +190,245 @@ export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit 
 
     const availableTransitions = getAvailableTransitions(currentStatus);
 
-    return (
-        <>
-            <div className={`bg-slate-900 border rounded-xl p-5 transition-colors ${isVisible
-                ? "border-slate-800 hover:border-slate-700"
-                : "border-red-500/30 bg-red-950/20"
-                }`}>
-                <div className="flex flex-col gap-4">
-                    {/* Header Row */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        {/* Info */}
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2 flex-wrap">
-                                <span className="bg-slate-800 text-slate-300 text-xs font-mono px-2 py-1 rounded">
-                                    {quotation.folio}
-                                </span>
+    const puedeCambiarEstado = canEdit && availableTransitions.length > 0;
+    const textoVence = getExpirationText();
 
-                                {/* Status Badge with Dropdown */}
-                                <div className="relative">
+    return (
+        <li className={`border-b border-[var(--linea)] py-5 ${isVisible ? "" : "bg-red-500/5 px-3 -mx-3"}`}>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                    <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <span className={`${CHIP_NEUTRO} font-mono`}>{quotation.folio}</span>
+
+                            <div className="relative" ref={menuEstado}>
+                                {puedeCambiarEstado ? (
                                     <button
-                                        onClick={() => canEdit && availableTransitions.length > 0 && setShowStatusDropdown(!showStatusDropdown)}
-                                        disabled={isChangingStatus || availableTransitions.length === 0}
-                                        className={`flex items-center gap-1 ${canEdit && availableTransitions.length > 0 ? "cursor-pointer hover:opacity-80" : "cursor-default"}`}
+                                        type="button"
+                                        onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                                        disabled={isChangingStatus}
+                                        aria-expanded={showStatusDropdown}
+                                        aria-label={`Estado: ${STATUS_CONFIG[currentStatus]?.label ?? currentStatus}. Cambiar estado`}
+                                        className={`flex items-center gap-1 rounded-full transition-opacity duration-150 hover:opacity-80 disabled:opacity-50 ${FOCO}`}
                                     >
                                         <QuotationStatusBadge status={currentStatus} />
-                                        {canEdit && availableTransitions.length > 0 && (
-                                            <ChevronDown size={12} className={`text-slate-400 transition-transform ${showStatusDropdown ? "rotate-180" : ""}`} />
-                                        )}
+                                        <ChevronDown size={12} aria-hidden="true" className={`text-[var(--mut)] transition-transform duration-150 motion-reduce:transition-none ${showStatusDropdown ? "rotate-180" : ""}`} />
                                     </button>
-
-                                    {/* Status Dropdown */}
-                                    {showStatusDropdown && (
-                                        <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10 min-w-[160px]">
-                                            <div className="p-1">
-                                                {availableTransitions.map((status) => (
-                                                    <button
-                                                        key={status}
-                                                        onClick={() => handleStatusChange(status)}
-                                                        className="w-full text-left px-3 py-2 rounded hover:bg-slate-700 transition-colors"
-                                                    >
-                                                        <QuotationStatusBadge status={status} size="sm" />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {isPublic ? (
-                                    <span className="flex items-center gap-1 text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-full">
-                                        <Globe size={12} />
-                                        Público
-                                    </span>
                                 ) : (
-                                    <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${isExpired
-                                        ? "text-red-400 bg-red-500/10"
-                                        : "text-indigo-400 bg-indigo-500/10"
-                                        }`}>
-                                        <Lock size={12} />
-                                        Privado
-                                    </span>
+                                    <QuotationStatusBadge status={currentStatus} />
                                 )}
-                                {!isVisible && (
-                                    <span className="flex items-center gap-1 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-full">
-                                        <EyeOff size={12} />
-                                        Oculta
-                                    </span>
+
+                                {showStatusDropdown && (
+                                    <ul
+                                        aria-label="Pasar a"
+                                        className="absolute left-0 top-full z-10 mt-1 min-w-[180px] rounded-lg border border-[var(--linea-2)] bg-[var(--sup)] p-1 shadow-xl"
+                                    >
+                                        {availableTransitions.map((status) => (
+                                            <li key={status}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleStatusChange(status)}
+                                                    className={`flex min-h-10 w-full items-center rounded-md px-2 text-left transition-colors duration-150 ${SOBRE} ${FOCO}`}
+                                                >
+                                                    <QuotationStatusBadge status={status} size="sm" />
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 )}
                             </div>
 
-                            <h3 className="text-lg font-bold text-white mb-1">{quotation.projectName}</h3>
+                            {quotation.firma && (
+                                <span
+                                    className={`${CHIP} ${quotation.firma.documentoCambio
+                                        ? "bg-amber-500/10 text-amber-400"
+                                        : "bg-emerald-500/10 text-emerald-400"}`}
+                                    title={quotation.firma.documentoCambio
+                                        ? "La propuesta se editó después de la firma: la firma corresponde a la versión anterior"
+                                        : "Firma electrónica simple registrada desde el portal del cliente"}
+                                >
+                                    {quotation.firma.documentoCambio ? <AlertTriangle size={12} aria-hidden="true" /> : <PenLine size={12} aria-hidden="true" />}
+                                    Firmada por {quotation.firma.nombre} el {new Date(quotation.firma.fecha).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })}
+                                    {quotation.firma.documentoCambio && ", luego editada"}
+                                </span>
+                            )}
+                            {quotation.firma && canEdit && (
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!(await confirmar({
+                                            titulo: `¿Anular la firma de ${quotation.firma?.nombre}?`,
+                                            detalle: "La propuesta vuelve a Pendiente y el cliente podrá firmar de nuevo.",
+                                            accion: "Anular firma",
+                                            peligro: true,
+                                        }))) return;
+                                        startAnular(async () => {
+                                            const r = await anularFirmaAction(quotation.id);
+                                            if (r.success) {
+                                                toast.success("Firma anulada");
+                                                router.refresh();
+                                            } else {
+                                                toast.error(r.error || "No se pudo anular la firma");
+                                            }
+                                        });
+                                    }}
+                                    disabled={anulando}
+                                    className={`min-h-11 rounded-sm px-1 text-xs text-[var(--mut)] underline underline-offset-2 transition-colors duration-150 hover:text-red-400 disabled:opacity-50 md:min-h-0 ${FOCO}`}
+                                >
+                                    {anulando ? "Anulando…" : "Anular firma"}
+                                </button>
+                            )}
 
-                            <div className="flex items-center gap-4 text-sm text-slate-500 flex-wrap">
-                                <span>{formatDate(quotation.createdAt)}</span>
-                                <span className="font-medium text-white">${quotation.total.toLocaleString("es-CL")}</span>
-                                {getExpirationText() && (
-                                    <span className={`flex items-center gap-1 ${isExpired ? "text-red-400" : ""}`}>
-                                        <Clock size={12} />
-                                        {getExpirationText()}
-                                    </span>
-                                )}
-                            </div>
+                            {isPublic ? (
+                                <span className={`${CHIP} bg-emerald-500/10 text-emerald-400`}>
+                                    <Globe size={12} aria-hidden="true" />
+                                    Pública
+                                </span>
+                            ) : (
+                                <span className={`${CHIP} ${isExpired ? "bg-red-500/10 text-red-400" : "bg-[color-mix(in_srgb,var(--acento)_12%,transparent)] text-[var(--acento)]"}`}>
+                                    <Lock size={12} aria-hidden="true" />
+                                    Privada
+                                </span>
+                            )}
+                            {!isVisible && (
+                                <span className={`${CHIP} bg-red-500/10 text-red-400`}>
+                                    <EyeOff size={12} aria-hidden="true" />
+                                    Oculta
+                                </span>
+                            )}
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            {/* Payment Button (only for APPROVED with remaining balance) */}
-                            {canRegisterPayment && (
-                                <button
-                                    onClick={() => setShowPaymentModal(true)}
-                                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm transition-colors"
-                                    title="Registrar pago"
-                                >
-                                    <DollarSign size={16} />
-                                    <span className="hidden sm:inline">Pago</span>
-                                </button>
-                            )}
+                        <h3 className="text-lg font-semibold text-[var(--txt)]">{quotation.projectName}</h3>
 
-                            {/* Visibility Toggle */}
+                        <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--mut)]">
+                            <span>{formatDate(quotation.createdAt)}</span>
+                            <span className="font-semibold tabular-nums text-[var(--txt)]">${quotation.total.toLocaleString("es-CL")}</span>
+                            {textoVence && (
+                                <span className={`flex items-center gap-1 ${isExpired ? "text-red-400" : ""}`}>
+                                    <Clock size={12} aria-hidden="true" />
+                                    {textoVence}
+                                </span>
+                            )}
+                        </p>
+                        {sinTotal && canCobrar && (
+                            <p className="mt-1 text-sm text-amber-400">
+                                Sin total: {canEdit ? "edítala y escribe el total para poder registrar pagos." : "falta el total para poder registrar pagos."}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {canRegisterPayment && (
+                            <button type="button" onClick={() => setShowPaymentModal(true)} className={BOTON_SEC}>
+                                <DollarSign size={16} aria-hidden="true" className="text-emerald-400" />
+                                <span className="sr-only sm:not-sr-only">Registrar pago</span>
+                            </button>
+                        )}
+
+                        {canEdit && (
                             <button
+                                type="button"
                                 onClick={handleToggleVisibility}
                                 disabled={isPending}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isVisible
-                                    ? "bg-slate-800 hover:bg-slate-700 text-white"
-                                    : "bg-red-500/20 hover:bg-red-500/30 text-red-400"
-                                    } disabled:opacity-50`}
-                                title={isVisible ? "Ocultar cotización" : "Mostrar cotización"}
+                                className={isVisible ? BOTON_SEC : BOTON_PELIGRO}
+                                title={isVisible ? "El cliente la ve en su portal" : "El cliente no la ve"}
                             >
-                                {isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+                                {isVisible ? <Eye size={16} aria-hidden="true" /> : <EyeOff size={16} aria-hidden="true" />}
+                                <span className="sr-only">{isVisible ? "Ocultar propuesta" : "Mostrar propuesta"}</span>
                             </button>
+                        )}
 
+                        <button type="button" onClick={copyLink} className={BOTON_SEC}>
+                            {copied ? <Check size={16} aria-hidden="true" className="text-emerald-400" /> : <Copy size={16} aria-hidden="true" />}
+                            <span className="sr-only sm:not-sr-only">{copied ? "Copiado" : "Copiar enlace"}</span>
+                        </button>
+
+                        <a href={link} target="_blank" rel="noreferrer" className={BOTON_SEC}>
+                            <ExternalLink size={16} aria-hidden="true" />
+                            <span className="sr-only sm:not-sr-only">Ver</span>
+                            <span className="sr-only"> (se abre en otra pestaña)</span>
+                        </a>
+
+                        {canEdit && (
                             <button
-                                onClick={copyLink}
-                                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
-                                title="Copiar enlace"
+                                type="button"
+                                onClick={() => setShowAccessManager(true)}
+                                aria-haspopup="dialog"
+                                className={BOTON_SEC}
                             >
-                                {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
-                                <span className="hidden sm:inline">Copiar</span>
+                                <Settings size={16} aria-hidden="true" />
+                                <span className="sr-only sm:not-sr-only">Acceso</span>
                             </button>
+                        )}
 
-                            <a
-                                href={link}
-                                target="_blank"
-                                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
-                                title="Ver cotización"
-                            >
-                                <ExternalLink size={16} />
-                                <span className="hidden sm:inline">Ver</span>
-                            </a>
-
-                            <button
-                                onClick={() => setShowAccessManager(!showAccessManager)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${showAccessManager
-                                    ? "bg-indigo-600 text-white"
-                                    : "bg-slate-800 hover:bg-slate-700 text-white"
-                                    }`}
-                                title="Gestionar acceso"
-                            >
-                                <Settings size={16} />
-                                <span className="hidden sm:inline">Acceso</span>
+                        {canEdit && (
+                            <button type="button" onClick={() => setShowEditModal(true)} className={BOTON_SEC}>
+                                <Pencil size={16} aria-hidden="true" />
+                                <span className="sr-only sm:not-sr-only">Editar</span>
                             </button>
+                        )}
 
-                            {/* Edit Button */}
-                            {canEdit && (
-                                <button
-                                    onClick={() => setShowEditModal(true)}
-                                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm transition-colors"
-                                    title="Editar cotización"
-                                >
-                                    <Pencil size={16} />
-                                    <span className="hidden sm:inline">Editar</span>
-                                </button>
-                            )}
+                        {canDelete && (
+                            <button type="button" onClick={handleDelete} disabled={isDeleting} className={BOTON_PELIGRO}>
+                                <Trash2 size={16} aria-hidden="true" />
+                                <span className="sr-only sm:not-sr-only">{isDeleting ? "Eliminando…" : "Eliminar"}</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
 
-                            {/* Delete Button */}
-                            {canDelete && (
-                                <button
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                    className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm transition-colors"
-                                    title="Eliminar cotización"
-                                >
-                                    <Trash2 size={16} />
-                                    <span className="hidden sm:inline">Eliminar</span>
-                                </button>
+                {(isApproved || currentStatus === "COMPLETED") && totalPaid > 0 && (
+                    <div className="max-w-xl">
+                        <div className="mb-1.5 flex items-center justify-between text-sm">
+                            <span className="text-[var(--mut)]" id={`pago-${quotation.id}`}>Pagado</span>
+                            <span className="tabular-nums text-[var(--txt)]">
+                                <span className="text-emerald-400">${totalPaid.toLocaleString("es-CL")}</span>
+                                {" de "}
+                                ${quotation.total.toLocaleString("es-CL")}
+                            </span>
+                        </div>
+                        <div
+                            className={BARRA}
+                            role="progressbar"
+                            aria-labelledby={`pago-${quotation.id}`}
+                            aria-valuenow={Math.round(percentagePaid)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                        >
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${percentagePaid}%` }} />
+                        </div>
+                        <div className="mt-1 flex justify-between text-xs">
+                            <span className="tabular-nums text-[var(--mut)]">{percentagePaid.toFixed(0)}% pagado</span>
+                            {remaining > 0 && (
+                                <span className="tabular-nums text-amber-400">
+                                    Falta ${remaining.toLocaleString("es-CL")}
+                                </span>
                             )}
                         </div>
                     </div>
+                )}
+            </div>
 
-                    {/* Payment Progress Bar (show for approved quotations with payments) */}
-                    {(isApproved || currentStatus === "COMPLETED") && totalPaid > 0 && (
-                        <div className="border-t border-slate-800 pt-4">
-                            <div className="flex items-center justify-between text-sm mb-2">
-                                <span className="text-slate-400">Progreso de pago</span>
-                                <span className="text-white">
-                                    <span className="text-emerald-400">${totalPaid.toLocaleString("es-CL")}</span>
-                                    {" / "}
-                                    ${quotation.total.toLocaleString("es-CL")}
-                                </span>
-                            </div>
-                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
-                                    style={{ width: `${percentagePaid}%` }}
-                                />
-                            </div>
-                            <div className="flex justify-between mt-1">
-                                <span className="text-xs text-slate-500">{percentagePaid.toFixed(0)}% pagado</span>
-                                {remaining > 0 && (
-                                    <span className="text-xs text-amber-400">
-                                        Pendiente: ${remaining.toLocaleString("es-CL")}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Access Manager Modal */}
+            {canEdit && (
                 <AccessControlModal
                     isOpen={showAccessManager}
                     quotationId={quotation.id}
                     currentMode={quotation.accessMode as "public" | "code"}
                     expiresAt={quotation.codeExpiresAt}
                     onClose={() => setShowAccessManager(false)}
+                    onChanged={() => router.refresh()}
                 />
-            </div>
+            )}
 
-            {/* Edit Modal */}
             {canEdit && (
                 <EditQuotationModal
                     isOpen={showEditModal}
                     quotationId={quotation.id}
                     onClose={() => setShowEditModal(false)}
+                    onSaved={() => router.refresh()}
                 />
             )}
 
-            {/* Payment Modal */}
             <PaymentModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
@@ -371,45 +438,6 @@ export default function QuotationCard({ quotation, clientSlug, baseUrl, canEdit 
                 totalPaid={totalPaid}
                 onPaymentRegistered={() => router.refresh()}
             />
-
-            {/* Delete Confirmation Modal */}
-            {showDeleteConfirm && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-md w-full">
-                        <h3 className="text-xl font-bold text-white mb-2">Eliminar Cotización</h3>
-                        <p className="text-slate-400 mb-4">
-                            ¿Estás seguro de que deseas eliminar la cotización <strong className="text-white">{quotation.folio}</strong>?
-                            Esta acción no se puede deshacer.
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowDeleteConfirm(false)}
-                                disabled={isDeleting}
-                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {isDeleting ? (
-                                    <>
-                                        <span className="animate-spin">⏳</span>
-                                        Eliminando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Trash2 size={16} />
-                                        Eliminar
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
+        </li>
     );
 }

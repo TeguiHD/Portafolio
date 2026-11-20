@@ -1,17 +1,11 @@
 import { requirePagePermission } from "@/lib/page-security";
 import { FinanceDashboardClean } from "@/modules/finance/components/FinanceDashboardClean";
-import { FinanceProvider } from "@/modules/finance/context/FinanceContext";
 
 export const dynamic = "force-dynamic";
 
+// El FinanceProvider ya lo pone finance/layout.tsx para todas las páginas de Finanzas.
 export default async function FinancePage() {
-    // Server-side permission validation
-    const session = await requirePagePermission('finance.view');
+    const session = await requirePagePermission("finance.view");
 
-    return (
-        <FinanceProvider>
-            <FinanceDashboardClean userId={session.user.id} />
-        </FinanceProvider>
-    );
+    return <FinanceDashboardClean userId={session.user.id} />;
 }
-

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { accesoFinanzas } from "../_lib/acceso";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -7,10 +7,8 @@ export const dynamic = "force-dynamic";
 // GET - List all active currencies
 export async function GET() {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
+        const acceso = await accesoFinanzas("finance.view");
+        if (!acceso.ok) return acceso.respuesta;
 
         const currencies = await prisma.currency.findMany({
             where: { isActive: true },

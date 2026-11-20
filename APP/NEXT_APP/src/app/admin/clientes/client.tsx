@@ -1,161 +1,214 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { getClientsWithSearchAction, deleteClientAction } from "../../../modules/admin/clients/actions";
-import { Search, Trash2, User, Key, Plus, FileText, LayoutDashboard } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import type { Route } from "next";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, Trash2, Plus, FileText, IdCard } from "lucide-react";
 import { toast } from "sonner";
+import { deleteClientAction } from "../../../modules/admin/clients/actions";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
 import ContactInfoModal from "./contact-info-modal";
+import ClientSecurityManager from "./security-manager";
 import CreateClientModal from "../cotizaciones/components/CreateClientModal";
+import { BOTON, BOTON_ICONO, BOTON_SEC, CAMPO, CHIP_ACENTO, FOCO, H1, INICIALES, TARJETA } from "@/modules/quotations/estilos";
 
-interface Client {
+export interface ClienteDirectorio {
     id: string;
     name: string;
     slug: string;
-    email?: string;
-    contactName?: string;
-    contactEmail?: string;
-    contactPhone?: string;
-    userId: string; // Required for permission check
-    _count?: { quotations: number };
+    email: string | null;
+    company: string | null;
+    rut: string | null;
+    address: string | null;
+    contactName: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    contactRole: string | null;
+    workType: string | null;
+    userId: string;
+    propuestas: number;
+    negocios: number;
+    contratos: number;
 }
 
 interface ClientsPageClientProps {
+    clientes: ClienteDirectorio[];
+    busqueda: string;
     currentUserId: string;
     isSuperAdmin: boolean;
 }
 
-export default function ClientsPageClient({ currentUserId, isSuperAdmin }: ClientsPageClientProps) {
-    const [clients, setClients] = useState<Client[]>([]);
-    const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(true);
+/** Directorio de clientes: buscar, crear, editar el contacto, la contraseña del portal y abrir la ficha o sus propuestas. */
+export default function ClientsPageClient({ clientes, busqueda, currentUserId, isSuperAdmin }: ClientsPageClientProps) {
+    const [search, setSearch] = useState(busqueda);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [buscando, startBuscar] = useTransition();
+    const router = useRouter();
+    const ruta = usePathname();
 
-    const fetchClients = useCallback(async (silent = false) => {
-        if (!silent) setLoading(true);
-        const data = await getClientsWithSearchAction(search);
-        setClients(data as Client[]);
-        setLoading(false);
-    }, [search]);
-
+    // La búsqueda vive en la URL (?q=): el servidor filtra. Se espera a que dejes de escribir.
     useEffect(() => {
-        const timeout = setTimeout(() => fetchClients(), 300);
-        return () => clearTimeout(timeout);
-    }, [fetchClients]);
+        const texto = search.trim();
+        if (texto === busqueda) return;
+        const t = setTimeout(() => {
+            startBuscar(() => router.replace(texto ? `${ruta}?q=${encodeURIComponent(texto)}` : ruta, { scroll: false }));
+        }, 300);
+        return () => clearTimeout(t);
+    }, [search, busqueda, router, ruta]);
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("¿Estás seguro de que deseas eliminar este cliente?")) return;
-        const res = await deleteClientAction(id);
+    const handleDelete = async (cliente: ClienteDirectorio) => {
+        if (!(await confirmar({
+            titulo: `¿Eliminar a ${cliente.name}?`,
+            detalle: cliente.propuestas > 0 ? "Sus propuestas también se eliminan. No se puede deshacer." : "No se puede deshacer.",
+            accion: "Eliminar",
+            peligro: true,
+        }))) return;
+        const res = await deleteClientAction(cliente.id);
         if (res.success) {
             toast.success("Cliente eliminado");
-            fetchClients(true); // Silent refresh
+            router.refresh();
         } else {
-            toast.error(res.error || "Error al eliminar");
+            toast.error(res.error || "No se pudo eliminar el cliente");
         }
     };
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                    <User className="text-indigo-400" />
-                    Gestión de Clientes
-                </h1>
+            <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+                <h1 className={H1}>Clientes</h1>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex w-full items-center gap-2 md:w-auto">
                     <div className="relative w-full md:w-96">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+                        <label htmlFor="buscar-clientes" className="sr-only">Buscar clientes</label>
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" size={16} aria-hidden="true" />
                         <input
-                            type="text"
-                            placeholder="Buscar por nombre, slug o email..."
+                            id="buscar-clientes"
+                            type="search"
+                            placeholder="Nombre, empresa, contacto o correo"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className={`${CAMPO} pl-9`}
                         />
                     </div>
                     <button
+                        type="button"
                         onClick={() => setShowCreateModal(true)}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap px-4"
+                        className={BOTON}
+                        aria-label="Nuevo cliente"
                     >
-                        <Plus size={18} />
-                        <span className="hidden md:inline">Nuevo Cliente</span>
+                        <Plus size={16} aria-hidden="true" />
+                        <span className="hidden md:inline">Nuevo cliente</span>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            {loading ? (
-                <div className="text-center py-10 text-slate-500">Cargando clientes...</div>
-            ) : clients.length === 0 ? (
-                <div className="text-center py-10 bg-slate-900/50 rounded-xl border border-slate-800">
-                    <p className="text-slate-400">No se encontraron clientes.</p>
-                </div>
+            <p className="text-sm text-[var(--mut)]" aria-live="polite">
+                {buscando ? "Buscando…" : busqueda
+                    ? `${clientes.length} resultado${clientes.length === 1 ? "" : "s"} para «${busqueda}»`
+                    : `${clientes.length} cliente${clientes.length === 1 ? "" : "s"}${clientes.length === 100 ? " (los 100 más recientes; usa la búsqueda para ver otros)" : ""}`}
+            </p>
+
+            {clientes.length === 0 ? (
+                <p className="border-y border-[var(--linea)] py-10 text-center text-[var(--mut)]">
+                    {busqueda ? "Ningún cliente coincide con la búsqueda." : "Aún no tienes clientes."}
+                </p>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {clients.map(client => (
-                        <div key={client.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-indigo-500/30 transition-colors">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold">
-                                    {client.name.substring(0, 2).toUpperCase()}
+                <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {clientes.map(client => {
+                        const puedeAdministrar = isSuperAdmin || client.userId === currentUserId;
+                        const correo = client.contactEmail || client.email;
+                        return (
+                            <li key={client.id} className={`${TARJETA} flex flex-col p-5 transition-colors duration-150 hover:border-[var(--linea-2)]`}>
+                                <div className="mb-3 flex items-start gap-3">
+                                    <span aria-hidden="true" className={`${INICIALES} size-10 text-sm`}>
+                                        {client.name.substring(0, 2).toUpperCase()}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <h2 className="truncate text-base font-semibold text-[var(--txt)]" title={client.name}>
+                                            <Link href={`/admin/clientes/${client.id}`} className={`rounded-sm transition-colors duration-150 hover:text-[var(--acento)] ${FOCO}`}>
+                                                {client.name}
+                                            </Link>
+                                        </h2>
+                                        <p className="truncate text-sm text-[var(--mut)]">
+                                            {client.company && client.company !== client.name ? `${client.company} · ` : ""}{correo || "Sin correo"}
+                                        </p>
+                                    </div>
+                                    {puedeAdministrar && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(client)}
+                                            className={`${BOTON_ICONO} -mr-2 -mt-2 hover:text-red-400`}
+                                            aria-label={`Eliminar a ${client.name}`}
+                                        >
+                                            <Trash2 size={16} aria-hidden="true" />
+                                        </button>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={() => handleDelete(client.id)}
-                                    className="text-slate-600 hover:text-red-400 transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
 
-                            <h3 className="text-lg font-bold text-white mb-1 truncate" title={client.name}>{client.name}</h3>
-                            <p className="text-sm text-slate-500 mb-4">{client.email || "Sin email"}</p>
+                                {client.workType && (
+                                    <p className="mb-3"><span className={`${CHIP_ACENTO} max-w-full truncate`}>{client.workType}</span></p>
+                                )}
 
-                            <div className="space-y-2 text-sm text-slate-400">
-                                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                                    <span className="flex items-center gap-2"><LayoutDashboard size={14} /> Slug:</span>
-                                    <span className="font-mono text-xs">{client.slug}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="flex items-center gap-2"><Key size={14} /> Cotizaciones:</span>
-                                    <span className="bg-slate-800 px-2 py-0.5 rounded text-white text-xs">{client._count?.quotations ?? 0}</span>
-                                </div>
+                                <dl className="grid grid-cols-3 border-y border-[var(--linea)]">
+                                    {[
+                                        { nombre: "Propuestas", valor: client.propuestas },
+                                        { nombre: "Negocios", valor: client.negocios },
+                                        { nombre: "Contratos", valor: client.contratos },
+                                    ].map((c) => (
+                                        <div key={c.nombre} className="flex flex-col py-2">
+                                            <dt className="order-2 text-xs text-[var(--mut)]">{c.nombre}</dt>
+                                            <dd className="order-1 text-lg font-bold tabular-nums text-[var(--txt)]">{c.valor}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
 
                                 {client.contactName && (
-                                    <div className="flex items-center justify-between text-indigo-300">
-                                        <span className="flex items-center gap-2"><User size={14} /> Contacto:</span>
-                                        <span className="text-xs truncate max-w-[150px]">{client.contactName}</span>
+                                    <p className="mt-3 truncate text-sm text-[var(--mut)]">
+                                        Contacto: <span className="text-[var(--txt)]">{client.contactName}</span>
+                                        {client.contactRole && <span> · {client.contactRole}</span>}
+                                    </p>
+                                )}
+
+                                {puedeAdministrar && (
+                                    <div className="mt-3 border-b border-[var(--linea)]">
+                                        <ClientSecurityManager clientId={client.id} clientName={client.name} clientSlug={client.slug} />
                                     </div>
                                 )}
 
-
-                            </div>
-
-                            <div className="mt-6 flex gap-2">
-                                <ContactInfoModal
-                                    client={client}
-                                    onUpdate={() => fetchClients(true)}
-                                    canDelete={isSuperAdmin || client.userId === currentUserId}
-                                />
-
-                                <Link
-                                    href={`/admin/cotizaciones/${client.id}` as Route}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-center py-2 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-                                    title="Ver Cotizaciones"
-                                >
-                                    <FileText size={16} />
-                                    <span className="hidden lg:inline">Cotizaciones</span>
-                                    <span className="inline lg:hidden">Cotiz.</span>
-                                </Link>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                                <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                                    <ContactInfoModal
+                                        client={client}
+                                        onUpdate={() => router.refresh()}
+                                        canDelete={puedeAdministrar}
+                                    />
+                                    <Link
+                                        href={`/admin/cotizaciones/${client.id}`}
+                                        className={`${BOTON_SEC} flex-1`}
+                                        aria-label={`Propuestas de ${client.name}`}
+                                    >
+                                        <FileText size={16} aria-hidden="true" />
+                                        <span>Propuestas</span>
+                                    </Link>
+                                    <Link
+                                        href={`/admin/clientes/${client.id}`}
+                                        className={`${BOTON} flex-1`}
+                                        aria-label={`Ficha de ${client.name}`}
+                                    >
+                                        <IdCard size={16} aria-hidden="true" />
+                                        <span>Ficha</span>
+                                    </Link>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
             )}
 
             <CreateClientModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {
-                    fetchClients(true);
+                    router.refresh();
                     setShowCreateModal(false);
                 }}
             />

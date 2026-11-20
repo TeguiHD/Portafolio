@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useCallback, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import {
-    Server, Shield, Activity, Terminal, HardDrive,
+    Server, Shield, Activity, Terminal,
     Globe, FileText, Users, GitBranch, Cpu,
-    MemoryStick, Wifi, RefreshCw, AlertTriangle,
-    Lock, ChevronRight,
-    Folder, File, ArrowLeft, Clock, Loader2, Ban,
-    Search, Thermometer, Network
+    RefreshCw, AlertTriangle, ChevronRight,
+    Folder, File, ArrowLeft, Loader2, Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { confirmar } from '@/modules/admin/confirmar/confirmar'
 
 // ─── Types ─────────────────────────────────────────────────────────
 interface GeoLocation {
@@ -120,16 +118,16 @@ interface FileEntry {
 // ─── Tabs ──────────────────────────────────────────────────────────
 type TabId = 'overview' | 'performance' | 'ssh' | 'firewall' | 'sessions' | 'users' | 'files' | 'domains' | 'changes'
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Dashboard', icon: <Server size={16} /> },
-    { id: 'performance', label: 'Rendimiento', icon: <Cpu size={16} /> },
-    { id: 'ssh', label: 'SSH Logs', icon: <Terminal size={16} /> },
-    { id: 'firewall', label: 'Firewall', icon: <Shield size={16} /> },
-    { id: 'sessions', label: 'Sesiones', icon: <Activity size={16} /> },
-    { id: 'users', label: 'Usuarios VPS', icon: <Users size={16} /> },
-    { id: 'files', label: 'Archivos', icon: <FileText size={16} /> },
-    { id: 'domains', label: 'Dominios/SSL', icon: <Globe size={16} /> },
-    { id: 'changes', label: 'Cambios', icon: <GitBranch size={16} /> },
+const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
+    { id: 'overview', label: 'Resumen', icon: <Server size={16} aria-hidden="true" /> },
+    { id: 'performance', label: 'Rendimiento', icon: <Cpu size={16} aria-hidden="true" /> },
+    { id: 'ssh', label: 'Registros SSH', icon: <Terminal size={16} aria-hidden="true" /> },
+    { id: 'firewall', label: 'Cortafuegos', icon: <Shield size={16} aria-hidden="true" /> },
+    { id: 'sessions', label: 'Sesiones', icon: <Activity size={16} aria-hidden="true" /> },
+    { id: 'users', label: 'Usuarios del servidor', icon: <Users size={16} aria-hidden="true" /> },
+    { id: 'files', label: 'Archivos', icon: <FileText size={16} aria-hidden="true" /> },
+    { id: 'domains', label: 'Dominios y SSL', icon: <Globe size={16} aria-hidden="true" /> },
+    { id: 'changes', label: 'Cambios', icon: <GitBranch size={16} aria-hidden="true" /> },
 ]
 
 // ─── Fetch Helper ──────────────────────────────────────────────────
@@ -197,22 +195,30 @@ function buildPaginationItems(currentPage: number, totalPages: number): Array<nu
     return items
 }
 
+// ─── Piezas de presentación (tokens del tema: valen en claro y oscuro) ──
+const FOCO = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]'
+const CAMPO = `min-h-10 max-sm:min-h-11 rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] px-3 text-sm text-[var(--txt)] placeholder:text-[var(--mut)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--acento)]`
+const BOTON_SECUNDARIO = `inline-flex items-center justify-center gap-2 min-h-10 max-sm:min-h-11 px-4 rounded-lg border border-[var(--linea-2)] text-sm font-medium text-[var(--txt)] transition-colors duration-150 motion-reduce:transition-none hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed ${FOCO}`
+const BOTON_PELIGRO = `inline-flex items-center justify-center gap-2 min-h-10 max-sm:min-h-11 px-4 rounded-lg border border-red-500/30 text-sm font-medium text-red-400 transition-colors duration-150 motion-reduce:transition-none hover:bg-red-500/10 ${FOCO}`
+const TARJETA = 'rounded-xl border border-[var(--linea)] bg-[var(--sup)]'
+const TITULO = 'flex items-center gap-2 text-[15px] font-semibold text-[var(--mut)]'
+const TH = 'px-3 py-2 text-left text-sm font-medium text-[var(--mut)] whitespace-nowrap'
+const FILA = 'border-b border-[var(--linea)] last:border-b-0'
+
 function WarningPanel({ warnings }: { warnings: string[] }) {
     if (warnings.length === 0) return null
 
     return (
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
-            <h4 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-2">
-                <AlertTriangle size={14} />
-                Atención operativa
-            </h4>
-            <div className="space-y-1">
+        <div className="rounded-xl bg-amber-500/10 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-semibold text-amber-400">
+                <AlertTriangle size={16} aria-hidden="true" />
+                Atención
+            </p>
+            <ul className="mt-1.5 space-y-1 text-sm text-[var(--txt)]">
                 {warnings.map((warning) => (
-                    <p key={warning} className="text-xs text-amber-200/90">
-                        {warning}
-                    </p>
+                    <li key={warning}>{warning}</li>
                 ))}
-            </div>
+            </ul>
         </div>
     )
 }
@@ -228,88 +234,105 @@ function PaginationControls({
 }) {
     if (totalPages <= 1) return null
 
+    const boton = `min-h-10 max-sm:min-h-11 rounded-lg px-3 text-sm transition-colors duration-150 motion-reduce:transition-none disabled:opacity-40 disabled:cursor-not-allowed ${FOCO}`
+
     return (
-        <div className="flex flex-wrap items-center gap-2 justify-between">
-            <div className="text-xs text-neutral-500">
+        <nav aria-label="Páginas" className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-[var(--mut)]">
                 Página {page} de {totalPages}
-            </div>
+            </p>
             <div className="flex flex-wrap items-center gap-1">
                 <button
+                    type="button"
                     onClick={() => onPageChange(page - 1)}
                     disabled={page === 1}
-                    className="px-3 py-1.5 rounded-lg text-xs border border-white/10 text-neutral-300 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className={`${boton} border border-[var(--linea-2)] text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]`}
                 >
                     Anterior
                 </button>
                 {buildPaginationItems(page, totalPages).map((item) => (
                     typeof item === 'number' ? (
                         <button
+                            type="button"
                             key={item}
                             onClick={() => onPageChange(item)}
-                            className={`min-w-9 px-2 py-1.5 rounded-lg text-xs border transition-colors ${page === item
-                                ? 'border-accent-1/30 bg-accent-1/10 text-accent-1'
-                                : 'border-white/10 text-neutral-300 hover:bg-white/5'
+                            aria-current={page === item ? 'page' : undefined}
+                            aria-label={`Página ${item}`}
+                            className={`${boton} min-w-10 tabular-nums ${page === item
+                                ? 'bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] font-semibold text-[var(--txt)]'
+                                : 'text-[var(--mut)] hover:text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]'
                                 }`}
                         >
                             {item}
                         </button>
                     ) : (
-                        <span key={item} className="px-2 text-xs text-neutral-600">…</span>
+                        <span key={item} className="px-2 text-sm text-[var(--mut)]" aria-hidden="true">…</span>
                     )
                 ))}
                 <button
+                    type="button"
                     onClick={() => onPageChange(page + 1)}
                     disabled={page === totalPages}
-                    className="px-3 py-1.5 rounded-lg text-xs border border-white/10 text-neutral-300 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className={`${boton} border border-[var(--linea-2)] text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]`}
                 >
                     Siguiente
                 </button>
             </div>
+        </nav>
+    )
+}
+
+// ─── Medidor en barra (como «Hoy»: el número siempre a la vista, el color solo acompaña) ──
+function Medida({ value, label, subtitle }: { value: number; label: string; subtitle?: string }) {
+    const lleno = Math.max(0, Math.min(100, value))
+    const tono = value > 90 ? 'bg-red-400' : value > 70 ? 'bg-amber-400' : 'bg-[var(--acento)]'
+
+    return (
+        <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-x-3 text-sm">
+            <dt className="text-[var(--mut)]">{label}</dt>
+            <dd className="m-0 grid grid-cols-[minmax(0,1fr)_52px] items-center gap-x-3 gap-y-1">
+                <span aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-[var(--linea-2)]">
+                    <span className={`block h-full rounded-full ${tono}`} style={{ width: `${lleno}%` }} />
+                </span>
+                <span className="text-right font-mono text-[13px] font-semibold tabular-nums text-[var(--txt)]">{Math.round(value)}%</span>
+                {subtitle && <span className="col-span-2 truncate text-xs text-[var(--mut)]">{subtitle}</span>}
+            </dd>
         </div>
     )
 }
 
-// ─── Gauge Component ───────────────────────────────────────────────
-function CircularGauge({ value, label, color, subtitle }: { value: number; label: string; color: string; subtitle?: string }) {
-    const radius = 45
-    const circumference = 2 * Math.PI * radius
-    const strokeDashoffset = circumference - (value / 100) * circumference
-    const statusColor = value > 90 ? '#ef4444' : value > 70 ? '#f59e0b' : color
+// ─── Fila de cifras (como .hoy-cifras) ─────────────────────────────
+interface Cifra { label: string; value: string | number; sub?: string; tono?: string }
 
+function Cifras({ items }: { items: Cifra[] }) {
     return (
-        <div className="flex flex-col items-center gap-2">
-            <div className="relative w-28 h-28">
-                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
-                    <motion.circle
-                        cx="50" cy="50" r={radius} fill="none" stroke={statusColor} strokeWidth="8"
-                        strokeLinecap="round" strokeDasharray={circumference}
-                        initial={{ strokeDashoffset: circumference }}
-                        animate={{ strokeDashoffset }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
-                    />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xl font-bold text-white">{Math.round(value)}%</span>
+        <div className="overflow-hidden border-y border-[var(--linea)]">
+            <dl className="-ml-px -mt-px flex flex-wrap">
+                {items.map((item) => (
+                    <div key={item.label} className="flex min-w-[150px] flex-1 flex-col border-l border-t border-[var(--linea)] px-4 py-4">
+                        <dt className="order-2 text-[13.5px] text-[var(--mut)]">{item.label}</dt>
+                        <dd className={`order-1 m-0 truncate text-[26px] font-bold leading-tight tracking-tight tabular-nums ${item.tono ?? 'text-[var(--txt)]'}`} title={String(item.value)}>
+                            {item.value}
+                        </dd>
+                        {item.sub && <dd className="order-3 m-0 mt-0.5 truncate text-xs text-[var(--mut)]" title={item.sub}>{item.sub}</dd>}
+                    </div>
+                ))}
+            </dl>
+        </div>
+    )
+}
+
+// ─── Pares etiqueta/valor en filas con línea ───────────────────────
+function Filas({ items }: { items: [string, ReactNode][] }) {
+    return (
+        <dl className="border-t border-[var(--linea)]">
+            {items.map(([label, value]) => (
+                <div key={label} className="flex items-baseline justify-between gap-4 border-b border-[var(--linea)] py-2.5 text-sm">
+                    <dt className="shrink-0 text-[var(--mut)]">{label}</dt>
+                    <dd className="m-0 min-w-0 break-words text-right font-medium tabular-nums text-[var(--txt)]">{value}</dd>
                 </div>
-            </div>
-            <span className="text-sm font-medium text-neutral-300">{label}</span>
-            {subtitle && <span className="text-xs text-neutral-500 -mt-1">{subtitle}</span>}
-        </div>
-    )
-}
-
-// ─── Stat Card ─────────────────────────────────────────────────────
-function StatCard({ icon, label, value, sub, color = 'text-accent-1' }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; color?: string }) {
-    return (
-        <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 flex items-center gap-4">
-            <div className={`p-3 rounded-xl bg-white/5 ${color}`}>{icon}</div>
-            <div className="min-w-0">
-                <p className="text-xs text-neutral-500">{label}</p>
-                <p className="text-lg font-bold text-white truncate">{value}</p>
-                {sub && <p className="text-xs text-neutral-600">{sub}</p>}
-            </div>
-        </div>
+            ))}
+        </dl>
     )
 }
 
@@ -317,7 +340,10 @@ function StatCard({ icon, label, value, sub, color = 'text-accent-1' }: { icon: 
 export default function SuperAdminClient() {
     const [activeTab, setActiveTab] = useState<TabId>('overview')
     const [loading, setLoading] = useState(false)
-    const [sidebarOpen, setSidebarOpen] = useState(true)
+    // Los avisos de sonner no se ven (no hay <Toaster> montado en el panel): el resultado también va en línea.
+    const [errorCarga, setErrorCarga] = useState<string | null>(null)
+    const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
+    const pestanasRef = useRef<Array<HTMLButtonElement | null>>([])
 
     // Data states
     const [system, setSystem] = useState<SystemData | null>(null)
@@ -384,6 +410,7 @@ export default function SuperAdminClient() {
 
     const fetchData = useCallback(async (tab: TabId) => {
         setLoading(true)
+        setErrorCarga(null)
         try {
             switch (tab) {
                 case 'overview':
@@ -396,7 +423,7 @@ export default function SuperAdminClient() {
                     const res = await fetch(`/api/superadmin/ssh-logs?filter=${sshFilter}&limit=200`)
                     const json = await res.json()
                     if (!res.ok || !json.success) {
-                        throw new Error(json.error || 'Error al cargar logs SSH')
+                        throw new Error(json.error || 'No se pudieron cargar los registros SSH')
                     }
                     setSSHLogs(json.data)
                     setSSHSummary(json.summary)
@@ -436,7 +463,9 @@ export default function SuperAdminClient() {
                 }
             }
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Error al cargar datos')
+            const texto = err instanceof Error ? err.message : 'No se pudieron cargar los datos'
+            toast.error(texto)
+            setErrorCarga(texto)
         } finally {
             setLoading(false)
         }
@@ -444,10 +473,29 @@ export default function SuperAdminClient() {
 
     useEffect(() => { fetchData(activeTab) }, [activeTab, fetchData])
 
+    // La pestaña elegida queda a la vista dentro de su franja (sin mover la página).
+    useEffect(() => {
+        pestanasRef.current[TABS.findIndex(t => t.id === activeTab)]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }, [activeTab])
+
+    // Flechas, Inicio y Fin mueven el foco entre pestañas; Enter o espacio la abren (cada una consulta el servidor).
+    const alTeclearPestanas = (e: KeyboardEvent<HTMLDivElement>) => {
+        const actual = pestanasRef.current.findIndex(t => t === document.activeElement)
+        if (actual < 0) return
+        const destino = e.key === 'ArrowRight' ? (actual + 1) % TABS.length
+            : e.key === 'ArrowLeft' ? (actual - 1 + TABS.length) % TABS.length
+                : e.key === 'Home' ? 0
+                    : e.key === 'End' ? TABS.length - 1
+                        : -1
+        if (destino < 0) return
+        e.preventDefault()
+        pestanasRef.current[destino]?.focus()
+    }
+
     // Auto-refresh for performance tab
     useEffect(() => {
         if (activeTab !== 'performance' && activeTab !== 'overview') return
-        const interval = setInterval(() => fetchData(activeTab), 15000)
+        const interval = setInterval(() => { if (document.visibilityState === "visible") fetchData(activeTab) }, 15000) // con la pestaña oculta no se ejecutan los 14 comandos SSH
         return () => clearInterval(interval)
     }, [activeTab, fetchData])
 
@@ -460,7 +508,7 @@ export default function SuperAdminClient() {
     }, [sessionPageSize, sessionSearch, sessionSort, sessionView])
 
     const handleBlockIP = async (ip: string) => {
-        if (!confirm(`¿Bloquear IP ${ip}?`)) return
+        if (!(await confirmar({ titulo: `¿Bloquear la IP ${ip}?`, detalle: "El cortafuegos del servidor rechazará sus conexiones hasta que la desbloquees.", accion: "Bloquear", peligro: true }))) return
         try {
             const res = await fetch('/api/superadmin/firewall', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -468,12 +516,16 @@ export default function SuperAdminClient() {
             })
             const data = await res.json()
             toast[data.success ? 'success' : 'error'](data.message)
+            setAviso({ ok: Boolean(data.success), texto: data.message || (data.success ? `IP ${ip} bloqueada.` : 'No se pudo bloquear la IP.') })
             if (data.success) fetchData('firewall')
-        } catch { toast.error('Error al bloquear IP') }
+        } catch {
+            toast.error('Error al bloquear IP')
+            setAviso({ ok: false, texto: 'No se pudo bloquear la IP.' })
+        }
     }
 
     const _handleUnblockIP = async (ip: string) => {
-        if (!confirm(`¿Desbloquear IP ${ip}?`)) return
+        if (!(await confirmar({ titulo: `¿Desbloquear la IP ${ip}?`, detalle: "Podrá volver a conectarse al servidor.", accion: "Desbloquear" }))) return
         try {
             const res = await fetch('/api/superadmin/firewall', {
                 method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -481,8 +533,12 @@ export default function SuperAdminClient() {
             })
             const data = await res.json()
             toast[data.success ? 'success' : 'error'](data.message)
+            setAviso({ ok: Boolean(data.success), texto: data.message || (data.success ? `IP ${ip} desbloqueada.` : 'No se pudo desbloquear la IP.') })
             if (data.success) fetchData('firewall')
-        } catch { toast.error('Error al desbloquear IP') }
+        } catch {
+            toast.error('Error al desbloquear IP')
+            setAviso({ ok: false, texto: 'No se pudo desbloquear la IP.' })
+        }
     }
 
     const navigateToDir = (dir: string) => {
@@ -500,8 +556,14 @@ export default function SuperAdminClient() {
             const res = await fetch(`/api/superadmin/files?path=${encodeURIComponent(path)}&action=read`)
             const data = await res.json()
             if (data.success) setFileContent(data.data.content)
-            else toast.error(data.error)
-        } catch { toast.error('Error al leer archivo') }
+            else {
+                toast.error(data.error)
+                setAviso({ ok: false, texto: data.error || 'No se pudo leer el archivo.' })
+            }
+        } catch {
+            toast.error('Error al leer archivo')
+            setAviso({ ok: false, texto: 'No se pudo leer el archivo.' })
+        }
         finally { setLoading(false) }
     }
 
@@ -587,894 +649,896 @@ export default function SuperAdminClient() {
     const paginatedSSHLogs = filteredSSHLogs.slice(sshPageStart, sshPageStart + sshPageSize)
 
     const vpsConnectionState = !system
-        ? { dot: 'bg-neutral-600', label: 'Sin conexión' }
+        ? { dot: 'bg-[var(--mut)]', label: 'Sin conexión' }
         : !system.status.connected
-            ? { dot: 'bg-red-500', label: 'Sin muestra válida' }
+            ? { dot: 'bg-red-400', label: 'Sin muestra válida' }
             : system.status.degraded
-                ? { dot: 'bg-amber-500 animate-pulse', label: 'Con degradación' }
-                : { dot: 'bg-green-500 animate-pulse', label: 'Conectado al VPS' }
+                ? { dot: 'bg-amber-400 animate-pulse motion-reduce:animate-none', label: 'Con degradación' }
+                : { dot: 'bg-emerald-400 animate-pulse motion-reduce:animate-none', label: 'Conectado al servidor' }
 
     const cpuSummary = !system
         ? 'Sin muestra'
-        : system.cpu.model || (system.cpu.cores > 0 ? `${system.cpu.cores} cores` : 'Sin muestra de cores')
+        : system.cpu.model || (system.cpu.cores > 0 ? `${system.cpu.cores} núcleos` : 'Sin muestra de núcleos')
 
     const memoryHasSample = Boolean(system && system.memory.totalMB > 0)
     const memoryValue = memoryHasSample && system ? `${system.memory.usagePercent}%` : 'N/D'
     const memorySubtitle = memoryHasSample && system
         ? `${system.memory.usedMB}/${system.memory.totalMB} MB`
-        : 'Sin muestra valida'
+        : 'Sin muestra válida'
 
     const diskHasSample = Boolean(system?.disks[0])
     const diskGaugeSubtitle = diskHasSample && system
         ? `${system.disks[0].used}/${system.disks[0].size}`
-        : 'Sin muestra valida'
+        : 'Sin muestra válida'
 
     const missingSshConfigMessage = system?.status.ssh && !system.status.ssh.configured
-        ? `Configuracion SSH incompleta (${system.status.ssh.missing.join(', ')}).`
+        ? `Configuración SSH incompleta (${system.status.ssh.missing.join(', ')}).`
         : null
 
+    const tabActual = TABS.find(t => t.id === activeTab)
+
     return (
-        <div className="flex h-[calc(100vh-4rem)]">
-            {/* Sidebar */}
-            <motion.aside
-                initial={{ width: sidebarOpen ? 240 : 60 }}
-                animate={{ width: sidebarOpen ? 240 : 60 }}
-                className="bg-[#080b14] border-r border-white/5 flex flex-col shrink-0 overflow-hidden"
-            >
-                <div className="p-4 border-b border-white/5 flex items-center gap-3">
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-white/5 text-neutral-400 hover:text-white transition-colors">
-                        <Server size={20} />
-                    </button>
-                    {sidebarOpen && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
-                            <p className="text-sm font-bold text-white truncate">VPS Control</p>
-                            <p className="text-[10px] text-neutral-600 truncate">SUPERADMIN ONLY</p>
-                        </motion.div>
+        <div className="space-y-6">
+            {/* Encabezado */}
+            <header className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-[var(--txt)]">Servidor</h1>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-[var(--mut)]">
+                        <span className="inline-flex items-center gap-2">
+                            <span aria-hidden="true" className={`size-2 rounded-full ${vpsConnectionState.dot}`} />
+                            {vpsConnectionState.label}
+                        </span>
+                        {system && (
+                            <span>{system.hostname} · encendido hace {system.uptime} · muestra de hace {timeAgo(system.status.sampledAt)}</span>
+                        )}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => fetchData(activeTab)}
+                    disabled={loading}
+                    className={BOTON_SECUNDARIO}
+                >
+                    <RefreshCw size={16} aria-hidden="true" className={`text-[var(--mut)] ${loading ? 'animate-spin motion-reduce:animate-none' : ''}`} />
+                    {loading ? 'Cargando…' : 'Actualizar'}
+                </button>
+            </header>
+
+            {(errorCarga || aviso) && (
+                <div className="space-y-2">
+                    {errorCarga && (
+                        <p role="alert" className="flex items-start gap-2 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                            <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                            {errorCarga}
+                        </p>
+                    )}
+                    {aviso && (
+                        <p role={aviso.ok ? 'status' : 'alert'} className={`rounded-xl px-4 py-3 text-sm ${aviso.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                            {aviso.texto}
+                        </p>
                     )}
                 </div>
+            )}
 
-                <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-                    {TABS.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${activeTab === tab.id
-                                ? 'bg-accent-1/10 text-accent-1 font-medium'
-                                : 'text-neutral-400 hover:text-white hover:bg-white/5'
-                                }`}
-                        >
-                            {tab.icon}
-                            {sidebarOpen && <span className="truncate">{tab.label}</span>}
-                        </button>
-                    ))}
-                </nav>
+            {/* Pestañas: se desplazan dentro de su propia franja si no caben (la página nunca se mueve de lado). */}
+            <div
+                role="tablist"
+                aria-label="Secciones del servidor"
+                onKeyDown={alTeclearPestanas}
+                className="-mx-1 flex overflow-x-auto border-b border-[var(--linea)] px-1 [scrollbar-width:thin]"
+            >
+                {TABS.map((tab, i) => (
+                    <button
+                        key={tab.id}
+                        ref={(el) => { pestanasRef.current[i] = el }}
+                        type="button"
+                        role="tab"
+                        id={`srv-tab-${tab.id}`}
+                        aria-selected={activeTab === tab.id}
+                        tabIndex={activeTab === tab.id ? 0 : -1}
+                        onClick={() => { setActiveTab(tab.id); setAviso(null) }}
+                        className={`relative flex flex-none items-center gap-2 min-h-11 px-3 -mb-px border-b-2 border-transparent text-sm font-medium whitespace-nowrap text-[var(--mut)] transition-colors duration-150 motion-reduce:transition-none hover:text-[var(--txt)] aria-selected:border-[var(--acento)] aria-selected:text-[var(--txt)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]`}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
 
-                {sidebarOpen && (
-                    <div className="p-3 border-t border-white/5">
-                        <div className="flex items-center gap-2 text-[10px] text-neutral-600">
-                            <div className={`w-1.5 h-1.5 rounded-full ${vpsConnectionState.dot}`} />
-                            {vpsConnectionState.label}
+            <div role="tabpanel" id="srv-panel" aria-labelledby={`srv-tab-${activeTab}`} aria-busy={loading}>
+                <h2 className="sr-only">{tabActual?.label}</h2>
+
+                {/* Resumen */}
+                {activeTab === 'overview' && system && (
+                    <div className="space-y-8">
+                        <WarningPanel warnings={system.status.warnings} />
+
+                        <Cifras items={[
+                            { label: 'CPU', value: `${system.cpu.usagePercent}%`, sub: cpuSummary },
+                            { label: 'RAM', value: memoryValue, sub: memorySubtitle },
+                            { label: 'Disco raíz', value: system.disks[0] ? `${system.disks[0].usePercent}%` : 'N/D', sub: system.disks[0] ? `${system.disks[0].used}/${system.disks[0].size}` : 'Sin dato' },
+                            { label: 'Conexiones TCP', value: system.connectionSummary.total, sub: `${system.connectionSummary.established} establecidas · ${system.connectionSummary.listening} en escucha` },
+                            { label: 'Temperatura', value: hottestTemperature ? `${hottestTemperature.valueC.toFixed(1)} °C` : 'N/D', sub: hottestTemperature?.label || 'Sensores no disponibles' },
+                        ]} />
+
+                        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[1.15fr_0.85fr]">
+                            <section aria-labelledby="srv-estado" className="space-y-5">
+                                <h3 id="srv-estado" className={TITULO}>Estado del equipo</h3>
+                                <dl className="grid gap-4">
+                                    <Medida value={system.cpu.usagePercent} label="CPU" subtitle={`Carga: ${system.loadAverage.join(' / ')}`} />
+                                    <Medida value={memoryHasSample ? system.memory.usagePercent : 0} label="RAM" subtitle={memoryHasSample ? `${system.memory.availableMB} MB disponibles` : 'Sin muestra válida'} />
+                                    <Medida value={system.disks[0]?.usePercent || 0} label="Disco" subtitle={system.disks[0]?.mountpoint || '/'} />
+                                </dl>
+                                <Filas items={[
+                                    ['Nombre del equipo', <span className="break-all">{system.hostname}</span>],
+                                    ['Encendido hace', system.uptime],
+                                    ['Kernel', system.kernel.split(' ').slice(0, 3).join(' ')],
+                                    ['Último muestreo', `hace ${timeAgo(system.status.sampledAt)}`],
+                                ]} />
+                            </section>
+
+                            <section aria-labelledby="srv-red" className="space-y-5">
+                                <h3 id="srv-red" className={TITULO}>Red y conexiones</h3>
+                                <Filas items={[
+                                    ['Bajada actual', `${formatBytes(aggregateNetworkRate.rxPerSec)}/s`],
+                                    ['Subida actual', `${formatBytes(aggregateNetworkRate.txPerSec)}/s`],
+                                    ['Establecidas', system.connectionSummary.established],
+                                    ['En espera de cierre / SYN', `${system.connectionSummary.timeWait} / ${system.connectionSummary.synPending}`],
+                                ]} />
+                                <ul className="border-t border-[var(--linea)]">
+                                    {system.network.map((entry) => {
+                                        const rate = networkRates[entry.name]
+
+                                        return (
+                                            <li key={entry.name} className="border-b border-[var(--linea)] py-3 text-sm">
+                                                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                                                    <span className="font-mono font-medium text-[var(--txt)]">{entry.name}</span>
+                                                    <span className="text-xs text-[var(--mut)] tabular-nums">{entry.rxPackets.toLocaleString('es-CL')} paquetes recibidos · {entry.txPackets.toLocaleString('es-CL')} enviados</span>
+                                                </div>
+                                                <p className="mt-1 text-xs text-[var(--mut)] tabular-nums">
+                                                    Total: bajada {formatBytes(entry.rxBytes)} · subida {formatBytes(entry.txBytes)} — ahora: {formatBytes(rate?.rxPerSec || 0)}/s · {formatBytes(rate?.txPerSec || 0)}/s
+                                                </p>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            </section>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-10 xl:grid-cols-2">
+                            <section aria-labelledby="srv-cpu" className="space-y-3">
+                                <h3 id="srv-cpu" className={TITULO}><Cpu size={16} aria-hidden="true" /> Más uso de CPU</h3>
+                                <ul className="border-t border-[var(--linea)]">
+                                    {system.topProcessesByCpu.slice(0, 6).map((processEntry, index) => (
+                                        <li key={`${processEntry.pid}-${index}`} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2.5 text-sm">
+                                            <div className="min-w-0">
+                                                <p className="truncate font-medium text-[var(--txt)]" title={processEntry.command}>{processEntry.command}</p>
+                                                <p className="font-mono text-xs text-[var(--mut)]">PID {processEntry.pid} · {processEntry.user}</p>
+                                            </div>
+                                            <span className="shrink-0 font-mono font-semibold tabular-nums text-[var(--txt)]">{processEntry.cpu}%</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+
+                            <section aria-labelledby="srv-sensores" className="space-y-3">
+                                <h3 id="srv-sensores" className={TITULO}>Sensores y puertos a la escucha</h3>
+                                {system.temperatures.length > 0 ? (
+                                    <ul className="border-t border-[var(--linea)]">
+                                        {system.temperatures.slice(0, 6).map((reading) => (
+                                            <li key={reading.label} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2.5 text-sm">
+                                                <span className="text-[var(--txt)]">{reading.label}</span>
+                                                <span className={`font-mono tabular-nums ${reading.valueC >= 80 ? 'text-red-400' : reading.valueC >= 65 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                                    {reading.valueC.toFixed(1)} °C{reading.valueC >= 80 ? ' · alta' : reading.valueC >= 65 ? ' · tibia' : ''}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="border-t border-[var(--linea)] py-3 text-sm text-[var(--mut)]">No hay sensores térmicos accesibles en este equipo.</p>
+                                )}
+                                <Filas items={[
+                                    ['Puertos en escucha', system.connectionSummary.listening],
+                                    ['Conexiones cerrándose', system.connectionSummary.closing],
+                                ]} />
+                            </section>
                         </div>
                     </div>
                 )}
-            </motion.aside>
 
-            {/* Main content */}
-            <main className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                            {TABS.find(t => t.id === activeTab)?.icon}
-                            {TABS.find(t => t.id === activeTab)?.label}
-                        </h1>
-                        {system && (
-                            <p className="text-sm text-neutral-500 mt-1">
-                                {system.hostname} · Uptime: {system.uptime} · Muestreo: {timeAgo(system.status.sampledAt)}
+                {/* Rendimiento */}
+                {activeTab === 'performance' && system && (
+                    <div className="space-y-8">
+                        <WarningPanel warnings={system.status.warnings} />
+
+                        {missingSshConfigMessage && (
+                            <p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                                {missingSshConfigMessage} Completa las variables del entorno y reinicia el servicio web.
                             </p>
                         )}
+
+                        <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--mut)]">
+                            <span aria-hidden="true" className={`size-2 rounded-full ${vpsConnectionState.dot}`} />
+                            Se actualiza sola cada 15 s · muestra de hace {timeAgo(system.status.sampledAt)}
+                        </p>
+
+                        <dl className="grid max-w-3xl gap-4">
+                            <Medida value={system.cpu.usagePercent} label="CPU" subtitle={cpuSummary} />
+                            <Medida value={memoryHasSample ? system.memory.usagePercent : 0} label="RAM" subtitle={memorySubtitle} />
+                            <Medida value={system.disks[0]?.usePercent || 0} label="Disco" subtitle={diskGaugeSubtitle} />
+                            <Medida
+                                value={system.memory.swapTotalMB > 0 ? system.memory.swapUsagePercent : Math.min(hottestTemperature?.valueC || 0, 100)}
+                                label={system.memory.swapTotalMB > 0 ? 'Swap' : 'Temp. máx.'}
+                                subtitle={system.memory.swapTotalMB > 0 ? `${system.memory.swapUsedMB}/${system.memory.swapTotalMB} MB` : hottestTemperature ? `${hottestTemperature.valueC.toFixed(1)} °C` : 'Sin sensores'}
+                            />
+                        </dl>
+
+                        <Cifras items={[
+                            { label: 'Carga 1 min', value: system.loadAverage[0] },
+                            { label: 'Carga 5 min', value: system.loadAverage[1] },
+                            { label: 'Carga 15 min', value: system.loadAverage[2] },
+                            { label: 'Conexiones', value: system.connectionSummary.total },
+                            { label: 'Bajada actual', value: `${formatBytes(aggregateNetworkRate.rxPerSec)}/s` },
+                            { label: 'Subida actual', value: `${formatBytes(aggregateNetworkRate.txPerSec)}/s` },
+                        ]} />
+
+                        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[1.1fr_0.9fr]">
+                            <section aria-labelledby="srv-discos" className="space-y-3">
+                                <h3 id="srv-discos" className={TITULO}>Discos</h3>
+                                <ul className="border-t border-[var(--linea)]">
+                                    {system.disks.map((disk, index) => (
+                                        <li key={`${disk.mountpoint}-${index}`} className="space-y-2 border-b border-[var(--linea)] py-3">
+                                            <div className="flex justify-between gap-3 text-sm">
+                                                <span className="font-mono text-[var(--txt)]">{disk.mountpoint}</span>
+                                                <span className="tabular-nums text-[var(--txt)]">{disk.used}/{disk.size} ({disk.usePercent}%)</span>
+                                            </div>
+                                            <div aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--linea-2)]">
+                                                <div className={`h-full rounded-full ${disk.usePercent > 90 ? 'bg-red-400' : disk.usePercent > 70 ? 'bg-amber-400' : 'bg-[var(--acento)]'}`} style={{ width: `${disk.usePercent}%` }} />
+                                            </div>
+                                            <p className="text-xs text-[var(--mut)]">Disponible: {disk.available} · Sistema de archivos: {disk.filesystem}</p>
+                                        </li>
+                                    ))}
+                                </ul>
+                                {!diskHasSample && (
+                                    <p className="text-sm text-[var(--mut)]">Sin muestra válida de los volúmenes del equipo.</p>
+                                )}
+                            </section>
+
+                            <section aria-labelledby="srv-interfaces" className="space-y-3">
+                                <h3 id="srv-interfaces" className={TITULO}>Interfaces y presión</h3>
+                                <Filas items={[
+                                    ['Puertos en escucha', system.connectionSummary.listening],
+                                    ['En espera de cierre (TIME_WAIT)', system.connectionSummary.timeWait],
+                                ]} />
+                                <ul>
+                                    {system.network.map((entry) => {
+                                        const rate = networkRates[entry.name]
+
+                                        return (
+                                            <li key={entry.name} className="border-b border-[var(--linea)] py-3 text-sm">
+                                                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                                                    <span className="font-mono font-medium text-[var(--txt)]">{entry.name}</span>
+                                                    <span className="text-xs text-[var(--mut)] tabular-nums">{entry.txPackets.toLocaleString('es-CL')} paquetes enviados</span>
+                                                </div>
+                                                <p className="mt-1 text-xs text-[var(--mut)] tabular-nums">
+                                                    Total: bajada {formatBytes(entry.rxBytes)} · subida {formatBytes(entry.txBytes)} — ahora: {formatBytes(rate?.rxPerSec || 0)}/s · {formatBytes(rate?.txPerSec || 0)}/s
+                                                </p>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            </section>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+                            {([
+                                { id: 'srv-top-cpu', titulo: 'Más uso de CPU', filas: system.topProcessesByCpu, primero: 'cpu' as const },
+                                { id: 'srv-top-mem', titulo: 'Más uso de memoria', filas: system.topProcessesByMem, primero: 'mem' as const },
+                            ]).map((tabla) => (
+                                <section key={tabla.id} aria-labelledby={tabla.id} className="space-y-3">
+                                    <h3 id={tabla.id} className={TITULO}>{tabla.titulo}</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b border-[var(--linea)]">
+                                                    <th scope="col" className={TH}>Proceso</th>
+                                                    <th scope="col" className={`${TH} text-right`}>{tabla.primero === 'cpu' ? 'CPU %' : 'Memoria %'}</th>
+                                                    <th scope="col" className={`${TH} text-right`}>{tabla.primero === 'cpu' ? 'Memoria %' : 'CPU %'}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {tabla.filas.slice(0, 8).map((processEntry, index) => (
+                                                    <tr key={`${processEntry.pid}-${index}`} className={FILA}>
+                                                        <td className="max-w-[220px] truncate px-3 py-2 text-[var(--txt)]" title={processEntry.command}>{processEntry.command}</td>
+                                                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--txt)]">{tabla.primero === 'cpu' ? processEntry.cpu : processEntry.mem}</td>
+                                                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--mut)]">{tabla.primero === 'cpu' ? processEntry.mem : processEntry.cpu}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
+                            ))}
+                        </div>
                     </div>
-                    <button
-                        onClick={() => fetchData(activeTab)}
-                        disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-neutral-300 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
-                    >
-                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                        {loading ? 'Cargando...' : 'Actualizar'}
-                    </button>
-                </div>
+                )}
 
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        {/* Overview Tab */}
-                        {activeTab === 'overview' && system && (
-                            <div className="space-y-6">
-                                <WarningPanel warnings={system.status.warnings} />
+                {/* Registros SSH */}
+                {activeTab === 'ssh' && (
+                    <div className="space-y-6">
+                        <WarningPanel warnings={sshWarnings} />
 
-                                <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
-                                    <StatCard
-                                        icon={<Cpu size={20} />}
-                                        label="CPU"
-                                        value={`${system.cpu.usagePercent}%`}
-                                        sub={cpuSummary}
-                                    />
-                                    <StatCard
-                                        icon={<MemoryStick size={20} />}
-                                        label="RAM"
-                                        value={memoryValue}
-                                        sub={memorySubtitle}
-                                        color="text-fuchsia-400"
-                                    />
-                                    <StatCard
-                                        icon={<HardDrive size={20} />}
-                                        label="Disco raíz"
-                                        value={system.disks[0] ? `${system.disks[0].usePercent}%` : 'N/A'}
-                                        sub={system.disks[0] ? `${system.disks[0].used}/${system.disks[0].size}` : 'Sin dato'}
-                                        color="text-amber-400"
-                                    />
-                                    <StatCard
-                                        icon={<Network size={20} />}
-                                        label="Conexiones TCP"
-                                        value={system.connectionSummary.total}
-                                        sub={`${system.connectionSummary.established} establecidas · ${system.connectionSummary.listening} listening`}
-                                        color="text-cyan-400"
-                                    />
-                                    <StatCard
-                                        icon={<Thermometer size={20} />}
-                                        label="Temperatura"
-                                        value={hottestTemperature ? `${hottestTemperature.valueC.toFixed(1)}°C` : 'N/A'}
-                                        sub={hottestTemperature?.label || 'Sensores no disponibles'}
-                                        color="text-rose-400"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-6">
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-3xl p-5 space-y-6">
-                                        <div className="flex flex-wrap items-start justify-between gap-3">
-                                            <div>
-                                                <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Estado operativo</p>
-                                                <h3 className="text-lg font-semibold text-white mt-1">Nodo principal del VPS</h3>
-                                            </div>
-                                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${system.status.connected
-                                                ? system.status.degraded
-                                                    ? 'border-amber-500/20 bg-amber-500/10 text-amber-300'
-                                                    : 'border-green-500/20 bg-green-500/10 text-green-300'
-                                                : 'border-red-500/20 bg-red-500/10 text-red-300'
-                                                }`}>
-                                                <span className={`w-2 h-2 rounded-full ${vpsConnectionState.dot}`} />
-                                                {vpsConnectionState.label}
-                                            </span>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                            <CircularGauge value={system.cpu.usagePercent} label="CPU" color="#60a5fa" subtitle={`Load: ${system.loadAverage.join(' / ')}`} />
-                                            <CircularGauge value={memoryHasSample ? system.memory.usagePercent : 0} label="RAM" color="#e879f9" subtitle={memoryHasSample ? `${system.memory.availableMB} MB disponibles` : 'Sin muestra valida'} />
-                                            <CircularGauge value={system.disks[0]?.usePercent || 0} label="Disco" color="#f59e0b" subtitle={system.disks[0]?.mountpoint || '/'} />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">Hostname</p>
-                                                <p className="text-sm font-semibold text-white mt-1 break-all">{system.hostname}</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">Uptime</p>
-                                                <p className="text-sm font-semibold text-white mt-1">{system.uptime}</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">Kernel</p>
-                                                <p className="text-sm font-semibold text-white mt-1">{system.kernel.split(' ').slice(0, 3).join(' ')}</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">Último muestreo</p>
-                                                <p className="text-sm font-semibold text-white mt-1">{timeAgo(system.status.sampledAt)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-3xl p-5 space-y-5">
-                                        <div>
-                                            <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Red y sockets</p>
-                                            <h3 className="text-lg font-semibold text-white mt-1">Actividad en tiempo real</h3>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">Downlink actual</p>
-                                                <p className="text-lg font-semibold text-white mt-1">{formatBytes(aggregateNetworkRate.rxPerSec)}/s</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">Uplink actual</p>
-                                                <p className="text-lg font-semibold text-white mt-1">{formatBytes(aggregateNetworkRate.txPerSec)}/s</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">Established</p>
-                                                <p className="text-lg font-semibold text-white mt-1">{system.connectionSummary.established}</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
-                                                <p className="text-[11px] text-neutral-500">TIME_WAIT / SYN</p>
-                                                <p className="text-lg font-semibold text-white mt-1">{system.connectionSummary.timeWait} / {system.connectionSummary.synPending}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {system.network.map((entry) => {
-                                                const rate = networkRates[entry.name]
-
-                                                return (
-                                                    <div key={entry.name} className="rounded-2xl bg-[#0d1117] border border-white/5 p-4">
-                                                        <div className="flex items-center justify-between gap-3 text-xs">
-                                                            <span className="text-neutral-300 font-mono">{entry.name}</span>
-                                                            <span className="text-neutral-500">{entry.rxPackets.toLocaleString()} rx pkt · {entry.txPackets.toLocaleString()} tx pkt</span>
-                                                        </div>
-                                                        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
-                                                            <span className="text-emerald-400">↓ {formatBytes(entry.rxBytes)}</span>
-                                                            <span className="text-sky-400">↑ {formatBytes(entry.txBytes)}</span>
-                                                            <span className="text-neutral-500">Actual: ↓ {formatBytes(rate?.rxPerSec || 0)}/s · ↑ {formatBytes(rate?.txPerSec || 0)}/s</span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                        <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2"><Cpu size={16} className="text-indigo-400" /> Top por CPU</h3>
-                                        <div className="space-y-2">
-                                            {system.topProcessesByCpu.slice(0, 6).map((processEntry, index) => (
-                                                <div key={`${processEntry.pid}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3 py-2 text-xs">
-                                                    <div className="min-w-0">
-                                                        <p className="text-neutral-300 font-medium truncate">{processEntry.command}</p>
-                                                        <p className="text-neutral-500 font-mono">PID {processEntry.pid} · {processEntry.user}</p>
-                                                    </div>
-                                                    <span className="text-white font-mono">{processEntry.cpu}%</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                        <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2"><Thermometer size={16} className="text-rose-400" /> Sensores y listeners</h3>
-                                        <div className="space-y-3">
-                                            {system.temperatures.length > 0 ? system.temperatures.slice(0, 6).map((reading) => (
-                                                <div key={reading.label} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3 py-2 text-xs">
-                                                    <span className="text-neutral-300">{reading.label}</span>
-                                                    <span className={`font-mono ${reading.valueC >= 80 ? 'text-red-400' : reading.valueC >= 65 ? 'text-amber-400' : 'text-emerald-400'}`}>{reading.valueC.toFixed(1)}°C</span>
-                                                </div>
-                                            )) : (
-                                                <p className="text-sm text-neutral-500">No hay sensores térmicos accesibles para este host.</p>
-                                            )}
-
-                                            <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-3 text-xs">
-                                                <div className="rounded-xl bg-white/[0.03] px-3 py-3">
-                                                    <p className="text-neutral-500">Listening</p>
-                                                    <p className="text-base font-semibold text-white mt-1">{system.connectionSummary.listening}</p>
-                                                </div>
-                                                <div className="rounded-xl bg-white/[0.03] px-3 py-3">
-                                                    <p className="text-neutral-500">Closing</p>
-                                                    <p className="text-base font-semibold text-white mt-1">{system.connectionSummary.closing}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        {sshSummary && (
+                            <Cifras items={[
+                                { label: 'Entradas', value: sshSummary.total },
+                                { label: 'Aceptadas', value: sshSummary.accepted, tono: 'text-emerald-400' },
+                                { label: 'Fallidas', value: sshSummary.failed, tono: 'text-red-400' },
+                                { label: 'IP atacantes', value: sshSummary.uniqueAttackerIPs, tono: 'text-amber-400' },
+                                { label: 'Origen principal', value: sshSummary.topSourceIPs[0]?.ip || 'Sin dato', sub: sshSummary.topSourceIPs[0] ? `${sshSummary.topSourceIPs[0].count} eventos` : 'Sin dato' },
+                            ]} />
                         )}
 
-                        {/* Performance Tab */}
-                        {activeTab === 'performance' && system && (
-                            <div className="space-y-6">
-                                <WarningPanel warnings={system.status.warnings} />
-
-                                {missingSshConfigMessage && (
-                                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-300">
-                                        {missingSshConfigMessage} Completa las variables en el runtime y reinicia el servicio web.
-                                    </div>
-                                )}
-
-                                <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                                    <div className={`w-2 h-2 rounded-full ${vpsConnectionState.dot}`} />
-                                    Auto-refresh cada 15s · muestra {timeAgo(system.status.sampledAt)}
-                                </div>
-
-                                <div className="grid grid-cols-2 xl:grid-cols-4 gap-6">
-                                    <CircularGauge value={system.cpu.usagePercent} label="CPU" color="#60a5fa" subtitle={cpuSummary} />
-                                    <CircularGauge value={memoryHasSample ? system.memory.usagePercent : 0} label="RAM" color="#e879f9" subtitle={memorySubtitle} />
-                                    <CircularGauge value={system.disks[0]?.usePercent || 0} label="Disco" color="#f59e0b" subtitle={diskGaugeSubtitle} />
-                                    <CircularGauge
-                                        value={system.memory.swapTotalMB > 0 ? system.memory.swapUsagePercent : Math.min(hottestTemperature?.valueC || 0, 100)}
-                                        label={system.memory.swapTotalMB > 0 ? 'Swap' : 'Temp max'}
-                                        color={system.memory.swapTotalMB > 0 ? '#fb7185' : '#f97316'}
-                                        subtitle={system.memory.swapTotalMB > 0 ? `${system.memory.swapUsedMB}/${system.memory.swapTotalMB} MB` : hottestTemperature ? `${hottestTemperature.valueC.toFixed(1)}°C` : 'Sin sensores'}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-                                    <StatCard icon={<Activity size={18} />} label="Load 1m" value={system.loadAverage[0]} />
-                                    <StatCard icon={<Activity size={18} />} label="Load 5m" value={system.loadAverage[1]} color="text-violet-400" />
-                                    <StatCard icon={<Activity size={18} />} label="Load 15m" value={system.loadAverage[2]} color="text-amber-400" />
-                                    <StatCard icon={<Network size={18} />} label="Sockets" value={system.connectionSummary.total} color="text-cyan-400" />
-                                    <StatCard icon={<Wifi size={18} />} label="RX actual" value={`${formatBytes(aggregateNetworkRate.rxPerSec)}/s`} color="text-emerald-400" />
-                                    <StatCard icon={<Wifi size={18} />} label="TX actual" value={`${formatBytes(aggregateNetworkRate.txPerSec)}/s`} color="text-sky-400" />
-                                </div>
-
-                                <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                        <h3 className="text-base font-semibold text-white mb-4">Discos</h3>
-                                        <div className="space-y-3">
-                                            {system.disks.map((disk, index) => (
-                                                <div key={`${disk.mountpoint}-${index}`} className="space-y-2">
-                                                    <div className="flex justify-between gap-3 text-xs">
-                                                        <span className="text-neutral-400 font-mono">{disk.mountpoint}</span>
-                                                        <span className="text-white">{disk.used}/{disk.size} ({disk.usePercent}%)</span>
-                                                    </div>
-                                                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                                                        <div className={`h-full rounded-full transition-all ${disk.usePercent > 90 ? 'bg-red-500' : disk.usePercent > 70 ? 'bg-amber-500' : 'bg-accent-1'}`} style={{ width: `${disk.usePercent}%` }} />
-                                                    </div>
-                                                    <p className="text-[11px] text-neutral-600">Disponible: {disk.available} · Filesystem: {disk.filesystem}</p>
-                                                </div>
-                                            ))}
-                                            {!diskHasSample && (
-                                                <p className="text-sm text-neutral-500">Sin muestra valida de volumenes del host.</p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 space-y-4">
-                                        <h3 className="text-base font-semibold text-white">Interfaces y presión</h3>
-                                        <div className="grid grid-cols-2 gap-3 text-xs">
-                                            <div className="rounded-xl bg-white/[0.03] p-4 border border-white/5">
-                                                <p className="text-neutral-500">Listening</p>
-                                                <p className="text-xl font-semibold text-white mt-1">{system.connectionSummary.listening}</p>
-                                            </div>
-                                            <div className="rounded-xl bg-white/[0.03] p-4 border border-white/5">
-                                                <p className="text-neutral-500">TIME_WAIT</p>
-                                                <p className="text-xl font-semibold text-white mt-1">{system.connectionSummary.timeWait}</p>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {system.network.map((entry) => {
-                                                const rate = networkRates[entry.name]
-
-                                                return (
-                                                    <div key={entry.name} className="rounded-xl bg-[#0d1117] border border-white/5 p-4">
-                                                        <div className="flex items-center justify-between text-xs gap-3">
-                                                            <span className="font-mono text-neutral-300">{entry.name}</span>
-                                                            <span className="text-neutral-500">{entry.txPackets.toLocaleString()} tx pkt</span>
-                                                        </div>
-                                                        <div className="mt-2 flex flex-wrap gap-4 text-xs">
-                                                            <span className="text-emerald-400">↓ Total {formatBytes(entry.rxBytes)}</span>
-                                                            <span className="text-sky-400">↑ Total {formatBytes(entry.txBytes)}</span>
-                                                            <span className="text-neutral-500">↓ {formatBytes(rate?.rxPerSec || 0)}/s · ↑ {formatBytes(rate?.txPerSec || 0)}/s</span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                        <h3 className="text-base font-semibold text-white mb-4">Top CPU</h3>
-                                        <table className="w-full text-xs">
-                                            <thead><tr className="text-neutral-500"><th className="text-left pb-2">Proceso</th><th className="text-right pb-2">CPU%</th><th className="text-right pb-2">MEM%</th></tr></thead>
-                                            <tbody>
-                                                {system.topProcessesByCpu.slice(0, 8).map((processEntry, index) => (
-                                                    <tr key={`${processEntry.pid}-${index}`} className="border-t border-white/5">
-                                                        <td className="py-1.5 text-neutral-300 truncate max-w-[200px]">{processEntry.command}</td>
-                                                        <td className="py-1.5 text-right text-white font-mono">{processEntry.cpu}</td>
-                                                        <td className="py-1.5 text-right text-neutral-400 font-mono">{processEntry.mem}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                        <h3 className="text-base font-semibold text-white mb-4">Top Memoria</h3>
-                                        <table className="w-full text-xs">
-                                            <thead><tr className="text-neutral-500"><th className="text-left pb-2">Proceso</th><th className="text-right pb-2">MEM%</th><th className="text-right pb-2">CPU%</th></tr></thead>
-                                            <tbody>
-                                                {system.topProcessesByMem.slice(0, 8).map((processEntry, index) => (
-                                                    <tr key={`${processEntry.pid}-${index}`} className="border-t border-white/5">
-                                                        <td className="py-1.5 text-neutral-300 truncate max-w-[200px]">{processEntry.command}</td>
-                                                        <td className="py-1.5 text-right text-white font-mono">{processEntry.mem}</td>
-                                                        <td className="py-1.5 text-right text-neutral-400 font-mono">{processEntry.cpu}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* SSH Logs Tab */}
-                        {activeTab === 'ssh' && (
-                            <div className="space-y-4">
-                                <WarningPanel warnings={sshWarnings} />
-
-                                {sshSummary && (
-                                    <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
-                                        <StatCard icon={<Terminal size={18} />} label="Total entradas" value={sshSummary.total} />
-                                        <StatCard icon={<Lock size={18} />} label="Exitosos" value={sshSummary.accepted} color="text-green-400" />
-                                        <StatCard icon={<AlertTriangle size={18} />} label="Fallidos" value={sshSummary.failed} color="text-red-400" />
-                                        <StatCard icon={<Ban size={18} />} label="IPs atacantes" value={sshSummary.uniqueAttackerIPs} color="text-amber-400" />
-                                        <StatCard icon={<Globe size={18} />} label="Top source" value={sshSummary.topSourceIPs[0]?.ip || 'N/A'} sub={sshSummary.topSourceIPs[0] ? `${sshSummary.topSourceIPs[0].count} eventos` : 'Sin dato'} color="text-cyan-400" />
-                                    </div>
-                                )}
-
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-4">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        {(['all', 'failed', 'accepted'] as const).map((filterValue) => (
-                                            <button
-                                                key={filterValue}
-                                                onClick={() => setSSHFilter(filterValue)}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sshFilter === filterValue ? 'bg-accent-1/10 text-accent-1 border border-accent-1/20' : 'text-neutral-400 hover:text-white hover:bg-white/5'}`}
-                                            >
-                                                {filterValue === 'all' ? 'Todos' : filterValue === 'failed' ? 'Fallidos' : 'Exitosos'}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_auto] gap-3">
-                                        <label className="flex items-center gap-2 bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2 text-sm text-neutral-300">
-                                            <Search size={14} className="text-neutral-500" />
-                                            <input
-                                                value={sshSearch}
-                                                onChange={(event) => setSSHSearch(event.target.value)}
-                                                placeholder="Buscar IP, usuario, país o método"
-                                                className="bg-transparent outline-none w-full placeholder:text-neutral-600"
-                                            />
-                                        </label>
-
-                                        <select
-                                            value={sshSort}
-                                            onChange={(event) => setSSHSort(event.target.value as typeof sshSort)}
-                                            className="bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2 text-sm text-neutral-300 outline-none"
-                                        >
-                                            <option value="recent">Más recientes</option>
-                                            <option value="oldest">Más antiguos</option>
-                                            <option value="severity">Priorizar fallidos</option>
-                                            <option value="source">Ordenar por IP</option>
-                                            <option value="user">Ordenar por usuario</option>
-                                        </select>
-
-                                        <select
-                                            value={sshPageSize}
-                                            onChange={(event) => setSSHPageSize(Number(event.target.value))}
-                                            className="bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2 text-sm text-neutral-300 outline-none"
-                                        >
-                                            <option value={10}>10 / página</option>
-                                            <option value={25}>25 / página</option>
-                                            <option value={50}>50 / página</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {(sshSummary?.bruteForceIPs?.length || sshSummary?.topSourceIPs?.length) ? (
-                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                        <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
-                                            <h4 className="text-sm font-semibold text-red-400 mb-3 flex items-center gap-2"><AlertTriangle size={14} /> Fuerza bruta detectada</h4>
-                                            {sshSummary?.bruteForceIPs && sshSummary.bruteForceIPs.length > 0 ? (
-                                                <div className="space-y-2">
-                                                    {sshSummary.bruteForceIPs.slice(0, 8).map((entry) => (
-                                                        <div key={entry.ip} className="flex items-center justify-between gap-3 text-xs">
-                                                            <div>
-                                                                <p className="text-neutral-300 font-mono">{entry.geo?.flag || ''} {entry.ip}</p>
-                                                                <p className="text-neutral-500">{entry.geo?.country || 'Ubicación no disponible'}</p>
-                                                            </div>
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-red-400">{entry.count} intentos</span>
-                                                                <button onClick={() => handleBlockIP(entry.ip)} className="text-xs text-red-400 hover:text-red-300 underline">Bloquear</button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-sm text-neutral-500">No se detectaron patrones claros de fuerza bruta en la muestra actual.</p>
-                                            )}
-                                        </div>
-
-                                        <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4">
-                                            <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><Globe size={14} className="text-cyan-400" /> Principales IPs origen</h4>
-                                            {sshSummary?.topSourceIPs && sshSummary.topSourceIPs.length > 0 ? (
-                                                <div className="space-y-2">
-                                                    {sshSummary.topSourceIPs.slice(0, 8).map((entry) => (
-                                                        <div key={entry.ip} className="flex items-center justify-between gap-3 rounded-xl bg-[#0d1117] px-3 py-2 text-xs">
-                                                            <div>
-                                                                <p className="text-neutral-300 font-mono">{entry.flag} {entry.ip}</p>
-                                                                <p className="text-neutral-500">{entry.country}</p>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className="text-white font-medium">{entry.count} eventos</p>
-                                                                <p className="text-neutral-500">OK {entry.successCount} · FAIL {entry.failureCount}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-sm text-neutral-500">Sin suficientes datos para ranking de fuentes.</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                ) : null}
-
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-xs min-w-[860px]">
-                                            <thead>
-                                                <tr className="bg-white/[0.03] text-neutral-500">
-                                                    <th className="text-left p-3">Hora</th>
-                                                    <th className="text-left p-3">Usuario</th>
-                                                    <th className="text-left p-3">IP</th>
-                                                    <th className="text-left p-3">Ubicación</th>
-                                                    <th className="text-left p-3">Método</th>
-                                                    <th className="text-left p-3">Detalle</th>
-                                                    <th className="text-left p-3">Estado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {paginatedSSHLogs.map((entry, index) => (
-                                                    <tr key={`${entry.timestamp}-${entry.ip}-${index}`} className={`border-t border-white/5 ${!entry.success ? 'bg-red-500/[0.02]' : ''}`}>
-                                                        <td className="p-3 text-neutral-400 font-mono whitespace-nowrap">{entry.timestamp}</td>
-                                                        <td className="p-3 text-white font-medium">{entry.user}</td>
-                                                        <td className="p-3 text-neutral-300 font-mono">{entry.ip}{entry.port ? `:${entry.port}` : ''}</td>
-                                                        <td className="p-3 text-neutral-300">{entry.flag} {entry.city || entry.country || entry.countryCode}</td>
-                                                        <td className="p-3 text-neutral-400">{entry.method}</td>
-                                                        <td className="p-3 text-neutral-500 max-w-[280px] truncate" title={entry.raw}>{entry.raw}</td>
-                                                        <td className="p-3">
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${entry.success ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                                                                {entry.success ? 'OK' : 'FAIL'}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    {filteredSSHLogs.length === 0 && !loading && <p className="text-center py-8 text-neutral-500">Sin entradas SSH para el filtro actual</p>}
-                                </div>
-
-                                <PaginationControls page={sshPage} totalPages={totalSSHPages} onPageChange={setSSHPage} />
-                            </div>
-                        )}
-
-                        {/* Firewall Tab */}
-                        {activeTab === 'firewall' && firewall && (
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3">
-                                    <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${firewall.ufw.active ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                        UFW: {firewall.ufw.active ? 'Activo' : 'Inactivo'}
-                                    </span>
-                                </div>
-
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                    <h3 className="text-base font-semibold text-white mb-4">Reglas UFW ({firewall.ufw.rules.length})</h3>
-                                    <table className="w-full text-xs">
-                                        <thead><tr className="text-neutral-500"><th className="text-left pb-2">To</th><th className="text-left pb-2">Acción</th><th className="text-left pb-2">From</th></tr></thead>
-                                        <tbody>
-                                            {firewall.ufw.rules.map((r, i) => (
-                                                <tr key={i} className="border-t border-white/5">
-                                                    <td className="py-2 text-neutral-300 font-mono">{r.to}</td>
-                                                    <td className="py-2"><span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${r.action.includes('ALLOW') ? 'bg-green-500/10 text-green-400' : r.action.includes('DENY') ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{r.action}</span></td>
-                                                    <td className="py-2 text-neutral-400">{r.from}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {firewall.fail2ban.jails.map(jail => (
-                                    <div key={jail.name} className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                        <h3 className="text-base font-semibold text-white mb-2 flex items-center gap-2"><Shield size={16} className="text-red-400" /> Fail2Ban: {jail.name}</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                            <div className="text-center p-2 bg-white/[0.02] rounded-xl"><p className="text-lg font-bold text-red-400">{jail.currentlyBanned}</p><p className="text-[10px] text-neutral-500">Banned ahora</p></div>
-                                            <div className="text-center p-2 bg-white/[0.02] rounded-xl"><p className="text-lg font-bold text-amber-400">{jail.totalBanned}</p><p className="text-[10px] text-neutral-500">Total banned</p></div>
-                                            <div className="text-center p-2 bg-white/[0.02] rounded-xl"><p className="text-lg font-bold text-orange-400">{jail.currentlyFailed}</p><p className="text-[10px] text-neutral-500">Fallidos ahora</p></div>
-                                            <div className="text-center p-2 bg-white/[0.02] rounded-xl"><p className="text-lg font-bold text-neutral-300">{jail.totalFailed}</p><p className="text-[10px] text-neutral-500">Total fallidos</p></div>
-                                        </div>
-                                        {jail.bannedIPsEnriched.length > 0 && (
-                                            <div className="space-y-1">
-                                                <p className="text-xs text-neutral-500 mb-2">IPs bloqueadas:</p>
-                                                {jail.bannedIPsEnriched.map((b, i) => (
-                                                    <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-white/5">
-                                                        <span className="font-mono text-neutral-300">{b.geo.flag} {b.ip}</span>
-                                                        <span className="text-neutral-500">{b.geo.country}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                        <div className="space-y-3">
+                            <div role="group" aria-label="Mostrar" className="flex flex-wrap gap-1">
+                                {(['all', 'failed', 'accepted'] as const).map((filterValue) => (
+                                    <button
+                                        type="button"
+                                        key={filterValue}
+                                        onClick={() => setSSHFilter(filterValue)}
+                                        aria-pressed={sshFilter === filterValue}
+                                        className={`min-h-10 max-sm:min-h-11 rounded-lg px-3 text-sm font-medium transition-colors duration-150 motion-reduce:transition-none ${FOCO} ${sshFilter === filterValue ? 'bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--txt)]' : 'text-[var(--mut)] hover:text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]'}`}
+                                    >
+                                        {filterValue === 'all' ? 'Todos' : filterValue === 'failed' ? 'Fallidos' : 'Aceptados'}
+                                    </button>
                                 ))}
-
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                    <h3 className="text-base font-semibold text-white mb-4">Bloquear IP manualmente</h3>
-                                    <form onSubmit={(e) => { e.preventDefault(); const ip = (e.currentTarget.elements.namedItem('ip') as HTMLInputElement).value; handleBlockIP(ip) }} className="flex gap-3">
-                                        <input name="ip" placeholder="Ej: 192.168.1.100" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder:text-neutral-600 outline-none focus:border-accent-1/30" />
-                                        <button type="submit" className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm hover:bg-red-500/20 transition-colors">Bloquear</button>
-                                    </form>
-                                </div>
                             </div>
-                        )}
 
-                        {/* Sessions Tab */}
-                        {activeTab === 'sessions' && sessions && (
-                            <div className="space-y-6">
-                                <WarningPanel warnings={sessions.warnings} />
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+                                <label className="relative block">
+                                    <span className="sr-only">Buscar en los registros SSH</span>
+                                    <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" />
+                                    <input
+                                        type="search"
+                                        value={sshSearch}
+                                        onChange={(event) => setSSHSearch(event.target.value)}
+                                        placeholder="Buscar IP, usuario, país o método"
+                                        className={`${CAMPO} w-full pl-9`}
+                                    />
+                                </label>
 
-                                <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
-                                    <StatCard icon={<Activity size={18} />} label="Activas" value={sessions.summary.activeCount} color="text-green-400" />
-                                    <StatCard icon={<Clock size={18} />} label="Histórico" value={sessions.summary.historyCount} />
-                                    <StatCard icon={<AlertTriangle size={18} />} label="Fallidas" value={sessions.summary.failedCount} color="text-red-400" />
-                                    <StatCard icon={<Users size={18} />} label="Usuarios activos" value={sessions.summary.activeUsers} color="text-cyan-400" />
-                                    <StatCard icon={<Globe size={18} />} label="Orígenes únicos" value={sessions.summary.uniqueSourceIPs} color="text-amber-400" />
-                                </div>
+                                <label className="block">
+                                    <span className="sr-only">Orden</span>
+                                    <select
+                                        value={sshSort}
+                                        onChange={(event) => setSSHSort(event.target.value as typeof sshSort)}
+                                        className={`${CAMPO} w-full`}
+                                    >
+                                        <option value="recent">Más recientes</option>
+                                        <option value="oldest">Más antiguos</option>
+                                        <option value="severity">Fallidos primero</option>
+                                        <option value="source">Por IP</option>
+                                        <option value="user">Por usuario</option>
+                                    </select>
+                                </label>
 
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                    <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2"><Activity size={16} className="text-green-400" /> Sesiones activas ({sessions.active.length})</h3>
-                                    {sessions.active.length === 0 ? <p className="text-sm text-neutral-500">Sin sesiones activas</p> : (
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-xs min-w-[720px]">
-                                                <thead><tr className="text-neutral-500"><th className="text-left pb-2">Usuario</th><th className="text-left pb-2">Terminal</th><th className="text-left pb-2">Desde</th><th className="text-left pb-2">Login</th><th className="text-left pb-2">Idle</th><th className="text-left pb-2">Proceso</th></tr></thead>
-                                                <tbody>
-                                                    {sessions.active.map((entry, index) => (
-                                                        <tr key={`${entry.user}-${entry.terminal}-${index}`} className="border-t border-white/5">
-                                                            <td className="py-2 text-white font-medium">{entry.user}</td>
-                                                            <td className="py-2 text-neutral-400 font-mono">{entry.terminal}</td>
-                                                            <td className="py-2 text-neutral-300">{entry.geo?.flag || ''} {entry.from}</td>
-                                                            <td className="py-2 text-neutral-400">{entry.loginTime}</td>
-                                                            <td className="py-2 text-neutral-500">{entry.idle || '-'}</td>
-                                                            <td className="py-2 text-neutral-500 font-mono">{entry.what || '-'}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                <label className="block">
+                                    <span className="sr-only">Filas por página</span>
+                                    <select
+                                        value={sshPageSize}
+                                        onChange={(event) => setSSHPageSize(Number(event.target.value))}
+                                        className={`${CAMPO} w-full`}
+                                    >
+                                        <option value={10}>10 por página</option>
+                                        <option value={25}>25 por página</option>
+                                        <option value={50}>50 por página</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+
+                        {(sshSummary?.bruteForceIPs?.length || sshSummary?.topSourceIPs?.length) ? (
+                            <div className="grid grid-cols-1 gap-10 xl:grid-cols-2">
+                                <section aria-labelledby="srv-fuerza" className="space-y-3">
+                                    <h3 id="srv-fuerza" className={TITULO}><AlertTriangle size={16} aria-hidden="true" className="text-red-400" /> Fuerza bruta detectada</h3>
+                                    {sshSummary?.bruteForceIPs && sshSummary.bruteForceIPs.length > 0 ? (
+                                        <ul className="border-t border-[var(--linea)]">
+                                            {sshSummary.bruteForceIPs.slice(0, 8).map((entry) => (
+                                                <li key={entry.ip} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2 text-sm">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate font-mono text-[var(--txt)]">{entry.geo?.flag || ''} {entry.ip}</p>
+                                                        <p className="text-xs text-[var(--mut)]">{entry.geo?.country || 'Ubicación no disponible'}</p>
+                                                    </div>
+                                                    <div className="flex shrink-0 items-center gap-3">
+                                                        <span className="text-red-400 tabular-nums">{entry.count} intentos</span>
+                                                        <button type="button" onClick={() => handleBlockIP(entry.ip)} className={BOTON_PELIGRO}>
+                                                            Bloquear<span className="sr-only"> {entry.ip}</span>
+                                                        </button>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="border-t border-[var(--linea)] py-3 text-sm text-[var(--mut)]">No se ven patrones claros de fuerza bruta en esta muestra.</p>
                                     )}
-                                </div>
+                                </section>
 
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-4">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        {(['history', 'failed'] as const).map((view) => (
-                                            <button
-                                                key={view}
-                                                onClick={() => setSessionView(view)}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sessionView === view ? 'bg-accent-1/10 text-accent-1 border border-accent-1/20' : 'text-neutral-400 hover:text-white hover:bg-white/5'}`}
-                                            >
-                                                {view === 'history' ? 'Historial de login' : 'Intentos fallidos'}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_auto] gap-3">
-                                        <label className="flex items-center gap-2 bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2 text-sm text-neutral-300">
-                                            <Search size={14} className="text-neutral-500" />
-                                            <input
-                                                value={sessionSearch}
-                                                onChange={(event) => setSessionSearch(event.target.value)}
-                                                placeholder="Buscar usuario, IP, terminal, país"
-                                                className="bg-transparent outline-none w-full placeholder:text-neutral-600"
-                                            />
-                                        </label>
-
-                                        <select
-                                            value={sessionSort}
-                                            onChange={(event) => setSessionSort(event.target.value as typeof sessionSort)}
-                                            className="bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2 text-sm text-neutral-300 outline-none"
-                                        >
-                                            <option value="recent">Más recientes</option>
-                                            <option value="oldest">Más antiguos</option>
-                                            <option value="user">Ordenar por usuario</option>
-                                            <option value="source">Ordenar por origen</option>
-                                        </select>
-
-                                        <select
-                                            value={sessionPageSize}
-                                            onChange={(event) => setSessionPageSize(Number(event.target.value))}
-                                            className="bg-[#0d1117] border border-white/10 rounded-xl px-3 py-2 text-sm text-neutral-300 outline-none"
-                                        >
-                                            <option value={10}>10 / página</option>
-                                            <option value={15}>15 / página</option>
-                                            <option value={30}>30 / página</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-xs min-w-[880px]">
-                                            <thead>
-                                                <tr className="bg-white/[0.03] text-neutral-500">
-                                                    <th className="text-left p-3">Usuario</th>
-                                                    <th className="text-left p-3">Origen</th>
-                                                    <th className="text-left p-3">Terminal</th>
-                                                    <th className="text-left p-3">Login</th>
-                                                    <th className="text-left p-3">Logout</th>
-                                                    <th className="text-left p-3">Duración</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {paginatedSessionEntries.map((entry, index) => (
-                                                    <tr key={`${entry.user}-${entry.from}-${entry.loginTime}-${index}`} className={`border-t border-white/5 ${sessionView === 'failed' ? 'bg-red-500/[0.02]' : ''}`}>
-                                                        <td className="p-3 text-white font-medium">{entry.user}</td>
-                                                        <td className="p-3 text-neutral-300">{entry.geo?.flag || ''} {entry.from}<div className="text-[11px] text-neutral-600 mt-1">{entry.geo?.city || entry.geo?.country || 'Sin geolocalización'}</div></td>
-                                                        <td className="p-3 text-neutral-400 font-mono">{entry.terminal}</td>
-                                                        <td className="p-3 text-neutral-400 whitespace-nowrap">{entry.loginTime}</td>
-                                                        <td className="p-3 text-neutral-500 whitespace-nowrap">{entry.logoutTime || (sessionView === 'failed' ? 'Intento rechazado' : '-')}</td>
-                                                        <td className="p-3 text-neutral-500">{entry.duration || '-'}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    {filteredSessionEntries.length === 0 && !loading && <p className="text-center py-8 text-neutral-500">Sin resultados para la vista actual</p>}
-                                </div>
-
-                                <PaginationControls page={sessionPage} totalPages={totalSessionPages} onPageChange={setSessionPage} />
+                                <section aria-labelledby="srv-origenes" className="space-y-3">
+                                    <h3 id="srv-origenes" className={TITULO}><Globe size={16} aria-hidden="true" /> IP de origen más frecuentes</h3>
+                                    {sshSummary?.topSourceIPs && sshSummary.topSourceIPs.length > 0 ? (
+                                        <ul className="border-t border-[var(--linea)]">
+                                            {sshSummary.topSourceIPs.slice(0, 8).map((entry) => (
+                                                <li key={entry.ip} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2 text-sm">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate font-mono text-[var(--txt)]">{entry.flag} {entry.ip}</p>
+                                                        <p className="text-xs text-[var(--mut)]">{entry.country}</p>
+                                                    </div>
+                                                    <div className="shrink-0 text-right">
+                                                        <p className="font-medium tabular-nums text-[var(--txt)]">{entry.count} eventos</p>
+                                                        <p className="text-xs text-[var(--mut)] tabular-nums">{entry.successCount} aceptados · {entry.failureCount} fallidos</p>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="border-t border-[var(--linea)] py-3 text-sm text-[var(--mut)]">Aún no hay datos suficientes para ordenar los orígenes.</p>
+                                    )}
+                                </section>
                             </div>
-                        )}
+                        ) : null}
 
-                        {/* Users Tab */}
-                        {activeTab === 'users' && (
-                            <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                <h3 className="text-base font-semibold text-white mb-4">Usuarios del sistema ({vpsUsers.length})</h3>
-                                <table className="w-full text-xs">
-                                    <thead><tr className="text-neutral-500"><th className="text-left pb-2">Usuario</th><th className="text-left pb-2">UID</th><th className="text-left pb-2">Home</th><th className="text-left pb-2">Shell</th><th className="text-left pb-2">Sudo</th></tr></thead>
+                        <div className={`${TARJETA} overflow-hidden`}>
+                            <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Registros SSH">
+                                <table className="w-full min-w-[860px] text-sm">
+                                    <thead>
+                                        <tr className="border-b border-[var(--linea)]">
+                                            <th scope="col" className={TH}>Hora</th>
+                                            <th scope="col" className={TH}>Usuario</th>
+                                            <th scope="col" className={TH}>IP</th>
+                                            <th scope="col" className={TH}>Ubicación</th>
+                                            <th scope="col" className={TH}>Método</th>
+                                            <th scope="col" className={TH}>Detalle</th>
+                                            <th scope="col" className={TH}>Estado</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        {vpsUsers.map((u, i) => (
-                                            <tr key={i} className="border-t border-white/5">
-                                                <td className="py-2 text-white font-medium">{u.username}</td>
-                                                <td className="py-2 text-neutral-400 font-mono">{u.uid}</td>
-                                                <td className="py-2 text-neutral-300 font-mono text-[10px]">{u.home}</td>
-                                                <td className="py-2 text-neutral-400 font-mono text-[10px]">{u.shell}</td>
-                                                <td className="py-2">{u.isSudo && <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/10 text-amber-400 font-semibold">SUDO</span>}</td>
+                                        {paginatedSSHLogs.map((entry, index) => (
+                                            <tr key={`${entry.timestamp}-${entry.ip}-${index}`} className={`${FILA} ${!entry.success ? 'bg-red-500/[0.04]' : ''}`}>
+                                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-[var(--mut)]">{entry.timestamp}</td>
+                                                <td className="px-3 py-2.5 font-medium text-[var(--txt)]">{entry.user}</td>
+                                                <td className="px-3 py-2.5 font-mono text-xs text-[var(--txt)]">{entry.ip}{entry.port ? `:${entry.port}` : ''}</td>
+                                                <td className="px-3 py-2.5 text-[var(--txt)]">{entry.flag} {entry.city || entry.country || entry.countryCode}</td>
+                                                <td className="px-3 py-2.5 text-[var(--mut)]">{entry.method}</td>
+                                                <td className="max-w-[280px] truncate px-3 py-2.5 text-xs text-[var(--mut)]" title={entry.raw}>{entry.raw}</td>
+                                                <td className="px-3 py-2.5">
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${entry.success ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {entry.success ? 'Aceptado' : 'Fallido'}
+                                                    </span>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                        )}
 
-                        {/* Files Tab */}
-                        {activeTab === 'files' && (
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 bg-white/[0.02] border border-white/10 rounded-xl px-4 py-2">
-                                    <Folder size={16} className="text-accent-1 shrink-0" />
-                                    <span className="text-sm text-neutral-300 font-mono truncate">{filePath}</span>
-                                    {filePath !== '/home/teguihd' && (
-                                        <button onClick={() => navigateToDir('..')} className="ml-auto p-1 rounded hover:bg-white/5 text-neutral-400 hover:text-white"><ArrowLeft size={14} /></button>
-                                    )}
-                                </div>
+                            {filteredSSHLogs.length === 0 && !loading && <p className="py-8 text-center text-sm text-[var(--mut)]">No hay entradas SSH con este filtro.</p>}
+                        </div>
 
-                                {fileContent !== null ? (
-                                    <div className="space-y-3">
-                                        <button onClick={() => setFileContent(null)} className="flex items-center gap-2 text-xs text-accent-1 hover:underline"><ArrowLeft size={12} /> Volver al directorio</button>
-                                        <pre className="bg-[#0d1117] border border-white/10 rounded-2xl p-4 text-xs text-neutral-300 overflow-x-auto max-h-[60vh] font-mono whitespace-pre-wrap">{fileContent}</pre>
-                                    </div>
-                                ) : (
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-hidden">
-                                        <table className="w-full text-xs">
-                                            <thead><tr className="bg-white/[0.03] text-neutral-500"><th className="text-left p-3">Nombre</th><th className="text-left p-3">Permisos</th><th className="text-right p-3">Tamaño</th><th className="text-left p-3">Dueño</th></tr></thead>
-                                            <tbody>
-                                                {files.map((f, i) => (
-                                                    <tr key={i} className="border-t border-white/5 hover:bg-white/[0.02] cursor-pointer" onClick={() => f.isDirectory ? navigateToDir(f.name) : readFile(f.name)}>
-                                                        <td className="p-3 flex items-center gap-2">
-                                                            {f.isDirectory ? <Folder size={14} className="text-accent-1" /> : <File size={14} className="text-neutral-500" />}
-                                                            <span className={`${f.isDirectory ? 'text-accent-1 font-medium' : 'text-neutral-300'}`}>{f.name}{f.isDirectory ? '/' : ''}</span>
-                                                        </td>
-                                                        <td className="p-3 text-neutral-500 font-mono">{f.permissions}</td>
-                                                        <td className="p-3 text-right text-neutral-400 font-mono">{f.isDirectory ? '-' : formatBytes(f.size)}</td>
-                                                        <td className="p-3 text-neutral-500">{f.owner}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                        {files.length === 0 && !loading && <p className="text-center py-8 text-neutral-500">Directorio vacío o sin acceso</p>}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                        <PaginationControls page={sshPage} totalPages={totalSSHPages} onPageChange={setSSHPage} />
+                    </div>
+                )}
 
-                        {/* Domains/SSL Tab */}
-                        {activeTab === 'domains' && domains && (
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {domains.certificates.map((cert, i) => (
-                                        <div key={i} className={`bg-white/[0.02] border rounded-2xl p-5 ${cert.daysUntilExpiry <= 7 ? 'border-red-500/30' : cert.daysUntilExpiry <= 30 ? 'border-amber-500/30' : 'border-white/10'}`}>
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <Globe size={16} className={cert.valid ? 'text-green-400' : 'text-red-400'} />
-                                                <span className="text-sm font-semibold text-white truncate">{cert.domain}</span>
-                                            </div>
-                                            <div className="space-y-2 text-xs">
-                                                <div className="flex justify-between"><span className="text-neutral-500">Estado</span><span className={cert.valid ? 'text-green-400' : 'text-red-400'}>{cert.valid ? 'Válido' : 'Expirado'}</span></div>
-                                                <div className="flex justify-between"><span className="text-neutral-500">Expira en</span><span className={`font-semibold ${cert.daysUntilExpiry <= 7 ? 'text-red-400' : cert.daysUntilExpiry <= 30 ? 'text-amber-400' : 'text-green-400'}`}>{cert.daysUntilExpiry} días</span></div>
-                                                <div className="flex justify-between"><span className="text-neutral-500">Emisor</span><span className="text-neutral-300">{cert.issuer}</span></div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                {/* Cortafuegos */}
+                {activeTab === 'firewall' && firewall && (
+                    <div className="space-y-8">
+                        <p className="text-sm text-[var(--mut)]">
+                            Cortafuegos UFW:{' '}
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${firewall.ufw.active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                {firewall.ufw.active ? 'Activo' : 'Inactivo'}
+                            </span>
+                        </p>
 
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                    <h3 className="text-base font-semibold text-white mb-4">Sitios Nginx</h3>
-                                    <div className="space-y-2">
-                                        {domains.sites.map((s, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-xs py-1">
-                                                <ChevronRight size={12} className="text-accent-1" />
-                                                <span className="text-white">{s.name}</span>
-                                                {s.isSymlink && <span className="text-neutral-600">→ {s.target}</span>}
-                                            </div>
+                        <section aria-labelledby="srv-reglas" className="space-y-3">
+                            <h3 id="srv-reglas" className={TITULO}>Reglas UFW <small className="font-mono text-xs font-medium">{firewall.ufw.rules.length}</small></h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-[var(--linea)]">
+                                            <th scope="col" className={TH}>Destino</th>
+                                            <th scope="col" className={TH}>Acción</th>
+                                            <th scope="col" className={TH}>Origen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {firewall.ufw.rules.map((r, i) => (
+                                            <tr key={i} className={FILA}>
+                                                <td className="px-3 py-2.5 font-mono text-xs text-[var(--txt)]">{r.to}</td>
+                                                <td className="px-3 py-2.5">
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${r.action.includes('ALLOW') ? 'bg-emerald-500/10 text-emerald-400' : r.action.includes('DENY') ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{r.action}</span>
+                                                </td>
+                                                <td className="px-3 py-2.5 text-[var(--mut)]">{r.from}</td>
+                                            </tr>
                                         ))}
-                                    </div>
-                                </div>
+                                    </tbody>
+                                </table>
                             </div>
-                        )}
+                        </section>
 
-                        {/* Changes Tab */}
-                        {activeTab === 'changes' && changes && (
-                            <div className="space-y-6">
-                                {changes.gitStatus && (
-                                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
-                                        <h4 className="text-sm font-semibold text-amber-400 mb-2">Cambios sin commit</h4>
-                                        <pre className="text-xs text-neutral-400 font-mono whitespace-pre-wrap">{changes.gitStatus}</pre>
-                                    </div>
-                                )}
-
-                                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                    <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2"><GitBranch size={16} className="text-purple-400" /> Commits recientes</h3>
-                                    <div className="space-y-0 relative">
-                                        <div className="absolute left-[7px] top-3 bottom-3 w-px bg-white/10" />
-                                        {changes.commits.slice(0, 30).map((c, i) => (
-                                            <div key={i} className="flex gap-4 py-2 pl-0 relative">
-                                                <div className="w-[15px] h-[15px] rounded-full bg-white/10 border-2 border-white/20 z-10 shrink-0 mt-1" />
-                                                <div className="min-w-0">
-                                                    <p className="text-sm text-white truncate">{c.message}</p>
-                                                    <p className="text-[10px] text-neutral-600">{c.author} · {c.date}</p>
-                                                    <span className="text-[10px] font-mono text-neutral-500">{c.hash.substring(0, 8)}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {changes.recentFiles.length > 0 && (
-                                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
-                                        <h3 className="text-base font-semibold text-white mb-4">Archivos modificados (últimas 24h)</h3>
-                                        <div className="space-y-1 max-h-60 overflow-y-auto">
-                                            {changes.recentFiles.map((f, i) => (
-                                                <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-white/5">
-                                                    <span className="text-neutral-300 font-mono truncate max-w-[400px]">{f.path}</span>
-                                                    <div className="flex gap-3 shrink-0">
-                                                        <span className="text-neutral-500">{formatBytes(f.size)}</span>
-                                                        <span className="text-neutral-600">{timeAgo(f.modifiedAt)}</span>
-                                                    </div>
-                                                </div>
+                        {firewall.fail2ban.jails.map(jail => (
+                            <section key={jail.name} aria-labelledby={`srv-jail-${jail.name}`} className="space-y-3">
+                                <h3 id={`srv-jail-${jail.name}`} className={TITULO}><Shield size={16} aria-hidden="true" /> Fail2Ban: {jail.name}</h3>
+                                <Cifras items={[
+                                    { label: 'Bloqueadas ahora', value: jail.currentlyBanned, tono: 'text-red-400' },
+                                    { label: 'Total bloqueadas', value: jail.totalBanned, tono: 'text-amber-400' },
+                                    { label: 'Fallidos ahora', value: jail.currentlyFailed },
+                                    { label: 'Total fallidos', value: jail.totalFailed },
+                                ]} />
+                                {jail.bannedIPsEnriched.length > 0 && (
+                                    <div>
+                                        <p className="mb-1 text-sm text-[var(--mut)]">IP bloqueadas</p>
+                                        <ul className="border-t border-[var(--linea)]">
+                                            {jail.bannedIPsEnriched.map((b, i) => (
+                                                <li key={i} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2 text-sm">
+                                                    <span className="font-mono text-[var(--txt)]">{b.geo.flag} {b.ip}</span>
+                                                    <span className="text-[var(--mut)]">{b.geo.country}</span>
+                                                </li>
                                             ))}
-                                        </div>
+                                        </ul>
                                     </div>
                                 )}
+                            </section>
+                        ))}
+
+                        <section aria-labelledby="srv-bloquear" className={`${TARJETA} space-y-3 p-4 sm:p-5`}>
+                            <h3 id="srv-bloquear" className="text-base font-semibold text-[var(--txt)]">Bloquear una IP a mano</h3>
+                            <form onSubmit={(e) => { e.preventDefault(); const ip = (e.currentTarget.elements.namedItem('ip') as HTMLInputElement).value; handleBlockIP(ip) }} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                <label className="block flex-1 space-y-1.5">
+                                    <span className="text-sm font-medium text-[var(--txt)]">Dirección IP</span>
+                                    <input name="ip" placeholder="Ej.: 192.168.1.100" autoComplete="off" spellCheck={false} className={`${CAMPO} w-full font-mono`} />
+                                </label>
+                                <button type="submit" className={BOTON_PELIGRO}>Bloquear</button>
+                            </form>
+                        </section>
+                    </div>
+                )}
+
+                {/* Sesiones */}
+                {activeTab === 'sessions' && sessions && (
+                    <div className="space-y-8">
+                        <WarningPanel warnings={sessions.warnings} />
+
+                        <Cifras items={[
+                            { label: 'Activas', value: sessions.summary.activeCount, tono: 'text-emerald-400' },
+                            { label: 'Historial', value: sessions.summary.historyCount },
+                            { label: 'Fallidas', value: sessions.summary.failedCount, tono: 'text-red-400' },
+                            { label: 'Usuarios activos', value: sessions.summary.activeUsers },
+                            { label: 'Orígenes únicos', value: sessions.summary.uniqueSourceIPs },
+                        ]} />
+
+                        <section aria-labelledby="srv-activas" className="space-y-3">
+                            <h3 id="srv-activas" className={TITULO}>Sesiones activas <small className="font-mono text-xs font-medium">{sessions.active.length}</small></h3>
+                            {sessions.active.length === 0 ? <p className="border-t border-[var(--linea)] py-3 text-sm text-[var(--mut)]">No hay sesiones activas.</p> : (
+                                <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Sesiones activas">
+                                    <table className="w-full min-w-[720px] text-sm">
+                                        <thead>
+                                            <tr className="border-b border-[var(--linea)]">
+                                                <th scope="col" className={TH}>Usuario</th>
+                                                <th scope="col" className={TH}>Terminal</th>
+                                                <th scope="col" className={TH}>Desde</th>
+                                                <th scope="col" className={TH}>Entrada</th>
+                                                <th scope="col" className={TH}>Inactiva</th>
+                                                <th scope="col" className={TH}>Proceso</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {sessions.active.map((entry, index) => (
+                                                <tr key={`${entry.user}-${entry.terminal}-${index}`} className={FILA}>
+                                                    <td className="px-3 py-2.5 font-medium text-[var(--txt)]">{entry.user}</td>
+                                                    <td className="px-3 py-2.5 font-mono text-xs text-[var(--mut)]">{entry.terminal}</td>
+                                                    <td className="px-3 py-2.5 text-[var(--txt)]">{entry.geo?.flag || ''} {entry.from}</td>
+                                                    <td className="px-3 py-2.5 text-[var(--mut)]">{entry.loginTime}</td>
+                                                    <td className="px-3 py-2.5 text-[var(--mut)]">{entry.idle || '-'}</td>
+                                                    <td className="px-3 py-2.5 font-mono text-xs text-[var(--mut)]">{entry.what || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </section>
+
+                        <section aria-labelledby="srv-historial" className="space-y-3">
+                            <h3 id="srv-historial" className={TITULO}>Historial de ingresos</h3>
+                            <div role="group" aria-label="Mostrar" className="flex flex-wrap gap-1">
+                                {(['history', 'failed'] as const).map((view) => (
+                                    <button
+                                        type="button"
+                                        key={view}
+                                        onClick={() => setSessionView(view)}
+                                        aria-pressed={sessionView === view}
+                                        className={`min-h-10 max-sm:min-h-11 rounded-lg px-3 text-sm font-medium transition-colors duration-150 motion-reduce:transition-none ${FOCO} ${sessionView === view ? 'bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--txt)]' : 'text-[var(--mut)] hover:text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]'}`}
+                                    >
+                                        {view === 'history' ? 'Ingresos' : 'Intentos fallidos'}
+                                    </button>
+                                ))}
                             </div>
+
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+                                <label className="relative block">
+                                    <span className="sr-only">Buscar en el historial</span>
+                                    <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" />
+                                    <input
+                                        type="search"
+                                        value={sessionSearch}
+                                        onChange={(event) => setSessionSearch(event.target.value)}
+                                        placeholder="Buscar usuario, IP, terminal o país"
+                                        className={`${CAMPO} w-full pl-9`}
+                                    />
+                                </label>
+
+                                <label className="block">
+                                    <span className="sr-only">Orden</span>
+                                    <select
+                                        value={sessionSort}
+                                        onChange={(event) => setSessionSort(event.target.value as typeof sessionSort)}
+                                        className={`${CAMPO} w-full`}
+                                    >
+                                        <option value="recent">Más recientes</option>
+                                        <option value="oldest">Más antiguos</option>
+                                        <option value="user">Por usuario</option>
+                                        <option value="source">Por origen</option>
+                                    </select>
+                                </label>
+
+                                <label className="block">
+                                    <span className="sr-only">Filas por página</span>
+                                    <select
+                                        value={sessionPageSize}
+                                        onChange={(event) => setSessionPageSize(Number(event.target.value))}
+                                        className={`${CAMPO} w-full`}
+                                    >
+                                        <option value={10}>10 por página</option>
+                                        <option value={15}>15 por página</option>
+                                        <option value={30}>30 por página</option>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <div className={`${TARJETA} overflow-hidden`}>
+                                <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Historial de ingresos">
+                                    <table className="w-full min-w-[880px] text-sm">
+                                        <thead>
+                                            <tr className="border-b border-[var(--linea)]">
+                                                <th scope="col" className={TH}>Usuario</th>
+                                                <th scope="col" className={TH}>Origen</th>
+                                                <th scope="col" className={TH}>Terminal</th>
+                                                <th scope="col" className={TH}>Entrada</th>
+                                                <th scope="col" className={TH}>Salida</th>
+                                                <th scope="col" className={TH}>Duración</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedSessionEntries.map((entry, index) => (
+                                                <tr key={`${entry.user}-${entry.from}-${entry.loginTime}-${index}`} className={`${FILA} ${sessionView === 'failed' ? 'bg-red-500/[0.04]' : ''}`}>
+                                                    <td className="px-3 py-2.5 font-medium text-[var(--txt)]">{entry.user}</td>
+                                                    <td className="px-3 py-2.5 text-[var(--txt)]">
+                                                        {entry.geo?.flag || ''} {entry.from}
+                                                        <div className="mt-0.5 text-xs text-[var(--mut)]">{entry.geo?.city || entry.geo?.country || 'Sin ubicación'}</div>
+                                                    </td>
+                                                    <td className="px-3 py-2.5 font-mono text-xs text-[var(--mut)]">{entry.terminal}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2.5 text-[var(--mut)]">{entry.loginTime}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2.5 text-[var(--mut)]">{entry.logoutTime || (sessionView === 'failed' ? 'Intento rechazado' : '-')}</td>
+                                                    <td className="px-3 py-2.5 text-[var(--mut)]">{entry.duration || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {filteredSessionEntries.length === 0 && !loading && <p className="py-8 text-center text-sm text-[var(--mut)]">Sin resultados para esta vista.</p>}
+                            </div>
+
+                            <PaginationControls page={sessionPage} totalPages={totalSessionPages} onPageChange={setSessionPage} />
+                        </section>
+                    </div>
+                )}
+
+                {/* Usuarios del servidor */}
+                {activeTab === 'users' && (
+                    <section aria-labelledby="srv-usuarios" className="space-y-3">
+                        <h3 id="srv-usuarios" className={TITULO}>Usuarios del sistema <small className="font-mono text-xs font-medium">{vpsUsers.length}</small></h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-[var(--linea)]">
+                                        <th scope="col" className={TH}>Usuario</th>
+                                        <th scope="col" className={`${TH} text-right`}>UID</th>
+                                        <th scope="col" className={TH}>Carpeta personal</th>
+                                        <th scope="col" className={TH}>Shell</th>
+                                        <th scope="col" className={TH}>Sudo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {vpsUsers.map((u, i) => (
+                                        <tr key={i} className={FILA}>
+                                            <td className="px-3 py-2.5 font-medium text-[var(--txt)]">{u.username}</td>
+                                            <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--mut)]">{u.uid}</td>
+                                            <td className="px-3 py-2.5 font-mono text-xs text-[var(--txt)]">{u.home}</td>
+                                            <td className="px-3 py-2.5 font-mono text-xs text-[var(--mut)]">{u.shell}</td>
+                                            <td className="px-3 py-2.5">{u.isSudo && <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">sudo</span>}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                )}
+
+                {/* Archivos */}
+                {activeTab === 'files' && (
+                    <div className="space-y-4">
+                        <div className="flex min-h-11 items-center gap-2 rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] px-3">
+                            <Folder size={16} aria-hidden="true" className="shrink-0 text-[var(--acento)]" />
+                            <span className="min-w-0 truncate font-mono text-sm text-[var(--txt)]">{filePath}</span>
+                            {filePath !== '/home/teguihd' && (
+                                <button
+                                    type="button"
+                                    onClick={() => navigateToDir('..')}
+                                    aria-label="Subir un nivel"
+                                    className={`ml-auto grid size-9 shrink-0 place-items-center rounded-lg text-[var(--mut)] hover:text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] ${FOCO}`}
+                                >
+                                    <ArrowLeft size={16} aria-hidden="true" />
+                                </button>
+                            )}
+                        </div>
+
+                        {fileContent !== null ? (
+                            <div className="space-y-3">
+                                <button type="button" onClick={() => setFileContent(null)} className={BOTON_SECUNDARIO}>
+                                    <ArrowLeft size={16} aria-hidden="true" className="text-[var(--mut)]" /> Volver a la carpeta
+                                </button>
+                                <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl border border-[var(--linea)] bg-[var(--fondo-2)] p-4 font-mono text-xs text-[var(--txt)]">{fileContent}</pre>
+                            </div>
+                        ) : (
+                            <div className={`${TARJETA} overflow-hidden`}>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-[var(--linea)]">
+                                                <th scope="col" className={TH}>Nombre</th>
+                                                <th scope="col" className={TH}>Permisos</th>
+                                                <th scope="col" className={`${TH} text-right`}>Tamaño</th>
+                                                <th scope="col" className={TH}>Dueño</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {files.map((f, i) => (
+                                                <tr key={i} className={`${FILA} hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]`}>
+                                                    <td className="p-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => f.isDirectory ? navigateToDir(f.name) : readFile(f.name)}
+                                                            className={`flex min-h-10 w-full items-center gap-2 px-3 text-left ${FOCO} focus-visible:-outline-offset-2`}
+                                                        >
+                                                            {f.isDirectory ? <Folder size={16} aria-hidden="true" className="shrink-0 text-[var(--acento)]" /> : <File size={16} aria-hidden="true" className="shrink-0 text-[var(--mut)]" />}
+                                                            <span className={`break-all ${f.isDirectory ? 'font-medium text-[var(--txt)]' : 'text-[var(--txt)]'}`}>{f.name}{f.isDirectory ? '/' : ''}</span>
+                                                        </button>
+                                                    </td>
+                                                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-[var(--mut)]">{f.permissions}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-mono tabular-nums text-[var(--mut)]">{f.isDirectory ? '-' : formatBytes(f.size)}</td>
+                                                    <td className="px-3 py-2 text-[var(--mut)]">{f.owner}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {files.length === 0 && !loading && <p className="py-8 text-center text-sm text-[var(--mut)]">Carpeta vacía o sin acceso.</p>}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Dominios y SSL */}
+                {activeTab === 'domains' && domains && (
+                    <div className="space-y-8">
+                        <section aria-labelledby="srv-certificados" className="space-y-3">
+                            <h3 id="srv-certificados" className={TITULO}>Certificados</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-[var(--linea)]">
+                                            <th scope="col" className={TH}>Dominio</th>
+                                            <th scope="col" className={TH}>Estado</th>
+                                            <th scope="col" className={`${TH} text-right`}>Vence en</th>
+                                            <th scope="col" className={TH}>Emisor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {domains.certificates.map((cert, i) => (
+                                            <tr key={i} className={FILA}>
+                                                <td className="px-3 py-2.5 font-medium text-[var(--txt)]">{cert.domain}</td>
+                                                <td className="px-3 py-2.5">
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cert.valid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {cert.valid ? 'Válido' : 'Expirado'}
+                                                    </span>
+                                                </td>
+                                                <td className={`whitespace-nowrap px-3 py-2.5 text-right font-semibold tabular-nums ${cert.daysUntilExpiry <= 7 ? 'text-red-400' : cert.daysUntilExpiry <= 30 ? 'text-amber-400' : 'text-[var(--txt)]'}`}>
+                                                    {cert.daysUntilExpiry} días
+                                                </td>
+                                                <td className="px-3 py-2.5 text-[var(--mut)]">{cert.issuer}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section aria-labelledby="srv-sitios" className="space-y-3">
+                            <h3 id="srv-sitios" className={TITULO}>Sitios en Nginx</h3>
+                            <ul className="border-t border-[var(--linea)]">
+                                {domains.sites.map((s, i) => (
+                                    <li key={i} className="flex flex-wrap items-center gap-2 border-b border-[var(--linea)] py-2.5 text-sm">
+                                        <ChevronRight size={16} aria-hidden="true" className="text-[var(--mut)]" />
+                                        <span className="font-medium text-[var(--txt)]">{s.name}</span>
+                                        {s.isSymlink && <span className="break-all font-mono text-xs text-[var(--mut)]">→ {s.target}</span>}
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    </div>
+                )}
+
+                {/* Cambios */}
+                {activeTab === 'changes' && changes && (
+                    <div className="space-y-8">
+                        {changes.gitStatus && (
+                            <section aria-labelledby="srv-sin-confirmar" className="rounded-xl bg-amber-500/10 p-4">
+                                <h3 id="srv-sin-confirmar" className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-400">
+                                    <AlertTriangle size={16} aria-hidden="true" /> Cambios sin confirmar en git
+                                </h3>
+                                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-[var(--txt)]">{changes.gitStatus}</pre>
+                            </section>
                         )}
 
-                        {/* Loading state */}
-                        {loading && (
-                            <div className="flex flex-col items-center justify-center py-20">
-                                <Loader2 size={32} className="text-accent-1 animate-spin mb-4" />
-                                <p className="text-neutral-400">Cargando datos del VPS...</p>
-                            </div>
+                        <section aria-labelledby="srv-commits" className="space-y-3">
+                            <h3 id="srv-commits" className={TITULO}><GitBranch size={16} aria-hidden="true" /> Últimos commits</h3>
+                            <ol className="border-t border-[var(--linea)]">
+                                {changes.commits.slice(0, 30).map((c, i) => (
+                                    <li key={i} className="border-b border-[var(--linea)] py-2.5">
+                                        <p className="truncate text-sm text-[var(--txt)]" title={c.message}>{c.message}</p>
+                                        <p className="mt-0.5 text-xs text-[var(--mut)]">
+                                            {c.author} · {c.date} · <span className="font-mono">{c.hash.substring(0, 8)}</span>
+                                        </p>
+                                    </li>
+                                ))}
+                            </ol>
+                        </section>
+
+                        {changes.recentFiles.length > 0 && (
+                            <section aria-labelledby="srv-recientes" className="space-y-3">
+                                <h3 id="srv-recientes" className={TITULO}>Archivos modificados en las últimas 24 h</h3>
+                                <ul className="max-h-72 overflow-y-auto border-t border-[var(--linea)]">
+                                    {changes.recentFiles.map((f, i) => (
+                                        <li key={i} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2 text-sm">
+                                            <span className="min-w-0 truncate font-mono text-xs text-[var(--txt)]" title={f.path}>{f.path}</span>
+                                            <span className="flex shrink-0 gap-3 text-xs tabular-nums text-[var(--mut)]">
+                                                <span>{formatBytes(f.size)}</span>
+                                                <span>hace {timeAgo(f.modifiedAt)}</span>
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
                         )}
-                    </motion.div>
-                </AnimatePresence>
-            </main>
+                    </div>
+                )}
+
+                {/* Cargando */}
+                {loading && (
+                    <div role="status" className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-[var(--mut)]">
+                        <Loader2 size={24} aria-hidden="true" className="animate-spin text-[var(--acento)] motion-reduce:animate-none" />
+                        Cargando datos del servidor…
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

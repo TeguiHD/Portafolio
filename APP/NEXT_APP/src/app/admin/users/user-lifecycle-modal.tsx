@@ -1,21 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback, useId } from "react";
 import {
-    X,
     AlertTriangle,
-    Shield,
     Trash2,
     RotateCcw,
     Download,
     UserX,
     Clock,
     ShieldOff,
-    FileText,
-    Loader2
+    Loader2,
+    CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Dialogo, cls } from "./dialogo";
 
 interface UserLifecycleModalProps {
     isOpen: boolean;
@@ -50,23 +48,49 @@ interface UserDataSummary {
 type ActionType = "suspend" | "reactivate" | "request_deletion" | "cancel_deletion" | "anonymize" | "permanent_delete" | "export_data";
 
 const actionLabels: Record<ActionType, string> = {
-    suspend: "Suspender Cuenta",
-    reactivate: "Reactivar Cuenta",
-    request_deletion: "Programar Eliminación",
-    cancel_deletion: "Cancelar Eliminación",
-    anonymize: "Anonimizar Datos",
-    permanent_delete: "Eliminar Permanentemente",
-    export_data: "Exportar Datos (GDPR)"
+    suspend: "Suspender cuenta",
+    reactivate: "Reactivar cuenta",
+    request_deletion: "Programar eliminación",
+    cancel_deletion: "Cancelar eliminación",
+    anonymize: "Anonimizar datos",
+    permanent_delete: "Eliminar para siempre",
+    export_data: "Exportar datos",
 };
 
 const actionDescriptions: Record<ActionType, string> = {
-    suspend: "El usuario no podrá acceder al sistema, pero sus datos se mantienen intactos. Se puede reactivar en cualquier momento.",
-    reactivate: "Restaura el acceso completo del usuario al sistema.",
-    request_deletion: "Inicia el proceso de eliminación con un período de gracia de 30 días. El usuario puede solicitar la cancelación durante este tiempo.",
-    cancel_deletion: "Cancela el proceso de eliminación programado y restaura la cuenta.",
-    anonymize: "Reemplaza toda la información personal identificable (PII) con datos anónimos. Los datos estadísticos se conservan. IRREVERSIBLE.",
-    permanent_delete: "Elimina completamente al usuario y TODOS sus datos del sistema. Solo queda el registro de auditoría. IRREVERSIBLE.",
-    export_data: "Genera un archivo JSON con todos los datos del usuario (derecho de portabilidad GDPR)."
+    suspend: "No podrá entrar al sistema, pero sus datos quedan intactos. Se puede reactivar cuando quieras.",
+    reactivate: "Le devuelve el acceso completo al sistema.",
+    request_deletion: "Empieza la eliminación con 30 días de gracia. En ese plazo se puede cancelar.",
+    cancel_deletion: "Cancela la eliminación programada y restaura la cuenta.",
+    anonymize: "Reemplaza toda su información personal por datos anónimos; las cifras se conservan. No se puede deshacer.",
+    permanent_delete: "Borra al usuario y todos sus datos; solo queda el registro de auditoría. No se puede deshacer.",
+    export_data: "Genera un archivo JSON con todos sus datos (derecho a la portabilidad).",
+};
+
+/** Tono de cada acción: color del ícono, siempre junto al texto. */
+const actionTone: Record<ActionType, string> = {
+    suspend: "text-amber-400",
+    reactivate: "text-emerald-400",
+    request_deletion: "text-rose-400",
+    cancel_deletion: "text-sky-400",
+    anonymize: "text-violet-400",
+    permanent_delete: "text-red-400",
+    export_data: "text-[var(--acento)]",
+};
+
+/** Lo que se escribe para confirmar lo irreversible (la API sigue recibiendo su propio código). */
+const FRASE: Partial<Record<ActionType, string>> = {
+    anonymize: "anonimizar",
+    permanent_delete: "eliminar para siempre",
+};
+
+const STATS_LABELS: Record<keyof UserDataSummary["stats"], string> = {
+    quotations: "Cotizaciones",
+    clients: "Clientes",
+    transactions: "Movimientos",
+    cvVersions: "Versiones del CV",
+    financeAccounts: "Cuentas",
+    receipts: "Comprobantes",
 };
 
 export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: UserLifecycleModalProps) {
@@ -77,6 +101,14 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
     const [confirmText, setConfirmText] = useState("");
     const [dataSummary, setDataSummary] = useState<UserDataSummary | null>(null);
     const [exportedData, setExportedData] = useState<Record<string, unknown> | null>(null);
+    // No hay <Toaster> montado en el panel: los errores también se muestran aquí.
+    const [aviso, setAviso] = useState<string | null>(null);
+    const id = useId();
+
+    const avisar = (texto: string) => {
+        toast.error(texto);
+        setAviso(texto);
+    };
 
     const fetchDataSummary = useCallback(async () => {
         if (!user) return;
@@ -105,6 +137,7 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
             setReason("");
             setConfirmText("");
             setExportedData(null);
+            setAviso(null);
             fetchDataSummary();
         }
     }, [isOpen, user, fetchDataSummary]);
@@ -131,20 +164,17 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
 
     const handleExecuteAction = async () => {
         if (!user || !selectedAction) return;
+        setAviso(null);
 
         // Validation
         if (["suspend", "request_deletion", "permanent_delete"].includes(selectedAction) && !reason.trim()) {
-            toast.error("Debes proporcionar una razón");
+            avisar("Escribe el motivo.");
             return;
         }
 
-        if (selectedAction === "anonymize" && confirmText !== "ANONYMIZE") {
-            toast.error("Escribe ANONYMIZE para confirmar");
-            return;
-        }
-
-        if (selectedAction === "permanent_delete" && confirmText !== "DELETE_PERMANENTLY") {
-            toast.error("Escribe DELETE_PERMANENTLY para confirmar");
+        const frase = FRASE[selectedAction];
+        if (frase && confirmText.trim().toLowerCase() !== frase) {
+            avisar(`Escribe «${frase}» para confirmar.`);
             return;
         }
 
@@ -168,7 +198,7 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
             const data = await res.json();
 
             if (!res.ok) {
-                toast.error(data.error || "Error al ejecutar acción");
+                avisar(data.error || "No se pudo completar la acción.");
                 return;
             }
 
@@ -182,7 +212,7 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
             }
         } catch (error) {
             console.error("Error:", error);
-            toast.error("Error al ejecutar la acción");
+            avisar("No se pudo completar la acción.");
         } finally {
             setLoading(false);
         }
@@ -208,265 +238,219 @@ export function UserLifecycleModal({ isOpen, onClose, user, onUserUpdated }: Use
         const status = user.deletionStatus || "ACTIVE";
 
         const badges: Record<string, { color: string; label: string }> = {
-            ACTIVE: { color: "bg-green-500/20 text-green-400 border-green-500/30", label: "Activo" },
-            SUSPENDED: { color: "bg-amber-500/20 text-amber-400 border-amber-500/30", label: "Suspendido" },
-            DELETION_REQUESTED: { color: "bg-orange-500/20 text-orange-400 border-orange-500/30", label: "Eliminación Solicitada" },
-            DELETION_SCHEDULED: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Eliminación Programada" },
-            ANONYMIZED: { color: "bg-purple-500/20 text-purple-400 border-purple-500/30", label: "Anonimizado" },
-            DELETED: { color: "bg-gray-500/20 text-gray-400 border-gray-500/30", label: "Eliminado" },
+            ACTIVE: { color: "bg-emerald-500/10 text-emerald-400", label: "Activo" },
+            SUSPENDED: { color: "bg-amber-500/10 text-amber-400", label: "Suspendido" },
+            DELETION_REQUESTED: { color: "bg-rose-500/10 text-rose-400", label: "Eliminación solicitada" },
+            DELETION_SCHEDULED: { color: "bg-red-500/10 text-red-400", label: "Eliminación programada" },
+            ANONYMIZED: { color: "bg-violet-500/10 text-violet-400", label: "Anonimizado" },
+            DELETED: { color: "bg-[color-mix(in_srgb,var(--txt)_8%,transparent)] text-[var(--mut)]", label: "Eliminado" },
         };
 
         const badge = badges[status] || badges.ACTIVE;
-        return (
-            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${badge.color}`}>
-                {badge.label}
-            </span>
-        );
+        return <span className={`${cls.insignia} ${badge.color}`}>{badge.label}</span>;
     };
 
     const getActionIcon = (action: ActionType) => {
         const icons: Record<ActionType, React.ReactNode> = {
-            suspend: <ShieldOff size={18} />,
-            reactivate: <RotateCcw size={18} />,
-            request_deletion: <Clock size={18} />,
-            cancel_deletion: <RotateCcw size={18} />,
-            anonymize: <UserX size={18} />,
-            permanent_delete: <Trash2 size={18} />,
-            export_data: <Download size={18} />
+            suspend: <ShieldOff size={18} aria-hidden="true" />,
+            reactivate: <RotateCcw size={18} aria-hidden="true" />,
+            request_deletion: <Clock size={18} aria-hidden="true" />,
+            cancel_deletion: <RotateCcw size={18} aria-hidden="true" />,
+            anonymize: <UserX size={18} aria-hidden="true" />,
+            permanent_delete: <Trash2 size={18} aria-hidden="true" />,
+            export_data: <Download size={18} aria-hidden="true" />
         };
         return icons[action];
     };
 
-    const getActionColor = (action: ActionType) => {
-        const colors: Record<ActionType, string> = {
-            suspend: "border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400",
-            reactivate: "border-green-500/30 bg-green-500/10 hover:bg-green-500/20 text-green-400",
-            request_deletion: "border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400",
-            cancel_deletion: "border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400",
-            anonymize: "border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400",
-            permanent_delete: "border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400",
-            export_data: "border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400"
-        };
-        return colors[action];
-    };
-
-    if (!isOpen || !user) return null;
+    const abierto = isOpen && !!user;
+    const destructiva = selectedAction === "anonymize" || selectedAction === "permanent_delete";
 
     return (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                onClick={onClose}
-            >
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-5 border-b border-slate-700">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-indigo-500/20">
-                                <Shield size={20} className="text-indigo-400" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-bold text-white">Gestión del Ciclo de Vida</h2>
-                                <p className="text-sm text-slate-400">{user.name || user.email}</p>
-                            </div>
+        <Dialogo
+            abierto={abierto}
+            alCerrar={onClose}
+            titulo="Ciclo de vida de la cuenta"
+            subtitulo={user ? user.name || user.email : undefined}
+            ancho="max-w-2xl"
+        >
+            {user ? (
+                <div className="space-y-6">
+                    {/* Estado actual */}
+                    <dl className="grid grid-cols-1 border-y border-[var(--linea)] sm:grid-cols-2">
+                        <div className="flex flex-col gap-1.5 px-1 py-3">
+                            <dt className="text-[13.5px] text-[var(--mut)]">Estado actual</dt>
+                            <dd className="m-0">{getStatusBadge()}</dd>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 rounded-xl hover:bg-slate-800 transition-colors"
-                        >
-                            <X size={20} className="text-slate-400" />
-                        </button>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5 overflow-y-auto max-h-[calc(90vh-140px)]">
-                        {/* User Status */}
-                        <div className="flex items-center justify-between mb-6 p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-                            <div>
-                                <p className="text-sm text-slate-400 mb-1">Estado actual</p>
-                                {getStatusBadge()}
+                        {user.deletionScheduledAt && (
+                            <div className="flex flex-col gap-1.5 border-[var(--linea)] px-1 py-3 max-sm:border-t sm:border-l sm:pl-4">
+                                <dt className="text-[13.5px] text-[var(--mut)]">Eliminación programada</dt>
+                                <dd className="m-0 text-sm font-medium text-red-400">
+                                    {new Date(user.deletionScheduledAt).toLocaleDateString("es-CL", {
+                                        day: "numeric",
+                                        month: "long",
+                                        year: "numeric"
+                                    })}
+                                </dd>
                             </div>
-                            {user.deletionScheduledAt && (
-                                <div className="text-right">
-                                    <p className="text-sm text-slate-400 mb-1">Eliminación programada</p>
-                                    <p className="text-sm text-red-400 font-medium">
-                                        {new Date(user.deletionScheduledAt).toLocaleDateString("es-CL", {
-                                            day: "numeric",
-                                            month: "long",
-                                            year: "numeric"
-                                        })}
-                                    </p>
+                        )}
+                    </dl>
+
+                    {/* Resumen de datos */}
+                    {loadingSummary ? (
+                        <p className="flex items-center gap-2 text-sm text-[var(--mut)]" role="status">
+                            <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> Cargando sus datos…
+                        </p>
+                    ) : dataSummary && (
+                        <section aria-labelledby={`${id}-datos`}>
+                            <h3 id={`${id}-datos`} className="mb-2 text-[15px] font-semibold text-[var(--mut)]">Sus datos</h3>
+                            <dl className="grid grid-cols-2 border-t border-[var(--linea)] sm:grid-cols-3">
+                                {(Object.entries(dataSummary.stats) as [keyof UserDataSummary["stats"], number][]).map(([key, value]) => (
+                                    <div key={key} className="flex flex-col-reverse border-b border-[var(--linea)] px-1 py-3">
+                                        <dt className="text-[13px] text-[var(--mut)]">{STATS_LABELS[key] ?? key}</dt>
+                                        <dd className="m-0 text-xl font-bold tabular-nums tracking-tight text-[var(--txt)]">{value}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </section>
+                    )}
+
+                    {/* Exportación lista */}
+                    {exportedData && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--linea)] bg-[var(--fondo-2)] px-4 py-3" role="status">
+                            <p className="flex items-center gap-2 text-sm font-medium text-[var(--txt)]">
+                                <CheckCircle size={16} className="text-emerald-400" aria-hidden="true" />
+                                Datos listos para descargar
+                            </p>
+                            <button type="button" onClick={downloadExportedData} className={cls.principal}>
+                                <Download size={16} aria-hidden="true" />
+                                Descargar JSON
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Acciones disponibles */}
+                    <section aria-labelledby={`${id}-acciones`}>
+                        <h3 id={`${id}-acciones`} className="mb-2 text-[15px] font-semibold text-[var(--mut)]">Acciones disponibles</h3>
+                        <ul className="border-t border-[var(--linea)]">
+                            {getAvailableActions().map((action) => {
+                                const elegida = selectedAction === action;
+                                return (
+                                    <li key={action} className="border-b border-[var(--linea)]">
+                                        <button
+                                            type="button"
+                                            aria-pressed={elegida}
+                                            onClick={() => {
+                                                setSelectedAction(action);
+                                                setConfirmText("");
+                                                setAviso(null);
+                                            }}
+                                            className={`flex w-full items-start gap-3 px-2 py-3 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)] motion-reduce:transition-none ${elegida
+                                                ? "bg-[color-mix(in_srgb,var(--acento)_10%,transparent)]"
+                                                : "hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]"}`}
+                                        >
+                                            <span className={`mt-0.5 shrink-0 ${actionTone[action]}`}>{getActionIcon(action)}</span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block font-medium text-[var(--txt)]">{actionLabels[action]}</span>
+                                                <span className="mt-0.5 block text-sm text-[var(--mut)]">{actionDescriptions[action]}</span>
+                                            </span>
+                                            {elegida && <CheckCircle size={18} className="mt-0.5 shrink-0 text-[var(--acento)]" aria-hidden="true" />}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+
+                    {/* Formulario de la acción */}
+                    {selectedAction && selectedAction !== "export_data" && (
+                        <div className="space-y-4">
+                            {["suspend", "request_deletion", "permanent_delete"].includes(selectedAction) && (
+                                <div>
+                                    <label htmlFor={`${id}-motivo`} className={cls.etiqueta}>
+                                        Motivo <span className="text-red-400" aria-hidden="true">*</span>
+                                    </label>
+                                    <textarea
+                                        id={`${id}-motivo`}
+                                        required
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                        placeholder="Por qué haces esto"
+                                        className={`${cls.campo} resize-none py-2`}
+                                        rows={3}
+                                    />
                                 </div>
                             )}
-                        </div>
 
-                        {/* Data Summary */}
-                        {loadingSummary ? (
-                            <div className="flex items-center justify-center py-8">
-                                <Loader2 size={24} className="animate-spin text-indigo-400" />
-                            </div>
-                        ) : dataSummary && (
-                            <div className="mb-6 p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <FileText size={16} className="text-slate-400" />
-                                    <p className="text-sm font-medium text-white">Datos del Usuario</p>
+                            {FRASE[selectedAction] && (
+                                <div>
+                                    <p className="mb-2 flex items-center gap-2 text-sm text-red-400">
+                                        <AlertTriangle size={16} aria-hidden="true" />
+                                        No se puede deshacer.
+                                    </p>
+                                    <label htmlFor={`${id}-frase`} className={cls.etiqueta}>
+                                        Escribe <code className="rounded bg-[var(--fondo-2)] px-1.5 py-0.5 font-mono text-red-400">{FRASE[selectedAction]}</code> para confirmar
+                                    </label>
+                                    <input
+                                        id={`${id}-frase`}
+                                        type="text"
+                                        autoComplete="off"
+                                        value={confirmText}
+                                        onChange={(e) => setConfirmText(e.target.value)}
+                                        className={`${cls.campo} font-mono`}
+                                    />
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {Object.entries(dataSummary.stats).map(([key, value]) => (
-                                        <div key={key} className="p-2 rounded-lg bg-slate-700/50">
-                                            <p className="text-xs text-slate-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                                            <p className="text-lg font-bold text-white">{value}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Export Data Result */}
-                        {exportedData && (
-                            <div className="mb-6 p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Download size={18} className="text-cyan-400" />
-                                        <p className="text-sm font-medium text-cyan-400">Datos listos para descargar</p>
-                                    </div>
-                                    <button
-                                        onClick={downloadExportedData}
-                                        className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-medium transition-colors"
-                                    >
-                                        Descargar JSON
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                            {aviso && <p role="alert" className="text-sm text-red-400">{aviso}</p>}
 
-                        {/* Available Actions */}
-                        <div className="mb-6">
-                            <p className="text-sm font-medium text-white mb-3">Acciones Disponibles</p>
-                            <div className="grid gap-2">
-                                {getAvailableActions().map((action) => (
-                                    <button
-                                        key={action}
-                                        onClick={() => {
-                                            setSelectedAction(action);
-                                            setConfirmText("");
-                                        }}
-                                        className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${selectedAction === action
-                                            ? "ring-2 ring-offset-2 ring-offset-slate-900 ring-indigo-500"
-                                            : ""
-                                            } ${getActionColor(action)}`}
-                                    >
-                                        {getActionIcon(action)}
-                                        <div className="text-left flex-1">
-                                            <p className="font-medium">{actionLabels[action]}</p>
-                                            <p className="text-xs opacity-70">{actionDescriptions[action]}</p>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Action Form */}
-                        {selectedAction && selectedAction !== "export_data" && (
-                            <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-                                {/* Reason Input */}
-                                {["suspend", "request_deletion", "permanent_delete"].includes(selectedAction) && (
-                                    <div className="mb-4">
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Razón <span className="text-red-400">*</span>
-                                        </label>
-                                        <textarea
-                                            value={reason}
-                                            onChange={(e) => setReason(e.target.value)}
-                                            placeholder="Describe la razón de esta acción..."
-                                            className="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500 outline-none resize-none"
-                                            rows={3}
-                                        />
-                                    </div>
+                            <button
+                                type="button"
+                                onClick={handleExecuteAction}
+                                disabled={loading}
+                                className={`${destructiva ? cls.peligro : cls.principal} w-full`}
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                        Procesando…
+                                    </>
+                                ) : (
+                                    <>
+                                        {getActionIcon(selectedAction)}
+                                        {actionLabels[selectedAction]}
+                                    </>
                                 )}
+                            </button>
+                        </div>
+                    )}
 
-                                {/* Confirmation Input */}
-                                {["anonymize", "permanent_delete"].includes(selectedAction) && (
-                                    <div className="mb-4">
-                                        <div className="flex items-center gap-2 mb-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                                            <AlertTriangle size={18} className="text-red-400" />
-                                            <p className="text-sm text-red-400">
-                                                Esta acción es <strong>IRREVERSIBLE</strong>
-                                            </p>
-                                        </div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Escribe <code className="px-2 py-0.5 rounded bg-slate-700 text-red-400">
-                                                {selectedAction === "anonymize" ? "ANONYMIZE" : "DELETE_PERMANENTLY"}
-                                            </code> para confirmar
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={confirmText}
-                                            onChange={(e) => setConfirmText(e.target.value)}
-                                            placeholder="Escribe aquí..."
-                                            className="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder:text-slate-500 focus:border-red-500 outline-none font-mono"
-                                        />
-                                    </div>
+                    {/* Exportar */}
+                    {selectedAction === "export_data" && !exportedData && (
+                        <div className="space-y-3">
+                            {aviso && <p role="alert" className="text-sm text-red-400">{aviso}</p>}
+                            <button
+                                type="button"
+                                onClick={handleExecuteAction}
+                                disabled={loading}
+                                className={`${cls.principal} w-full`}
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                        Exportando…
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download size={18} aria-hidden="true" />
+                                        Generar exportación
+                                    </>
                                 )}
-
-                                {/* Execute Button */}
-                                <button
-                                    onClick={handleExecuteAction}
-                                    disabled={loading}
-                                    className={`w-full py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${["anonymize", "permanent_delete"].includes(selectedAction)
-                                        ? "bg-red-600 hover:bg-red-500 text-white"
-                                        : "bg-indigo-600 hover:bg-indigo-500 text-white"
-                                        } disabled:opacity-50`}
-                                >
-                                    {loading ? (
-                                        <>
-                                            <Loader2 size={18} className="animate-spin" />
-                                            Procesando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            {getActionIcon(selectedAction)}
-                                            {actionLabels[selectedAction]}
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Export Action */}
-                        {selectedAction === "export_data" && !exportedData && (
-                            <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-                                <button
-                                    onClick={handleExecuteAction}
-                                    disabled={loading}
-                                    className="w-full py-3 rounded-xl font-medium bg-cyan-600 hover:bg-cyan-500 text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                                >
-                                    {loading ? (
-                                        <>
-                                            <Loader2 size={18} className="animate-spin" />
-                                            Exportando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Download size={18} />
-                                            Generar Exportación GDPR
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            ) : null}
+        </Dialogo>
     );
 }

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Check, ListChecks, Loader2, Send, X } from "lucide-react";
 import type { QuotationData, QuotationItem } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { projectTypes, type ProjectType } from "../templates/quotation-templates";
 import { useToast } from "@/components/ui/Toast";
+import Ventana from "./Ventana";
+import { BARRA, BOTON, BOTON_ICONO, BOTON_PELIGRO, BOTON_SEC, CAMPO, FOCO, SOBRE } from "../estilos";
 
 export interface ChatMessage {
     id: string;
@@ -30,17 +32,21 @@ interface QuotationAIChatProps {
     setUsedActions?: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
+/** Desplazamiento suave, salvo que se pida menos movimiento. */
+const suave = (): ScrollBehavior =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+
 const WELCOME_MESSAGE: ChatMessage = {
     id: "welcome",
     role: "assistant",
-    content: "¡Hola! 👋 Soy tu asistente para crear cotizaciones profesionales. ¿Qué tipo de proyecto necesitas?",
+    content: "Hola. Te ayudo a armar la propuesta. ¿Qué tipo de proyecto es?",
     actions: [
-        { type: "set_type", label: "🌐 Landing Page", data: { projectType: "landing", priceRange: "$150-300k" } },
-        { type: "set_type", label: "🏢 Sitio Web", data: { projectType: "website", priceRange: "$300-600k" } },
-        { type: "set_type", label: "🛒 E-commerce", data: { projectType: "ecommerce", priceRange: "$600k-1.5M" } },
-        { type: "set_type", label: "💻 Web App", data: { projectType: "webapp", priceRange: "$400k-1M" } },
-        { type: "set_type", label: "🔧 Mantenimiento", data: { projectType: "maintenance", priceRange: "$80-150k/mes" } },
-        { type: "set_type", label: "✨ Rediseño", data: { projectType: "redesign", priceRange: "$200-400k" } },
+        { type: "set_type", label: "Landing page", data: { projectType: "landing", priceRange: "$150-300k" } },
+        { type: "set_type", label: "Sitio web", data: { projectType: "website", priceRange: "$300-600k" } },
+        { type: "set_type", label: "E-commerce", data: { projectType: "ecommerce", priceRange: "$600k-1.5M" } },
+        { type: "set_type", label: "Aplicación web", data: { projectType: "webapp", priceRange: "$400k-1M" } },
+        { type: "set_type", label: "Mantenimiento", data: { projectType: "maintenance", priceRange: "$80-150k/mes" } },
+        { type: "set_type", label: "Rediseño", data: { projectType: "redesign", priceRange: "$200-400k" } },
     ],
 };
 
@@ -57,11 +63,6 @@ export function QuotationAIChat({
     // Use external state if provided, otherwise internal
     const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
     const [internalUsedActions, setInternalUsedActions] = useState<Set<string>>(new Set());
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
 
     const messages = externalMessages ?? internalMessages;
     const setMessages = externalSetMessages ?? setInternalMessages;
@@ -132,7 +133,7 @@ export function QuotationAIChat({
     };
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        messagesEndRef.current?.scrollIntoView({ behavior: suave() });
     }, [messages]);
 
     // Auto-detect project type from user message
@@ -341,7 +342,7 @@ export function QuotationAIChat({
 
         if (isFirstSelection) {
             setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                messagesEndRef.current?.scrollIntoView({ behavior: suave() });
             }, 100);
         }
 
@@ -441,194 +442,144 @@ export function QuotationAIChat({
     const filledCount = progressFields.filter(f => f.filled).length;
     const progressPercent = (filledCount / progressFields.length) * 100;
 
+    const campoEditado = editingField !== null ? progressFields[editingField] : null;
+    const total = (data.items ?? []).reduce((sum, item) => sum + (item.price || 0), 0);
+    // Las etiquetas que manda la IA pueden traer un emoji al inicio: se muestra solo el texto.
+    const sinEmoji = (texto: string) => texto.replace(/^(?:\p{Extended_Pictographic}|\uFE0F|\u200D|\s)+/u, "");
+
     return (
-        <div className="flex flex-col h-full">
-            {/* Header */}
-            <div className="relative flex flex-col bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border-b border-white/10">
-                {/* Top row */}
-                <div className="flex items-center justify-between px-5 py-3">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                                <span className="text-lg">✨</span>
-                            </div>
-                            {/* Online indicator */}
-                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-neutral-900" />
-                        </div>
-                        <div>
-                            <p className="font-bold text-white text-sm">Asistente IA</p>
-                            <p className="text-[10px] text-purple-300">Creando cotización</p>
-                        </div>
-                    </div>
-                    {onClose && (
-                        <button
-                            onClick={onClose}
-                            className="w-8 h-8 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-
-                {/* Progress bar */}
-                <div className="px-5 pb-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] text-neutral-400">Progreso</span>
-                        <span className="text-[10px] text-purple-300 font-medium">{filledCount}/{progressFields.length} campos</span>
-                    </div>
-                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <motion.div
-                            initial={isMounted ? { width: 0 } : false}
-                            animate={{ width: `${progressPercent}%` }}
-                            transition={{ duration: 0.5, ease: "easeOut" }}
-                            className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
-                        />
-                    </div>
-                    {/* Field indicators - clickable and editable */}
-                    <div className="flex gap-1 mt-2">
-                        {progressFields.map((field, i) => (
-                            <div
-                                key={i}
-                                onClick={() => {
-                                    setEditingField(i);
-                                    setEditValue(field.value || "");
-                                }}
-                                className={`group relative flex-1 h-5 rounded-md transition-all cursor-pointer ${field.filled
-                                    ? "bg-green-500/20 hover:bg-green-500/40"
-                                    : "bg-white/5 hover:bg-white/20"
-                                    }`}
-                            >
-                                {/* Tooltip on hover */}
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-neutral-800 rounded-lg text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-white/10">
-                                    <span className={field.filled ? "text-green-400" : "text-neutral-400"}>
-                                        {field.filled ? "✓" : "○"} {field.name}
-                                        {field.filled && field.value && `: ${field.value.length > 15 ? field.value.slice(0, 15) + "..." : field.value}`}
-                                    </span>
-                                    <span className="text-neutral-500 ml-1">(click para editar)</span>
-                                </div>
-                                {/* Mini indicator */}
-                                <div className="h-full flex items-center justify-center">
-                                    {field.filled ? (
-                                        <div className="w-2 h-2 rounded-full bg-green-500" />
-                                    ) : (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Edit drawer - appears below progress bar */}
-                    <AnimatePresence>
-                        {editingField !== null && (
-                            <motion.div
-                                initial={isMounted ? { opacity: 0, height: 0 } : false}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="mt-3 p-3 bg-neutral-800/80 rounded-xl border border-purple-500/30">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-xs font-medium text-white">{progressFields[editingField].name}</span>
-                                        <button
-                                            onClick={() => setEditingField(null)}
-                                            className="text-neutral-400 hover:text-white p-1"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    {progressFields[editingField].key === "items" ? (
-                                        <div className="text-xs text-neutral-300">
-                                            {(data.items ?? []).length > 0 ? (
-                                                <ul className="space-y-1">
-                                                    {(data.items ?? []).map((item, idx) => (
-                                                        <li key={idx} className="flex justify-between">
-                                                            <span className="truncate">{item.title}</span>
-                                                            <span className="text-green-400">${item.price?.toLocaleString('es-CL')}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <span className="text-neutral-500">Sin servicios - agrega servicios en el chat</span>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <input
-                                                type="text"
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === "Enter" && editValue.trim()) {
-                                                        updateData({ [progressFields[editingField].key]: editValue.trim() });
-                                                        toast.success("Actualizado", `${progressFields[editingField].name}: ${editValue.trim()}`);
-                                                        setEditingField(null);
-                                                    }
-                                                }}
-                                                placeholder={`Ingresa ${progressFields[editingField].name.toLowerCase()}`}
-                                                className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-neutral-500 focus:outline-none focus:border-purple-500/50"
-                                                autoFocus
-                                            />
-                                            <div className="flex gap-2 mt-2">
-                                                <button
-                                                    onClick={() => {
-                                                        if (editValue.trim()) {
-                                                            updateData({ [progressFields[editingField].key]: editValue.trim() });
-                                                            toast.success("Actualizado", `${progressFields[editingField].name}: ${editValue.trim()}`);
-                                                        }
-                                                        setEditingField(null);
-                                                    }}
-                                                    className="flex-1 py-2 rounded-lg bg-purple-600 text-white text-xs font-medium hover:bg-purple-500 transition-colors"
-                                                >
-                                                    Guardar
-                                                </button>
-                                                {progressFields[editingField].filled && (
-                                                    <button
-                                                        onClick={() => {
-                                                            updateData({ [progressFields[editingField].key]: "" });
-                                                            toast.info("Borrado", progressFields[editingField].name);
-                                                            setEditingField(null);
-                                                        }}
-                                                        className="px-3 py-2 rounded-lg bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30 transition-colors"
-                                                    >
-                                                        Borrar
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </motion.div>
+        <div className="flex h-full flex-col">
+            {/* Cabecera: avance de la propuesta */}
+            <div className="border-b border-[var(--linea)] px-4 py-3">
+                <div className="mb-1.5 flex items-center justify-between">
+                    <p id="avance-asistente" className="text-xs text-[var(--mut)]">Avance</p>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium tabular-nums text-[var(--txt)]">{filledCount} de {progressFields.length} datos</span>
+                        {onClose && (
+                            <button type="button" onClick={onClose} aria-label="Cerrar el asistente" className={BOTON_ICONO}>
+                                <X size={16} aria-hidden="true" />
+                            </button>
                         )}
-                    </AnimatePresence>
+                    </div>
+                </div>
+                <div className={BARRA} role="progressbar" aria-labelledby="avance-asistente" aria-valuenow={filledCount} aria-valuemin={0} aria-valuemax={progressFields.length}>
+                    <div className="h-full rounded-full bg-[var(--acento)] transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${progressPercent}%` }} />
+                </div>
+                {/* Un botón por dato: muestra si está listo y permite editarlo */}
+                <div className="mt-2 flex gap-1">
+                    {progressFields.map((field, i) => (
+                        <button
+                            type="button"
+                            key={field.key}
+                            onClick={() => {
+                                setEditingField(i);
+                                setEditValue(field.value || "");
+                            }}
+                            aria-pressed={editingField === i}
+                            title={`${field.name}${field.filled && field.value ? `: ${field.value.length > 30 ? field.value.slice(0, 30) + "…" : field.value}` : ": falta"}`}
+                            className={`flex min-h-8 flex-1 items-center justify-center gap-1 rounded-md px-1 text-[11px] transition-colors duration-150 ${FOCO} ${field.filled
+                                ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                                : `bg-[color-mix(in_srgb,var(--txt)_5%,transparent)] text-[var(--mut)] ${SOBRE}`
+                                }`}
+                        >
+                            {field.filled && <Check size={10} aria-hidden="true" className="shrink-0" />}
+                            <span className="truncate">{field.name}</span>
+                            <span className="sr-only">{field.filled ? ", listo" : ", falta"}. Editar</span>
+                        </button>
+                    ))}
                 </div>
 
-                {/* Animated gradient line */}
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
+                {campoEditado && editingField !== null && (
+                    <div className="mt-3 rounded-lg border border-[var(--linea-2)] p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                            <p className="text-sm font-medium text-[var(--txt)]">{campoEditado.name}</p>
+                            <button type="button" onClick={() => setEditingField(null)} aria-label="Cerrar la edición" className={BOTON_ICONO}>
+                                <X size={16} aria-hidden="true" />
+                            </button>
+                        </div>
+                        {campoEditado.key === "items" ? (
+                            <div className="text-sm text-[var(--txt)]">
+                                {(data.items ?? []).length > 0 ? (
+                                    <ul className="space-y-1">
+                                        {(data.items ?? []).map((item, idx) => (
+                                            <li key={idx} className="flex justify-between gap-2">
+                                                <span className="truncate">{item.title}</span>
+                                                <span className="tabular-nums text-emerald-400">${item.price?.toLocaleString('es-CL')}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <span className="text-[var(--mut)]">Sin servicios: agrégalos en el chat.</span>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <label htmlFor="dato-asistente" className="sr-only">{campoEditado.name}</label>
+                                <input
+                                    id="dato-asistente"
+                                    type="text"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && editValue.trim()) {
+                                            updateData({ [campoEditado.key]: editValue.trim() });
+                                            toast.success("Actualizado", `${campoEditado.name}: ${editValue.trim()}`);
+                                            setEditingField(null);
+                                        }
+                                    }}
+                                    placeholder={`Escribe ${campoEditado.name.toLowerCase()}`}
+                                    className={CAMPO}
+                                    autoFocus
+                                />
+                                <div className="mt-2 flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (editValue.trim()) {
+                                                updateData({ [campoEditado.key]: editValue.trim() });
+                                                toast.success("Actualizado", `${campoEditado.name}: ${editValue.trim()}`);
+                                            }
+                                            setEditingField(null);
+                                        }}
+                                        className={`${BOTON} flex-1`}
+                                    >
+                                        Guardar
+                                    </button>
+                                    {campoEditado.filled && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                updateData({ [campoEditado.key]: "" });
+                                                toast.info("Borrado", campoEditado.name);
+                                                setEditingField(null);
+                                            }}
+                                            className={BOTON_PELIGRO}
+                                        >
+                                            Borrar
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Mensajes */}
+            <div className="flex-1 space-y-4 overflow-y-auto p-4" aria-live="polite" aria-busy={isLoading}>
                 {messages.map((msg) => (
-                    <motion.div
+                    <div
                         key={msg.id}
-                        initial={isMounted ? { opacity: 0, y: 10 } : false}
-                        animate={{ opacity: 1, y: 0 }}
                         className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                         <div
                             className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === "user"
-                                ? "bg-accent-1 text-black"
-                                : "bg-white/10 text-white"
+                                ? "bg-[var(--acento)] text-[var(--acento-tinta)]"
+                                : "bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] text-[var(--txt)]"
                                 }`}
                         >
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            <p className="whitespace-pre-wrap text-sm">{msg.role === "assistant" ? sinEmoji(msg.content) : msg.content}</p>
 
-                            {/* Actions */}
                             {msg.actions && msg.actions.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
                                     {msg.actions
@@ -636,24 +587,21 @@ export function QuotationAIChat({
                                         .map((action, i) => {
                                             const actionKey = `${msg.id}-${i}`;
                                             const isUsed = usedActions.has(actionKey);
-                                            const displayLabel = action.label || action.type || "Acción";
+                                            const displayLabel = sinEmoji(action.label || action.type || "Acción");
 
                                             return (
                                                 <button
+                                                    type="button"
                                                     key={i}
                                                     onClick={() => handleApplyAction(action, msg.id, i)}
                                                     disabled={isUsed}
-                                                    title={isUsed ? "Ya seleccionado" : "Click para seleccionar"}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${isUsed
-                                                        ? "bg-green-500/20 text-green-400 cursor-default opacity-75"
-                                                        : "bg-purple-500/20 text-purple-300 hover:bg-purple-500/40 hover:scale-105"
+                                                    aria-pressed={isUsed}
+                                                    className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors duration-150 ${FOCO} ${isUsed
+                                                        ? "cursor-default border-transparent bg-emerald-500/10 text-emerald-400"
+                                                        : `border-[var(--linea-2)] bg-[var(--sup)] text-[var(--txt)] hover:border-[var(--acento)]`
                                                         }`}
                                                 >
-                                                    {isUsed ? (
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    ) : null}
+                                                    {isUsed && <Check size={14} aria-hidden="true" />}
                                                     {displayLabel}
                                                 </button>
                                             );
@@ -661,332 +609,172 @@ export function QuotationAIChat({
                                 </div>
                             )}
                         </div>
-                    </motion.div>
-                ))
-                }
+                    </div>
+                ))}
 
-                {
-                    isLoading && (
-                        <motion.div
-                            initial={isMounted ? { opacity: 0 } : false}
-                            animate={{ opacity: 1 }}
-                            className="flex justify-start"
-                        >
-                            <div className="bg-white/10 rounded-2xl px-4 py-3">
-                                <div className="flex gap-1">
-                                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                                </div>
-                            </div>
-                        </motion.div>
-                    )
-                }
+                {isLoading && (
+                    <div className="flex justify-start">
+                        <div role="status" className="flex items-center gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] px-4 py-3 text-sm text-[var(--mut)]">
+                            <Loader2 size={14} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+                            Pensando…
+                        </div>
+                    </div>
+                )}
 
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Actions */}
-            {
-                messages.length === 1 && (
-                    <div className="px-4 pb-2">
-                        <p className="text-xs text-neutral-500 mb-2">Sugerencias:</p>
-                        <div className="flex flex-wrap gap-2">
-                            {[
-                                "Necesito un e-commerce",
-                                "Quiero una landing page",
-                                "Una aplicación web",
-                                "Rediseño de sitio",
-                            ].map((suggestion) => (
-                                <button
-                                    key={suggestion}
-                                    onClick={() => setInput(suggestion)}
-                                    className="px-3 py-1.5 rounded-full bg-white/5 text-neutral-400 text-xs hover:bg-white/10 hover:text-white transition-colors"
-                                >
-                                    {suggestion}
-                                </button>
-                            ))}
-                        </div>
+            {/* Sugerencias iniciales */}
+            {messages.length === 1 && (
+                <div className="px-4 pb-2">
+                    <p className="mb-2 text-xs text-[var(--mut)]">Sugerencias:</p>
+                    <div className="flex flex-wrap gap-2">
+                        {[
+                            "Necesito un e-commerce",
+                            "Quiero una landing page",
+                            "Una aplicación web",
+                            "Rediseño de sitio",
+                        ].map((suggestion) => (
+                            <button
+                                type="button"
+                                key={suggestion}
+                                onClick={() => setInput(suggestion)}
+                                className={`min-h-9 rounded-full border border-[var(--linea-2)] px-3 text-xs text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] ${SOBRE} ${FOCO}`}
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
                     </div>
-                )
-            }
+                </div>
+            )}
 
-            {/* Input */}
-            <div className="p-4 border-t border-purple-500/20">
-                {/* Selection feedback banner */}
-                <AnimatePresence>
-                    {selectedLabels.size > 0 && (
-                        <motion.div
-                            initial={isMounted ? { opacity: 0, y: 10, height: 0 } : false}
-                            animate={{ opacity: 1, y: 0, height: "auto" }}
-                            exit={{ opacity: 0, y: 10, height: 0 }}
-                            className="mb-3 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20"
+            {/* Escribir */}
+            <div className="border-t border-[var(--linea)] p-4">
+                {selectedLabels.size > 0 && (
+                    <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-[color-mix(in_srgb,var(--acento)_10%,transparent)] px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                            <p className="flex items-center gap-1 truncate text-xs text-[var(--txt)]">
+                                <Check size={12} aria-hidden="true" className="shrink-0 text-emerald-400" /> {Array.from(selectedLabels.values()).join(", ")}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-[var(--mut)]">
+                                Escribe algo más para precisar lo que elegiste
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSelectedLabels(new Map());
+                                setUsedActions(new Set());
+                            }}
+                            aria-label="Quitar lo seleccionado"
+                            className={`${BOTON_ICONO} hover:text-red-400`}
                         >
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-purple-300 truncate">
-                                        <span className="text-green-400">✓</span> {Array.from(selectedLabels.values()).join(", ")}
-                                    </p>
-                                    <p className="text-[10px] text-neutral-500 mt-0.5">
-                                        Escribe para ser más específico sobre tus selecciones
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setSelectedLabels(new Map());
-                                        setUsedActions(new Set());
-                                    }}
-                                    className="text-neutral-500 hover:text-red-400 transition-colors p-1"
-                                    title="Limpiar selecciones"
-                                >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                            <X size={14} aria-hidden="true" />
+                        </button>
+                    </div>
+                )}
                 <div className="flex gap-2">
+                    <label htmlFor="mensaje-asistente" className="sr-only">Mensaje para el asistente</label>
                     <textarea
+                        id="mensaje-asistente"
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Escribe tu mensaje..."
+                        placeholder="Escribe tu mensaje…"
                         rows={1}
-                        className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-purple-500/20 text-white placeholder-neutral-500 focus:outline-none focus:border-purple-500/50 resize-none text-sm"
+                        className={`${CAMPO} min-w-0 flex-1 resize-none`}
                     />
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                    <button
+                        type="button"
                         onClick={handleSend}
                         disabled={(!input.trim() && selectedLabels.size === 0) || isLoading}
-                        className="p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white disabled:opacity-50"
+                        aria-label="Enviar"
+                        className={BOTON}
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                    </motion.button>
+                        <Send size={16} aria-hidden="true" />
+                    </button>
                 </div>
 
-                {/* Review button - appears when there's progress */}
                 {filledCount > 0 && (
-                    <motion.button
-                        initial={isMounted ? { opacity: 0, scale: 0.9 } : false}
-                        animate={{ opacity: 1, scale: 1 }}
+                    <button
+                        type="button"
                         onClick={() => setShowReviewModal(true)}
-                        className="mt-3 w-full py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium hover:from-green-500 hover:to-emerald-500 transition-all flex items-center justify-center gap-2"
+                        className={`${BOTON_SEC} mt-3 w-full`}
                     >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Revisar cotización ({filledCount}/{progressFields.length})
-                    </motion.button>
+                        <ListChecks size={16} aria-hidden="true" />
+                        Revisar lo que lleva ({filledCount} de {progressFields.length})
+                    </button>
                 )}
             </div>
 
-            {/* Review Modal */}
-            <AnimatePresence>
-                {showReviewModal && (
-                    <motion.div
-                        initial={isMounted ? { opacity: 0 } : false}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                        onClick={() => setShowReviewModal(false)}
-                    >
-                        <motion.div
-                            initial={isMounted ? { opacity: 0, scale: 0.9, y: 20 } : false}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-neutral-900 border border-purple-500/30 rounded-2xl p-5 max-w-md w-full max-h-[80vh] overflow-y-auto"
-                        >
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-white">Resumen de Cotización</h3>
-                                <button
-                                    onClick={() => setShowReviewModal(false)}
-                                    className="p-1.5 rounded-lg hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="space-y-3">
-                                {/* Client & Project */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className={`p-3 rounded-xl ${data.clientName ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
-                                        <p className="text-[10px] text-neutral-400 uppercase">Cliente</p>
-                                        <p className="text-sm text-white font-medium truncate">{data.clientName || '—'}</p>
+            {showReviewModal && (
+                <Ventana titulo="Resumen de la propuesta" alCerrar={() => setShowReviewModal(false)} ancho="max-w-md">
+                    {(cerrar) => (
+                        <>
+                            <dl className="border-t border-[var(--linea)] text-sm">
+                                {[
+                                    { nombre: "Cliente", valor: data.clientName },
+                                    { nombre: "Proyecto", valor: data.projectName },
+                                    { nombre: "Alcance", valor: data.scope },
+                                    { nombre: "Plazo", valor: data.timeline },
+                                    { nombre: "Pago", valor: data.paymentTerms },
+                                ].map((f) => (
+                                    <div key={f.nombre} className="grid grid-cols-[96px_1fr] gap-3 border-b border-[var(--linea)] py-2.5">
+                                        <dt className="flex items-center gap-1.5 text-[var(--mut)]">
+                                            {f.valor ? <Check size={12} aria-hidden="true" className="text-emerald-400" /> : <span aria-hidden="true" className="inline-block w-3" />}
+                                            {f.nombre}
+                                        </dt>
+                                        <dd className="min-w-0 break-words text-[var(--txt)]">{f.valor || <span className="text-[var(--mut)]">Falta</span>}</dd>
                                     </div>
-                                    <div className={`p-3 rounded-xl ${data.projectName ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
-                                        <p className="text-[10px] text-neutral-400 uppercase">Proyecto</p>
-                                        <p className="text-sm text-white font-medium truncate">{data.projectName || '—'}</p>
-                                    </div>
+                                ))}
+                                <div className="grid grid-cols-[96px_1fr] gap-3 border-b border-[var(--linea)] py-2.5">
+                                    <dt className="flex items-center gap-1.5 text-[var(--mut)]">
+                                        {(data.items ?? []).length > 0 ? <Check size={12} aria-hidden="true" className="text-emerald-400" /> : <span aria-hidden="true" className="inline-block w-3" />}
+                                        Servicios
+                                    </dt>
+                                    <dd className="min-w-0">
+                                        {(data.items ?? []).length > 0 ? (
+                                            <ul className="space-y-1">
+                                                {(data.items ?? []).map((item, i) => (
+                                                    <li key={i} className="flex justify-between gap-2">
+                                                        <span className="truncate text-[var(--txt)]">{item.title}</span>
+                                                        <span className="shrink-0 tabular-nums text-[var(--txt)]">${item.price?.toLocaleString('es-CL')}</span>
+                                                    </li>
+                                                ))}
+                                                <li className="flex justify-between gap-2 border-t border-[var(--linea)] pt-1 font-semibold">
+                                                    <span className="text-[var(--txt)]">Total</span>
+                                                    <span className="tabular-nums text-[var(--txt)]">${total.toLocaleString('es-CL')}</span>
+                                                </li>
+                                            </ul>
+                                        ) : (
+                                            <span className="text-[var(--mut)]">Falta</span>
+                                        )}
+                                    </dd>
                                 </div>
+                            </dl>
 
-                                {/* Services */}
-                                <div className={`p-3 rounded-xl ${(data.items ?? []).length > 0 ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
-                                    <p className="text-[10px] text-neutral-400 uppercase mb-2">Servicios ({(data.items ?? []).length})</p>
-                                    {(data.items ?? []).length > 0 ? (
-                                        <div className="space-y-1">
-                                            {(data.items ?? []).map((item, i) => (
-                                                <div key={i} className="flex justify-between text-sm">
-                                                    <span className="text-white truncate">{item.title}</span>
-                                                    <span className="text-green-400 font-medium">${item.price?.toLocaleString('es-CL')}</span>
-                                                </div>
-                                            ))}
-                                            <div className="border-t border-white/10 pt-1 mt-2 flex justify-between text-sm font-bold">
-                                                <span className="text-white">Total</span>
-                                                <span className="text-green-400">${(data.items ?? []).reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('es-CL')}</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-neutral-500">Sin servicios agregados</p>
-                                    )}
-                                </div>
-
-                                {/* Scope & Timeline */}
-                                <div className={`p-3 rounded-xl ${data.scope ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
-                                    <p className="text-[10px] text-neutral-400 uppercase">Alcance</p>
-                                    <p className="text-sm text-white">{data.scope || '—'}</p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className={`p-3 rounded-xl ${data.timeline ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
-                                        <p className="text-[10px] text-neutral-400 uppercase">Plazo</p>
-                                        <p className="text-sm text-white">{data.timeline || '—'}</p>
-                                    </div>
-                                    <div className={`p-3 rounded-xl ${data.paymentTerms ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10'}`}>
-                                        <p className="text-[10px] text-neutral-400 uppercase">Pago</p>
-                                        <p className="text-sm text-white">{data.paymentTerms || '—'}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Action buttons */}
                             <div className="mt-5 flex gap-2">
-                                <button
-                                    onClick={() => setShowReviewModal(false)}
-                                    className="flex-1 py-2.5 rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-colors"
-                                >
+                                <button type="button" onClick={cerrar} className={`${BOTON_SEC} flex-1`} data-autofocus>
                                     Seguir editando
                                 </button>
                                 {filledCount === progressFields.length && (
                                     <button
+                                        type="button"
                                         onClick={() => {
-                                            setShowReviewModal(false);
-                                            toast.success('Cotización lista', 'Puedes guardarla desde el formulario');
+                                            cerrar();
+                                            toast.success("Propuesta lista", "Puedes publicarla desde el formulario");
                                         }}
-                                        className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium hover:from-green-500 hover:to-emerald-500 transition-all"
+                                        className={`${BOTON} flex-1`}
                                     >
-                                        ¡Está completa!
+                                        Está completa
                                     </button>
                                 )}
                             </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        </>
+                    )}
+                </Ventana>
+            )}
         </div>
     );
 }
-
-// Floating button wrapper
-interface FloatingAIChatProps {
-    data: QuotationData;
-    updateData: (updates: Partial<QuotationData>) => void;
-    // For persistence
-    messages: ChatMessage[];
-    setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-    usedActions: Set<string>;
-    setUsedActions: React.Dispatch<React.SetStateAction<Set<string>>>;
-}
-
-export function FloatingAIChat({
-    data,
-    updateData,
-    messages,
-    setMessages,
-    usedActions,
-    setUsedActions,
-}: FloatingAIChatProps) {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <>
-            {/* FAB Button */}
-            <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setIsOpen(true)}
-                className={`fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 via-indigo-500 to-purple-600 text-white shadow-xl shadow-purple-500/40 flex items-center justify-center ${isOpen ? "hidden" : ""}`}
-                style={{
-                    boxShadow: "0 8px 32px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)"
-                }}
-            >
-                <span className="text-2xl">✨</span>
-            </motion.button>
-
-            {/* Chat Panel */}
-            <AnimatePresence>
-                {isOpen && (
-                    <>
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsOpen(false)}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40"
-                        />
-
-                        {/* Panel - Mobile: Bottom sheet, Desktop: Side panel */}
-                        <motion.div
-                            initial={{ opacity: 0, y: "100%" }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: "100%" }}
-                            transition={{ type: "spring", damping: 30, stiffness: 400 }}
-                            className="fixed inset-x-0 bottom-0 lg:inset-auto lg:bottom-6 lg:right-6 z-50 
-                                       h-[90vh] lg:h-[600px] lg:w-[420px] 
-                                       rounded-t-[28px] lg:rounded-2xl overflow-hidden 
-                                       bg-gradient-to-b from-neutral-900 via-neutral-900 to-neutral-950 
-                                       border-t border-purple-500/30 lg:border lg:border-purple-500/20 
-                                       shadow-2xl"
-                        >
-                            {/* Mobile drag handle */}
-                            <div className="lg:hidden flex justify-center pt-3 pb-1">
-                                <div className="w-12 h-1.5 bg-white/20 rounded-full" />
-                            </div>
-
-                            {/* Gradient glow effect */}
-                            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-600/10 to-transparent pointer-events-none" />
-
-                            <QuotationAIChat
-                                data={data}
-                                updateData={updateData}
-                                onClose={() => setIsOpen(false)}
-                                messages={messages}
-                                setMessages={setMessages}
-                                usedActions={usedActions}
-                                setUsedActions={setUsedActions}
-                            />
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
-        </>
-    );
-}
-
-// Export the welcome message for initialization
-export const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
-    {
-        id: "welcome",
-        role: "assistant",
-        content: "¡Hola! 👋 Soy tu asistente para crear cotizaciones profesionales. Cuéntame sobre el proyecto que necesitas cotizar.",
-    },
-];

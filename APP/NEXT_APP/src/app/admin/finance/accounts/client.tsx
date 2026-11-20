@@ -1,11 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit2, Trash2, X, Check, CreditCard, Wallet, PiggyBank, Building2, TrendingUp, MoreHorizontal } from "lucide-react";
+import { useState, useEffect, useCallback, useId } from "react";
+import { Plus, Pencil, Trash2, Check, Star, CreditCard, Wallet, PiggyBank, Building2, TrendingUp, MoreHorizontal } from "lucide-react";
+import DialogoFormulario from "@/app/admin/gestion-comercial/dialogo-formulario";
 import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+import { CabeceraFinanzas, CargandoFinanzas, CifrasFinanzas } from "@/modules/finance/components/Piezas";
+import {
+    AYUDA, BAJA, BOTON, BOTON_SEC, CAMPO, CASILLA, CIFRA, ENLACE, ERROR, ETIQUETA, FICHA, FILA, FOCO, GIRA, ICONO,
+    ICONO_PELIGRO, LISTA, MARCA_NEUTRA, OPCION, OPCION_NO, OPCION_SI, SECCION, VACIO,
+} from "@/modules/finance/components/estilos";
 import { formatCurrency } from "@/lib/currency";
 import { useFinance } from "@/modules/finance/context/FinanceContext";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import { numeroCL } from "@/lib/tools/numeros";
 
 interface Account {
     id: string;
@@ -41,14 +48,25 @@ const PRESET_COLORS = [
     "#a855f7", "#d946ef", "#ec4899", "#64748b"
 ];
 
+/** Nombre de cada color de la paleta, para el lector de pantalla. */
+const NOMBRE_COLOR: Record<string, string> = {
+    "#ef4444": "Rojo", "#f97316": "Naranja", "#f59e0b": "Ámbar", "#84cc16": "Lima", "#22c55e": "Verde",
+    "#10b981": "Esmeralda", "#14b8a6": "Verde azulado", "#06b6d4": "Cian", "#0ea5e9": "Celeste", "#3b82f6": "Azul",
+    "#6366f1": "Índigo", "#8b5cf6": "Violeta", "#a855f7": "Morado", "#d946ef": "Fucsia", "#ec4899": "Rosado",
+    "#64748b": "Gris pizarra",
+};
+
 const PRESET_ICONS = ["💵", "💳", "🏦", "💰", "🐷", "📈", "💎", "🏧", "💴", "💶"];
 
-export default function AccountsPageClient() {
+/** Botón de un emoji del selector de ícono (el emoji es dato: se guarda en la cuenta). */
+const BOTON_EMOJI = `grid size-11 place-items-center rounded-lg border text-xl transition-colors duration-150 motion-reduce:transition-none sm:size-10 ${FOCO}`;
+
+export default function AccountsPageClient({ abrirNueva = false }: { abrirNueva?: boolean }) {
     const { baseCurrency, triggerRefresh } = useFinance();
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [showForm, setShowForm] = useState(false);
+    const [showForm, setShowForm] = useState(abrirNueva);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [formData, setFormData] = useState({
         name: "",
@@ -59,6 +77,9 @@ export default function AccountsPageClient() {
         isDefault: false,
     });
     const [saving, setSaving] = useState(false);
+    // El saldo se escribe a la chilena («1.250.000» o «1.250,50»): con type=number, «1.250.000» no se podía escribir.
+    const [saldoTexto, setSaldoTexto] = useState("");
+    const uid = useId();
 
     const fetchAccounts = useCallback(async () => {
         try {
@@ -82,6 +103,7 @@ export default function AccountsPageClient() {
     const totalBalance = accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
 
     const handleOpenForm = (account?: Account) => {
+        setError(null);
         if (account) {
             setEditingAccount(account);
             setFormData({
@@ -92,6 +114,7 @@ export default function AccountsPageClient() {
                 initialBalance: account.initialBalance,
                 isDefault: account.isDefault,
             });
+            setSaldoTexto("");
         } else {
             setEditingAccount(null);
             setFormData({
@@ -102,6 +125,7 @@ export default function AccountsPageClient() {
                 initialBalance: 0,
                 isDefault: false,
             });
+            setSaldoTexto("");
         }
         setShowForm(true);
     };
@@ -111,21 +135,29 @@ export default function AccountsPageClient() {
         setEditingAccount(null);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent, cerrar: () => void) => {
         e.preventDefault();
         if (!formData.name.trim()) return;
+        const saldo = saldoTexto.trim() ? numeroCL(saldoTexto) : 0;
+        if (!editingAccount && saldo === null) {
+            setError("El saldo inicial no es un monto válido");
+            return;
+        }
 
         setSaving(true);
+        setError(null);
         try {
-            const url = editingAccount 
+            const url = editingAccount
                 ? `/api/finance/accounts/${editingAccount.id}`
                 : "/api/finance/accounts";
-            
+
             const res = await fetch(url, {
                 method: editingAccount ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...formData,
+                    // El saldo inicial solo se escribe al crear; al editar se manda el que tenía.
+                    initialBalance: editingAccount ? formData.initialBalance : saldo,
                     currency: baseCurrency,
                 }),
             });
@@ -135,9 +167,11 @@ export default function AccountsPageClient() {
                 throw new Error(data.error || "Error al guardar");
             }
 
+            // Se cierra antes de recargar: así el foco vuelve al botón que abrió el formulario.
+            cerrar();
+            handleCloseForm();
             await fetchAccounts();
             triggerRefresh();
-            handleCloseForm();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error al guardar");
         } finally {
@@ -146,7 +180,7 @@ export default function AccountsPageClient() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("¿Eliminar esta cuenta? Las transacciones asociadas se mantendrán pero quedarán sin cuenta.")) return;
+        if (!(await confirmar({ titulo: "¿Eliminar esta cuenta?", detalle: "Sus transacciones se mantienen, pero quedan sin cuenta. No se puede deshacer.", accion: "Eliminar", peligro: true }))) return;
 
         try {
             const res = await fetch(`/api/finance/accounts/${id}`, {
@@ -178,339 +212,269 @@ export default function AccountsPageClient() {
         return ACCOUNT_TYPES.find((t) => t.value === type) || ACCOUNT_TYPES[5];
     };
 
-    if (loading) {
+    // Solo la primera carga reemplaza la página; al recargar se quedan las filas a la vista.
+    if (loading && accounts.length === 0) {
         return (
-            <div className="space-y-6">
+            <div className="max-w-[1180px]">
                 <FinanceBreadcrumbs />
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                        <p className="text-neutral-400">Cargando cuentas...</p>
-                    </div>
-                </div>
+                <CargandoFinanzas texto="Cargando cuentas…" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-[1180px] pb-8">
             <FinanceBreadcrumbs />
-            
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <motion.h1
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-2xl font-bold text-white"
-                    >
-                        🏦 Cuentas
-                    </motion.h1>
-                    <motion.p
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-neutral-400 text-sm mt-1"
-                    >
-                        Gestiona tus cuentas y tarjetas
-                    </motion.p>
-                </div>
 
-                <motion.button
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                    onClick={() => handleOpenForm()}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors"
-                >
-                    <Plus className="w-5 h-5" />
+            <CabeceraFinanzas titulo="Cuentas" bajada="Gestiona tus cuentas y tarjetas">
+                <button type="button" onClick={() => handleOpenForm()} className={BOTON}>
+                    <Plus aria-hidden="true" className="size-4" />
                     Nueva cuenta
-                </motion.button>
+                </button>
+            </CabeceraFinanzas>
+
+            <div className="mt-8">
+                <CifrasFinanzas
+                    etiqueta="Resumen de cuentas"
+                    cifras={[
+                        {
+                            nombre: "Balance total",
+                            valor: formatCurrency(totalBalance, baseCurrency),
+                            tono: totalBalance < 0 ? "baja" : undefined,
+                        },
+                        { nombre: accounts.length === 1 ? "Cuenta activa" : "Cuentas activas", valor: accounts.length },
+                    ]}
+                />
             </div>
 
-            {/* Total Balance Card */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-2xl p-6"
-            >
-                <p className="text-neutral-400 text-sm mb-1">Balance total</p>
-                <p className={`text-3xl font-bold ${totalBalance >= 0 ? "text-white" : "text-red-400"}`}>
-                    {formatCurrency(totalBalance, baseCurrency)}
-                </p>
-                <p className="text-neutral-500 text-sm mt-2">
-                    {accounts.length} cuenta{accounts.length !== 1 ? "s" : ""} activa{accounts.length !== 1 ? "s" : ""}
-                </p>
-            </motion.div>
-
-            {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm">
+            {error && !showForm && (
+                <p role="alert" className={`${ERROR} mt-6`}>
                     {error}
-                </div>
+                </p>
             )}
 
-            {/* Accounts List */}
-            {accounts.length > 0 ? (
-                <div className="grid gap-4">
-                    {accounts.map((account, index) => {
-                        const typeInfo = getAccountTypeInfo(account.type);
-                        const IconComponent = typeInfo.icon;
+            <section aria-labelledby={`${uid}-lista`} className="mt-10">
+                <h2 id={`${uid}-lista`} className={`${SECCION} mb-2`}>Tus cuentas</h2>
 
-                        return (
-                            <motion.div
-                                key={account.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 hover:border-neutral-700 transition-colors group"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div 
-                                        className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                                        style={{ backgroundColor: (account.color || typeInfo.color) + "20" }}
-                                    >
-                                        {account.icon || <IconComponent className="w-6 h-6" style={{ color: account.color || typeInfo.color }} />}
+                {accounts.length > 0 ? (
+                    <ul className={`${LISTA} m-0 list-none p-0`}>
+                        {accounts.map((account) => {
+                            const typeInfo = getAccountTypeInfo(account.type);
+                            const IconComponent = typeInfo.icon;
+                            const color = account.color || typeInfo.color;
+
+                            return (
+                                <li key={account.id} className={`${FILA} flex-wrap sm:flex-nowrap`}>
+                                    {/* Ícono y color que eligió el usuario: son datos de la cuenta */}
+                                    <span aria-hidden="true" className={FICHA} style={{ backgroundColor: color + "20" }}>
+                                        {account.icon || <IconComponent className="size-5" style={{ color }} />}
+                                    </span>
+
+                                    <div className="min-w-0 flex-1">
+                                        <p className="flex min-w-0 items-center gap-2">
+                                            <span className="truncate font-medium text-[var(--txt)]">{account.name}</span>
+                                            {account.isDefault && <span className={`${MARCA_NEUTRA} shrink-0`}>Principal</span>}
+                                        </p>
+                                        <p className="text-sm text-[var(--mut)]">{typeInfo.label}</p>
                                     </div>
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-white font-medium truncate">{account.name}</p>
-                                            {account.isDefault && (
-                                                <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded-full">
-                                                    Principal
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-neutral-500">{typeInfo.label}</p>
-                                    </div>
-
-                                    <div className="text-right">
-                                        <p className={`font-bold ${account.currentBalance >= 0 ? "text-white" : "text-red-400"}`}>
+                                    <div className="shrink-0 text-right">
+                                        <p className={`font-semibold ${CIFRA} ${account.currentBalance >= 0 ? "text-[var(--txt)]" : BAJA}`}>
                                             {formatCurrency(account.currentBalance)}
                                         </p>
-                                        <p className="text-xs text-neutral-500">
-                                            {account.currency.code}
-                                        </p>
+                                        <p className="text-xs text-[var(--mut)]">{account.currency.code}</p>
                                     </div>
 
-                                    {/* Actions */}
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex w-full justify-end gap-1 sm:w-auto sm:shrink-0">
                                         {!account.isDefault && (
                                             <button
+                                                type="button"
                                                 onClick={() => handleSetDefault(account.id)}
+                                                aria-label={`Marcar ${account.name} como principal`}
                                                 title="Establecer como principal"
-                                                className="p-2 text-neutral-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                className={ICONO}
                                             >
-                                                <Check className="w-4 h-4" />
+                                                <Star aria-hidden="true" className="size-[18px]" />
                                             </button>
                                         )}
                                         <button
+                                            type="button"
                                             onClick={() => handleOpenForm(account)}
-                                            className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors"
+                                            aria-label={`Editar ${account.name}`}
+                                            title="Editar"
+                                            className={ICONO}
                                         >
-                                            <Edit2 className="w-4 h-4" />
+                                            <Pencil aria-hidden="true" className="size-[18px]" />
                                         </button>
                                         <button
+                                            type="button"
                                             onClick={() => handleDelete(account.id)}
-                                            className="p-2 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                            aria-label={`Eliminar ${account.name}`}
+                                            title="Eliminar"
+                                            className={ICONO_PELIGRO}
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Trash2 aria-hidden="true" className="size-[18px]" />
                                         </button>
                                     </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </div>
-            ) : (
-                <div className="bg-neutral-900/30 border border-neutral-800/50 rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 rounded-full bg-neutral-800/50 flex items-center justify-center mx-auto mb-4">
-                        <span className="text-3xl">🏦</span>
-                    </div>
-                    <p className="text-neutral-400 mb-2">No tienes cuentas configuradas</p>
-                    <button
-                        onClick={() => handleOpenForm()}
-                        className="text-blue-400 hover:text-blue-300 text-sm"
-                    >
-                        Crear primera cuenta →
-                    </button>
-                </div>
-            )}
-
-            {/* Form Modal */}
-            <AnimatePresence>
-                {showForm && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-                        onClick={handleCloseForm}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+                                </li>
+                            );
+                        })}
+                    </ul>
+                ) : (
+                    <div className={VACIO}>
+                        <p>No tienes cuentas configuradas</p>
+                        <button
+                            type="button"
+                            onClick={() => handleOpenForm()}
+                            className={`mt-1 inline-flex min-h-11 items-center px-2 text-sm ${ENLACE}`}
                         >
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold text-white">
-                                    {editingAccount ? "Editar cuenta" : "Nueva cuenta"}
-                                </h2>
-                                <button
-                                    onClick={handleCloseForm}
-                                    className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
+                            Crear primera cuenta
+                        </button>
+                    </div>
+                )}
+            </section>
+
+            {showForm && (
+                <DialogoFormulario
+                    titulo={editingAccount ? "Editar cuenta" : "Nueva cuenta"}
+                    alCerrar={handleCloseForm}
+                    ancho="max-w-md"
+                >
+                    {(cerrar) => (
+                        <form onSubmit={(e) => handleSubmit(e, cerrar)} className="space-y-5">
+                            <div>
+                                <label htmlFor={`${uid}-nombre`} className={ETIQUETA}>
+                                    Nombre de la cuenta
+                                </label>
+                                <input
+                                    id={`${uid}-nombre`}
+                                    type="text"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="Ej: Cuenta corriente BCI"
+                                    className={CAMPO}
+                                    required
+                                />
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                {/* Name */}
+                            <fieldset>
+                                <legend className={ETIQUETA}>Tipo de cuenta</legend>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {ACCOUNT_TYPES.map(({ value, label, icon: Icon, color }) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            aria-pressed={formData.type === value}
+                                            onClick={() => setFormData({ ...formData, type: value as Account["type"], color })}
+                                            className={`${OPCION} justify-start ${formData.type === value ? OPCION_SI : OPCION_NO}`}
+                                        >
+                                            <Icon aria-hidden="true" className="size-[18px] shrink-0" style={{ color }} />
+                                            <span className="min-w-0 truncate">{label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </fieldset>
+
+                            {/* Saldo inicial: solo al crear */}
+                            {!editingAccount && (
                                 <div>
-                                    <label className="block text-sm font-medium text-neutral-400 mb-2">
-                                        Nombre de la cuenta
+                                    <label htmlFor={`${uid}-saldo`} className={ETIQUETA}>
+                                        Saldo inicial
                                     </label>
                                     <input
+                                        id={`${uid}-saldo`}
                                         type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="Ej: Cuenta corriente BCI"
-                                        className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder:text-neutral-500 focus:outline-none focus:border-blue-500"
-                                        required
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        value={saldoTexto}
+                                        onChange={(e) => setSaldoTexto(e.target.value)}
+                                        placeholder="0"
+                                        aria-describedby={`${uid}-saldo-ayuda`}
+                                        className={`${CAMPO} ${CIFRA}`}
                                     />
+                                    <p id={`${uid}-saldo-ayuda`} className={AYUDA}>
+                                        El saldo actual de la cuenta en {baseCurrency}
+                                    </p>
                                 </div>
+                            )}
 
-                                {/* Type */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-400 mb-2">
-                                        Tipo de cuenta
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {ACCOUNT_TYPES.map(({ value, label, icon: Icon, color }) => (
-                                            <button
-                                                key={value}
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, type: value as Account["type"], color })}
-                                                className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all ${
-                                                    formData.type === value
-                                                        ? "border-blue-500 bg-blue-500/10 text-white"
-                                                        : "border-neutral-700 text-neutral-400 hover:border-neutral-600"
-                                                }`}
-                                            >
-                                                <Icon className="w-5 h-5" style={{ color }} />
-                                                <span className="text-sm">{label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                            <fieldset>
+                                <legend className={ETIQUETA}>Ícono</legend>
+                                <div className="flex flex-wrap gap-2">
+                                    {PRESET_ICONS.map((icon) => (
+                                        <button
+                                            key={icon}
+                                            type="button"
+                                            aria-pressed={formData.icon === icon}
+                                            onClick={() => setFormData({ ...formData, icon })}
+                                            className={`${BOTON_EMOJI} ${formData.icon === icon ? OPCION_SI : OPCION_NO}`}
+                                        >
+                                            {icon}
+                                        </button>
+                                    ))}
                                 </div>
+                            </fieldset>
 
-                                {/* Initial Balance (only for new accounts) */}
-                                {!editingAccount && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-400 mb-2">
-                                            Saldo inicial
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={formData.initialBalance}
-                                            onChange={(e) => setFormData({ ...formData, initialBalance: Number(e.target.value) })}
-                                            placeholder="0"
-                                            className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder:text-neutral-500 focus:outline-none focus:border-blue-500"
+                            <fieldset>
+                                <legend className={ETIQUETA}>Color</legend>
+                                <div className="flex flex-wrap gap-2">
+                                    {PRESET_COLORS.map((color) => (
+                                        <button
+                                            key={color}
+                                            type="button"
+                                            aria-pressed={formData.color === color}
+                                            aria-label={NOMBRE_COLOR[color] ?? color}
+                                            title={NOMBRE_COLOR[color] ?? color}
+                                            onClick={() => setFormData({ ...formData, color })}
+                                            className={`size-11 rounded-lg sm:size-9 ${FOCO} ${formData.color === color ? "outline-2 outline-offset-2 outline-[var(--txt)]" : ""}`}
+                                            style={{ backgroundColor: color }}
                                         />
-                                        <p className="text-xs text-neutral-500 mt-1">
-                                            El saldo actual de la cuenta en {baseCurrency}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Icon */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-400 mb-2">
-                                        Ícono
-                                    </label>
-                                    <div className="flex flex-wrap gap-2 p-3 bg-neutral-800/30 border border-neutral-700 rounded-xl">
-                                        {PRESET_ICONS.map((icon) => (
-                                            <button
-                                                key={icon}
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, icon })}
-                                                className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all ${
-                                                    formData.icon === icon
-                                                        ? "bg-blue-600 ring-2 ring-blue-400"
-                                                        : "bg-neutral-800 hover:bg-neutral-700"
-                                                }`}
-                                            >
-                                                {icon}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    ))}
                                 </div>
+                            </fieldset>
 
-                                {/* Color */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-400 mb-2">
-                                        Color
-                                    </label>
-                                    <div className="flex flex-wrap gap-2 p-3 bg-neutral-800/30 border border-neutral-700 rounded-xl">
-                                        {PRESET_COLORS.map((color) => (
-                                            <button
-                                                key={color}
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, color })}
-                                                className={`w-8 h-8 rounded-lg transition-all ${
-                                                    formData.color === color
-                                                        ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-900"
-                                                        : ""
-                                                }`}
-                                                style={{ backgroundColor: color }}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
+                            <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.isDefault}
+                                    onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
+                                    className={CASILLA}
+                                />
+                                <span className="text-[var(--txt)]">Establecer como cuenta principal</span>
+                            </label>
 
-                                {/* Default */}
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.isDefault}
-                                        onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
-                                        className="w-5 h-5 rounded border-neutral-700 bg-neutral-800 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="text-neutral-300">Establecer como cuenta principal</span>
-                                </label>
+                            {error && (
+                                <p role="alert" className={ERROR}>
+                                    {error}
+                                </p>
+                            )}
 
-                                {/* Actions */}
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleCloseForm}
-                                        className="flex-1 px-4 py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition-colors"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={saving || !formData.name.trim()}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {saving ? (
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        ) : (
-                                            <>
-                                                <Check className="w-5 h-5" />
-                                                Guardar
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" onClick={cerrar} className={`${BOTON_SEC} flex-1`}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving || !formData.name.trim()}
+                                    className={`${BOTON} flex-1`}
+                                >
+                                    {saving ? (
+                                        <>
+                                            <span aria-hidden="true" className={GIRA} />
+                                            Guardando…
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check aria-hidden="true" className="size-4" />
+                                            Guardar
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                </DialogoFormulario>
+            )}
         </div>
     );
 }
-

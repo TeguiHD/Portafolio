@@ -1,29 +1,27 @@
 import { requirePagePermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/permission-check";
 import { PipelineBoard } from "./pipeline-board";
 
 export const dynamic = "force-dynamic";
 
-export default async function PipelinePage() {
+export default async function PipelinePage({ searchParams }: { searchParams: Promise<{ nueva?: string | string[] }> }) {
     const session = await requirePagePermission("crm.pipeline.view");
+    const { nueva } = await searchParams;
 
-    // Fetch deals and clients in parallel
-    const [deals, clients] = await Promise.all([
+    const [deals, clients, puedeContratos] = await Promise.all([
         prisma.deal.findMany({
             where: {
                 userId: session.user.id,
                 isDeleted: false,
             },
-            include: {
-                client: {
-                    select: { id: true, name: true, slug: true, workType: true },
-                },
-                quotation: {
-                    select: { id: true, projectName: true, total: true, status: true },
-                },
-                _count: {
-                    select: { activities: true },
-                },
+            // Solo lo que el tablero y el formulario usan.
+            select: {
+                id: true, title: true, description: true, stage: true, priority: true, origin: true,
+                estimatedValue: true, closeProbability: true, estimatedCloseAt: true, notes: true, createdAt: true, updatedAt: true,
+                client: { select: { id: true, name: true, workType: true } },
+                quotation: { select: { id: true, projectName: true, total: true, status: true } },
+                _count: { select: { activities: true } },
             },
             orderBy: { updatedAt: "desc" },
         }),
@@ -32,9 +30,10 @@ export default async function PipelinePage() {
             select: { id: true, name: true, workType: true },
             orderBy: { name: "asc" },
         }),
+        hasPermission(session.user.id, session.user.role, "crm.contracts.manage"),
     ]);
 
-    // Serialize dates for client component — only pass fields the client needs
+    // Fechas a texto para el componente de cliente.
     const serializedDeals = deals.map(d => ({
         id: d.id,
         title: d.title,
@@ -53,5 +52,5 @@ export default async function PipelinePage() {
         _count: d._count,
     }));
 
-    return <PipelineBoard initialDeals={serializedDeals} clients={clients} />;
+    return <PipelineBoard initialDeals={serializedDeals} clients={clients} abrirNueva={nueva === "1"} puedeContratos={puedeContratos} />;
 }

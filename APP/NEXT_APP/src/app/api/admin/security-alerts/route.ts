@@ -7,16 +7,24 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { testSecurityAlerts, sendSecurityAlert } from '@/lib/security-alerts'
+import { hasPermission } from '@/lib/permission-check'
+import { testSecurityAlerts, sendSecurityAlert, type AlertSeverity } from '@/lib/security-alerts'
+import type { Role } from '@/generated/prisma/client'
 
-// Only admins can access this endpoint
-async function isAdmin(): Promise<boolean> {
+const SEVERIDADES: AlertSeverity[] = ['critical', 'high', 'medium', 'low', 'info']
+
+/**
+ * Permiso fino, leído de la base (hasPermission revisa también que la cuenta esté activa y con dos pasos).
+ * Antes solo pasaba `role === 'ADMIN'` y el SUPERADMIN quedaba fuera; ahora pasan los dos con el permiso.
+ */
+async function puede(codigo: string): Promise<boolean> {
     const session = await auth()
-    return session?.user?.role === 'ADMIN'
+    if (!session?.user?.id) return false
+    return hasPermission(session.user.id, (session.user.role || 'USER') as Role, codigo)
 }
 
 export async function GET() {
-    if (!await isAdmin()) {
+    if (!await puede('security.view')) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
@@ -47,7 +55,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-    if (!await isAdmin()) {
+    // Enviar alertas a los webhooks es escribir hacia fuera: pide el permiso de gestionar incidentes, no solo de verlos.
+    if (!await puede('security.incidents.resolve')) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
@@ -70,19 +79,22 @@ export async function POST(request: NextRequest) {
         // Enviar alerta personalizada
         const { severity = 'info', title, description, details } = body
 
-        if (!title || !description) {
+        if (typeof title !== 'string' || typeof description !== 'string' || !title.trim() || !description.trim()) {
             return NextResponse.json(
                 { error: 'title y description son requeridos' },
                 { status: 400 }
             )
         }
+        if (!SEVERIDADES.includes(severity)) {
+            return NextResponse.json({ error: 'Severidad inválida' }, { status: 400 })
+        }
 
         const result = await sendSecurityAlert({
             severity,
             type: 'manual',
-            title,
-            description,
-            details: details || {},
+            title: title.slice(0, 200),
+            description: description.slice(0, 2000),
+            details: details && typeof details === 'object' && !Array.isArray(details) ? details : {},
         })
 
         return NextResponse.json({

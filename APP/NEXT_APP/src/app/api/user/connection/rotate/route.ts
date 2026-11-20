@@ -7,7 +7,7 @@ import crypto from "crypto";
 export async function POST() {
     const session = await auth();
     if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     try {
@@ -29,6 +29,6 @@ export async function POST() {
         return NextResponse.json({ success: true, newCode: updatedUser.sharingCode });
     } catch (error) {
         console.error("Error rotating code:", error);
-        return NextResponse.json({ error: "Failed to rotate code" }, { status: 500 });
+        return NextResponse.json({ error: "No se pudo generar un código nuevo" }, { status: 500 });
     }
 }

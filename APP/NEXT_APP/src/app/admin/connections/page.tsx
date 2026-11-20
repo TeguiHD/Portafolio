@@ -5,7 +5,7 @@ import { Users } from "lucide-react";
 import CollaborationHub from "@/components/user/CollaborationHub";
 
 export const metadata = {
-    title: "Conexiones | Admin Panel",
+    title: "Conexiones",
     description: "Gestiona tus conexiones con otros usuarios",
 };
 
@@ -23,17 +23,15 @@ export default async function ConnectionsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/10 rounded-xl">
-                        <Users className="text-indigo-400" size={24} />
-                    </div>
+            <header>
+                <h1 className="flex items-center gap-2.5 text-2xl sm:text-[28px] font-bold tracking-tight text-[var(--txt)]">
+                    <Users size={22} aria-hidden="true" className="text-[var(--mut)]" />
                     Conexiones
                 </h1>
-                <p className="text-slate-400">
-                    Gestiona tu red de contactos para compartir clientes y cotizaciones.
+                <p className="mt-1 text-[15px] text-[var(--mut)]">
+                    Tu red de contactos para compartir clientes y cotizaciones.
                 </p>
-            </div>
+            </header>
 
             <CollaborationHub
                 initialSharingCode={user.sharingCode || "No disponible"}

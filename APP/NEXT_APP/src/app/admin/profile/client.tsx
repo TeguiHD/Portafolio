@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useId, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "qrcode";
 import { toast } from "sonner";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import { copiarTexto } from "@/lib/tools/copiar";
 import {
     User, Shield, Activity, Monitor, Clock, Key, FileText,
     Briefcase, Users, BarChart3, Edit3, Save, X, LogOut,
     Lock, Download, Eye, EyeOff, CheckCircle, AlertTriangle,
     Globe, Fingerprint, RefreshCw, Copy, Check, Smartphone,
-    ChevronDown, Loader2, QrCode, ShieldCheck, ShieldOff, MapPin
+    ChevronDown, Loader2, QrCode, ShieldCheck, ShieldOff, MapPin,
+    Laptop, Tablet, ChevronRight
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -62,12 +64,36 @@ interface ActivityInfo {
 type Tab = "general" | "security" | "sessions" | "permissions" | "activity";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "general", label: "General", icon: <User size={16} /> },
-    { id: "security", label: "Seguridad", icon: <Shield size={16} /> },
-    { id: "sessions", label: "Sesiones", icon: <Monitor size={16} /> },
-    { id: "permissions", label: "Permisos", icon: <Key size={16} /> },
-    { id: "activity", label: "Actividad", icon: <Activity size={16} /> },
+    { id: "general", label: "General", icon: <User size={16} aria-hidden="true" /> },
+    { id: "security", label: "Seguridad", icon: <Shield size={16} aria-hidden="true" /> },
+    { id: "sessions", label: "Sesiones", icon: <Monitor size={16} aria-hidden="true" /> },
+    { id: "permissions", label: "Permisos", icon: <Key size={16} aria-hidden="true" /> },
+    { id: "activity", label: "Actividad", icon: <Activity size={16} aria-hidden="true" /> },
 ];
+
+// ─── Estilos (tokens del tema: valen en claro y oscuro) ────────────
+const FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]";
+const BTN_PRI = `inline-flex items-center justify-center gap-2 min-h-10 max-sm:min-h-11 px-4 rounded-lg bg-[var(--acento)] text-[var(--acento-tinta)] text-sm font-semibold transition-opacity duration-150 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none ${FOCO}`;
+const BTN_SEC = `inline-flex items-center justify-center gap-2 min-h-10 max-sm:min-h-11 px-4 rounded-lg border border-[var(--linea-2)] text-[var(--txt)] text-sm font-medium transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none ${FOCO}`;
+const BTN_PELIGRO = `inline-flex items-center justify-center gap-2 min-h-10 max-sm:min-h-11 px-4 rounded-lg border border-red-500/30 text-red-400 text-sm font-medium transition-colors duration-150 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none ${FOCO}`;
+const BTN_ICONO = `grid place-items-center size-10 max-sm:size-11 shrink-0 rounded-lg text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] disabled:opacity-50 motion-reduce:transition-none ${FOCO}`;
+const CAMPO = "w-full min-h-10 max-sm:min-h-11 px-3 rounded-lg bg-[var(--fondo-2)] border border-[var(--linea-2)] text-[var(--txt)] text-sm placeholder:text-[var(--mut)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--acento)]";
+const CAMPO_CODIGO = "w-full min-h-12 px-3 rounded-lg bg-[var(--fondo-2)] border border-[var(--linea-2)] text-[var(--txt)] text-center text-2xl font-mono tracking-[0.5em] placeholder:text-[var(--mut)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--acento)]";
+const OJO = `absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-lg text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] motion-reduce:transition-none ${FOCO}`;
+const ETIQUETA = "block mb-1.5 text-sm font-medium text-[var(--txt)]";
+const TARJETA = "rounded-xl border border-[var(--linea)] bg-[var(--sup)] p-5 sm:p-6";
+const TITULO_TARJETA = "flex items-center gap-2 text-base font-semibold text-[var(--txt)]";
+const SECCION = "flex items-center gap-2 text-[15px] font-semibold text-[var(--mut)]";
+const CUENTA = "rounded-full bg-[color-mix(in_srgb,var(--txt)_8%,transparent)] px-2 py-0.5 text-xs font-medium tabular-nums text-[var(--mut)]";
+const GIRO = "animate-spin motion-reduce:animate-none";
+
+const ROLES: Record<string, string> = {
+    SUPERADMIN: "Superadministrador",
+    ADMIN: "Administrador",
+    MODERATOR: "Moderador",
+    USER: "Usuario",
+};
+const nombreRol = (rol: string) => ROLES[rol] ?? rol;
 
 // ─── Helpers ───────────────────────────────────────────────────────
 function timeAgo(dateStr: string) {
@@ -99,17 +125,17 @@ function formatDateTime(dateStr: string) {
     });
 }
 
-function getDeviceIcon(device: string | null, os: string | null) {
+function DeviceIcon({ device, os }: { device: string | null; os: string | null }) {
     const d = (device || os || "").toLowerCase();
     if (d.includes("mobile") || d.includes("android") || d.includes("iphone"))
-        return "📱";
-    if (d.includes("tablet") || d.includes("ipad")) return "📱";
-    return "💻";
+        return <Smartphone size={18} className="text-[var(--mut)]" aria-hidden="true" />;
+    if (d.includes("tablet") || d.includes("ipad")) return <Tablet size={18} className="text-[var(--mut)]" aria-hidden="true" />;
+    return <Laptop size={18} className="text-[var(--mut)]" aria-hidden="true" />;
 }
 
 const ACTION_LABELS: Record<string, string> = {
     "login.success": "Inicio de sesión",
-    "login.failed": "Intento fallido de login",
+    "login.failed": "Intento fallido de inicio de sesión",
     "logout": "Cierre de sesión",
     "password.changed": "Contraseña actualizada",
     "profile.updated": "Perfil actualizado",
@@ -138,15 +164,6 @@ const ACTION_LABELS: Record<string, string> = {
     CLIENT_CREATE: "Cliente creado",
     CONTRACT_CREATE: "Contrato creado",
 };
-
-// ─── Helpers: Country flag ──────────────────────────────────────────
-function countryCodeToFlag(code: string | null): string {
-    if (!code || code.length !== 2) return "🌐";
-    const upper = code.toUpperCase();
-    return String.fromCodePoint(
-        ...upper.split("").map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)
-    );
-}
 
 function buildPaginationItems(currentPage: number, totalPages: number): Array<number | string> {
     if (totalPages <= 7) {
@@ -190,6 +207,7 @@ export function ProfilePageClient({
     const [activeTab, setActiveTab] = useState<Tab>("general");
     const [isEditing, setIsEditing] = useState(false);
     const router = useRouter();
+    const idNombre = useId();
 
     // Handle ?tab= query parameter from URL (e.g., from notification links)
     useEffect(() => {
@@ -246,7 +264,7 @@ export function ProfilePageClient({
     }, [name]);
 
     const handleRevokeSession = useCallback(async (sessionId: string) => {
-        if (!confirm("¿Cerrar esta sesión? El dispositivo será desconectado.")) return;
+        if (!(await confirmar({ titulo: "¿Cerrar esta sesión?", detalle: "El dispositivo quedará desconectado y tendrá que volver a entrar.", accion: "Cerrar sesión", peligro: true }))) return;
         try {
             const res = await fetch("/api/admin/sessions", {
                 method: "DELETE",
@@ -261,204 +279,232 @@ export function ProfilePageClient({
         }
     }, [router]);
 
+    // Pestañas con flechas: la selección sigue al foco (guía «tabs» de modern-web-guidance).
+    const moverPestana = (e: KeyboardEvent<HTMLButtonElement>, actual: number) => {
+        let siguiente: number | null = null;
+        if (e.key === "ArrowRight") siguiente = (actual + 1) % TABS.length;
+        else if (e.key === "ArrowLeft") siguiente = (actual - 1 + TABS.length) % TABS.length;
+        else if (e.key === "Home") siguiente = 0;
+        else if (e.key === "End") siguiente = TABS.length - 1;
+        if (siguiente === null) return;
+        e.preventDefault();
+        const destino = TABS[siguiente];
+        if (!destino) return;
+        setActiveTab(destino.id);
+        document.getElementById(`perfil-tab-${destino.id}`)?.focus();
+    };
+
+    const cifras = [
+        { label: "Clientes", value: user.stats.clients },
+        { label: "Propuestas", value: user.stats.quotations },
+        { label: "Contratos", value: user.stats.contracts },
+        { label: "Conexiones", value: user.stats.connections },
+    ];
+
     return (
         <div className="max-w-5xl mx-auto space-y-8">
-            {/* Profile Header */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600/10 via-purple-600/5 to-accent-1/10 border border-white/10 p-8">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
-
-                <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                    {/* Avatar */}
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-accent-1 to-accent-2 flex items-center justify-center text-3xl font-bold text-black shadow-xl shadow-accent-1/20 shrink-0">
+            {/* Cabecera */}
+            <header className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                    <div className="size-16 shrink-0 rounded-full grid place-items-center overflow-hidden bg-[color-mix(in_srgb,var(--acento)_15%,transparent)] text-[var(--acento)] text-2xl font-semibold font-mono">
                         {user.avatar ? (
-                            <img src={user.avatar} alt="Avatar" className="w-full h-full rounded-2xl object-cover" />
+                            <img src={user.avatar} alt="Foto de perfil" className="size-full object-cover" />
                         ) : (
-                            (user.name || user.email).charAt(0).toUpperCase()
+                            <span aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
                         )}
                     </div>
 
                     <div className="flex-1 min-w-0">
                         {isEditing ? (
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <label htmlFor={idNombre} className="sr-only">Nombre</label>
                                 <input
+                                    id={idNombre}
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="bg-black/30 border border-white/20 rounded-xl px-4 py-2 text-white text-xl font-bold focus:border-accent-1 focus:ring-1 focus:ring-accent-1/50 outline-none transition-all w-full max-w-md"
+                                    className={`${CAMPO} max-w-md text-lg font-semibold`}
                                     autoFocus
                                     onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
                                     maxLength={100}
+                                    autoComplete="name"
                                 />
                                 <button
+                                    type="button"
                                     onClick={handleSaveName}
                                     disabled={saving}
-                                    className="p-2 rounded-lg bg-accent-1/20 text-accent-1 hover:bg-accent-1/30 transition-colors disabled:opacity-50"
+                                    className={BTN_ICONO}
+                                    aria-label="Guardar nombre"
                                 >
-                                    {saving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
+                                    {saving ? <RefreshCw size={18} className={GIRO} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => { setIsEditing(false); setName(user.name || ""); }}
-                                    className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white transition-colors"
+                                    className={BTN_ICONO}
+                                    aria-label="Cancelar edición del nombre"
                                 >
-                                    <X size={18} />
+                                    <X size={18} aria-hidden="true" />
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-[var(--txt)] truncate">
                                     {user.name || "Sin nombre"}
                                 </h1>
                                 <button
+                                    type="button"
                                     onClick={() => setIsEditing(true)}
-                                    className="p-1.5 rounded-lg text-neutral-500 hover:text-accent-1 hover:bg-accent-1/10 transition-colors"
+                                    className={BTN_ICONO}
+                                    aria-label="Editar nombre"
                                     title="Editar nombre"
                                 >
-                                    <Edit3 size={16} />
+                                    <Edit3 size={16} aria-hidden="true" />
                                 </button>
                             </div>
                         )}
-                        <p className="text-neutral-400 text-sm mt-1 break-all">{user.email}</p>
-                        <div className="flex items-center gap-3 mt-2 flex-wrap">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-accent-1/10 text-accent-1 border border-accent-1/20">
-                                <Shield size={12} />
-                                {user.role}
+                        <p className="mt-1 text-[15px] text-[var(--mut)] break-all">{user.email}</p>
+                        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--mut)]">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--acento)_13%,transparent)] px-2.5 py-0.5 text-xs font-semibold text-[var(--acento)]">
+                                <Shield size={12} aria-hidden="true" />
+                                {nombreRol(user.role)}
                             </span>
-                            <span className="text-xs text-neutral-500">
-                                Miembro desde {formatDate(user.createdAt)}
-                            </span>
+                            <span>Miembro desde {formatDate(user.createdAt)}</span>
                             {user.lastLoginAt && (
-                                <span className="text-xs text-neutral-500">
-                                    · Último acceso {timeAgo(user.lastLoginAt)}
-                                </span>
+                                <span>Último acceso {timeAgo(user.lastLoginAt)}</span>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Quick stats */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full sm:w-auto">
-                        {[
-                            { label: "Clientes", value: user.stats.clients, icon: Users },
-                            { label: "Propuestas", value: user.stats.quotations, icon: FileText },
-                            { label: "Contratos", value: user.stats.contracts, icon: Briefcase },
-                            { label: "Conexiones", value: user.stats.connections, icon: BarChart3 },
-                        ].map((stat) => (
-                            <div key={stat.label} className="bg-black/20 border border-white/5 rounded-xl p-3 text-center">
-                                <stat.icon size={14} className="mx-auto text-neutral-500 mb-1" />
-                                <p className="text-lg font-bold text-white">{stat.value}</p>
-                                <p className="text-[10px] text-neutral-500 uppercase tracking-wider">{stat.label}</p>
-                            </div>
-                        ))}
+                        </p>
                     </div>
                 </div>
+
+                {/* Cifras */}
+                <dl className="grid grid-cols-2 md:grid-cols-4 border-y border-[var(--linea)]">
+                    {cifras.map((stat, i) => (
+                        <div
+                            key={stat.label}
+                            className={`flex flex-col-reverse px-4 py-4 border-[var(--linea)] ${i > 0 ? "md:border-l" : ""} ${i % 2 === 1 ? "max-md:border-l" : ""} ${i > 1 ? "max-md:border-t" : ""}`}
+                        >
+                            <dt className="text-[13.5px] text-[var(--mut)]">{stat.label}</dt>
+                            <dd className="text-[28px] font-bold tracking-tight tabular-nums text-[var(--txt)]">{stat.value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            </header>
+
+            {/* Pestañas */}
+            <div
+                role="tablist"
+                aria-label="Secciones del perfil"
+                className="flex gap-1 overflow-x-auto border-b border-[var(--linea)] [scrollbar-width:thin]"
+            >
+                {TABS.map((tab, i) => {
+                    const activa = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            id={`perfil-tab-${tab.id}`}
+                            type="button"
+                            role="tab"
+                            aria-selected={activa}
+                            tabIndex={activa ? 0 : -1}
+                            onClick={() => setActiveTab(tab.id)}
+                            onKeyDown={(e) => moverPestana(e, i)}
+                            className={`-mb-px flex shrink-0 items-center gap-2 min-h-11 px-3 sm:px-4 border-b-2 border-transparent text-sm font-medium whitespace-nowrap text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] aria-selected:border-[var(--acento)] aria-selected:text-[var(--txt)] motion-reduce:transition-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]`}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/10 overflow-x-auto">
-                {TABS.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id
-                            ? "text-white"
-                            : "text-neutral-400 hover:text-white hover:bg-white/5"
-                            }`}
-                    >
-                        {activeTab === tab.id && (
-                            <motion.div
-                                layoutId="profileTab"
-                                className="absolute inset-0 bg-accent-1/10 border border-accent-1/20 rounded-lg"
-                                transition={{ type: "spring", duration: 0.4 }}
-                            />
-                        )}
-                        <span className="relative z-10">{tab.icon}</span>
-                        <span className="relative z-10">{tab.label}</span>
-                    </button>
-                ))}
+            {/* Contenido de la pestaña */}
+            <div
+                role="tabpanel"
+                id={`perfil-panel-${activeTab}`}
+                aria-labelledby={`perfil-tab-${activeTab}`}
+                tabIndex={activeTab === "permissions" ? 0 : undefined}
+                className="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--acento)] rounded-sm"
+            >
+                {activeTab === "general" && <GeneralTab user={user} />}
+                {activeTab === "security" && <SecurityTab mfaEnabled={user.mfaEnabled} />}
+                {activeTab === "sessions" && <SessionsTab sessions={sessions} onRevoke={handleRevokeSession} />}
+                {activeTab === "permissions" && <PermissionsTab permissions={permissions} role={user.role} />}
+                {activeTab === "activity" && <ActivityTab initialActivities={recentActivity} totalCount={totalActivityCount} />}
             </div>
-
-            {/* Tab Content */}
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                >
-                    {activeTab === "general" && <GeneralTab user={user} />}
-                    {activeTab === "security" && <SecurityTab mfaEnabled={user.mfaEnabled} />}
-                    {activeTab === "sessions" && <SessionsTab sessions={sessions} onRevoke={handleRevokeSession} />}
-                    {activeTab === "permissions" && <PermissionsTab permissions={permissions} role={user.role} />}
-                    {activeTab === "activity" && <ActivityTab initialActivities={recentActivity} totalCount={totalActivityCount} />}
-                </motion.div>
-            </AnimatePresence>
         </div>
     );
 }
 
 // ─── General Tab ───────────────────────────────────────────────────
 function GeneralTab({ user }: { user: ProfileUser }) {
-    const [copied, setCopied] = useState(false);
+    const [copia, setCopia] = useState<"ok" | "fallo" | null>(null);
 
-    const handleCopyCode = () => {
+    const handleCopyCode = async () => {
         if (user.sharingCode) {
-            navigator.clipboard.writeText(user.sharingCode);
-            setCopied(true);
-            toast.success("Código copiado al portapapeles");
-            setTimeout(() => setCopied(false), 2000);
+            const ok = await copiarTexto(user.sharingCode);
+            setCopia(ok ? "ok" : "fallo");
+            if (ok) toast.success("Código copiado al portapapeles");
+            setTimeout(() => setCopia(null), 2000);
         }
     };
 
     return (
-        <div className="grid gap-6 md:grid-cols-2">
-            {/* Account Info */}
-            <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6 space-y-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <User size={18} className="text-accent-1" />
-                    Información de Cuenta
-                </h3>
-                <InfoRow label="Nombre" value={user.name || "—"} />
-                <InfoRow label="Email" value={user.email} wrap />
-                <InfoRow label="Rol" value={user.role} badge />
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
-                    <span className="text-sm text-neutral-400">Código de Conexión</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-white font-mono text-xs">
-                            {user.sharingCode || "No generado"}
-                        </span>
-                        {user.sharingCode && (
-                            <button
-                                onClick={handleCopyCode}
-                                className="p-1 rounded text-neutral-500 hover:text-accent-1 transition-colors"
-                                title="Copiar código"
-                            >
-                                {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                            </button>
-                        )}
+        <div className="grid gap-10 md:grid-cols-2">
+            {/* Cuenta */}
+            <section aria-labelledby="perfil-cuenta" className="min-w-0">
+                <h2 id="perfil-cuenta" className={SECCION}>
+                    <User size={16} aria-hidden="true" />
+                    Información de la cuenta
+                </h2>
+                <dl className="mt-2 border-t border-[var(--linea)]">
+                    <InfoRow label="Nombre" value={user.name || "—"} />
+                    <InfoRow label="Correo" value={user.email} wrap />
+                    <InfoRow label="Rol" value={nombreRol(user.role)} badge />
+                    <div className="flex items-center justify-between gap-3 py-3 border-b border-[var(--linea)]">
+                        <dt className="text-sm text-[var(--mut)] shrink-0">Código de conexión</dt>
+                        <dd className="flex min-w-0 items-center gap-1">
+                            <span className="truncate font-mono text-xs text-[var(--txt)]">
+                                {user.sharingCode || "No generado"}
+                            </span>
+                            {user.sharingCode && (
+                                <button
+                                    type="button"
+                                    onClick={handleCopyCode}
+                                    className={BTN_ICONO}
+                                    aria-label={copia === "ok" ? "Código copiado" : copia === "fallo" ? "No se pudo copiar" : "Copiar código de conexión"}
+                                    title="Copiar código"
+                                >
+                                    {copia === "ok" ? <Check size={16} className="text-emerald-400" aria-hidden="true" />
+                                        : copia === "fallo" ? <AlertTriangle size={16} className="text-red-400" aria-hidden="true" />
+                                            : <Copy size={16} aria-hidden="true" />}
+                                </button>
+                            )}
+                        </dd>
                     </div>
-                </div>
-                <InfoRow label="Cuenta creada" value={formatDate(user.createdAt)} />
-                <InfoRow
-                    label="Último acceso"
-                    value={user.lastLoginAt ? `${timeAgo(user.lastLoginAt)} (${formatDateTime(user.lastLoginAt)})` : "—"}
-                />
-            </div>
+                    <InfoRow label="Cuenta creada" value={formatDate(user.createdAt)} />
+                    <InfoRow
+                        label="Último acceso"
+                        value={user.lastLoginAt ? `${timeAgo(user.lastLoginAt)} (${formatDateTime(user.lastLoginAt)})` : "—"}
+                    />
+                </dl>
+                <p className="sr-only" aria-live="polite">{copia === "fallo" ? "No se pudo copiar" : ""}</p>
+            </section>
 
-            {/* Quick Actions + Data Export */}
-            <div className="space-y-6">
-                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6 space-y-4">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <Globe size={18} className="text-blue-400" />
-                        Acceso Rápido
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                        <QuickLink icon={FileText} label="Cotizaciones" href="/admin/cotizaciones" color="text-indigo-400" />
-                        <QuickLink icon={Briefcase} label="Contratos" href="/admin/gestion-comercial/contratos" color="text-emerald-400" />
-                        <QuickLink icon={Users} label="Clientes" href="/admin/gestion-comercial/clientes" color="text-amber-400" />
-                        <QuickLink icon={BarChart3} label="Finanzas" href="/admin/finance" color="text-purple-400" />
-                    </div>
-                </div>
+            {/* Accesos y exportación */}
+            <div className="min-w-0 space-y-10">
+                <section aria-labelledby="perfil-accesos">
+                    <h2 id="perfil-accesos" className={SECCION}>
+                        <Globe size={16} aria-hidden="true" />
+                        Accesos directos
+                    </h2>
+                    <ul className="mt-2 border-t border-[var(--linea)]">
+                        <QuickLink icon={FileText} label="Cotizaciones" href="/admin/cotizaciones" />
+                        <QuickLink icon={Briefcase} label="Contratos" href="/admin/gestion-comercial/contratos" />
+                        <QuickLink icon={Users} label="Clientes" href="/admin/clientes" />
+                        <QuickLink icon={BarChart3} label="Finanzas" href="/admin/finance" />
+                    </ul>
+                </section>
 
                 <DataExportCard user={user} />
             </div>
@@ -466,15 +512,18 @@ function GeneralTab({ user }: { user: ProfileUser }) {
     );
 }
 
-function QuickLink({ icon: Icon, label, href, color }: { icon: typeof User; label: string; href: string; color: string }) {
+function QuickLink({ icon: Icon, label, href }: { icon: typeof User; label: string; href: string }) {
     return (
-        <a
-            href={href}
-            className="flex items-center gap-3 p-3 bg-black/20 rounded-xl hover:bg-white/5 transition-all group"
-        >
-            <Icon size={16} className={`${color} group-hover:scale-110 transition-transform`} />
-            <span className="text-sm text-neutral-300 group-hover:text-white transition-colors">{label}</span>
-        </a>
+        <li className="border-b border-[var(--linea)]">
+            <a
+                href={href}
+                className="flex min-h-11 items-center gap-3 px-1 py-3 text-sm font-medium text-[var(--txt)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] motion-reduce:transition-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]"
+            >
+                <Icon size={16} className="text-[var(--mut)]" aria-hidden="true" />
+                <span className="flex-1">{label}</span>
+                <ChevronRight size={16} className="text-[var(--mut)]" aria-hidden="true" />
+            </a>
+        </li>
     );
 }
 
@@ -504,103 +553,104 @@ function DataExportCard({ user }: { user: ProfileUser }) {
     };
 
     return (
-        <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Download size={18} className="text-cyan-400" />
-                Exportar Mis Datos
-            </h3>
-            <p className="text-xs text-neutral-500 leading-relaxed">
-                Conforme al Art. 20 GDPR — Derecho a la portabilidad de datos.
-                Exporta todos tus datos personales en formato JSON.
+        <section aria-labelledby="perfil-exportar" className="space-y-3">
+            <h2 id="perfil-exportar" className={SECCION}>
+                <Download size={16} aria-hidden="true" />
+                Exportar mis datos
+            </h2>
+            <p className="text-sm leading-relaxed text-[var(--mut)]">
+                Descarga todos tus datos personales en un archivo JSON (derecho a la portabilidad, art. 20 del RGPD).
             </p>
             {user.dataExportedAt && (
-                <p className="text-xs text-neutral-600">
+                <p className="text-sm text-[var(--mut)]">
                     Última exportación: {formatDateTime(user.dataExportedAt)}
                 </p>
             )}
             <button
+                type="button"
                 onClick={handleExport}
                 disabled={exporting}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                className={BTN_SEC}
             >
-                {exporting ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
+                {exporting ? <RefreshCw size={16} className={GIRO} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
                 {exporting ? "Exportando..." : "Descargar mis datos"}
             </button>
-        </div>
+        </section>
     );
 }
 
 // ─── Security Tab ──────────────────────────────────────────────────
 function SecurityTab({ mfaEnabled: initialMfaEnabled }: { mfaEnabled: boolean }) {
     return (
-        <div className="space-y-6">
-            {/* Mandatory 2FA Warning Banner */}
+        <div className="space-y-8">
+            {/* 2FA obligatoria */}
             {!initialMfaEnabled && (
-                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
-                    <ShieldOff size={22} className="text-red-400 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-3">
+                    <ShieldOff size={18} className="text-red-400 mt-0.5 shrink-0" aria-hidden="true" />
                     <div>
-                        <p className="text-sm font-semibold text-red-400">Autenticación de dos factores obligatoria</p>
-                        <p className="text-xs text-red-400/70 mt-1">
-                            Debes configurar 2FA con una app como Google Authenticator, Authy o 1Password para poder acceder al panel de administración.
-                            Configúralo a continuación escaneando el código QR.
+                        <p className="text-sm font-semibold text-red-400">Verificación en dos pasos obligatoria</p>
+                        <p className="mt-1 text-sm text-[var(--mut)]">
+                            Para entrar al panel tienes que activarla con una app como Google Authenticator, Authy o 1Password.
+                            Hazlo abajo escaneando el código QR.
                         </p>
                     </div>
                 </div>
             )}
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-8 md:grid-cols-2 items-start">
                 <ChangePasswordCard />
 
-                <div className="space-y-6">
+                <div className="space-y-8 min-w-0">
                     <MFASetupCard initialMfaEnabled={initialMfaEnabled} />
 
-                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6 space-y-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Shield size={18} className="text-emerald-400" />
-                            Estado de Seguridad
-                        </h3>
+                    <section aria-labelledby="perfil-estado-seguridad">
+                        <h2 id="perfil-estado-seguridad" className={SECCION}>
+                            <Shield size={16} aria-hidden="true" />
+                            Estado de seguridad
+                        </h2>
+                        <ul className="mt-2 border-t border-[var(--linea)]">
+                            <SecurityRow
+                                icon={Fingerprint}
+                                label="Clave cifrada"
+                                sublabel="Argon2id (NIST SP 800-63B)"
+                                status="active"
+                                statusText="Activo"
+                            />
+                            <SecurityRow
+                                icon={Monitor}
+                                label="Sesiones vigiladas"
+                                sublabel="Detección de sesiones concurrentes"
+                                status="active"
+                                statusText="Activo"
+                            />
+                            <SecurityRow
+                                icon={Lock}
+                                label="Bloqueo por intentos"
+                                sublabel="Se bloquea sola tras 5 intentos fallidos"
+                                status="active"
+                                statusText="Activo"
+                            />
+                            <SecurityRow
+                                icon={Activity}
+                                label="Auditoría completa"
+                                sublabel="NIST SP 800-53 AU-3"
+                                status="active"
+                                statusText="Registrando"
+                            />
+                        </ul>
+                    </section>
 
-                        <SecurityRow
-                            icon={Fingerprint}
-                            label="Hash de Contraseña"
-                            sublabel="Argon2id (NIST SP 800-63B)"
-                            status="active"
-                            statusText="Activo"
-                        />
-                        <SecurityRow
-                            icon={Monitor}
-                            label="Sesiones Monitoreadas"
-                            sublabel="Detección de sesiones concurrentes"
-                            status="active"
-                            statusText="Activo"
-                        />
-                        <SecurityRow
-                            icon={Lock}
-                            label="Bloqueo por Intentos"
-                            sublabel="Auto-lock después de 5 fallos"
-                            status="active"
-                            statusText="Activo"
-                        />
-                        <SecurityRow
-                            icon={Activity}
-                            label="Auditoría Completa"
-                            sublabel="NIST SP 800-53 AU-3"
-                            status="active"
-                            statusText="Registrando"
-                        />
-                    </div>
-
-                    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6 space-y-3">
-                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                            <Key size={16} className="text-amber-400" />
-                            Política de Sesiones
-                        </h3>
-                        <div className="text-xs text-neutral-500 space-y-1.5">
-                            <p>· Las sesiones expiran automáticamente tras 7 días o al cerrar sesión</p>
-                            <p>· Se notifica en caso de acceso desde un nuevo dispositivo</p>
-                            <p>· Todas las acciones quedan registradas en el log de auditoría</p>
-                        </div>
-                    </div>
+                    <section aria-labelledby="perfil-politica">
+                        <h2 id="perfil-politica" className={SECCION}>
+                            <Key size={16} aria-hidden="true" />
+                            Política de sesiones
+                        </h2>
+                        <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-[var(--mut)] marker:text-[var(--linea-2)]">
+                            <li>Las sesiones expiran automáticamente tras 7 días o al cerrar sesión.</li>
+                            <li>Se notifica en caso de acceso desde un nuevo dispositivo.</li>
+                            <li>Todas las acciones quedan registradas en la auditoría.</li>
+                        </ul>
+                    </section>
                 </div>
             </div>
         </div>
@@ -615,26 +665,24 @@ function SecurityRow({ icon: Icon, label, sublabel, status, statusText }: {
     statusText: string;
 }) {
     const colors = {
-        active: { bg: "bg-emerald-500/10", text: "text-emerald-400", icon: "text-emerald-400" },
-        coming: { bg: "bg-amber-500/10", text: "text-amber-400", icon: "text-amber-400" },
-        warning: { bg: "bg-red-500/10", text: "text-red-400", icon: "text-red-400" },
+        active: { bg: "bg-emerald-500/10", text: "text-emerald-400" },
+        coming: { bg: "bg-amber-500/10", text: "text-amber-400" },
+        warning: { bg: "bg-red-500/10", text: "text-red-400" },
     }[status];
 
     return (
-        <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl">
-            <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center`}>
-                    <Icon size={14} className={colors.icon} />
-                </div>
-                <div>
-                    <p className="text-sm font-medium text-white">{label}</p>
-                    <p className="text-xs text-neutral-500">{sublabel}</p>
+        <li className="flex items-center justify-between gap-3 py-3 border-b border-[var(--linea)]">
+            <div className="flex min-w-0 items-center gap-3">
+                <Icon size={16} className="shrink-0 text-[var(--mut)]" aria-hidden="true" />
+                <div className="min-w-0">
+                    <p className="text-sm font-medium text-[var(--txt)]">{label}</p>
+                    <p className="text-sm text-[var(--mut)]">{sublabel}</p>
                 </div>
             </div>
-            <span className={`text-xs ${colors.bg} ${colors.text} px-2 py-1 rounded-full font-medium`}>
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}>
                 {statusText}
             </span>
-        </div>
+        </li>
     );
 }
 
@@ -646,6 +694,7 @@ function ChangePasswordCard() {
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const formRef = useRef<HTMLFormElement>(null);
+    const id = useId();
 
     const getStrength = (pw: string): { level: number; label: string; color: string } => {
         if (!pw) return { level: 0, label: "", color: "" };
@@ -705,136 +754,150 @@ function ChangePasswordCard() {
     };
 
     return (
-        <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Lock size={18} className="text-amber-400" />
-                Cambiar Contraseña
-            </h3>
+        <section aria-labelledby={`${id}-t`} className={`${TARJETA} space-y-4 min-w-0`}>
+            <h2 id={`${id}-t`} className={TITULO_TARJETA}>
+                <Lock size={18} className="text-[var(--mut)]" aria-hidden="true" />
+                Cambiar contraseña
+            </h2>
 
             {!isOpen ? (
                 <div className="space-y-4">
-                    <p className="text-sm text-neutral-400">
+                    <p className="text-sm text-[var(--mut)]">
                         Tu contraseña está protegida con Argon2id, el estándar recomendado por OWASP y NIST SP 800-63B.
                     </p>
                     <button
+                        type="button"
                         onClick={() => setIsOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-all text-sm font-medium"
+                        className={`${BTN_SEC} w-full`}
                     >
-                        <Key size={16} />
+                        <Key size={16} aria-hidden="true" />
                         Cambiar contraseña
                     </button>
                 </div>
             ) : (
                 <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
-                    {/* Current Password */}
+                    {/* Contraseña actual */}
                     <div>
-                        <label className="text-xs text-neutral-400 block mb-1.5">Contraseña actual</label>
+                        <label htmlFor={`${id}-actual`} className={ETIQUETA}>Contraseña actual</label>
                         <div className="relative">
                             <input
+                                id={`${id}-actual`}
                                 type={showCurrent ? "text" : "password"}
                                 value={form.currentPassword}
                                 onChange={(e) => setForm(p => ({ ...p, currentPassword: e.target.value }))}
-                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-accent-1 focus:ring-1 focus:ring-accent-1/30 outline-none transition-all pr-10"
+                                className={`${CAMPO} pr-10`}
                                 placeholder="••••••••••••"
                                 autoComplete="current-password"
+                                aria-invalid={errors.currentPassword ? true : undefined}
+                                aria-describedby={errors.currentPassword ? `${id}-actual-error` : undefined}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowCurrent(!showCurrent)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+                                className={OJO}
+                                aria-label={showCurrent ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
                             >
-                                {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+                                {showCurrent ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                             </button>
                         </div>
                         {errors.currentPassword && (
-                            <p className="text-xs text-red-400 mt-1">{errors.currentPassword}</p>
+                            <p id={`${id}-actual-error`} role="alert" className="text-sm text-red-400 mt-1">{errors.currentPassword}</p>
                         )}
                     </div>
 
-                    {/* New Password */}
+                    {/* Contraseña nueva */}
                     <div>
-                        <label className="text-xs text-neutral-400 block mb-1.5">Nueva contraseña</label>
+                        <label htmlFor={`${id}-nueva`} className={ETIQUETA}>Nueva contraseña</label>
                         <div className="relative">
                             <input
+                                id={`${id}-nueva`}
                                 type={showNew ? "text" : "password"}
                                 value={form.newPassword}
                                 onChange={(e) => setForm(p => ({ ...p, newPassword: e.target.value }))}
-                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-accent-1 focus:ring-1 focus:ring-accent-1/30 outline-none transition-all pr-10"
+                                className={`${CAMPO} pr-10`}
                                 placeholder="Mínimo 12 caracteres"
                                 autoComplete="new-password"
+                                aria-invalid={errors.newPassword ? true : undefined}
+                                aria-describedby={`${id}-reqs${errors.newPassword ? ` ${id}-nueva-error` : ""}`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowNew(!showNew)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+                                className={OJO}
+                                aria-label={showNew ? "Ocultar contraseña nueva" : "Mostrar contraseña nueva"}
                             >
-                                {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                                {showNew ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                             </button>
                         </div>
                         {form.newPassword && (
                             <div className="mt-2 space-y-1.5">
-                                <div className="flex gap-1">
+                                <div className="flex gap-1" aria-hidden="true">
                                     {[1, 2, 3, 4].map((i) => (
                                         <div
                                             key={i}
-                                            className={`h-1 flex-1 rounded-full transition-all ${i <= strength.level ? strength.color : "bg-white/10"
-                                                }`}
+                                            className={`h-1 flex-1 rounded-full ${i <= strength.level ? strength.color : "bg-[var(--linea-2)]"}`}
                                         />
                                     ))}
                                 </div>
-                                <p className={`text-xs ${strength.level <= 1 ? "text-red-400" :
+                                <p aria-live="polite" className={`text-sm ${strength.level <= 1 ? "text-red-400" :
                                     strength.level <= 2 ? "text-amber-400" :
-                                        strength.level <= 3 ? "text-blue-400" : "text-emerald-400"
+                                        strength.level <= 3 ? "text-sky-400" : "text-emerald-400"
                                     }`}>
+                                    <span className="sr-only">Seguridad de la contraseña: </span>
                                     {strength.label}
                                 </p>
                             </div>
                         )}
-                        <div className="mt-2 grid grid-cols-2 gap-1">
+                        <ul id={`${id}-reqs`} className="mt-2 grid grid-cols-2 gap-1">
                             <PasswordReq met={form.newPassword.length >= 12} text="12+ caracteres" />
                             <PasswordReq met={/[A-Z]/.test(form.newPassword)} text="Mayúscula" />
                             <PasswordReq met={/[a-z]/.test(form.newPassword)} text="Minúscula" />
                             <PasswordReq met={/\d/.test(form.newPassword)} text="Número" />
                             <PasswordReq met={/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(form.newPassword)} text="Especial" />
-                        </div>
+                        </ul>
                         {errors.newPassword && (
-                            <p className="text-xs text-red-400 mt-1">{errors.newPassword}</p>
+                            <p id={`${id}-nueva-error`} role="alert" className="text-sm text-red-400 mt-1">{errors.newPassword}</p>
                         )}
                     </div>
 
-                    {/* Confirm Password */}
+                    {/* Confirmación */}
                     <div>
-                        <label className="text-xs text-neutral-400 block mb-1.5">Confirmar nueva contraseña</label>
+                        <label htmlFor={`${id}-repetir`} className={ETIQUETA}>Confirmar nueva contraseña</label>
                         <input
+                            id={`${id}-repetir`}
                             type="password"
                             value={form.confirmPassword}
                             onChange={(e) => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-accent-1 focus:ring-1 focus:ring-accent-1/30 outline-none transition-all"
+                            className={CAMPO}
                             placeholder="Repetir nueva contraseña"
                             autoComplete="new-password"
+                            aria-invalid={errors.confirmPassword ? true : undefined}
+                            aria-describedby={`${id}-repetir-estado`}
                         />
-                        {form.confirmPassword && form.newPassword !== form.confirmPassword && (
-                            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                                <AlertTriangle size={12} /> Las contraseñas no coinciden
-                            </p>
-                        )}
-                        {form.confirmPassword && form.newPassword === form.confirmPassword && form.confirmPassword.length > 0 && (
-                            <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                                <CheckCircle size={12} /> Coinciden
-                            </p>
-                        )}
+                        <div id={`${id}-repetir-estado`} aria-live="polite">
+                            {form.confirmPassword && form.newPassword !== form.confirmPassword && (
+                                <p className="text-sm text-red-400 mt-1 flex items-center gap-1">
+                                    <AlertTriangle size={14} aria-hidden="true" /> Las contraseñas no coinciden
+                                </p>
+                            )}
+                            {form.confirmPassword && form.newPassword === form.confirmPassword && form.confirmPassword.length > 0 && (
+                                <p className="text-sm text-emerald-400 mt-1 flex items-center gap-1">
+                                    <CheckCircle size={14} aria-hidden="true" /> Coinciden
+                                </p>
+                            )}
+                        </div>
                         {errors.confirmPassword && (
-                            <p className="text-xs text-red-400 mt-1">{errors.confirmPassword}</p>
+                            <p role="alert" className="text-sm text-red-400 mt-1">{errors.confirmPassword}</p>
                         )}
                     </div>
 
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex flex-wrap gap-3 pt-2">
                         <button
                             type="submit"
                             disabled={saving}
-                            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent-1/20 border border-accent-1/30 text-accent-1 hover:bg-accent-1/30 transition-all text-sm font-medium disabled:opacity-50"
+                            className={`${BTN_PRI} flex-1`}
                         >
-                            {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                            {saving ? <RefreshCw size={16} className={GIRO} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
                             {saving ? "Guardando..." : "Actualizar contraseña"}
                         </button>
                         <button
@@ -844,23 +907,26 @@ function ChangePasswordCard() {
                                 setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
                                 setErrors({});
                             }}
-                            className="px-4 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all text-sm"
+                            className={BTN_SEC}
                         >
                             Cancelar
                         </button>
                     </div>
                 </form>
             )}
-        </div>
+        </section>
     );
 }
 
 function PasswordReq({ met, text }: { met: boolean; text: string }) {
     return (
-        <div className={`flex items-center gap-1.5 text-[11px] ${met ? "text-emerald-400" : "text-neutral-600"}`}>
-            {met ? <CheckCircle size={10} /> : <div className="w-2.5 h-2.5 rounded-full border border-neutral-600" />}
+        <li className={`flex items-center gap-1.5 text-xs ${met ? "text-emerald-400" : "text-[var(--mut)]"}`}>
+            {met
+                ? <CheckCircle size={12} aria-hidden="true" />
+                : <span className="size-3 rounded-full border border-[var(--mut)]" aria-hidden="true" />}
+            <span className="sr-only">{met ? "Cumple: " : "Falta: "}</span>
             {text}
-        </div>
+        </li>
     );
 }
 
@@ -869,6 +935,7 @@ type MFAStep = "idle" | "loading" | "qr" | "verify" | "recovery" | "done";
 
 function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
     const router = useRouter();
+    const id = useId();
     const [mfaEnabled, setMfaEnabled] = useState(initialMfaEnabled);
     const [step, setStep] = useState<MFAStep>("idle");
     const [qrURI, setQrURI] = useState("");
@@ -879,10 +946,10 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
     const [disableCode, setDisableCode] = useState("");
     const [disabling, setDisabling] = useState(false);
     const [showDisable, setShowDisable] = useState(false);
-    const [copiedCodes, setCopiedCodes] = useState(false);
+    const [copiedCodes, setCopiedCodes] = useState<"ok" | "fallo" | null>(null);
     const [setupPassword, setSetupPassword] = useState("");
     const [showSetupPassword, setShowSetupPassword] = useState(false);
-    const [copiedManualKey, setCopiedManualKey] = useState(false);
+    const [copiedManualKey, setCopiedManualKey] = useState<"ok" | "fallo" | null>(null);
     const [returnToPath, setReturnToPath] = useState<string | null>(null);
 
     useEffect(() => {
@@ -969,18 +1036,18 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
         }
     };
 
-    const handleCopyRecoveryCodes = () => {
-        navigator.clipboard.writeText(recoveryCodes.join("\n"));
-        setCopiedCodes(true);
-        toast.success("Códigos copiados al portapapeles");
-        setTimeout(() => setCopiedCodes(false), 2000);
+    const handleCopyRecoveryCodes = async () => {
+        const ok = await copiarTexto(recoveryCodes.join("\n"));
+        setCopiedCodes(ok ? "ok" : "fallo");
+        if (ok) toast.success("Códigos copiados al portapapeles");
+        setTimeout(() => setCopiedCodes(null), 2000);
     };
 
-    const handleCopyManualKey = () => {
-        navigator.clipboard.writeText(manualEntryKey);
-        setCopiedManualKey(true);
-        toast.success("Clave manual copiada");
-        setTimeout(() => setCopiedManualKey(false), 2000);
+    const handleCopyManualKey = async () => {
+        const ok = await copiarTexto(manualEntryKey);
+        setCopiedManualKey(ok ? "ok" : "fallo");
+        if (ok) toast.success("Clave manual copiada");
+        setTimeout(() => setCopiedManualKey(null), 2000);
     };
 
     const handleDownloadCodes = () => {
@@ -1009,47 +1076,54 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
     };
 
     return (
-        <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Smartphone size={18} className="text-indigo-400" />
-                Autenticación de Dos Factores (2FA)
-            </h3>
+        <section aria-labelledby={`${id}-t`} className={`${TARJETA} space-y-4`}>
+            <h2 id={`${id}-t`} className={TITULO_TARJETA}>
+                <Smartphone size={18} className="text-[var(--mut)]" aria-hidden="true" />
+                Verificación en dos pasos (2FA)
+            </h2>
 
             {mfaEnabled && step === "idle" ? (
-                /* MFA is enabled */
+                /* 2FA activa */
                 <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-                        <ShieldCheck size={20} className="text-emerald-400" />
+                    <div className="flex items-start gap-3">
+                        <ShieldCheck size={18} className="mt-0.5 shrink-0 text-emerald-400" aria-hidden="true" />
                         <div>
-                            <p className="text-sm font-medium text-emerald-400">2FA Activo</p>
-                            <p className="text-xs text-neutral-500">Tu cuenta está protegida con autenticación de dos factores</p>
+                            <p className="text-sm font-medium text-emerald-400">Dos pasos activos</p>
+                            <p className="text-sm text-[var(--mut)]">Tu cuenta está protegida con autenticación de dos factores.</p>
                         </div>
                     </div>
 
                     {showDisable ? (
                         <div className="space-y-3">
-                            <p className="text-xs text-red-400">Ingresa tu código TOTP actual para desactivar 2FA:</p>
+                            <label htmlFor={`${id}-desactivar`} className="block text-sm text-red-400">
+                                Escribe el código actual de tu app para desactivar la verificación en dos pasos:
+                            </label>
                             <input
+                                id={`${id}-desactivar`}
                                 type="text"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
                                 maxLength={6}
                                 value={disableCode}
                                 onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                                className="w-full bg-black/30 border border-red-500/30 rounded-xl px-4 py-2.5 text-white text-center text-xl font-mono tracking-[0.5em] focus:border-red-500 focus:ring-1 focus:ring-red-500/30 outline-none transition-all"
+                                className={`${CAMPO_CODIGO} border-red-500/30`}
                                 placeholder="000000"
                                 autoFocus
                             />
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 <button
+                                    type="button"
                                     onClick={handleDisable}
                                     disabled={disabling}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                    className={`${BTN_PELIGRO} flex-1`}
                                 >
-                                    {disabling ? <Loader2 size={16} className="animate-spin" /> : <ShieldOff size={16} />}
+                                    {disabling ? <Loader2 size={16} className={GIRO} aria-hidden="true" /> : <ShieldOff size={16} aria-hidden="true" />}
                                     Desactivar
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => { setShowDisable(false); setDisableCode(""); }}
-                                    className="px-4 py-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white text-sm"
+                                    className={BTN_SEC}
                                 >
                                     Cancelar
                                 </button>
@@ -1057,145 +1131,154 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
                         </div>
                     ) : (
                         <button
+                            type="button"
                             onClick={() => setShowDisable(true)}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/5 border border-red-500/10 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all text-sm"
+                            className={`${BTN_PELIGRO} w-full`}
                         >
-                            <ShieldOff size={14} />
+                            <ShieldOff size={16} aria-hidden="true" />
                             Desactivar 2FA
                         </button>
                     )}
                 </div>
             ) : step === "idle" || step === "loading" ? (
-                /* MFA setup not started */
+                /* Sin configurar */
                 <div className="space-y-4">
-                    <p className="text-sm text-neutral-400">
+                    <p className="text-sm text-[var(--mut)]">
                         Protege tu cuenta con una aplicación de autenticación como Google Authenticator, Authy o 1Password.
                     </p>
-                    <div className="space-y-2">
-                        <label className="text-xs text-neutral-400 block">
+                    <div>
+                        <label htmlFor={`${id}-clave`} className={ETIQUETA}>
                             Confirma tu contraseña actual
                         </label>
                         <div className="relative">
                             <input
+                                id={`${id}-clave`}
                                 type={showSetupPassword ? "text" : "password"}
                                 value={setupPassword}
                                 onChange={(e) => setSetupPassword(e.target.value)}
-                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 pr-12 text-white focus:border-accent-1 focus:ring-1 focus:ring-accent-1/30 outline-none transition-all"
+                                className={`${CAMPO} pr-10`}
                                 placeholder="Tu contraseña actual"
                                 autoComplete="current-password"
+                                aria-describedby={`${id}-clave-nota`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowSetupPassword((current) => !current)}
-                                className="absolute inset-y-0 right-3 flex items-center text-neutral-500 hover:text-white transition-colors"
+                                className={OJO}
                                 aria-label={showSetupPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                             >
-                                {showSetupPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                {showSetupPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                             </button>
                         </div>
-                        <p className="text-[11px] text-neutral-500">
-                            Se requiere para prevenir activación de 2FA desde una sesión robada.
+                        <p id={`${id}-clave-nota`} className="mt-1.5 text-xs text-[var(--mut)]">
+                            Se pide para que nadie active la 2FA desde una sesión robada.
                         </p>
                     </div>
                     <button
+                        type="button"
                         onClick={handleSetup}
                         disabled={step === "loading"}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                        className={`${BTN_PRI} w-full`}
                     >
-                        {step === "loading" ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
+                        {step === "loading" ? <Loader2 size={16} className={GIRO} aria-hidden="true" /> : <QrCode size={16} aria-hidden="true" />}
                         {step === "loading" ? "Generando..." : "Configurar 2FA"}
                     </button>
                 </div>
             ) : step === "qr" ? (
-                /* Show QR code */
+                /* Código QR */
                 <div className="space-y-4">
-                    <div className="p-4 bg-white rounded-xl mx-auto w-fit">
-                        {/* QR Code generated from otpauth URI */}
+                    {/* Fondo blanco a propósito: el lector de la app necesita el QR oscuro sobre claro en ambos temas. */}
+                    <div className="mx-auto w-fit rounded-xl bg-white p-3">
                         <QRCodeDisplay uri={qrURI} />
                     </div>
-                    <p className="text-xs text-neutral-400 text-center">
-                        Escanea este código QR con tu aplicación de autenticación
+                    <p className="text-sm text-[var(--mut)] text-center">
+                        Escanea este código QR con tu aplicación de autenticación.
                     </p>
-                    <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-4">
-                        <p className="text-xs text-neutral-400">
-                            Si tu app no detecta el QR, agrega la cuenta manualmente con esta clave:
+                    <div className="space-y-2 border-y border-[var(--linea)] py-4">
+                        <p className="text-sm text-[var(--mut)]">
+                            Si tu app no detecta el QR, agrega la cuenta a mano con esta clave:
                         </p>
-                        <div className="rounded-lg bg-black/30 px-3 py-2 font-mono text-sm break-all text-white">
+                        <p className="rounded-lg bg-[var(--fondo-2)] px-3 py-2 font-mono text-sm break-all text-[var(--txt)]">
                             {manualEntryKey}
-                        </div>
+                        </p>
                         <button
                             type="button"
                             onClick={handleCopyManualKey}
-                            className="inline-flex items-center gap-2 text-xs text-accent-1 hover:text-accent-1/80 transition-colors"
+                            className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-1 text-sm font-medium text-[var(--acento)] hover:underline ${FOCO}`}
                         >
-                            {copiedManualKey ? <Check size={12} /> : <Copy size={12} />}
-                            {copiedManualKey ? "Clave copiada" : "Copiar clave manual"}
+                            {copiedManualKey === "ok" ? <Check size={16} aria-hidden="true" /> : copiedManualKey === "fallo" ? <AlertTriangle size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                            {copiedManualKey === "ok" ? "Clave copiada" : copiedManualKey === "fallo" ? "No se pudo copiar" : "Copiar clave manual"}
                         </button>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-xs text-neutral-400 block">Ingresa el código de 6 dígitos de tu app:</label>
+                    <div>
+                        <label htmlFor={`${id}-codigo`} className={ETIQUETA}>Ingresa el código de 6 dígitos de tu app</label>
                         <input
+                            id={`${id}-codigo`}
                             type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
                             maxLength={6}
                             value={verifyCode}
                             onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-2xl font-mono tracking-[0.5em] focus:border-accent-1 focus:ring-1 focus:ring-accent-1/30 outline-none transition-all"
+                            className={CAMPO_CODIGO}
                             placeholder="000000"
                             autoFocus
                             onKeyDown={(e) => e.key === "Enter" && handleVerify()}
                         />
                     </div>
                     <button
+                        type="button"
                         onClick={handleVerify}
                         disabled={verifying || verifyCode.length !== 6}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent-1/20 border border-accent-1/30 text-accent-1 hover:bg-accent-1/30 transition-all text-sm font-medium disabled:opacity-50"
+                        className={`${BTN_PRI} w-full`}
                     >
-                        {verifying ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                        {verifying ? "Verificando..." : "Verificar y Activar"}
+                        {verifying ? <Loader2 size={16} className={GIRO} aria-hidden="true" /> : <CheckCircle size={16} aria-hidden="true" />}
+                        {verifying ? "Verificando..." : "Verificar y activar"}
                     </button>
                 </div>
             ) : step === "recovery" ? (
-                /* Show recovery codes */
+                /* Códigos de recuperación */
                 <div className="space-y-4">
-                    <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                        <p className="text-xs text-amber-400 flex items-center gap-2">
-                            <AlertTriangle size={14} />
-                            Guarda estos códigos de recuperación. Solo se mostrarán una vez.
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 p-4 bg-black/30 rounded-xl">
+                    <p className="flex items-start gap-2 text-sm text-amber-400">
+                        <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                        Guarda estos códigos de recuperación. Solo se mostrarán una vez.
+                    </p>
+                    <ul className="grid grid-cols-2 gap-2 rounded-lg bg-[var(--fondo-2)] p-4" aria-label="Códigos de recuperación">
                         {recoveryCodes.map((code, i) => (
-                            <span key={i} className="text-xs font-mono text-white text-center py-1">
+                            <li key={i} className="py-1 text-center font-mono text-sm text-[var(--txt)]">
                                 {code}
-                            </span>
+                            </li>
                         ))}
-                    </div>
-                    <div className="flex gap-2">
+                    </ul>
+                    <div className="flex flex-wrap gap-2">
                         <button
+                            type="button"
                             onClick={handleCopyRecoveryCodes}
-                            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 border border-white/10 text-neutral-300 hover:text-white hover:bg-white/10 transition-all text-sm"
+                            className={`${BTN_SEC} flex-1`}
                         >
-                            {copiedCodes ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                            {copiedCodes ? "Copiados" : "Copiar"}
+                            {copiedCodes === "ok" ? <Check size={16} className="text-emerald-400" aria-hidden="true" /> : copiedCodes === "fallo" ? <AlertTriangle size={16} className="text-red-400" aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                            {copiedCodes === "ok" ? "Copiados" : copiedCodes === "fallo" ? "No se pudo copiar" : "Copiar"}
                         </button>
                         <button
+                            type="button"
                             onClick={handleDownloadCodes}
-                            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 border border-white/10 text-neutral-300 hover:text-white hover:bg-white/10 transition-all text-sm"
+                            className={`${BTN_SEC} flex-1`}
                         >
-                            <Download size={14} />
+                            <Download size={16} aria-hidden="true" />
                             Descargar
                         </button>
                     </div>
                     <button
+                        type="button"
                         onClick={handleFinishEnrollment}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-sm font-medium"
+                        className={`${BTN_PRI} w-full`}
                     >
-                        <CheckCircle size={16} />
+                        <CheckCircle size={16} aria-hidden="true" />
                         {returnToPath ? "Guardar códigos y continuar" : "Ya guardé mis códigos"}
                     </button>
                 </div>
             ) : null}
-        </div>
+        </section>
     );
 }
 
@@ -1234,8 +1317,9 @@ function QRCodeDisplay({ uri }: { uri: string }) {
     }, [uri]);
 
     if (qrError) {
+        // Va sobre el recuadro blanco del QR: texto oscuro fijo para que se lea en ambos temas.
         return (
-            <div className="w-48 h-48 flex items-center justify-center text-center text-xs text-neutral-500 px-4">
+            <div role="alert" className="w-48 h-48 flex items-center justify-center text-center text-sm text-[#334155] px-4">
                 No se pudo generar el QR localmente. Reintenta la configuración.
             </div>
         );
@@ -1244,12 +1328,13 @@ function QRCodeDisplay({ uri }: { uri: string }) {
     if (!qrDataUrl) {
         return (
             <div className="w-48 h-48 flex items-center justify-center">
-                <Loader2 size={32} className="animate-spin text-neutral-400" />
+                <Loader2 size={32} className={`${GIRO} text-[#64748b]`} aria-hidden="true" />
+                <span className="sr-only">Generando código QR</span>
             </div>
         );
     }
 
-    return <img src={qrDataUrl} alt="QR Code" className="w-48 h-48" />;
+    return <img src={qrDataUrl} alt="Código QR para tu app de autenticación" className="w-48 h-48" />;
 }
 
 // ─── Sessions Tab ──────────────────────────────────────────────────
@@ -1257,161 +1342,143 @@ function SessionsTab({ sessions, onRevoke }: { sessions: SessionInfo[]; onRevoke
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Monitor size={18} className="text-indigo-400" />
-                    Sesiones Activas
-                    <span className="text-xs bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-full">
-                        {sessions.length}
-                    </span>
-                </h3>
-            </div>
+        <section aria-labelledby="perfil-sesiones" className="space-y-3">
+            <h2 id="perfil-sesiones" className={SECCION}>
+                <Monitor size={16} aria-hidden="true" />
+                Sesiones activas
+                <span className={CUENTA}>{sessions.length}</span>
+            </h2>
 
             {sessions.length === 0 ? (
-                <div className="text-center py-12 bg-white/[0.02] border border-white/10 rounded-2xl">
-                    <Monitor size={40} className="mx-auto text-neutral-700 mb-3" />
-                    <p className="text-neutral-400">No hay sesiones activas registradas</p>
+                <div className="border-t border-[var(--linea)] py-12 text-center">
+                    <Monitor size={32} className="mx-auto mb-3 text-[var(--mut)]" aria-hidden="true" />
+                    <p className="text-[var(--mut)]">No hay sesiones activas registradas</p>
                 </div>
             ) : (
-                <div className="grid gap-3">
-                    {sessions.map((session, idx) => (
-                        <motion.div
-                            key={session.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.05 }}
-                            className="group bg-white/[0.02] border border-white/10 rounded-xl hover:border-white/20 transition-all overflow-hidden"
-                        >
-                            <div className="flex items-center justify-between p-4">
-                                <div className="flex items-center gap-4 min-w-0 flex-1">
-                                    <span className="text-2xl shrink-0">{getDeviceIcon(session.device, session.os)}</span>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-medium text-white">
-                                            {session.browser || "Navegador desconocido"}
-                                            {session.os && <span className="text-neutral-500"> en {session.os}</span>}
-                                        </p>
-                                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                            {session.device && (
-                                                <span className="text-xs text-neutral-500 flex items-center gap-1">
-                                                    <Monitor size={10} />
-                                                    {session.device}
+                <ul className="border-t border-[var(--linea)]">
+                    {sessions.map((session, idx) => {
+                        const abierta = expandedId === session.id;
+                        const detalleId = `perfil-sesion-${session.id}`;
+                        return (
+                            <li key={session.id} className="border-b border-[var(--linea)]">
+                                <div className="flex items-center justify-between gap-3 px-1 py-3">
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <DeviceIcon device={session.device} os={session.os} />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-[var(--txt)]">
+                                                {session.browser || "Navegador desconocido"}
+                                                {session.os && <span className="font-normal text-[var(--mut)]"> en {session.os}</span>}
+                                            </p>
+                                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--mut)]">
+                                                {session.device && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Monitor size={12} aria-hidden="true" />
+                                                        {session.device}
+                                                    </span>
+                                                )}
+                                                {(session.country || session.countryCode) && (
+                                                    <span className="flex items-center gap-1">
+                                                        <MapPin size={12} aria-hidden="true" />
+                                                        {[session.city, session.country].filter(Boolean).join(", ") || session.countryCode}
+                                                    </span>
+                                                )}
+                                                {session.ipAddress && (
+                                                    <span className="flex items-center gap-1 font-mono">
+                                                        <Globe size={12} aria-hidden="true" />
+                                                        {session.ipAddress}
+                                                    </span>
+                                                )}
+                                                <span className="flex items-center gap-1">
+                                                    <Clock size={12} aria-hidden="true" />
+                                                    {timeAgo(session.lastActivity)}
                                                 </span>
-                                            )}
-                                            {(session.country || session.countryCode) && (
-                                                <span className="text-xs text-neutral-400 flex items-center gap-1">
-                                                    <span>{countryCodeToFlag(session.countryCode)}</span>
-                                                    {[session.city, session.country].filter(Boolean).join(", ")}
-                                                </span>
-                                            )}
-                                            {session.ipAddress && (
-                                                <span className="text-xs text-neutral-500 font-mono flex items-center gap-1">
-                                                    <Globe size={10} />
-                                                    {session.ipAddress}
-                                                </span>
-                                            )}
-                                            <span className="text-xs text-neutral-500 flex items-center gap-1">
-                                                <Clock size={10} />
-                                                {timeAgo(session.lastActivity)}
-                                            </span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {idx === 0 && (
+                                            <span className="mr-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
+                                                Actual
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedId(abierta ? null : session.id)}
+                                            className={BTN_ICONO}
+                                            aria-expanded={abierta}
+                                            aria-controls={detalleId}
+                                            aria-label="Ver detalles de la sesión"
+                                            title="Ver detalles"
+                                        >
+                                            <ChevronDown size={16} className={abierta ? "rotate-180" : ""} aria-hidden="true" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => onRevoke(session.id)}
+                                            className={`${BTN_ICONO} hover:text-red-400 hover:bg-red-500/10`}
+                                            aria-label="Cerrar esta sesión"
+                                            title="Cerrar esta sesión"
+                                        >
+                                            <LogOut size={16} aria-hidden="true" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    {idx === 0 && (
-                                        <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">
-                                            ACTUAL
-                                        </span>
-                                    )}
-                                    <button
-                                        onClick={() => setExpandedId(expandedId === session.id ? null : session.id)}
-                                        className="p-2 rounded-lg text-neutral-500 hover:text-white hover:bg-white/5 transition-all"
-                                        title="Ver detalles"
-                                    >
-                                        <ChevronDown size={14} className={`transition-transform ${expandedId === session.id ? "rotate-180" : ""}`} />
-                                    </button>
-                                    <button
-                                        onClick={() => onRevoke(session.id)}
-                                        className="p-2 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-                                        title="Revocar sesión"
-                                    >
-                                        <LogOut size={14} />
-                                    </button>
-                                </div>
-                            </div>
 
-                            {/* Expanded details */}
-                            <AnimatePresence>
-                                {expandedId === session.id && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="px-4 pb-4 pt-2 border-t border-white/5 space-y-2">
-                                            <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-                                                <div className="sm:col-span-2">
-                                                    <span className="text-neutral-600">IP Completa</span>
-                                                    <p className="text-neutral-300 font-mono break-all">{session.ipAddress || "—"}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-neutral-600">País</span>
-                                                    <p className="text-neutral-300">
-                                                        {session.countryCode && <span className="mr-1">{countryCodeToFlag(session.countryCode)}</span>}
-                                                        {session.country || "—"}
-                                                        {session.countryCode && <span className="text-neutral-600 ml-1">({session.countryCode})</span>}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-neutral-600">Navegador</span>
-                                                    <p className="text-neutral-300">{session.browser || "—"}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-neutral-600">Dispositivo</span>
-                                                    <p className="text-neutral-300">{session.device || "—"}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-neutral-600">Sistema Operativo</span>
-                                                    <p className="text-neutral-300">{session.os || "—"}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-neutral-600">Ciudad</span>
-                                                    <p className="text-neutral-300">
-                                                        {session.city ? (
-                                                            <span className="flex items-center gap-1"><MapPin size={10} />{session.city}</span>
-                                                        ) : "—"}
-                                                    </p>
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <span className="text-neutral-600">Iniciada</span>
-                                                    <p className="text-neutral-300">{formatDateTime(session.createdAt)}</p>
-                                                </div>
+                                {/* Detalle */}
+                                {abierta && (
+                                    <div id={detalleId} className="px-1 pb-4 pt-1 space-y-3">
+                                        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                                            <div className="sm:col-span-2">
+                                                <dt className="text-[var(--mut)]">IP completa</dt>
+                                                <dd className="font-mono break-all text-[var(--txt)]">{session.ipAddress || "—"}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-[var(--mut)]">País</dt>
+                                                <dd className="text-[var(--txt)]">
+                                                    {session.country || "—"}
+                                                    {session.countryCode && <span className="ml-1 text-[var(--mut)]">({session.countryCode})</span>}
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-[var(--mut)]">Navegador</dt>
+                                                <dd className="text-[var(--txt)]">{session.browser || "—"}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-[var(--mut)]">Dispositivo</dt>
+                                                <dd className="text-[var(--txt)]">{session.device || "—"}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-[var(--mut)]">Sistema operativo</dt>
+                                                <dd className="text-[var(--txt)]">{session.os || "—"}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-[var(--mut)]">Ciudad</dt>
+                                                <dd className="text-[var(--txt)]">{session.city || "—"}</dd>
+                                            </div>
+                                            <div className="sm:col-span-2">
+                                                <dt className="text-[var(--mut)]">Iniciada</dt>
+                                                <dd className="text-[var(--txt)]">{formatDateTime(session.createdAt)}</dd>
                                             </div>
                                             {session.userAgent && (
-                                                <div>
-                                                    <span className="text-xs text-neutral-600">User-Agent</span>
-                                                    <p className="text-[10px] text-neutral-500 font-mono break-all mt-0.5">{session.userAgent}</p>
+                                                <div className="sm:col-span-2">
+                                                    <dt className="text-[var(--mut)]">Navegador (cadena completa)</dt>
+                                                    <dd className="mt-0.5 font-mono text-xs break-all text-[var(--mut)]">{session.userAgent}</dd>
                                                 </div>
                                             )}
-                                        </div>
-                                    </motion.div>
+                                        </dl>
+                                    </div>
                                 )}
-                            </AnimatePresence>
-                        </motion.div>
-                    ))}
-                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
             )}
 
-            <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4 mt-4">
-                <p className="text-xs text-neutral-600">
-                    <Shield size={12} className="inline mr-1.5 text-neutral-500" />
-                    Puedes revocar cualquier sesión activa. La sesión actual está marcada como &quot;ACTUAL&quot;.
-                    Expande cada sesión para ver todos los detalles (IP, navegador, dispositivo, país).
-                </p>
-            </div>
-        </div>
+            <p className="flex items-start gap-2 pt-2 text-sm text-[var(--mut)]">
+                <Shield size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                Puedes cerrar cualquier sesión activa. La más reciente está marcada como «Actual»; abre cada una para ver su IP, navegador, dispositivo y país.
+            </p>
+        </section>
     );
 }
 
@@ -1438,84 +1505,70 @@ function PermissionsTab({ permissions, role }: { permissions: PermissionInfo[]; 
         return acc;
     }, {});
 
-    const moduleLabels: Record<string, { label: string; icon: string }> = {
-        dashboard: { label: "Dashboard", icon: "📊" },
-        analytics: { label: "Analytics", icon: "📈" },
-        quotations: { label: "Cotizaciones", icon: "📄" },
-        cv: { label: "Editor CV", icon: "📝" },
-        tools: { label: "Herramientas", icon: "🛠️" },
-        users: { label: "Usuarios", icon: "👥" },
-        audit: { label: "Auditoría", icon: "🔍" },
-        security: { label: "Seguridad", icon: "🔒" },
-        contact: { label: "Contacto", icon: "✉️" },
-        notifications: { label: "Notificaciones", icon: "🔔" },
-        finance: { label: "Finanzas", icon: "💰" },
-        crm: { label: "Gestión Comercial", icon: "🏢" },
-        general: { label: "General", icon: "⚙️" },
+    const moduleLabels: Record<string, string> = {
+        dashboard: "Hoy",
+        analytics: "Visitas",
+        quotations: "Propuestas",
+        cv: "Editor de CV",
+        tools: "Herramientas",
+        users: "Usuarios",
+        audit: "Auditoría",
+        security: "Seguridad",
+        contact: "Contacto",
+        notifications: "Notificaciones",
+        finance: "Finanzas",
+        crm: "Gestión comercial",
+        general: "General",
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Key size={18} className="text-amber-400" />
-                    Permisos Efectivos
-                    <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">
-                        {permissions.length}
-                    </span>
-                </h3>
-                <span className="text-xs text-neutral-500">
-                    Rol base: <span className="text-accent-1 font-semibold">{role}</span>
+        <section aria-labelledby="perfil-permisos" className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="perfil-permisos" className={SECCION}>
+                    <Key size={16} aria-hidden="true" />
+                    Permisos efectivos
+                    <span className={CUENTA}>{permissions.length}</span>
+                </h2>
+                <span className="text-sm text-[var(--mut)]">
+                    Rol base: <span className="font-semibold text-[var(--acento)]">{nombreRol(role)}</span>
                 </span>
             </div>
 
             {role === "SUPERADMIN" && (
-                <div className="p-4 bg-accent-1/5 border border-accent-1/20 rounded-xl">
-                    <p className="text-sm text-accent-1">
-                        <Shield size={14} className="inline mr-2" />
-                        Como SUPERADMIN tienes acceso completo a todos los módulos del sistema.
-                        Los permisos granulares se aplican adicionalmente a usuarios con roles inferiores.
-                    </p>
-                </div>
+                <p className="flex items-start gap-2 text-sm text-[var(--mut)]">
+                    <Shield size={14} className="mt-0.5 shrink-0 text-[var(--acento)]" aria-hidden="true" />
+                    Como superadministrador tienes acceso completo a todos los módulos. Los permisos finos se aplican a los roles inferiores.
+                </p>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-x-10 md:grid-cols-2">
                 {Object.entries(grouped)
                     .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([module, perms]) => {
-                        const meta = moduleLabels[module] || { label: module, icon: "📦" };
-                        return (
-                            <motion.div
-                                key={module}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-white/[0.02] border border-white/10 rounded-xl p-4"
-                            >
-                                <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                                    <span>{meta.icon}</span>
-                                    {meta.label}
-                                    <span className="text-[10px] text-neutral-600 ml-auto">{perms.length}</span>
-                                </h4>
-                                <div className="space-y-1.5">
-                                    {perms.map((p) => (
-                                        <div key={p.name} className="flex items-start gap-2 text-xs group">
-                                            <CheckCircle size={12} className="text-emerald-400/60 shrink-0 mt-0.5" />
-                                            <div>
-                                                <span className="text-neutral-300">{p.name}</span>
-                                                {p.description && (
-                                                    <p className="text-neutral-600 text-[10px] mt-0.5 hidden group-hover:block">
-                                                        {p.description}
-                                                    </p>
-                                                )}
-                                            </div>
+                    .map(([module, perms]) => (
+                        <section key={module} aria-labelledby={`perfil-mod-${module}`} className="border-t border-[var(--linea)] py-4">
+                            <h3 id={`perfil-mod-${module}`} className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--txt)]">
+                                {moduleLabels[module] || module}
+                                <span className="ml-auto text-xs font-normal tabular-nums text-[var(--mut)]">{perms.length}</span>
+                            </h3>
+                            <ul className="space-y-2">
+                                {perms.map((p) => (
+                                    <li key={p.name} className="flex items-start gap-2 text-sm">
+                                        <CheckCircle size={14} className="mt-0.5 shrink-0 text-emerald-400" aria-hidden="true" />
+                                        <div className="min-w-0">
+                                            <span className="text-[var(--txt)] break-words">{p.name}</span>
+                                            {p.description && (
+                                                <p className="mt-0.5 text-xs text-[var(--mut)]">
+                                                    {p.description}
+                                                </p>
+                                            )}
                                         </div>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    ))}
             </div>
-        </div>
+        </section>
     );
 }
 
@@ -1550,135 +1603,127 @@ function ActivityTab({ initialActivities, totalCount }: { initialActivities: Act
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Activity size={18} className="text-purple-400" />
-                    Actividad Reciente
-                    <span className="text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full">
-                        {totalCount}
-                    </span>
-                </h3>
-                <span className="text-xs text-neutral-600">
+        <section aria-labelledby="perfil-actividad" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="perfil-actividad" className={SECCION}>
+                    <Activity size={16} aria-hidden="true" />
+                    Actividad reciente
+                    <span className={CUENTA}>{totalCount}</span>
+                </h2>
+                <span className="text-sm tabular-nums text-[var(--mut)]" aria-live="polite">
                     Mostrando {rangeStart}-{rangeEnd} de {totalCount}
                 </span>
             </div>
 
             {activities.length === 0 ? (
-                <div className="text-center py-12 bg-white/[0.02] border border-white/10 rounded-2xl">
-                    <Activity size={40} className="mx-auto text-neutral-700 mb-3" />
-                    <p className="text-neutral-400">Sin actividad registrada</p>
+                <div className="border-t border-[var(--linea)] py-12 text-center">
+                    <Activity size={32} className="mx-auto mb-3 text-[var(--mut)]" aria-hidden="true" />
+                    <p className="text-[var(--mut)]">Sin actividad registrada</p>
                 </div>
             ) : (
-                <div className="relative">
-                    <div className="absolute left-[19px] top-2 bottom-2 w-px bg-white/10" />
-                    <div className="space-y-0">
-                        {activities.map((activity, idx) => {
-                            const isSecurityEvent = activity.action.includes("password") ||
-                                activity.action.includes("session") ||
-                                activity.action.includes("login") ||
-                                activity.action.includes("logout") ||
-                                activity.action === "PASSWORD_CHANGE_FAILED";
+                <ol className="border-t border-[var(--linea)]">
+                    {activities.map((activity) => {
+                        const isSecurityEvent = activity.action.includes("password") ||
+                            activity.action.includes("session") ||
+                            activity.action.includes("login") ||
+                            activity.action.includes("logout") ||
+                            activity.action === "PASSWORD_CHANGE_FAILED";
 
-                            return (
-                                <motion.div
-                                    key={activity.id}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: idx < 15 ? idx * 0.03 : 0 }}
-                                    className="relative flex items-start gap-4 py-3 pl-2"
-                                >
-                                    <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center z-10 shrink-0 mt-0.5 ${isSecurityEvent
-                                        ? "bg-amber-500/10 border-amber-500/30"
-                                        : "bg-white/10 border-white/20"
-                                        }`}>
-                                        <div className={`w-2 h-2 rounded-full ${isSecurityEvent ? "bg-amber-400" : "bg-accent-1"
-                                            }`} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm text-white font-medium">
-                                                {ACTION_LABELS[activity.action] || activity.action}
-                                            </p>
-                                            {isSecurityEvent && (
-                                                <Shield size={12} className="text-amber-400" />
-                                            )}
-                                        </div>
-                                        {activity.details && activity.details !== "{}" && activity.details !== "null" && (
-                                            <p className="text-xs text-neutral-500 mt-0.5 truncate max-w-md">
-                                                {activity.details.substring(0, 120)}
-                                            </p>
+                        return (
+                            <li key={activity.id} className="flex items-start gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                <span
+                                    className={`mt-1.5 size-2 shrink-0 rounded-full ${isSecurityEvent ? "bg-amber-400" : "bg-[var(--acento)]"}`}
+                                    aria-hidden="true"
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <p className="flex items-center gap-2 text-sm font-medium text-[var(--txt)]">
+                                        {ACTION_LABELS[activity.action] || activity.action}
+                                        {isSecurityEvent && (
+                                            <>
+                                                <Shield size={14} className="text-amber-400" aria-hidden="true" />
+                                                <span className="sr-only">(seguridad)</span>
+                                            </>
                                         )}
-                                        <p className="text-[11px] text-neutral-600 mt-1">
-                                            {timeAgo(activity.createdAt)} · {formatDateTime(activity.createdAt)}
+                                    </p>
+                                    {activity.details && activity.details !== "{}" && activity.details !== "null" && (
+                                        <p className="mt-0.5 truncate text-sm text-[var(--mut)] max-w-md">
+                                            {activity.details.substring(0, 120)}
                                         </p>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </div>
-                </div>
+                                    )}
+                                    <p className="mt-1 text-xs text-[var(--mut)]">
+                                        {timeAgo(activity.createdAt)} · {formatDateTime(activity.createdAt)}
+                                    </p>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ol>
             )}
 
             {totalPages > 1 && (
-                <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <nav aria-label="Páginas de actividad" className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                     <button
+                        type="button"
                         onClick={() => handlePageChange(page - 1)}
                         disabled={loading || page === 1}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 transition-all hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        className={BTN_SEC}
                     >
                         Anterior
                     </button>
 
-                    <div className="flex flex-wrap items-center justify-center gap-2">
+                    <div className="flex flex-wrap items-center justify-center gap-1">
                         {paginationItems.map((item, index) => (
                             typeof item === "number" ? (
                                 <button
                                     key={item}
+                                    type="button"
                                     onClick={() => handlePageChange(item)}
                                     disabled={loading}
-                                    className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium transition-all ${page === item
-                                        ? "bg-accent-1/20 text-accent-1 border border-accent-1/30"
-                                        : "border border-white/10 text-neutral-400 hover:border-white/20 hover:text-white"
-                                        } disabled:opacity-50`}
+                                    aria-current={page === item ? "page" : undefined}
+                                    aria-label={`Página ${item}`}
+                                    className={`min-h-10 min-w-10 max-sm:min-h-11 max-sm:min-w-11 rounded-lg px-3 text-sm font-medium tabular-nums transition-colors duration-150 motion-reduce:transition-none disabled:opacity-50 ${FOCO} ${page === item
+                                        ? "bg-[var(--acento)] text-[var(--acento-tinta)]"
+                                        : "text-[var(--mut)] hover:text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]"
+                                        }`}
                                 >
                                     {item}
                                 </button>
                             ) : (
-                                <span key={`${item}-${index}`} className="px-1 text-sm text-neutral-600">
-                                    ...
+                                <span key={`${item}-${index}`} className="px-1 text-sm text-[var(--mut)]" aria-hidden="true">
+                                    …
                                 </span>
                             )
                         ))}
                     </div>
 
                     <button
+                        type="button"
                         onClick={() => handlePageChange(page + 1)}
                         disabled={loading || page === totalPages}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 transition-all hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        className={BTN_SEC}
                     >
-                        {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                        {loading ? <Loader2 size={16} className={GIRO} aria-hidden="true" /> : null}
                         Siguiente
                     </button>
-                </div>
+                </nav>
             )}
-        </div>
+        </section>
     );
 }
 
 // ─── Shared Components ─────────────────────────────────────────────
 function InfoRow({ label, value, badge, mono, wrap }: { label: string; value: string; badge?: boolean; mono?: boolean; wrap?: boolean }) {
     return (
-        <div className="flex items-start justify-between gap-3 py-2 border-b border-white/5 last:border-0">
-            <span className="text-sm text-neutral-400 shrink-0 pt-0.5">{label}</span>
+        <div className="flex items-start justify-between gap-3 py-3 border-b border-[var(--linea)]">
+            <dt className="text-sm text-[var(--mut)] shrink-0">{label}</dt>
             {badge ? (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-accent-1/10 text-accent-1 border border-accent-1/20 truncate">
+                <dd className="truncate rounded-full bg-[color-mix(in_srgb,var(--acento)_13%,transparent)] px-2.5 py-0.5 text-xs font-semibold text-[var(--acento)]">
                     {value}
-                </span>
+                </dd>
             ) : (
-                <span className={`min-w-0 flex-1 text-right text-sm text-white font-medium ${mono ? "font-mono text-xs" : ""} ${wrap ? "break-all whitespace-normal" : "truncate"}`} title={value}>
+                <dd className={`min-w-0 flex-1 text-right text-sm font-medium text-[var(--txt)] ${mono ? "font-mono text-xs" : ""} ${wrap ? "break-all whitespace-normal" : "truncate"}`} title={value}>
                     {value}
-                </span>
+                </dd>
             )}
         </div>
     );

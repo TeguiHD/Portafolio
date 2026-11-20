@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { accesoFinanzas } from "../_lib/acceso";
+import { gastoDelPeriodo } from "../_lib/presupuestos";
+import { diaGuardado, diasEntre, hoyChile } from "@/modules/finance/fechas";
 
 export const dynamic = "force-dynamic";
-
-// Helper to safely convert to number
-function toNumber(value: number | { toNumber: () => number } | null | undefined): number {
-    if (value === null || value === undefined) return 0;
-    if (typeof value === 'number') return value;
-    if (typeof value.toNumber === 'function') return value.toNumber();
-    return Number(value) || 0;
-}
 
 interface Reminder {
     id: string;
@@ -22,43 +16,57 @@ interface Reminder {
     frequency: "daily" | "weekly" | "monthly" | "once";
 }
 
+const DIA_MS = 1000 * 60 * 60 * 24;
+
+/** Fecha corta (AAAA-MM-DD) para el id: así «Descartar» vale para ese vencimiento o período y no para siempre. */
+function dia(fecha: Date): string {
+    return fecha.toISOString().slice(0, 10);
+}
+
 export async function GET() {
     try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
+        const acceso = await accesoFinanzas("finance.view");
+        if (!acceso.ok) return acceso.respuesta;
 
-        const userId = session.user.id;
+        const userId = acceso.userId;
         const now = new Date();
-        const today = now.toISOString().split("T")[0];
+        // Hoy y la hora en Chile (el servidor corre en UTC: desde las 21:00 ya era «mañana»).
+        const today = hoyChile(now);
+        const horaChile = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Santiago", hour: "2-digit", hour12: false }).format(now));
+        const inicioHoy = new Date(today);
+        const finHoy = new Date(inicioHoy.getTime() + DIA_MS);
         const reminders: Reminder[] = [];
 
-        // Fetch user data to generate contextual reminders
         const [budgets, goals, todayTransactions, recurringPayments] = await Promise.all([
             prisma.budget.findMany({
-                where: { userId },
-                include: { category: true },
+                where: { userId, isActive: true },
+                select: {
+                    id: true,
+                    name: true,
+                    amount: true,
+                    period: true,
+                    categoryId: true,
+                    alertAt75: true,
+                    alertAt90: true,
+                    alertAt100: true,
+                    category: { select: { name: true } },
+                },
             }),
             prisma.savingsGoal.findMany({
                 where: { userId, isActive: true, completed: false },
+                select: { id: true, name: true, targetAmount: true, currentAmount: true, deadline: true },
             }),
-            prisma.transaction.findMany({
-                where: {
-                    userId,
-                    transactionDate: {
-                        gte: new Date(today),
-                        lt: new Date(new Date(today).setDate(new Date(today).getDate() + 1)),
-                    },
-                },
+            prisma.transaction.count({
+                where: { userId, isDeleted: false, transactionDate: { gte: inicioHoy, lt: finHoy } },
             }),
             prisma.recurringPayment.findMany({
                 where: { userId, isActive: true },
+                select: { id: true, name: true, nextDueDate: true, reminderDays: true },
             }),
         ]);
 
-        // Daily log reminder (if no transactions today)
-        if (todayTransactions.length === 0 && now.getHours() >= 18) {
+        // Recordatorio de registro diario (si hoy no hay movimientos)
+        if (todayTransactions === 0 && horaChile >= 18) {
             reminders.push({
                 id: "daily-log-" + today,
                 type: "daily_log",
@@ -70,66 +78,71 @@ export async function GET() {
             });
         }
 
-        // Budget warnings
-        for (const budget of budgets) {
-            const percentUsed = toNumber(budget.amount) > 0
-                ? (toNumber(budget.currentSpent) / toNumber(budget.amount)) * 100
-                : 0;
+        // Presupuestos: con el gasto real del período y respetando los avisos (75, 90, 100 %) que eligió el dueño.
+        const gastos = await Promise.all(budgets.map((b) => gastoDelPeriodo(userId, b)));
+        budgets.forEach((budget, i) => {
+            const { gastado, start } = gastos[i];
+            const porcentaje = budget.amount > 0 ? (gastado / budget.amount) * 100 : 0;
+            const nombre = budget.category?.name || budget.name || "General";
+            const periodo = dia(start);
 
-            if (percentUsed >= 90 && percentUsed < 100) {
+            if (porcentaje >= 100 && budget.alertAt100) {
                 reminders.push({
-                    id: `budget-warning-${budget.id}`,
+                    id: `budget-exceeded-${budget.id}-${periodo}`,
                     type: "budget_check",
-                    title: `Presupuesto ${budget.category?.name || "General"} al 90%`,
-                    message: `Has usado el ${percentUsed.toFixed(0)}% de tu presupuesto en ${budget.category?.name || "esta categoría"}.`,
+                    title: `Presupuesto ${nombre} excedido`,
+                    message: `Superaste el presupuesto de ${nombre} en un ${(porcentaje - 100).toFixed(0)} %.`,
                     scheduledFor: now.toISOString(),
                     isActive: true,
                     frequency: "once",
                 });
-            } else if (percentUsed >= 100) {
+            } else if (porcentaje >= 90 && porcentaje < 100 && budget.alertAt90) {
                 reminders.push({
-                    id: `budget-exceeded-${budget.id}`,
+                    id: `budget-warning-${budget.id}-${periodo}`,
                     type: "budget_check",
-                    title: `¡Presupuesto excedido!`,
-                    message: `Has excedido tu presupuesto en ${budget.category?.name || "esta categoría"} por ${(percentUsed - 100).toFixed(0)}%.`,
+                    title: `Presupuesto ${nombre} al 90 %`,
+                    message: `Has usado el ${porcentaje.toFixed(0)} % del presupuesto de ${nombre}.`,
+                    scheduledFor: now.toISOString(),
+                    isActive: true,
+                    frequency: "once",
+                });
+            } else if (porcentaje >= 75 && porcentaje < 90 && budget.alertAt75) {
+                reminders.push({
+                    id: `budget-75-${budget.id}-${periodo}`,
+                    type: "budget_check",
+                    title: `Presupuesto ${nombre} al 75 %`,
+                    message: `Has usado el ${porcentaje.toFixed(0)} % del presupuesto de ${nombre}.`,
                     scheduledFor: now.toISOString(),
                     isActive: true,
                     frequency: "once",
                 });
             }
-        }
+        });
 
-        // Goal updates
+        // Metas
         for (const goal of goals) {
-            const progress = toNumber(goal.targetAmount) > 0
-                ? (toNumber(goal.currentAmount) / toNumber(goal.targetAmount)) * 100
-                : 0;
+            const progress = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
 
-            // Milestone reached
             if (progress >= 50 && progress < 51) {
                 reminders.push({
                     id: `goal-milestone-${goal.id}`,
                     type: "goal_update",
-                    title: `¡50% de tu meta "${goal.name}"!`,
-                    message: "¡Vas a mitad de camino! Sigue así para alcanzar tu objetivo.",
+                    title: `¡50 % de tu meta «${goal.name}»!`,
+                    message: "Vas a mitad de camino.",
                     scheduledFor: now.toISOString(),
                     isActive: true,
                     frequency: "once",
                 });
             }
 
-            // Goal deadline approaching
             if (goal.deadline) {
-                const daysToDeadline = Math.ceil(
-                    (new Date(goal.deadline).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-                );
-
+                const daysToDeadline = diasEntre(today, diaGuardado(goal.deadline));
                 if (daysToDeadline > 0 && daysToDeadline <= 7 && progress < 100) {
                     reminders.push({
-                        id: `goal-deadline-${goal.id}`,
+                        id: `goal-deadline-${goal.id}-${dia(goal.deadline)}`,
                         type: "goal_update",
-                        title: `Meta "${goal.name}" vence pronto`,
-                        message: `Te quedan ${daysToDeadline} días para alcanzar esta meta. ¡Puedes lograrlo!`,
+                        title: `La meta «${goal.name}» vence pronto`,
+                        message: `Te quedan ${daysToDeadline} día${daysToDeadline === 1 ? "" : "s"} para alcanzarla.`,
                         scheduledFor: now.toISOString(),
                         isActive: true,
                         frequency: "once",
@@ -138,29 +151,27 @@ export async function GET() {
             }
         }
 
-        // Recurring payment reminders
+        // Pagos recurrentes: avisa desde los días que eligió el dueño («Notificar») hasta el día del vencimiento.
         for (const payment of recurringPayments) {
-            if (payment.nextDueDate) {
-                const daysUntilDue = Math.ceil(
-                    (new Date(payment.nextDueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-                );
-
-                if (daysUntilDue === 3 || daysUntilDue === 1) {
-                    reminders.push({
-                        id: `bill-due-${payment.id}`,
-                        type: "bill_due",
-                        title: `Pago "${payment.name}" próximo`,
-                        message: `Tu pago de ${payment.name} vence en ${daysUntilDue} día${daysUntilDue > 1 ? "s" : ""}.`,
-                        scheduledFor: now.toISOString(),
-                        isActive: true,
-                        frequency: "once",
-                    });
-                }
+            const daysUntilDue = diasEntre(today, diaGuardado(payment.nextDueDate));
+            if (daysUntilDue >= 0 && daysUntilDue <= payment.reminderDays) {
+                reminders.push({
+                    id: `bill-due-${payment.id}-${dia(payment.nextDueDate)}`,
+                    type: "bill_due",
+                    title: `Pago «${payment.name}» próximo`,
+                    message:
+                        daysUntilDue === 0
+                            ? `Tu pago de ${payment.name} vence hoy.`
+                            : `Tu pago de ${payment.name} vence en ${daysUntilDue} día${daysUntilDue === 1 ? "" : "s"}.`,
+                    scheduledFor: now.toISOString(),
+                    isActive: true,
+                    frequency: "once",
+                });
             }
         }
 
-        // Weekly review (on Sundays)
-        if (now.getDay() === 0 && now.getHours() >= 10) {
+        // Revisión semanal (domingos)
+        if (new Date(`${today}T12:00:00Z`).getUTCDay() === 0 && horaChile >= 10) {
             reminders.push({
                 id: "weekly-review-" + today,
                 type: "weekly_review",
@@ -172,20 +183,19 @@ export async function GET() {
             });
         }
 
-        // Sort by type priority
-        const typePriority: Record<string, number> = {
+        const typePriority: Record<Reminder["type"], number> = {
             budget_check: 1,
             bill_due: 2,
             goal_update: 3,
             daily_log: 4,
             weekly_review: 5,
         };
-
         reminders.sort((a, b) => typePriority[a.type] - typePriority[b.type]);
 
-        return NextResponse.json({ data: reminders.slice(0, 5) });
+        // Más de 5: la pantalla oculta los descartados y no deben esconder a los que siguen.
+        return NextResponse.json({ data: reminders.slice(0, 20) });
     } catch (error) {
         console.error("Error fetching reminders:", error);
-        return NextResponse.json({ data: [] });
+        return NextResponse.json({ error: "No se pudieron cargar los recordatorios" }, { status: 500 });
     }
 }

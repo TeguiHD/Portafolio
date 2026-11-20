@@ -28,14 +28,14 @@ export async function GET(
         });
 
         if (!quotation) {
-            return NextResponse.json({ error: "Not found" }, { status: 404 });
+            return NextResponse.json({ error: "Propuesta no encontrada" }, { status: 404 });
         }
 
         return NextResponse.json(quotation);
     } catch (error) {
         console.error("Quotation fetch error:", error);
         return NextResponse.json(
-            { error: "Failed to fetch quotation" },
+            { error: "No se pudo cargar la propuesta" },
             { status: 500 }
         );
     }
@@ -92,7 +92,7 @@ export async function PATCH(
         });
 
         if (quotation.count === 0) {
-            return NextResponse.json({ error: "Not found" }, { status: 404 });
+            return NextResponse.json({ error: "Propuesta no encontrada" }, { status: 404 });
         }
 
         // Audit log
@@ -109,7 +109,7 @@ export async function PATCH(
     } catch (error) {
         console.error("Quotation update error:", error);
         return NextResponse.json(
-            { error: "Failed to update quotation" },
+            { error: "No se pudo actualizar la propuesta" },
             { status: 500 }
         );
     }
@@ -140,7 +140,7 @@ export async function DELETE(
         });
 
         if (result.count === 0) {
-            return NextResponse.json({ error: "Not found" }, { status: 404 });
+            return NextResponse.json({ error: "Propuesta no encontrada" }, { status: 404 });
         }
 
         // Audit log
@@ -156,7 +156,7 @@ export async function DELETE(
     } catch (error) {
         console.error("Quotation delete error:", error);
         return NextResponse.json(
-            { error: "Failed to delete quotation" },
+            { error: "No se pudo eliminar la propuesta" },
             { status: 500 }
         );
     }

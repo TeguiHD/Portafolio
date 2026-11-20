@@ -2,8 +2,10 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { GoalForm, type GoalData } from "@/modules/finance/components/GoalForm";
+import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+import { CabeceraFinanzas, CargandoFinanzas } from "@/modules/finance/components/Piezas";
+import { ERROR, TARJETA } from "@/modules/finance/components/estilos";
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -53,59 +55,52 @@ export default function EditGoalPage({ params }: PageProps) {
         router.push("/admin/finance/goals");
     };
 
+    // El id no tiene nombre en las migas: este tramo hace que el enlace diga «Volver a Metas».
+    const volver = <FinanceBreadcrumbs extraItems={[{ label: "Editar", href: `/admin/finance/goals/${id}/edit` }]} />;
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+            <div className="max-w-2xl">
+                {volver}
+                <CargandoFinanzas texto="Cargando meta..." />
             </div>
         );
     }
 
     if (error && !goal) {
         return (
-            <div className="max-w-2xl mx-auto">
-                <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
-                    <p className="text-red-400 mb-4">{error}</p>
-                    <Link
-                        href="/admin/finance/goals"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg"
-                    >
-                        Volver a metas
-                    </Link>
-                </div>
+            <div className="max-w-2xl">
+                {volver}
+                <p role="alert" className={ERROR}>
+                    {error}
+                </p>
             </div>
         );
     }
 
     return (
-        <div className="max-w-2xl mx-auto">
-            {/* Header */}
-            <div className="mb-8">
-                <Link
-                    href="/admin/finance/goals"
-                    className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Volver a metas
-                </Link>
-                <h1 className="text-2xl font-bold text-white">Editar meta</h1>
-                <p className="text-gray-400 flex items-center gap-2">
-                    <span className="text-xl">{goal?.icon}</span>
-                    {goal?.name}
-                </p>
-            </div>
+        <div className="max-w-2xl pb-8">
+            {volver}
 
-            {/* Error */}
+            <CabeceraFinanzas
+                titulo="Editar meta"
+                bajada={
+                    goal ? (
+                        <span className="flex min-w-0 items-center gap-2">
+                            <span aria-hidden="true">{goal.icon}</span>
+                            <span className="truncate">{goal.name}</span>
+                        </span>
+                    ) : undefined
+                }
+            />
+
             {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+                <p role="alert" className={`${ERROR} mt-6`}>
                     {error}
-                </div>
+                </p>
             )}
 
-            {/* Form */}
-            <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
+            <div className={`${TARJETA} mt-6 p-4 sm:p-6`}>
                 <GoalForm goal={goal || undefined} onSubmit={handleSubmit} onCancel={() => router.push("/admin/finance/goals")} />
             </div>
         </div>

@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -22,17 +23,19 @@ interface CreateExpenseInput {
     notes?: string;
 }
 
-interface UpdateExpenseInput {
-    category?: ExpenseCategory;
-    description?: string;
-    amount?: number;
-    isRecurring?: boolean;
-    frequency?: ExpenseFrequency;
-    expenseDate?: string;
-    notes?: string;
-    receiptUrl?: string;
-    receiptFilename?: string;
-}
+/** Lo que se puede cambiar de un gasto (el cliente y el contrato no). Se valida aquí: la acción se puede invocar sin el formulario. */
+const esquemaEditarGasto = z.object({
+    category: z.enum(["HOSTING", "DOMAIN", "LICENSES", "THIRD_PARTY", "TOOLS", "OTHER"], { error: "Categoría no válida" }).optional(),
+    description: z.string({ error: "Descripción no válida" }).trim().min(1, "La descripción es requerida").max(500, "La descripción admite 500 caracteres").optional(),
+    amount: z.number({ error: "Monto no válido" }).finite("Monto no válido").min(0, "El monto no puede ser negativo").max(1e12, "Monto demasiado alto").optional(),
+    isRecurring: z.boolean({ error: "Valor no válido" }).optional(),
+    frequency: z.enum(["ONE_TIME", "MONTHLY", "YEARLY"], { error: "Frecuencia no válida" }).optional(),
+    expenseDate: z.string({ error: "Fecha no válida" }).regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha no válida").optional(),
+    notes: z.string({ error: "Notas no válidas" }).max(2000, "Las notas admiten 2.000 caracteres").nullable().optional(),
+}).refine((d) => !d.isRecurring || d.frequency === undefined || d.frequency !== "ONE_TIME", {
+    message: "Un gasto recurrente es mensual o anual", path: ["frequency"],
+});
+type UpdateExpenseInput = z.input<typeof esquemaEditarGasto>;
 
 // ============================================================================
 // VALIDATION
@@ -113,7 +116,7 @@ export async function createExpenseAction(input: CreateExpenseInput) {
                 amount: input.amount,
                 isRecurring: input.isRecurring || false,
                 frequency: input.frequency || "ONE_TIME",
-                expenseDate: input.expenseDate ? new Date(input.expenseDate) : new Date(),
+                expenseDate: input.expenseDate ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(input.expenseDate) ? `${input.expenseDate}T12:00:00Z` : input.expenseDate) : new Date(),
                 notes: input.notes ? sanitizeString(input.notes, 2000) : null,
             },
         });
@@ -127,7 +130,7 @@ export async function createExpenseAction(input: CreateExpenseInput) {
     }
 }
 
-export async function updateExpenseAction(expenseId: string, input: UpdateExpenseInput) {
+export async function updateExpenseAction(expenseId: string, entrada: UpdateExpenseInput) {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "No autorizado" };
 
@@ -137,8 +140,9 @@ export async function updateExpenseAction(expenseId: string, input: UpdateExpens
     const expense = await verifyExpenseAccess(expenseId, session.user.id, session.user.role as Role);
     if (!expense) return { success: false, error: "Gasto no encontrado" };
 
-    const validationError = validateExpenseInput(input);
-    if (validationError) return { success: false, error: validationError };
+    const validado = esquemaEditarGasto.safeParse(entrada);
+    if (!validado.success) return { success: false, error: validado.error.issues[0]?.message ?? "Revisa los datos del gasto" };
+    const input = validado.data;
 
     try {
         const updateData: Record<string, unknown> = {};
@@ -147,7 +151,9 @@ export async function updateExpenseAction(expenseId: string, input: UpdateExpens
         if (input.amount !== undefined) updateData.amount = input.amount;
         if (input.isRecurring !== undefined) updateData.isRecurring = input.isRecurring;
         if (input.frequency !== undefined) updateData.frequency = input.frequency;
-        if (input.expenseDate !== undefined) updateData.expenseDate = new Date(input.expenseDate);
+        // Si deja de ser recurrente, la frecuencia vuelve a «único».
+        if (input.isRecurring === false) updateData.frequency = "ONE_TIME";
+        if (input.expenseDate !== undefined) updateData.expenseDate = new Date(`${input.expenseDate}T12:00:00Z`);
         if (input.notes !== undefined) updateData.notes = input.notes ? sanitizeString(input.notes, 2000) : null;
 
         await prisma.clientExpense.update({

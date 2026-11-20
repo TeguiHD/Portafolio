@@ -198,7 +198,7 @@ export async function getAuditLogs(options: {
     const where: Record<string, unknown> = {};
 
     if (category) where.category = category;
-    if (action) where.action = { contains: action };
+    if (action) where.action = { contains: action, mode: "insensitive" };
     if (userId) where.userId = userId;
     if (startDate || endDate) {
         where.createdAt = {

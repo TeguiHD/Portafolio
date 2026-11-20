@@ -1,5 +1,3 @@
-"use client";
-
 import { scoreColor } from "../../utils";
 
 export function MatchScoreGauge({ score }: { score: number }) {
@@ -10,21 +8,14 @@ export function MatchScoreGauge({ score }: { score: number }) {
     const circumference = 2 * Math.PI * radius;
     const dash = (clamped / 100) * circumference;
 
-    const strokeColor =
-        clamped >= 70 ? "#10b981" : clamped >= 40 ? "#f59e0b" : "#ef4444";
+    // Colores del tema (cambian solos entre claro y oscuro): sube / aviso / baja.
+    const strokeColor = clamped >= 70 ? "var(--sube)" : clamped >= 40 ? "#f59e0b" : "var(--baja)";
 
     return (
-        <div className="flex items-center gap-5">
-            <div className="relative w-[140px] h-[140px] shrink-0">
-                <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
-                    <circle
-                        cx={70}
-                        cy={70}
-                        r={radius}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.08)"
-                        strokeWidth={10}
-                    />
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="relative size-[132px] shrink-0">
+                <svg viewBox="0 0 140 140" className="size-full -rotate-90" aria-hidden="true">
+                    <circle cx={70} cy={70} r={radius} fill="none" stroke="var(--linea-2)" strokeWidth={10} />
                     <circle
                         cx={70}
                         cy={70}
@@ -35,31 +26,25 @@ export function MatchScoreGauge({ score }: { score: number }) {
                         strokeLinecap="round"
                         strokeDasharray={circumference}
                         strokeDashoffset={circumference - dash}
-                        style={{ transition: "stroke-dashoffset 700ms ease-out" }}
+                        className="transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none"
                     />
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className={`text-3xl font-extrabold ${style.text}`}>
+                <p className="absolute inset-0 m-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-extrabold tabular-nums tracking-[-0.03em] text-[var(--txt)]">
                         {Math.round(clamped)}%
                     </span>
-                    <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium">
-                        match
-                    </span>
-                </div>
+                    <span className="text-xs text-[var(--mut)]">coincidencia</span>
+                </p>
             </div>
 
             <div>
-                <div
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${style.bg} ${style.text} ${style.border}`}
-                >
-                    Ajuste {style.label}
-                </div>
-                <p className="text-xs text-neutral-400 mt-2 max-w-xs">
+                <p className={`m-0 text-base font-semibold ${style.text}`}>Ajuste {style.label.toLowerCase()}</p>
+                <p className="mt-1 max-w-sm text-sm text-[var(--mut)]">
                     {clamped >= 70
-                        ? "Excelente ajuste. Prioriza postular y prepara la entrevista."
+                        ? "Buen calce. Conviene postular y preparar la entrevista."
                         : clamped >= 40
-                          ? "Ajuste parcial. Refuerza las brechas blandas antes de postular."
-                          : "Ajuste bajo. Considera aprender habilidades clave antes."}
+                          ? "Calce parcial. Refuerza las brechas blandas antes de postular."
+                          : "Calce bajo. Considera aprender las habilidades clave antes."}
                 </p>
             </div>
         </div>

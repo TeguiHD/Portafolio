@@ -8,6 +8,23 @@ import { logger } from "@/lib/logger";
 import type { Role } from '@/generated/prisma/client';
 import { validateRut, cleanRut } from "@/lib/rut";
 
+/**
+ * Quien llama tiene que estar en el panel, poder editar cotizaciones y ser dueño del cliente
+ * (o superadministrador). Las acciones de servidor se pueden invocar sin pasar por la interfaz.
+ */
+async function autorizarSobreCliente(id: string): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+    const session = await auth();
+    if (!session?.user?.id) return { ok: false, error: "No autorizado" };
+    const puede = await hasPermission(session.user.id, session.user.role as Role, "quotations.edit");
+    if (!puede) return { ok: false, error: "Permiso denegado" };
+    const cliente = await prisma.quotationClient.findUnique({ where: { id }, select: { userId: true } });
+    if (!cliente) return { ok: false, error: "Cliente no encontrado" };
+    if (session.user.role !== "SUPERADMIN" && cliente.userId !== session.user.id) {
+        return { ok: false, error: "No autorizado" };
+    }
+    return { ok: true, userId: session.user.id };
+}
+
 function isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -32,9 +49,18 @@ export async function getClientsWithSearchAction(query: string = "") {
         },
         orderBy: { updatedAt: "desc" },
         take: 100,
-        include: {
+        // Sin accessCode ni notas internas: el resultado llega al navegador.
+        select: {
+            id: true, name: true, slug: true, email: true, isActive: true, createdAt: true, updatedAt: true,
+            userId: true, company: true, rut: true, address: true, contactName: true, contactEmail: true,
+            contactPhone: true, contactRole: true, workType: true,
+
             _count: {
-                select: { quotations: true }
+                select: {
+                    quotations: {
+                        where: { isDeleted: false }
+                    }
+                }
             }
         }
     });
@@ -43,14 +69,12 @@ export async function getClientsWithSearchAction(query: string = "") {
 }
 
 export async function deleteClientAction(id: string) {
-    if (!id) return { success: false, error: "ID required" };
+    if (!id) return { success: false, error: "Falta el cliente" };
 
-    // Check for existing quotations
-    const client = await prisma.quotationClient.findUnique({
-        where: { id },
-    });
-
-    if (!client) return { success: false, error: "Cliente no encontrado" };
+    // Permiso fino y dueño ANTES de tocar nada (antes las propuestas se borraban y recién después se comprobaba).
+    const permiso = await autorizarSobreCliente(id);
+    if (!permiso.ok) return { success: false, error: permiso.error };
+    const session = await auth();
 
     // Get active quotations count (ignoring soft-deleted)
     const activeQuotationsCount = await prisma.quotation.count({
@@ -60,27 +84,16 @@ export async function deleteClientAction(id: string) {
         }
     });
 
-    // Get session for permission check and audit logging
-    const session = await auth();
-
     if (activeQuotationsCount > 0) {
-        // [SECURITY] Strict check: Only SUPERADMIN can delete clients with data
+        // Solo el superadministrador puede borrar un cliente con propuestas: se archivan (borrado lógico), no se pierden.
         if (session?.user?.role !== "SUPERADMIN") {
             return {
                 success: false,
-                error: `No se puede eliminar: El cliente tiene ${activeQuotationsCount} cotización(es) activas. Solo un Superadministrador puede eliminar clientes con datos asociados.`
+                error: `No se puede eliminar: el cliente tiene ${activeQuotationsCount} propuesta(s) activas. Solo un superadministrador puede eliminar clientes con datos asociados.`
             };
         }
 
-        // Cascade delete (soft delete) if superadmin deletes a client with quotations?
-        // Or hard delete quotations? User said "se espera que esos datos realmente no se borren".
-        // But if we delete the CLIENT, the linkage is gone unless we soft-delete the client too.
-        // Assuming for now we hard-delete the associations or soft-delete them.
-        // Given the prompt "las cotizaciones se pueden borrar... se entiende que se borra... pero no se borren", 
-        // implies we should SOFT DELETE the quotations when deleting the client.
-
         try {
-            // Soft delete all active quotations for this client
             await prisma.quotation.updateMany({
                 where: { clientId: id, isDeleted: false },
                 data: { isDeleted: true, deletedAt: new Date() }
@@ -89,12 +102,6 @@ export async function deleteClientAction(id: string) {
             logger.error("Error cleaning up client quotations", error);
             return { success: false, error: "Error al limpiar datos asociados del cliente" };
         }
-    }
-
-    // [SECURITY] Ownership check
-    // If not superadmin, must be owner
-    if (session?.user?.role !== "SUPERADMIN" && client.userId !== session?.user?.id) {
-        return { success: false, error: "No tienes permiso para eliminar este cliente" };
     }
 
     try {
@@ -118,6 +125,10 @@ export async function deleteClientAction(id: string) {
         revalidatePath("/admin/clientes");
         return { success: true };
     } catch (error) {
+        // P2003: oportunidades, contratos o gastos siguen apuntando al cliente.
+        if ((error as { code?: string })?.code === "P2003") {
+            return { success: false, error: "El cliente tiene oportunidades, contratos o gastos asociados. Elimínalos primero." };
+        }
         logger.error("[Client Action] Delete failed", error);
         return { success: false, error: "Error al eliminar cliente" };
     }
@@ -125,10 +136,13 @@ export async function deleteClientAction(id: string) {
 
 export async function rotateClientCodeAction(id: string, newCode: string) {
     if (!id || !newCode) return { success: false, error: "Datos incompletos" };
+    const permiso = await autorizarSobreCliente(id);
+    if (!permiso.ok) return { success: false, error: permiso.error };
 
     // Validate minimum strength
-    if (newCode.length < 6) {
-        return { success: false, error: "El código debe tener al menos 6 caracteres" };
+    // La misma regla que muestra el formulario (8): antes el servidor aceptaba 6.
+    if (typeof newCode !== "string" || newCode.trim().length < 8 || newCode.length > 200) {
+        return { success: false, error: "La contraseña debe tener al menos 8 caracteres" };
     }
 
     const { hash } = await import("argon2");
@@ -248,10 +262,11 @@ export async function createClientAction(data: CreateClientData) {
         revalidatePath("/admin/clientes");
         revalidatePath("/admin/cotizaciones");
 
+        // El hash del código no sale del servidor; el código en claro se muestra una sola vez al crear.
         return {
             success: true,
-            client,
-            accessCode, // Return plain code for display
+            client: { id: client.id, name: client.name, slug: client.slug },
+            accessCode,
         };
     } catch (e) {
         logger.error("Error creating client", e);
@@ -272,7 +287,9 @@ export interface UpdateClientContactData {
 }
 
 export async function updateClientContactAction(id: string, data: UpdateClientContactData) {
-    if (!id) return { success: false, error: "ID required" };
+    if (!id) return { success: false, error: "Falta el cliente" };
+    const permiso = await autorizarSobreCliente(id);
+    if (!permiso.ok) return { success: false, error: permiso.error };
     if (!data.name?.trim()) return { success: false, error: "El nombre es requerido" };
 
     if (data.rut && !validateRut(data.rut)) {

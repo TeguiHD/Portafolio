@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Plus, X } from "lucide-react";
+import { FOCO } from "./estilos";
 
 /**
  * Static mapping of skill categories to suggested technologies
@@ -123,53 +124,36 @@ export function SkillsSuggestions({
     if (suggestions.length === 0 || !isVisible) return null;
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mt-2 p-3 rounded-xl bg-gradient-to-r from-teal-500/5 to-emerald-500/5 border border-teal-500/20"
-        >
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm">✨</span>
-                    <span className="text-xs text-teal-300 font-medium">
-                        Sugerencias para "{categoryName}"
-                    </span>
-                </div>
+        <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-[var(--mut)]">
+                    Sugerencias para «{categoryName}» · sin conexión, salen de una lista fija
+                </p>
                 <button
+                    type="button"
                     onClick={() => setIsVisible(false)}
-                    className="text-neutral-500 hover:text-neutral-300 transition-colors"
-                    title="Ocultar sugerencias"
+                    aria-label={`Ocultar sugerencias para ${categoryName}`}
+                    className={`inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] sm:size-8 ${FOCO}`}
                 >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="size-4" aria-hidden="true" />
                 </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-                <AnimatePresence>
-                    {suggestions.map((skill, index) => (
-                        <motion.button
-                            key={skill}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            transition={{ delay: index * 0.03 }}
+            <ul className="flex flex-wrap gap-1.5">
+                {suggestions.map((skill) => (
+                    <li key={skill}>
+                        <button
+                            type="button"
                             onClick={() => onAddSkill(skill)}
-                            className="px-3 py-1.5 rounded-full bg-teal-500/10 text-teal-300 text-xs 
-                                     hover:bg-teal-500/20 hover:scale-105 transition-all
-                                     border border-teal-500/20 hover:border-teal-500/40"
+                            className={`inline-flex min-h-11 items-center gap-1 rounded-md border border-dashed border-[var(--linea-2)] px-2.5 text-xs text-[var(--mut)] transition-colors duration-150 hover:border-[var(--acento)] hover:text-[var(--txt)] sm:min-h-8 ${FOCO}`}
                         >
-                            + {skill}
-                        </motion.button>
-                    ))}
-                </AnimatePresence>
-            </div>
-
-            <p className="text-[10px] text-neutral-500 mt-2">
-                Click para agregar • Sin llamadas a API
-            </p>
-        </motion.div>
+                            <Plus className="size-3.5" aria-hidden="true" />
+                            {skill}
+                            <span className="sr-only"> a {categoryName}</span>
+                        </button>
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }

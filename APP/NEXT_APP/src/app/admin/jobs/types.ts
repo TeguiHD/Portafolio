@@ -112,7 +112,7 @@ export const AI_MODEL_OPTIONS: AiModelOption[] = [
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
     PENDING: "Pendiente",
-    CV_ADAPTED: "CV Adaptado",
+    CV_ADAPTED: "CV adaptado",
     CV_SENT: "Enviado",
     INTERVIEW: "Entrevista",
     ACCEPTED: "Aceptado",

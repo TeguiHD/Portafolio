@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useCallback, useId } from "react";
+import { ArrowDown, ArrowUp, Check, RotateCcw } from "lucide-react";
 import {
     type CvDesignConfig,
     type ThemeId,
@@ -13,6 +13,15 @@ import {
     applyThemePreset,
 } from "../utils/cv-design";
 import { CustomSelect } from "./CustomSelect";
+import { BOTON_SEC, CAMPO, ETIQUETA, FOCO, INTERRUPTOR, TITULO } from "./estilos";
+
+const OPCION = `flex flex-col items-start rounded-xl border border-[var(--linea-2)] p-4 text-left transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] aria-pressed:border-[var(--acento)] aria-pressed:bg-[color-mix(in_srgb,var(--acento)_10%,transparent)] ${FOCO}`;
+const RAYA = "h-1 rounded bg-[var(--linea-2)]";
+const RAYA_ACENTO = "rounded bg-[color-mix(in_srgb,var(--acento)_50%,transparent)]";
+
+const FUENTES = ["Source Sans Pro", "Inter", "Helvetica Neue", "Charter", "Poppins", "Montserrat", "Roboto", "Open Sans"].map(
+    (f) => ({ value: f, label: f, preview: f })
+);
 
 interface DesignConfigPanelProps {
     config: CvDesignConfig;
@@ -21,6 +30,7 @@ interface DesignConfigPanelProps {
 
 export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) {
     const [activeSection, setActiveSection] = useState<"theme" | "colors" | "typography" | "layout" | "sections">("theme");
+    const base = useId();
 
     const updateConfig = useCallback(
         (updates: Partial<CvDesignConfig>) => {
@@ -101,7 +111,8 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
 
     const reorderSection = useCallback(
         (sectionId: string, direction: "up" | "down") => {
-            const sections = [...config.sections].sort((a, b) => a.order - b.order);
+            // Copias de cada sección: antes se cambiaba `order` sobre los objetos de la configuración recibida.
+            const sections = [...config.sections].sort((a, b) => a.order - b.order).map((s) => ({ ...s }));
             const index = sections.findIndex((s) => s.id === sectionId);
             if (
                 (direction === "up" && index === 0) ||
@@ -125,547 +136,426 @@ export function DesignConfigPanel({ config, onChange }: DesignConfigPanelProps) 
     };
 
     const tabs = [
-        { id: "theme" as const, label: "Tema", icon: "🎨" },
-        { id: "colors" as const, label: "Colores", icon: "🖌️" },
-        { id: "typography" as const, label: "Tipografía", icon: "Aa" },
-        { id: "layout" as const, label: "Diseño", icon: "📐" },
-        { id: "sections" as const, label: "Secciones", icon: "📑" },
+        { id: "theme" as const, label: "Tema" },
+        { id: "colors" as const, label: "Colores" },
+        { id: "typography" as const, label: "Tipografía" },
+        { id: "layout" as const, label: "Página" },
+        { id: "sections" as const, label: "Secciones" },
     ];
 
+    const seccionesOrdenadas = [...config.sections].sort((a, b) => a.order - b.order);
+
     return (
-        <div className="glass-panel rounded-2xl border border-accent-1/20 p-6">
-            <div className="flex items-center justify-between mb-6">
+        <section aria-labelledby={`${base}-t`} className="space-y-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h3 className="font-semibold text-white">Personalización de Diseño</h3>
-                    <p className="text-sm text-neutral-400 mt-1">
-                        Configura colores, tipografía y estructura del CV
-                    </p>
+                    <h2 id={`${base}-t`} className="text-xl font-semibold text-[var(--txt)]">Diseño</h2>
+                    <p className="mt-1 text-sm text-[var(--mut)]">Colores, tipografía y estructura del CV.</p>
                 </div>
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onChange(DEFAULT_DESIGN_CONFIG)}
-                    className="px-3 py-1.5 rounded-lg bg-white/10 text-neutral-400 text-sm hover:bg-white/20 transition-colors"
-                >
-                    Resetear
-                </motion.button>
+                <button type="button" onClick={() => onChange(DEFAULT_DESIGN_CONFIG)} className={BOTON_SEC}>
+                    <RotateCcw className="size-4" aria-hidden="true" />
+                    Volver al diseño inicial
+                </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            <div role="group" aria-label="Parte del diseño" className="flex flex-wrap gap-2 border-b border-[var(--linea)] pb-4">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
+                        type="button"
+                        aria-pressed={activeSection === tab.id}
                         onClick={() => setActiveSection(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeSection === tab.id
-                            ? "bg-accent-1/20 text-accent-1"
-                            : "text-neutral-400 hover:text-white hover:bg-white/5"
-                            }`}
+                        className={INTERRUPTOR}
                     >
-                        <span>{tab.icon}</span>
                         {tab.label}
                     </button>
                 ))}
             </div>
 
-            {/* Content */}
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={activeSection}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.15 }}
-                >
-                    {/* Theme Selection */}
-                    {activeSection === "theme" && (
-                        <div className="space-y-4">
-                            <p className="text-sm text-neutral-400 mb-4">
-                                Selecciona un tema predefinido como punto de partida
-                            </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {(Object.keys(CV_THEMES) as ThemeId[]).map((themeId) => {
-                                    const theme = CV_THEMES[themeId];
-                                    const preset = THEME_PRESETS[themeId];
-                                    const isSelected = config.theme === themeId;
+            {activeSection === "theme" && (
+                <div className="space-y-8">
+                    <div>
+                        <h3 className={`${TITULO} mb-3`}>Tema de partida</h3>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {(Object.keys(CV_THEMES) as ThemeId[]).map((themeId) => {
+                                const theme = CV_THEMES[themeId];
+                                const preset = THEME_PRESETS[themeId];
+                                const isSelected = config.theme === themeId;
 
-                                    return (
-                                        <motion.button
-                                            key={themeId}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={() => handleThemeChange(themeId)}
-                                            className={`p-4 rounded-xl border text-left transition-all ${isSelected
-                                                ? "border-accent-1 bg-accent-1/10"
-                                                : "border-white/10 bg-white/5 hover:border-white/20"
-                                                }`}
-                                        >
-                                            {/* Theme preview colors */}
-                                            <div className="flex gap-1 mb-3">
-                                                {preset.colors && (
-                                                    <>
-                                                        <div
-                                                            className="w-4 h-4 rounded-full"
-                                                            style={{ backgroundColor: preset.colors.name }}
-                                                        />
-                                                        <div
-                                                            className="w-4 h-4 rounded-full"
-                                                            style={{ backgroundColor: preset.colors.sectionTitles }}
-                                                        />
-                                                        <div
-                                                            className="w-4 h-4 rounded-full"
-                                                            style={{ backgroundColor: preset.colors.accent }}
-                                                        />
-                                                    </>
-                                                )}
-                                            </div>
-                                            <p className="font-medium text-white">{theme.name}</p>
-                                            <p className="text-xs text-neutral-400 mt-1">
-                                                {theme.description}
-                                            </p>
-                                            {isSelected && (
-                                                <div className="mt-2 flex items-center gap-1 text-accent-1 text-xs">
-                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path
-                                                            fillRule="evenodd"
-                                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                            clipRule="evenodd"
-                                                        />
-                                                    </svg>
-                                                    Seleccionado
-                                                </div>
-                                            )}
-                                        </motion.button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Language selector */}
-                            <div className="mt-6 pt-6 border-t border-white/10">
-                                <label className="block text-sm text-neutral-400 mb-2">
-                                    Idioma del CV
-                                </label>
-                                <div className="flex gap-3">
+                                return (
                                     <button
-                                        onClick={() => updateConfig({ language: "es" })}
-                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.language === "es"
-                                            ? "bg-accent-1/20 text-accent-1"
-                                            : "bg-white/5 text-neutral-400 hover:text-white"
-                                            }`}
+                                        key={themeId}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        onClick={() => handleThemeChange(themeId)}
+                                        className={OPCION}
                                     >
-                                        🇪🇸 Español
+                                        {preset.colors && (
+                                            <span aria-hidden="true" className="mb-3 flex gap-1">
+                                                <span className="size-4 rounded-full border border-[var(--linea)]" style={{ backgroundColor: preset.colors.name }} />
+                                                <span className="size-4 rounded-full border border-[var(--linea)]" style={{ backgroundColor: preset.colors.sectionTitles }} />
+                                                <span className="size-4 rounded-full border border-[var(--linea)]" style={{ backgroundColor: preset.colors.accent }} />
+                                            </span>
+                                        )}
+                                        <span className="flex w-full items-center justify-between gap-2 font-medium text-[var(--txt)]">
+                                            {theme.name}
+                                            {isSelected && <Check className="size-4 text-[var(--acento)]" aria-hidden="true" />}
+                                        </span>
+                                        <span className="mt-1 text-xs text-[var(--mut)]">{theme.description}</span>
                                     </button>
-                                    <button
-                                        onClick={() => updateConfig({ language: "en" })}
-                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.language === "en"
-                                            ? "bg-accent-1/20 text-accent-1"
-                                            : "bg-white/5 text-neutral-400 hover:text-white"
-                                            }`}
-                                    >
-                                        🇺🇸 English
-                                    </button>
-                                </div>
-                            </div>
+                                );
+                            })}
                         </div>
-                    )}
+                    </div>
 
-                    {/* Colors */}
-                    {activeSection === "colors" && (
-                        <div className="space-y-4">
-                            {Object.entries({
-                                name: "Color del nombre",
-                                headline: "Color del título",
-                                sectionTitles: "Títulos de sección",
-                                body: "Texto principal",
-                                links: "Enlaces",
-                                accent: "Acentos",
-                                subtle: "Texto secundario",
-                            }).map(([key, label]) => (
-                                <div key={key} className="flex items-center gap-4">
-                                    <label className="text-sm text-neutral-400 w-36">{label}</label>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="color"
-                                            value={config.colors[key as keyof typeof config.colors]}
-                                            onChange={(e) =>
-                                                updateColors(key as keyof typeof config.colors, e.target.value)
-                                            }
-                                            className="w-10 h-10 rounded-lg cursor-pointer bg-transparent"
-                                        />
+                    <fieldset className="m-0 border-0 p-0">
+                        <legend className={ETIQUETA}>Idioma del CV</legend>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                aria-pressed={config.language === "es"}
+                                onClick={() => updateConfig({ language: "es" })}
+                                className={INTERRUPTOR}
+                            >
+                                Español
+                            </button>
+                            <button
+                                type="button"
+                                lang="en"
+                                aria-pressed={config.language === "en"}
+                                onClick={() => updateConfig({ language: "en" })}
+                                className={INTERRUPTOR}
+                            >
+                                English
+                            </button>
+                        </div>
+                    </fieldset>
+                </div>
+            )}
+
+            {activeSection === "colors" && (
+                <ul className="border-t border-[var(--linea)]">
+                    {Object.entries({
+                        name: "Nombre",
+                        headline: "Título",
+                        sectionTitles: "Títulos de sección",
+                        body: "Texto principal",
+                        links: "Enlaces",
+                        accent: "Acentos",
+                        subtle: "Texto secundario",
+                    }).map(([key, label]) => {
+                        const colorKey = key as keyof typeof config.colors;
+                        return (
+                            <li key={key} className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--linea)] py-3">
+                                <label htmlFor={`${base}-color-${key}`} className="text-sm text-[var(--txt)]">{label}</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id={`${base}-color-${key}`}
+                                        type="color"
+                                        value={config.colors[colorKey]}
+                                        onChange={(e) => updateColors(colorKey, e.target.value)}
+                                        className={`size-11 cursor-pointer rounded-lg border border-[var(--linea-2)] bg-transparent p-1 sm:size-10 ${FOCO}`}
+                                    />
+                                    <span className="block w-28">
                                         <input
                                             type="text"
-                                            value={config.colors[key as keyof typeof config.colors]}
-                                            onChange={(e) =>
-                                                updateColors(key as keyof typeof config.colors, e.target.value)
-                                            }
-                                            className="w-24 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono"
+                                            value={config.colors[colorKey]}
+                                            onChange={(e) => updateColors(colorKey, e.target.value)}
+                                            aria-label={`${label}: código hexadecimal`}
+                                            spellCheck={false}
+                                            className={`${CAMPO} font-mono`}
                                         />
-                                    </div>
+                                    </span>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+
+            {activeSection === "typography" && (
+                <div className="space-y-6">
+                    <div className="max-w-sm">
+                        <label htmlFor={`${base}-interlineado`} className={ETIQUETA}>Espaciado de línea</label>
+                        <CustomSelect
+                            id={`${base}-interlineado`}
+                            value={config.typography.lineSpacing}
+                            onChange={(value) => updateTypography("lineSpacing", value)}
+                            label="Espaciado de línea"
+                            options={[
+                                { value: "1.0", label: "Compacto (1,0)" },
+                                { value: "1.15", label: "Normal (1,15)" },
+                                { value: "1.25", label: "Amplio (1,25)" },
+                                { value: "1.5", label: "Doble (1,5)" },
+                            ]}
+                        />
+                    </div>
+
+                    <fieldset className="m-0 border-0 p-0">
+                        <legend className={ETIQUETA}>Alineación del texto</legend>
+                        <div className="flex flex-wrap gap-2">
+                            {(["left", "justified", "right"] as const).map((align) => (
+                                <button
+                                    key={align}
+                                    type="button"
+                                    aria-pressed={config.typography.alignment === align}
+                                    onClick={() => updateTypography("alignment", align)}
+                                    className={INTERRUPTOR}
+                                >
+                                    {align === "left" && "Izquierda"}
+                                    {align === "justified" && "Justificado"}
+                                    {align === "right" && "Derecha"}
+                                </button>
+                            ))}
+                        </div>
+                    </fieldset>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label htmlFor={`${base}-fuente-cuerpo`} className={ETIQUETA}>Fuente del cuerpo</label>
+                            <CustomSelect
+                                id={`${base}-fuente-cuerpo`}
+                                value={config.typography.fontFamily.body}
+                                onChange={(value) => updateTypography("fontFamily.body", value)}
+                                label="Fuente del cuerpo"
+                                options={FUENTES}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor={`${base}-fuente-nombre`} className={ETIQUETA}>Fuente del nombre</label>
+                            <CustomSelect
+                                id={`${base}-fuente-nombre`}
+                                value={config.typography.fontFamily.name}
+                                onChange={(value) => updateTypography("fontFamily.name", value)}
+                                label="Fuente del nombre"
+                                options={FUENTES}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeSection === "layout" && (
+                <div className="space-y-8">
+                    <div>
+                        <h3 className={`${TITULO} mb-1`}>Formato del CV</h3>
+                        <p className="mb-3 text-sm text-[var(--mut)]">
+                            La estructura de la hoja. Los tres usan texto real, que los lectores automáticos de CV pueden leer.
+                        </p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            {(Object.keys(CV_LAYOUTS) as CvLayoutId[]).map((layoutId) => {
+                                const layout = CV_LAYOUTS[layoutId];
+                                const isSelected = config.layout === layoutId;
+
+                                return (
+                                    <button
+                                        key={layoutId}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        onClick={() => updateConfig({ layout: layoutId })}
+                                        className={OPCION}
+                                    >
+                                        <span aria-hidden="true" className="mb-3 block w-full rounded-lg border border-[var(--linea)] bg-[var(--fondo-2)] p-2">
+                                            {layoutId === "single-column" && (
+                                                <span className="block space-y-1">
+                                                    <span className={`mx-auto block h-2 w-1/2 ${RAYA_ACENTO}`} />
+                                                    <span className={`mx-auto block w-3/4 ${RAYA}`} />
+                                                    <span className={`block w-full ${RAYA}`} />
+                                                    <span className={`block w-full ${RAYA}`} />
+                                                    <span className={`block w-5/6 ${RAYA}`} />
+                                                    <span className={`block w-full ${RAYA}`} />
+                                                    <span className={`block w-4/5 ${RAYA}`} />
+                                                </span>
+                                            )}
+                                            {layoutId === "two-column-sidebar" && (
+                                                <span className="flex gap-1">
+                                                    <span className="block w-1/3 space-y-1">
+                                                        <span className={`block h-1.5 ${RAYA_ACENTO}`} />
+                                                        <span className={`block ${RAYA}`} />
+                                                        <span className={`block ${RAYA}`} />
+                                                        <span className={`mt-1 block h-1.5 ${RAYA_ACENTO}`} />
+                                                        <span className={`block ${RAYA}`} />
+                                                        <span className={`block ${RAYA}`} />
+                                                    </span>
+                                                    <span className="block w-2/3 space-y-1">
+                                                        <span className={`block h-1.5 ${RAYA_ACENTO}`} />
+                                                        <span className={`block ${RAYA}`} />
+                                                        <span className={`block ${RAYA}`} />
+                                                        <span className={`block w-5/6 ${RAYA}`} />
+                                                        <span className={`mt-1 block h-1.5 ${RAYA_ACENTO}`} />
+                                                        <span className={`block ${RAYA}`} />
+                                                    </span>
+                                                </span>
+                                            )}
+                                            {layoutId === "compact-grid" && (
+                                                <span className="block space-y-1">
+                                                    <span className={`mx-auto block h-2 w-1/2 ${RAYA_ACENTO}`} />
+                                                    <span className={`block w-full ${RAYA}`} />
+                                                    <span className={`block w-full ${RAYA}`} />
+                                                    <span className="mt-1 flex gap-1">
+                                                        <span className="block w-1/2 space-y-0.5">
+                                                            <span className={`block h-1 ${RAYA_ACENTO}`} />
+                                                            <span className={`block ${RAYA}`} />
+                                                            <span className={`block ${RAYA}`} />
+                                                        </span>
+                                                        <span className="block w-1/2 space-y-0.5">
+                                                            <span className={`block h-1 ${RAYA_ACENTO}`} />
+                                                            <span className={`block ${RAYA}`} />
+                                                            <span className={`block ${RAYA}`} />
+                                                        </span>
+                                                    </span>
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="flex w-full items-center justify-between gap-2 text-sm font-medium text-[var(--txt)]">
+                                            {layout.name}
+                                            {isSelected && <Check className="size-4 text-[var(--acento)]" aria-hidden="true" />}
+                                        </span>
+                                        <span className="mt-1 text-xs text-[var(--mut)]">{layout.description}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <fieldset className="m-0 border-0 p-0">
+                        <legend className={ETIQUETA}>Tamaño de página</legend>
+                        <div className="flex flex-wrap gap-2">
+                            {(["a4", "letter", "legal"] as const).map((size) => (
+                                <button
+                                    key={size}
+                                    type="button"
+                                    aria-pressed={config.page.size === size}
+                                    onClick={() => updatePageLayout("size", size)}
+                                    className={INTERRUPTOR}
+                                >
+                                    {size === "a4" ? "A4" : size === "letter" ? "Carta" : "Legal"}
+                                </button>
+                            ))}
+                        </div>
+                    </fieldset>
+
+                    <fieldset className="m-0 border-0 p-0">
+                        <legend className={ETIQUETA}>Márgenes</legend>
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                            {(["top", "bottom", "left", "right"] as const).map((margin) => (
+                                <div key={margin}>
+                                    <label htmlFor={`${base}-margen-${margin}`} className="mb-1 block text-xs text-[var(--mut)]">
+                                        {margin === "top" && "Superior"}
+                                        {margin === "bottom" && "Inferior"}
+                                        {margin === "left" && "Izquierdo"}
+                                        {margin === "right" && "Derecho"}
+                                    </label>
+                                    <input
+                                        id={`${base}-margen-${margin}`}
+                                        type="text"
+                                        value={config.page.margins[margin]}
+                                        onChange={(e) => updatePageLayout(`margins.${margin}`, e.target.value)}
+                                        spellCheck={false}
+                                        className={`${CAMPO} font-mono`}
+                                    />
                                 </div>
                             ))}
                         </div>
-                    )}
+                    </fieldset>
 
-                    {/* Typography */}
-                    {activeSection === "typography" && (
-                        <div className="space-y-6">
-                            {/* Line Spacing */}
-                            <div>
-                                <label className="block text-sm text-neutral-400 mb-2">
-                                    Espaciado de línea
-                                </label>
-                                <CustomSelect
-                                    value={config.typography.lineSpacing}
-                                    onChange={(value) => updateTypography("lineSpacing", value)}
-                                    label="Espaciado de línea"
-                                    options={[
-                                        { value: "1.0", label: "Compacto (1.0)" },
-                                        { value: "1.15", label: "Normal (1.15)" },
-                                        { value: "1.25", label: "Amplio (1.25)" },
-                                        { value: "1.5", label: "Doble (1.5)" },
-                                    ]}
-                                />
-                            </div>
-
-                            {/* Alignment */}
-                            <div>
-                                <label className="block text-sm text-neutral-400 mb-2">
-                                    Alineación del texto
-                                </label>
-                                <div className="flex gap-2">
-                                    {(["left", "justified", "right"] as const).map((align) => (
-                                        <button
-                                            key={align}
-                                            onClick={() => updateTypography("alignment", align)}
-                                            className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.typography.alignment === align
-                                                ? "bg-accent-1/20 text-accent-1"
-                                                : "bg-white/5 text-neutral-400 hover:text-white"
-                                                }`}
-                                        >
-                                            {align === "left" && "Izquierda"}
-                                            {align === "justified" && "Justificado"}
-                                            {align === "right" && "Derecha"}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Font Families */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm text-neutral-400 mb-2">Fuente del cuerpo</label>
-                                    <CustomSelect
-                                        value={config.typography.fontFamily.body}
-                                        onChange={(value) => updateTypography("fontFamily.body", value)}
-                                        label="Fuente del cuerpo"
-                                        options={[
-                                            { value: "Source Sans Pro", label: "Source Sans Pro", preview: "Source Sans Pro" },
-                                            { value: "Inter", label: "Inter", preview: "Inter" },
-                                            { value: "Helvetica Neue", label: "Helvetica Neue", preview: "Helvetica Neue" },
-                                            { value: "Charter", label: "Charter", preview: "Charter" },
-                                            { value: "Poppins", label: "Poppins", preview: "Poppins" },
-                                            { value: "Montserrat", label: "Montserrat", preview: "Montserrat" },
-                                            { value: "Roboto", label: "Roboto", preview: "Roboto" },
-                                            { value: "Open Sans", label: "Open Sans", preview: "Open Sans" },
-                                        ]}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-neutral-400 mb-2">Fuente del nombre</label>
-                                    <CustomSelect
-                                        value={config.typography.fontFamily.name}
-                                        onChange={(value) => updateTypography("fontFamily.name", value)}
-                                        label="Fuente del nombre"
-                                        options={[
-                                            { value: "Source Sans Pro", label: "Source Sans Pro", preview: "Source Sans Pro" },
-                                            { value: "Inter", label: "Inter", preview: "Inter" },
-                                            { value: "Helvetica Neue", label: "Helvetica Neue", preview: "Helvetica Neue" },
-                                            { value: "Charter", label: "Charter", preview: "Charter" },
-                                            { value: "Poppins", label: "Poppins", preview: "Poppins" },
-                                            { value: "Montserrat", label: "Montserrat", preview: "Montserrat" },
-                                            { value: "Roboto", label: "Roboto", preview: "Roboto" },
-                                            { value: "Open Sans", label: "Open Sans", preview: "Open Sans" },
-                                        ]}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Layout */}
-                    {activeSection === "layout" && (
-                        <div className="space-y-6">
-                            {/* CV Layout Format */}
-                            <div>
-                                <label className="block text-sm text-neutral-400 mb-3">
-                                    Formato del CV
-                                </label>
-                                <p className="text-xs text-neutral-500 mb-4">
-                                    Elige la estructura visual de tu CV. Todos los formatos son ATS-friendly.
-                                </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {(Object.keys(CV_LAYOUTS) as CvLayoutId[]).map((layoutId) => {
-                                        const layout = CV_LAYOUTS[layoutId];
-                                        const isSelected = config.layout === layoutId;
-
-                                        return (
-                                            <motion.button
-                                                key={layoutId}
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={() => updateConfig({ layout: layoutId })}
-                                                className={`p-4 rounded-xl border text-left transition-all ${isSelected
-                                                    ? "border-accent-1 bg-accent-1/10"
-                                                    : "border-white/10 bg-white/5 hover:border-white/20"
-                                                    }`}
-                                            >
-                                                {/* Layout schematic preview */}
-                                                <div className="mb-3 p-2 rounded-lg bg-white/5 border border-white/10">
-                                                    {layoutId === "single-column" && (
-                                                        <div className="space-y-1">
-                                                            <div className="h-2 bg-accent-1/40 rounded w-1/2 mx-auto" />
-                                                            <div className="h-1 bg-white/20 rounded w-3/4 mx-auto" />
-                                                            <div className="h-1 bg-white/10 rounded w-full" />
-                                                            <div className="h-1 bg-white/10 rounded w-full" />
-                                                            <div className="h-1 bg-white/10 rounded w-5/6" />
-                                                            <div className="h-1 bg-white/10 rounded w-full" />
-                                                            <div className="h-1 bg-white/10 rounded w-4/5" />
-                                                        </div>
-                                                    )}
-                                                    {layoutId === "two-column-sidebar" && (
-                                                        <div className="flex gap-1">
-                                                            <div className="w-1/3 space-y-1">
-                                                                <div className="h-1.5 bg-accent-1/40 rounded" />
-                                                                <div className="h-1 bg-white/20 rounded" />
-                                                                <div className="h-1 bg-white/20 rounded" />
-                                                                <div className="h-1.5 bg-accent-1/40 rounded mt-1" />
-                                                                <div className="h-1 bg-white/20 rounded" />
-                                                                <div className="h-1 bg-white/20 rounded" />
-                                                            </div>
-                                                            <div className="w-2/3 space-y-1">
-                                                                <div className="h-1.5 bg-accent-1/40 rounded" />
-                                                                <div className="h-1 bg-white/10 rounded" />
-                                                                <div className="h-1 bg-white/10 rounded" />
-                                                                <div className="h-1 bg-white/10 rounded w-5/6" />
-                                                                <div className="h-1.5 bg-accent-1/40 rounded mt-1" />
-                                                                <div className="h-1 bg-white/10 rounded" />
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {layoutId === "compact-grid" && (
-                                                        <div className="space-y-1">
-                                                            <div className="h-2 bg-accent-1/40 rounded w-1/2 mx-auto" />
-                                                            <div className="h-1 bg-white/10 rounded w-full" />
-                                                            <div className="h-1 bg-white/10 rounded w-full" />
-                                                            <div className="flex gap-1 mt-1">
-                                                                <div className="w-1/2 space-y-0.5">
-                                                                    <div className="h-1 bg-accent-1/30 rounded" />
-                                                                    <div className="h-1 bg-white/10 rounded" />
-                                                                    <div className="h-1 bg-white/10 rounded" />
-                                                                </div>
-                                                                <div className="w-1/2 space-y-0.5">
-                                                                    <div className="h-1 bg-accent-1/30 rounded" />
-                                                                    <div className="h-1 bg-white/10 rounded" />
-                                                                    <div className="h-1 bg-white/10 rounded" />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <p className="font-medium text-white text-sm">{layout.name}</p>
-                                                <p className="text-xs text-neutral-400 mt-1">
-                                                    {layout.description}
-                                                </p>
-                                                {isSelected && (
-                                                    <div className="mt-2 flex items-center gap-1 text-accent-1 text-xs">
-                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path
-                                                                fillRule="evenodd"
-                                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                                clipRule="evenodd"
-                                                            />
-                                                        </svg>
-                                                        Seleccionado
-                                                    </div>
-                                                )}
-                                            </motion.button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className="border-t border-white/10 pt-6">
-
-                                {/* Page Size */}
-                                <div>
-                                    <label className="block text-sm text-neutral-400 mb-2">
-                                        Tamaño de página
-                                    </label>
-                                    <div className="flex gap-2">
-                                        {(["a4", "letter", "legal"] as const).map((size) => (
-                                            <button
-                                                key={size}
-                                                onClick={() => updatePageLayout("size", size)}
-                                                className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.page.size === size
-                                                    ? "bg-accent-1/20 text-accent-1"
-                                                    : "bg-white/5 text-neutral-400 hover:text-white"
-                                                    }`}
-                                            >
-                                                {size.toUpperCase()}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Margins */}
-                                <div className="mt-6">
-                                    <label className="block text-sm text-neutral-400 mb-2">Márgenes</label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {(["top", "bottom", "left", "right"] as const).map((margin) => (
-                                            <div key={margin}>
-                                                <label className="block text-xs text-neutral-500 mb-1 capitalize">
-                                                    {margin === "top" && "Superior"}
-                                                    {margin === "bottom" && "Inferior"}
-                                                    {margin === "left" && "Izquierdo"}
-                                                    {margin === "right" && "Derecho"}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={config.page.margins[margin]}
-                                                    onChange={(e) =>
-                                                        updatePageLayout(`margins.${margin}`, e.target.value)
-                                                    }
-                                                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Toggles */}
-                                <div className="space-y-3 mt-6">
-                                    {[
-                                        { key: "showFooter", label: "Mostrar pie de página" },
-                                        { key: "showPageNumbers", label: "Mostrar números de página" },
-                                        { key: "showLastUpdated", label: "Mostrar fecha de actualización" },
-                                    ].map(({ key, label }) => (
-                                        <label
-                                            key={key}
-                                            className="flex items-center justify-between cursor-pointer group"
-                                        >
-                                            <span className="text-sm text-neutral-400 group-hover:text-white transition-colors">
-                                                {label}
-                                            </span>
-                                            <button
-                                                onClick={() =>
-                                                    updatePageLayout(
-                                                        key,
-                                                        !config.page[key as keyof typeof config.page]
-                                                    )
-                                                }
-                                                className={`w-12 h-6 rounded-full transition-colors ${config.page[key as keyof typeof config.page]
-                                                    ? "bg-accent-1"
-                                                    : "bg-white/10"
-                                                    }`}
-                                            >
-                                                <div
-                                                    className={`w-5 h-5 rounded-full bg-white transition-transform ${config.page[key as keyof typeof config.page]
-                                                        ? "translate-x-6"
-                                                        : "translate-x-0.5"
-                                                        }`}
-                                                />
-                                            </button>
-                                        </label>
-                                    ))}
-                                </div>
-
-                                {/* Date Format */}
-                                <div className="mt-6">
-                                    <label className="block text-sm text-neutral-400 mb-2">
-                                        Formato de fechas
-                                    </label>
-                                    <div className="flex gap-2">
-                                        {[
-                                            { id: "short", label: "Ene. 2024" },
-                                            { id: "long", label: "Enero 2024" },
-                                            { id: "numeric", label: "01/2024" },
-                                        ].map(({ id, label }) => (
-                                            <button
-                                                key={id}
-                                                onClick={() => updateConfig({ dateFormat: id as "short" | "long" | "numeric" })}
-                                                className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${config.dateFormat === id
-                                                    ? "bg-accent-1/20 text-accent-1"
-                                                    : "bg-white/5 text-neutral-400 hover:text-white"
-                                                    }`}
-                                            >
-                                                {label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Sections */}
-                    {activeSection === "sections" && (
-                        <div className="space-y-2">
-                            <p className="text-sm text-neutral-400 mb-4">
-                                Activa/desactiva secciones y reordénalas arrastrando
-                            </p>
-                            {config.sections
-                                .sort((a, b) => a.order - b.order)
-                                .map((section) => (
-                                    <div
-                                        key={section.id}
-                                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${section.visible
-                                            ? "bg-white/5 border-white/10"
-                                            : "bg-white/2 border-white/5 opacity-60"
-                                            }`}
+                    <ul className="border-t border-[var(--linea)]">
+                        {[
+                            { key: "showFooter", label: "Mostrar pie de página" },
+                            { key: "showPageNumbers", label: "Mostrar números de página" },
+                            { key: "showLastUpdated", label: "Mostrar fecha de actualización" },
+                        ].map(({ key, label }) => {
+                            const encendido = Boolean(config.page[key as keyof typeof config.page]);
+                            return (
+                                <li key={key} className="flex items-center justify-between gap-4 border-b border-[var(--linea)] py-1">
+                                    <span id={`${base}-${key}`} className="text-sm text-[var(--txt)]">{label}</span>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={encendido}
+                                        aria-labelledby={`${base}-${key}`}
+                                        onClick={() => updatePageLayout(key, !encendido)}
+                                        className={`inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-lg ${FOCO}`}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => toggleSectionVisibility(section.id)}
-                                                className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${section.visible
-                                                    ? "bg-accent-1 text-black"
-                                                    : "bg-white/10 text-transparent"
-                                                    }`}
-                                            >
-                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                            <span className="text-sm text-white">{section.label}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => reorderSection(section.id, "up")}
-                                                className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                onClick={() => reorderSection(section.id, "down")}
-                                                className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                        <span
+                                            aria-hidden="true"
+                                            className={`flex h-6 w-11 items-center rounded-full px-0.5 transition-colors duration-150 ${encendido ? "bg-[var(--acento)]" : "bg-[var(--linea-2)]"}`}
+                                        >
+                                            <span
+                                                className={`size-5 rounded-full bg-white shadow-sm transition-transform duration-150 motion-reduce:transition-none ${encendido ? "translate-x-5" : "translate-x-0"}`}
+                                            />
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+
+                    <fieldset className="m-0 border-0 p-0">
+                        <legend className={ETIQUETA}>Formato de fechas</legend>
+                        <div className="flex flex-wrap gap-2">
+                            {[
+                                { id: "short", label: "Ene. 2024" },
+                                { id: "long", label: "Enero 2024" },
+                                { id: "numeric", label: "01/2024" },
+                            ].map(({ id, label }) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    aria-pressed={config.dateFormat === id}
+                                    onClick={() => updateConfig({ dateFormat: id as "short" | "long" | "numeric" })}
+                                    className={INTERRUPTOR}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
-                    )}
-                </motion.div>
-            </AnimatePresence>
-        </div>
+                    </fieldset>
+                </div>
+            )}
+
+            {activeSection === "sections" && (
+                <div>
+                    <p className="mb-3 text-sm text-[var(--mut)]">
+                        Marca las secciones que van en el CV y cámbialas de orden con las flechas.
+                    </p>
+                    <ul className="border-t border-[var(--linea)]">
+                        {seccionesOrdenadas.map((section, i) => (
+                            <li key={section.id} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-1">
+                                <label className={`flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm ${section.visible ? "text-[var(--txt)]" : "text-[var(--mut)]"}`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={section.visible}
+                                        onChange={() => toggleSectionVisibility(section.id)}
+                                        className="size-4 accent-[var(--acento)]"
+                                    />
+                                    {section.label}
+                                </label>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => reorderSection(section.id, "up")}
+                                        disabled={i === 0}
+                                        aria-label={`Subir ${section.label}`}
+                                        className={`inline-flex size-11 items-center justify-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] hover:text-[var(--txt)] disabled:opacity-30 sm:size-10 ${FOCO}`}
+                                    >
+                                        <ArrowUp className="size-4" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => reorderSection(section.id, "down")}
+                                        disabled={i === seccionesOrdenadas.length - 1}
+                                        aria-label={`Bajar ${section.label}`}
+                                        className={`inline-flex size-11 items-center justify-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] hover:text-[var(--txt)] disabled:opacity-30 sm:size-10 ${FOCO}`}
+                                    >
+                                        <ArrowDown className="size-4" aria-hidden="true" />
+                                    </button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </section>
     );
 }

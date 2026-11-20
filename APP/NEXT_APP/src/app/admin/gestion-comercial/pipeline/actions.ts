@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -23,18 +24,25 @@ interface CreateDealInput {
     quotationId?: string;
 }
 
-interface UpdateDealInput {
-    title?: string;
-    description?: string;
-    priority?: DealPriority;
-    origin?: DealOrigin;
-    estimatedValue?: number;
-    closeProbability?: number;
-    estimatedCloseAt?: string | null;
-    notes?: string;
-    quotationId?: string | null;
-    contractId?: string | null;
-}
+/** Lo que se puede cambiar de un negocio. Se valida en el servidor: la acción se puede invocar sin pasar por el formulario. */
+const esquemaEditarNegocio = z.object({
+    title: z.string({ error: "Título no válido" }).trim().min(1, "El título es requerido").max(200, "El título admite 200 caracteres").optional(),
+    description: z.string({ error: "Descripción no válida" }).max(2000, "La descripción admite 2.000 caracteres").optional(),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"], { error: "Prioridad no válida" }).optional(),
+    origin: z.enum(["REFERRAL", "WEB", "SOCIAL_MEDIA", "DIRECT", "OTHER"], { error: "Origen no válido" }).optional(),
+    estimatedValue: z.number({ error: "Valor no válido" }).finite("Valor no válido").min(0, "El valor estimado no puede ser negativo").max(1e12, "Valor demasiado alto").optional(),
+    closeProbability: z.number({ error: "Probabilidad no válida" }).int("La probabilidad va sin decimales").min(0, "La probabilidad va de 0 a 100").max(100, "La probabilidad va de 0 a 100").optional(),
+    estimatedCloseAt: z.string({ error: "Fecha no válida" }).regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha no válida").nullable().optional(),
+    notes: z.string({ error: "Notas no válidas" }).max(2000, "Las notas admiten 2.000 caracteres").optional(),
+    quotationId: z.string({ error: "Propuesta no válida" }).max(40, "Propuesta no válida").nullable().optional(),
+    contractId: z.string({ error: "Contrato no válido" }).max(40, "Contrato no válido").nullable().optional(),
+});
+type UpdateDealInput = z.input<typeof esquemaEditarNegocio>;
+
+const ETAPAS: Record<DealStage, string> = {
+    PROSPECT: "Prospecto", CONTACTED: "Contactado", PROPOSAL: "Propuesta",
+    NEGOTIATION: "Negociación", WON: "Ganado", LOST: "Perdido",
+};
 
 // ============================================================================
 // VALIDATION (OWASP Input Validation)
@@ -113,6 +121,14 @@ export async function createDealAction(input: CreateDealInput) {
     if (!client) {
         return { success: false, error: "Cliente no encontrado" };
     }
+    // La cotización enlazada tiene que ser de ese mismo cliente (si no, el negocio filtra datos ajenos).
+    if (input.quotationId) {
+        const cotizacion = await prisma.quotation.findFirst({
+            where: { id: input.quotationId, clientId: input.clientId, isDeleted: false },
+            select: { id: true },
+        });
+        if (!cotizacion) return { success: false, error: "La cotización no es de ese cliente" };
+    }
 
     try {
         const deal = await prisma.deal.create({
@@ -123,8 +139,9 @@ export async function createDealAction(input: CreateDealInput) {
                 priority: input.priority || "MEDIUM",
                 origin: input.origin || "DIRECT",
                 estimatedValue: input.estimatedValue || 0,
-                closeProbability: input.closeProbability || 50,
-                estimatedCloseAt: input.estimatedCloseAt ? new Date(input.estimatedCloseAt) : null,
+                closeProbability: input.closeProbability ?? 50,
+                // Una fecha sola (AAAA-MM-DD) se guarda a mediodía UTC para que en Chile no caiga el día anterior.
+                estimatedCloseAt: input.estimatedCloseAt ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(input.estimatedCloseAt) ? `${input.estimatedCloseAt}T12:00:00Z` : input.estimatedCloseAt) : null,
                 notes: input.notes ? sanitizeString(input.notes, 2000) : null,
                 userId: session.user.id,
                 clientId: input.clientId,
@@ -154,7 +171,7 @@ export async function createDealAction(input: CreateDealInput) {
     }
 }
 
-export async function updateDealAction(dealId: string, input: UpdateDealInput) {
+export async function updateDealAction(dealId: string, entrada: UpdateDealInput) {
     const session = await auth();
     if (!session?.user?.id) {
         return { success: false, error: "No autorizado" };
@@ -174,10 +191,24 @@ export async function updateDealAction(dealId: string, input: UpdateDealInput) {
         return { success: false, error: "Oportunidad no encontrada" };
     }
 
-    // Validate
-    const validationError = validateDealInput(input);
-    if (validationError) {
-        return { success: false, error: validationError };
+    const validado = esquemaEditarNegocio.safeParse(entrada);
+    if (!validado.success) {
+        return { success: false, error: validado.error.issues[0]?.message ?? "Revisa los datos del negocio" };
+    }
+    const input = validado.data;
+
+    // Enlaces nuevos: solo a cotizaciones y contratos vigentes del mismo cliente del negocio.
+    if (input.quotationId || input.contractId) {
+        const negocio = await prisma.deal.findUnique({ where: { id: dealId }, select: { clientId: true } });
+        if (!negocio) return { success: false, error: "Negocio no encontrado" };
+        if (input.quotationId) {
+            const q = await prisma.quotation.findFirst({ where: { id: input.quotationId, clientId: negocio.clientId, isDeleted: false }, select: { id: true } });
+            if (!q) return { success: false, error: "La cotización no es de ese cliente" };
+        }
+        if (input.contractId) {
+            const c = await prisma.contract.findFirst({ where: { id: input.contractId, clientId: negocio.clientId, isDeleted: false }, select: { id: true } });
+            if (!c) return { success: false, error: "El contrato no es de ese cliente" };
+        }
     }
 
     try {
@@ -188,7 +219,7 @@ export async function updateDealAction(dealId: string, input: UpdateDealInput) {
         if (input.origin !== undefined) updateData.origin = input.origin;
         if (input.estimatedValue !== undefined) updateData.estimatedValue = input.estimatedValue;
         if (input.closeProbability !== undefined) updateData.closeProbability = input.closeProbability;
-        if (input.estimatedCloseAt !== undefined) updateData.estimatedCloseAt = input.estimatedCloseAt ? new Date(input.estimatedCloseAt) : null;
+        if (input.estimatedCloseAt !== undefined) updateData.estimatedCloseAt = input.estimatedCloseAt ? new Date(`${input.estimatedCloseAt}T12:00:00Z`) : null;
         if (input.notes !== undefined) updateData.notes = input.notes ? sanitizeString(input.notes, 2000) : null;
         if (input.quotationId !== undefined) updateData.quotationId = input.quotationId;
         if (input.contractId !== undefined) updateData.contractId = input.contractId;
@@ -255,8 +286,8 @@ export async function moveDealStageAction(dealId: string, newStage: DealStage) {
                     dealId,
                     userId: session.user.id,
                     type: "status_change",
-                    title: `Movido a ${newStage}`,
-                    description: `"${existingDeal.title}" pasó de ${existingDeal.stage} a ${newStage}`,
+                    title: `Pasó a ${ETAPAS[newStage]}`,
+                    description: `"${existingDeal.title}" pasó de ${ETAPAS[existingDeal.stage]} a ${ETAPAS[newStage]}`,
                     metadata: {
                         fromStage: existingDeal.stage,
                         toStage: newStage,
@@ -365,128 +396,5 @@ export async function addDealActivityAction(
     } catch (error) {
         console.error("[CRM] Error adding activity:", error);
         return { success: false, error: "Error al agregar actividad" };
-    }
-}
-
-// ============================================================================
-// DATA FETCHING
-// ============================================================================
-
-export async function getDealsForPipelineAction() {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { success: false, error: "No autorizado", data: null };
-    }
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "crm.pipeline.view"
-    );
-    if (!canView) {
-        return { success: false, error: "Permiso denegado", data: null };
-    }
-
-    try {
-        const deals = await prisma.deal.findMany({
-            where: {
-                userId: session.user.id,
-                isDeleted: false,
-            },
-            include: {
-                client: {
-                    select: { id: true, name: true, slug: true, workType: true },
-                },
-                quotation: {
-                    select: { id: true, projectName: true, total: true, status: true },
-                },
-                _count: {
-                    select: { activities: true },
-                },
-            },
-            orderBy: { updatedAt: "desc" },
-        });
-
-        return { success: true, data: deals };
-    } catch (error) {
-        console.error("[CRM] Error fetching deals:", error);
-        return { success: false, error: "Error al obtener oportunidades", data: null };
-    }
-}
-
-export async function getDealDetailsAction(dealId: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { success: false, error: "No autorizado", data: null };
-    }
-
-    const canView = await hasPermission(
-        session.user.id,
-        session.user.role as Role,
-        "crm.pipeline.view"
-    );
-    if (!canView) {
-        return { success: false, error: "Permiso denegado", data: null };
-    }
-
-    try {
-        const deal = await prisma.deal.findUnique({
-            where: { id: dealId },
-            include: {
-                client: {
-                    select: {
-                        id: true, name: true, slug: true, workType: true,
-                        contactName: true, contactEmail: true, contactPhone: true,
-                    },
-                },
-                quotation: {
-                    select: { id: true, projectName: true, total: true, status: true, folio: true },
-                },
-                contract: {
-                    select: { id: true, title: true, status: true, contractNumber: true },
-                },
-                activities: {
-                    orderBy: { createdAt: "desc" },
-                    take: 20,
-                    include: {
-                        user: { select: { name: true } },
-                    },
-                },
-            },
-        });
-
-        if (!deal || deal.isDeleted) {
-            return { success: false, error: "Oportunidad no encontrada", data: null };
-        }
-
-        // Ownership check
-        if (session.user.role !== "SUPERADMIN" && deal.userId !== session.user.id) {
-            return { success: false, error: "No autorizado", data: null };
-        }
-
-        return { success: true, data: deal };
-    } catch (error) {
-        console.error("[CRM] Error fetching deal details:", error);
-        return { success: false, error: "Error al obtener detalles", data: null };
-    }
-}
-
-export async function getClientsForSelectAction() {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { success: false, error: "No autorizado", data: null };
-    }
-
-    try {
-        const clients = await prisma.quotationClient.findMany({
-            where: { userId: session.user.id, isActive: true },
-            select: { id: true, name: true, workType: true },
-            orderBy: { name: "asc" },
-        });
-
-        return { success: true, data: clients };
-    } catch (error) {
-        console.error("[CRM] Error fetching clients:", error);
-        return { success: false, error: "Error al obtener clientes", data: null };
     }
 }

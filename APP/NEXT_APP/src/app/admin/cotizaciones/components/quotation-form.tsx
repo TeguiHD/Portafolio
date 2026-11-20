@@ -1,7 +1,9 @@
 "use client";
 
+import { useId } from "react";
 import { QuotationData, ProviderCostItem, ProfessionalFeeItem } from "../../../../modules/quotations/types";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { AREA, BOTON_ICONO, CAMPO, FOCO, SOBRE, TITULO_SECCION } from "@/modules/quotations/estilos";
 
 interface Props {
     data: QuotationData;
@@ -63,42 +65,42 @@ export default function QuotationForm({ data, onChange }: Props) {
         <div className="space-y-8 p-1">
 
             {/* 1. Project Info */}
-            <Section title="Información del Proyecto">
+            <Section title="Proyecto">
                 <div className="grid grid-cols-1 gap-4">
                     <Input
-                        label="Nombre del Proyecto"
+                        label="Nombre del proyecto"
                         value={data.projectName}
                         onChange={v => handleChange("projectName", v)}
-                        placeholder="Ej: E-commerce Flores DyD"
+                        placeholder="Ej.: Tienda en línea de flores"
                     />
                     <Input
-                        label="Descripción Corta"
+                        label="Descripción corta"
                         value={data.projectDescription}
                         onChange={v => handleChange("projectDescription", v)}
-                        placeholder="Ej: Tienda Online & Gestión de Pedidos"
+                        placeholder="Ej.: Tienda en línea y gestión de pedidos"
                     />
                     <TextArea
-                        label="Alcance / Propuesta de Valor"
+                        label="Alcance"
                         value={data.scope}
                         onChange={v => handleChange("scope", v)}
-                        placeholder="Describe qué incluye el proyecto en detalle..."
+                        placeholder="Qué incluye el proyecto, en detalle"
                         rows={6}
                     />
                 </div>
             </Section>
 
             {/* 2. Provider Costs (Gastos) */}
-            <Section title="A. Gastos Externos (Hosting, Dominios)">
+            <Section title="Gastos externos (hosting, dominios)">
                 <div className="space-y-3">
-                    {data.providerCosts.map((item) => (
-                        <div key={item.id} className="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3 group">
-                            <div className="flex justify-between items-start">
-                                <span className="p-1 text-slate-500 cursor-move"><GripVertical size={16} /></span>
-                                <button onClick={() => removeProviderCost(item.id)} className="text-slate-500 hover:text-red-400 p-1">
-                                    <Trash2 size={16} />
+                    {data.providerCosts.map((item, i) => (
+                        <div key={item.id} role="group" aria-labelledby={`gasto-${item.id}`} className="rounded-lg border border-[var(--linea)] p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                                <p id={`gasto-${item.id}`} className="text-sm font-medium text-[var(--mut)]">Gasto {i + 1}</p>
+                                <button type="button" onClick={() => removeProviderCost(item.id)} aria-label={`Quitar el gasto ${i + 1}`} className={`${BOTON_ICONO} -mr-2 -mt-2 hover:text-red-400`}>
+                                    <Trash2 size={16} aria-hidden="true" />
                                 </button>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Input
                                     label="Concepto"
                                     value={item.name}
@@ -110,7 +112,7 @@ export default function QuotationForm({ data, onChange }: Props) {
                                     onChange={v => updateProviderCost(item.id, { provider: v })}
                                 />
                                 <Input
-                                    label="Costo"
+                                    label="Costo (CLP)"
                                     type="number"
                                     value={item.costMin}
                                     onChange={v => updateProviderCost(item.id, { costMin: parseInt(v) || 0 })}
@@ -118,35 +120,35 @@ export default function QuotationForm({ data, onChange }: Props) {
                             </div>
                         </div>
                     ))}
-                    <Button onClick={addProviderCost} icon={<Plus size={16} />}>Agregar Gasto</Button>
+                    <Button onClick={addProviderCost} icon={<Plus size={16} aria-hidden="true" />}>Agregar gasto</Button>
                 </div>
             </Section>
 
             {/* 3. Professional Fees (Honorarios) */}
-            <Section title="B. Honorarios Profesionales">
+            <Section title="Honorarios">
                 <div className="space-y-3">
-                    {data.professionalFees.map((item) => (
-                        <div key={item.id} className="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3">
-                            <div className="flex justify-between items-start">
-                                <span className="p-1 text-slate-500 cursor-move"><GripVertical size={16} /></span>
-                                <button onClick={() => removeProfessionalFee(item.id)} className="text-slate-500 hover:text-red-400 p-1">
-                                    <Trash2 size={16} />
+                    {data.professionalFees.map((item, i) => (
+                        <div key={item.id} role="group" aria-labelledby={`servicio-${item.id}`} className="rounded-lg border border-[var(--linea)] p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                                <p id={`servicio-${item.id}`} className="text-sm font-medium text-[var(--mut)]">Servicio {i + 1}</p>
+                                <button type="button" onClick={() => removeProfessionalFee(item.id)} aria-label={`Quitar el servicio ${i + 1}`} className={`${BOTON_ICONO} -mr-2 -mt-2 hover:text-red-400`}>
+                                    <Trash2 size={16} aria-hidden="true" />
                                 </button>
                             </div>
                             <div className="grid grid-cols-1 gap-3">
                                 <Input
-                                    label="Título del Servicio"
+                                    label="Nombre del servicio"
                                     value={item.title}
                                     onChange={v => updateProfessionalFee(item.id, { title: v })}
                                 />
                                 <TextArea
-                                    label="Descripción / Entregables"
+                                    label="Descripción y entregables"
                                     value={item.description}
                                     onChange={v => updateProfessionalFee(item.id, { description: v })}
                                     rows={2}
                                 />
                                 <Input
-                                    label="Precio (Honorarios)"
+                                    label="Precio (CLP)"
                                     type="number"
                                     value={item.price}
                                     onChange={v => updateProfessionalFee(item.id, { price: parseInt(v) || 0 })}
@@ -154,16 +156,16 @@ export default function QuotationForm({ data, onChange }: Props) {
                             </div>
                         </div>
                     ))}
-                    <Button onClick={addProfessionalFee} icon={<Plus size={16} />}>Agregar Honorario</Button>
+                    <Button onClick={addProfessionalFee} icon={<Plus size={16} aria-hidden="true" />}>Agregar servicio</Button>
                 </div>
             </Section>
 
-            <Section title="Notas al Pie">
+            <Section title="Nota al pie">
                 <Input
                     label="Nota"
                     value={data.footerNote}
                     onChange={v => handleChange("footerNote", v)}
-                    placeholder="Información extra..."
+                    placeholder="Información extra"
                 />
             </Section>
         </div>
@@ -172,11 +174,12 @@ export default function QuotationForm({ data, onChange }: Props) {
 
 // UI Helpers
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+    const id = useId();
     return (
-        <div className="border-b border-slate-800 pb-6 last:border-0">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">{title}</h3>
+        <section aria-labelledby={id} className="border-b border-[var(--linea)] pb-6 last:border-0">
+            <h3 id={id} className={`${TITULO_SECCION} mb-4`}>{title}</h3>
             {children}
-        </div>
+        </section>
     );
 }
 
@@ -189,15 +192,17 @@ interface InputProps {
 }
 
 function Input({ label, value, onChange, placeholder, type = "text" }: InputProps) {
+    const id = useId();
     return (
         <div>
-            <label className="block text-xs text-slate-400 mb-1.5">{label}</label>
+            <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-[var(--txt)]">{label}</label>
             <input
+                id={id}
                 type={type}
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                className={`${CAMPO} ${type === "number" ? "tabular-nums" : ""}`}
                 onWheel={(e) => e.currentTarget.blur()}
             />
         </div>
@@ -213,15 +218,17 @@ interface TextAreaProps {
 }
 
 function TextArea({ label, value, onChange, placeholder, rows = 3 }: TextAreaProps) {
+    const id = useId();
     return (
         <div>
-            <label className="block text-xs text-slate-400 mb-1.5">{label}</label>
+            <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-[var(--txt)]">{label}</label>
             <textarea
+                id={id}
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
                 rows={rows}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none transition-colors resize-y"
+                className={AREA}
             />
         </div>
     );
@@ -238,7 +245,7 @@ function Button({ onClick, children, icon }: ButtonProps) {
         <button
             type="button"
             onClick={onClick}
-            className="w-full py-2 border border-dashed border-slate-700 rounded-lg text-slate-400 hover:text-white hover:border-slate-500 hover:bg-slate-800 transition-all text-sm flex items-center justify-center gap-2"
+            className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--linea-2)] text-sm text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] md:min-h-10 ${SOBRE} ${FOCO}`}
         >
             {icon}
             {children}

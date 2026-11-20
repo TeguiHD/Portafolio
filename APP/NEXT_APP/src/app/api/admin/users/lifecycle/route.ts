@@ -48,6 +48,9 @@ function checkRateLimit(adminId: string): boolean {
     return true;
 }
 
+const RANGO: Record<Role, number> = { USER: 0, MODERATOR: 1, ADMIN: 2, SUPERADMIN: 3 };
+const ACCIONES_QUE_CAMBIAN = ["suspend", "reactivate", "request_deletion", "cancel_deletion", "anonymize", "permanent_delete"];
+
 export async function POST(request: NextRequest) {
     try {
         const session = await auth();
@@ -90,6 +93,31 @@ export async function POST(request: NextRequest) {
                 { error: "No puedes eliminar tu propia cuenta desde el panel de administración" },
                 { status: 400 }
             );
+        }
+
+        // Jerarquía, como en /api/admin/users: nadie toca su propia cuenta desde aquí, un superadministrador no se
+        // suspende, borra ni anonimiza desde el panel, y fuera del superadmin solo se actúa sobre rangos inferiores.
+        // Antes un ADMIN con users.manage podía programar el borrado o anonimizar a un superadmin, y cualquiera
+        // podía suspenderse a sí mismo (y dejar el panel sin superadministrador activo).
+        if (action !== "process_scheduled") {
+            if (typeof userId !== "string") {
+                return NextResponse.json({ error: "Usuario no válido" }, { status: 400 });
+            }
+            const objetivo = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+            if (!objetivo) {
+                return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+            }
+            const cambia = ACCIONES_QUE_CAMBIAN.includes(action);
+            if (cambia && userId === session.user.id) {
+                return NextResponse.json({ error: "No puedes cambiar tu propia cuenta desde aquí" }, { status: 400 });
+            }
+            if (cambia && objetivo.role === "SUPERADMIN") {
+                return NextResponse.json({ error: "Un superadministrador no se suspende, elimina ni anonimiza desde el panel" }, { status: 403 });
+            }
+            const actor = session.user.role as Role;
+            if (actor !== "SUPERADMIN" && userId !== session.user.id && RANGO[objetivo.role] >= RANGO[actor]) {
+                return NextResponse.json({ error: "No puedes gestionar a un usuario de tu mismo rango o superior" }, { status: 403 });
+            }
         }
 
         let result;

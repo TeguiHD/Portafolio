@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { RecurringList } from "@/modules/finance/components";
 import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+import { CabeceraFinanzas, CargandoFinanzas, CifrasFinanzas } from "@/modules/finance/components/Piezas";
+import { BOTON, ERROR, OPCION, OPCION_NO, OPCION_SI } from "@/modules/finance/components/estilos";
 
 interface RecurringPayment {
     id: string;
@@ -16,18 +19,30 @@ interface RecurringPayment {
     daysUntilDue: number | null;
     status: "upcoming" | "due_soon" | "overdue" | "inactive";
     isActive: boolean;
-    autoCreate: boolean;
     category?: { id: string; name: string; icon: string | null; color: string | null } | null;
     account?: { id: string; name: string; icon: string | null } | null;
 }
 
+/** Resumen tal como lo entrega GET /api/finance/recurring. */
 interface Meta {
     total: number;
-    monthlyIncome: number;
-    monthlyExpenses: number;
-    dueSoon: number;
-    overdue: number;
+    active: number;
+    totalMonthlyExpenses: number;
+    upcomingCount: number;
+    overdueCount: number;
 }
+
+const FILTROS_ESTADO = [
+    { valor: "all", texto: "Todos" },
+    { valor: "active", texto: "Activos" },
+    { valor: "inactive", texto: "Pausados" },
+] as const;
+
+const FILTROS_TIPO = [
+    { valor: "all", texto: "Todos" },
+    { valor: "EXPENSE", texto: "Gastos" },
+    { valor: "INCOME", texto: "Ingresos" },
+] as const;
 
 export default function RecurringPaymentsPageClient() {
     const [payments, setPayments] = useState<RecurringPayment[]>([]);
@@ -35,10 +50,12 @@ export default function RecurringPaymentsPageClient() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
     const [typeFilter, setTypeFilter] = useState<"all" | "INCOME" | "EXPENSE">("all");
+    const [aviso, setAviso] = useState<string | null>(null);
 
     const fetchPayments = useCallback(async () => {
         try {
-            const res = await fetch("/api/finance/recurring");
+            // Con los pausados: si no, el filtro «Pausados» queda siempre vacío y un pago pausado no se puede reactivar.
+            const res = await fetch("/api/finance/recurring?includeInactive=true");
             const data = await res.json();
             setPayments(data.data || []);
             setMeta(data.meta || null);
@@ -53,13 +70,26 @@ export default function RecurringPaymentsPageClient() {
         fetchPayments();
     }, [fetchPayments]);
 
+    /** Recarga si salió bien; si no, muestra el motivo que da la API. */
+    const revisar = async (res: Response, accion: string) => {
+        if (res.ok) {
+            setAviso(null);
+            await fetchPayments();
+            return;
+        }
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setAviso(`No se pudo ${accion}${body?.error ? `: ${body.error}` : "."}`);
+        // 409: ya estaba registrado (doble toque u otra pestaña): la lista se trae de nuevo para mostrar lo vigente.
+        if (res.status === 409) await fetchPayments();
+    };
+
     const handleMarkPaid = async (id: string) => {
         const res = await fetch(`/api/finance/recurring/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "mark_paid" }),
         });
-        if (res.ok) fetchPayments();
+        await revisar(res, "marcar el pago como pagado");
     };
 
     const handleSkip = async (id: string) => {
@@ -68,7 +98,7 @@ export default function RecurringPaymentsPageClient() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "skip" }),
         });
-        if (res.ok) fetchPayments();
+        await revisar(res, "saltar el período");
     };
 
     const handleToggleActive = async (id: string, isActive: boolean) => {
@@ -77,12 +107,12 @@ export default function RecurringPaymentsPageClient() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ isActive }),
         });
-        if (res.ok) fetchPayments();
+        await revisar(res, isActive ? "activar el pago" : "pausar el pago");
     };
 
     const handleDelete = async (id: string) => {
         const res = await fetch(`/api/finance/recurring/${id}`, { method: "DELETE" });
-        if (res.ok) fetchPayments();
+        await revisar(res, "eliminar el pago");
     };
 
     const filteredPayments = payments.filter((p) => {
@@ -94,113 +124,92 @@ export default function RecurringPaymentsPageClient() {
 
     if (loading) {
         return (
-            <div className="space-y-6">
+            <div className="max-w-[1180px] pb-8">
                 <FinanceBreadcrumbs />
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                </div>
+                <CargandoFinanzas texto="Cargando pagos recurrentes…" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-8">
+        <div className="max-w-[1180px] pb-8">
             <FinanceBreadcrumbs />
-            
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white">Pagos Recurrentes</h1>
-                    <p className="text-gray-400 mt-1">Gestiona tus gastos e ingresos fijos</p>
-                </div>
-                <Link
-                    href="/admin/finance/recurring/new"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500
-                             text-white rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Nuevo Pago Recurrente
-                </Link>
-            </div>
 
-            {/* Summary Cards */}
+            <CabeceraFinanzas titulo="Pagos recurrentes" bajada="Gestiona tus gastos e ingresos fijos">
+                <Link href="/admin/finance/recurring/new" className={BOTON}>
+                    <Plus aria-hidden="true" className="size-4" />
+                    Nuevo pago recurrente
+                </Link>
+            </CabeceraFinanzas>
+
             {meta && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-5">
-                        <p className="text-sm text-gray-400 mb-1">Total Pagos</p>
-                        <p className="text-2xl font-bold text-white">{meta.total}</p>
-                    </div>
-                    <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-5">
-                        <p className="text-sm text-gray-400 mb-1">Ingresos Mensuales</p>
-                        <p className="text-2xl font-bold text-green-400">+{formatCurrency(meta.monthlyIncome)}</p>
-                    </div>
-                    <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-5">
-                        <p className="text-sm text-gray-400 mb-1">Gastos Mensuales</p>
-                        <p className="text-2xl font-bold text-red-400">-{formatCurrency(meta.monthlyExpenses)}</p>
-                    </div>
-                    <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-5">
-                        <p className="text-sm text-gray-400 mb-1">Por Vencer</p>
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl font-bold text-yellow-400">{meta.dueSoon}</span>
-                            {meta.overdue > 0 && (
-                                <span className="text-sm px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">
-                                    {meta.overdue} vencidos
-                                </span>
-                            )}
-                        </div>
-                    </div>
+                <div className="mt-8">
+                    <CifrasFinanzas
+                        etiqueta="Resumen de pagos recurrentes"
+                        cifras={[
+                            {
+                                nombre: "Activos",
+                                valor: meta.active ?? 0,
+                                nota: meta.total > (meta.active ?? 0) ? `de ${meta.total}` : undefined,
+                            },
+                            {
+                                nombre: "Equivalente mensual",
+                                valor: formatCurrency(meta.totalMonthlyExpenses ?? 0),
+                            },
+                            { nombre: "Vencen en 30 días", valor: meta.upcomingCount ?? 0 },
+                            {
+                                nombre: "Vencidos",
+                                valor: meta.overdueCount ?? 0,
+                                tono: (meta.overdueCount ?? 0) > 0 ? "baja" : undefined,
+                            },
+                        ]}
+                    />
                 </div>
             )}
 
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1 bg-gray-900/50 rounded-xl p-1">
-                    {(["all", "active", "inactive"] as const).map((f) => (
+            {/* Filtros */}
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div role="group" aria-label="Filtrar por estado" className="flex flex-wrap gap-2">
+                    {FILTROS_ESTADO.map((f) => (
                         <button
-                            key={f}
-                            onClick={() => setFilter(f)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
-                                      ${filter === f
-                                          ? "bg-blue-600 text-white"
-                                          : "text-gray-400 hover:text-white"
-                                      }`}
+                            key={f.valor}
+                            type="button"
+                            onClick={() => setFilter(f.valor)}
+                            aria-pressed={filter === f.valor}
+                            className={`${OPCION} ${filter === f.valor ? OPCION_SI : OPCION_NO}`}
                         >
-                            {f === "all" ? "Todos" : f === "active" ? "Activos" : "Pausados"}
+                            {f.texto}
                         </button>
                     ))}
                 </div>
-                <div className="flex items-center gap-1 bg-gray-900/50 rounded-xl p-1">
-                    {(["all", "EXPENSE", "INCOME"] as const).map((t) => (
+                <div role="group" aria-label="Filtrar por tipo" className="flex flex-wrap gap-2">
+                    {FILTROS_TIPO.map((t) => (
                         <button
-                            key={t}
-                            onClick={() => setTypeFilter(t)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
-                                      ${typeFilter === t
-                                          ? t === "EXPENSE"
-                                              ? "bg-red-500/20 text-red-400"
-                                              : t === "INCOME"
-                                              ? "bg-green-500/20 text-green-400"
-                                              : "bg-blue-600 text-white"
-                                          : "text-gray-400 hover:text-white"
-                                      }`}
+                            key={t.valor}
+                            type="button"
+                            onClick={() => setTypeFilter(t.valor)}
+                            aria-pressed={typeFilter === t.valor}
+                            className={`${OPCION} ${typeFilter === t.valor ? OPCION_SI : OPCION_NO}`}
                         >
-                            {t === "all" ? "Todos" : t === "EXPENSE" ? "Gastos" : "Ingresos"}
+                            {t.texto}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* List */}
-            <RecurringList
-                payments={filteredPayments}
-                onMarkPaid={handleMarkPaid}
-                onSkip={handleSkip}
-                onToggleActive={handleToggleActive}
-                onDelete={handleDelete}
-            />
+            {aviso && <p role="alert" className={`${ERROR} mt-4`}>{aviso}</p>}
+
+            {/* Lista */}
+            <section aria-labelledby="rec-lista" className="mt-6">
+                <h2 id="rec-lista" className="sr-only">Listado de pagos</h2>
+                <RecurringList
+                    payments={filteredPayments}
+                    onMarkPaid={handleMarkPaid}
+                    onSkip={handleSkip}
+                    onToggleActive={handleToggleActive}
+                    onDelete={handleDelete}
+                />
+            </section>
         </div>
     );
 }
-

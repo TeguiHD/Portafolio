@@ -1,10 +1,14 @@
 "use client";
 
-import { Play, Loader2, Cpu, FileText, Settings2, Star, ExternalLink } from "lucide-react";
+import { useId } from "react";
+import { Play, Loader2, Star, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { AI_MODEL_OPTIONS } from "../../types";
 import type { CvVersionOption, AiProviderChoice } from "../../types";
 import { timeAgo } from "../../utils";
+import { BOTON, CAMPO, ENLACE, ETIQUETA, FOCO, TITULO } from "../../estilos";
+
+const OPCION = `flex min-h-11 flex-col items-start justify-center rounded-lg border border-[var(--linea-2)] px-3 py-2 text-left transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] aria-pressed:border-[var(--acento)] aria-pressed:bg-[color-mix(in_srgb,var(--acento)_13%,transparent)] disabled:cursor-not-allowed disabled:opacity-50 ${FOCO}`;
 
 export function AnalysisControls({
     cvVersions,
@@ -33,115 +37,103 @@ export function AnalysisControls({
     onAiModelChange: (value: string) => void;
     onRun: () => void;
 }) {
+    const id = useId();
     const filteredModels = AI_MODEL_OPTIONS.filter(
         (m) => aiProvider === "AUTO" || m.provider === aiProvider
     );
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-5 space-y-5">
-            <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-accent-1" />
-                <h3 className="text-sm font-bold text-white">Configuracion del analisis</h3>
-            </div>
+        <section aria-labelledby={`${id}-t`} className="space-y-6">
+            <h3 id={`${id}-t`} className={`${TITULO} border-b border-[var(--linea)] pb-2`}>Configuración del análisis</h3>
 
-            {/* CV Version History */}
-            <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
-                        <FileText className="w-3.5 h-3.5" />
-                        Historial de CV (ultimas 5 versiones)
+            <fieldset className="m-0 border-0 p-0">
+                <legend className="mb-2 flex w-full flex-wrap items-baseline justify-between gap-x-3 text-sm font-medium text-[var(--txt)]">
+                    Versión del CV
+                    <span className="flex items-baseline gap-3 text-xs font-normal text-[var(--mut)]">
+                        Últimas 5
+                        <Link href="/admin/cv-editor" className={ENLACE}>Abrir Currículum</Link>
                     </span>
-                    <Link
-                        href="/admin/cv-editor"
-                        className="inline-flex items-center gap-1 text-[10px] text-accent-1 hover:text-accent-1/80"
-                    >
-                        <ExternalLink className="w-3 h-3" />
-                        Editor CV
-                    </Link>
-                </div>
+                </legend>
 
                 {cvVersions.length === 0 ? (
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200">
-                        No tienes versiones de CV.{" "}
-                        <Link href="/admin/cv-editor" className="underline font-semibold">
-                            Crea una aqui
-                        </Link>
-                    </div>
+                    <p className="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--txt)]">
+                        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-400" aria-hidden="true" />
+                        <span>
+                            No tienes versiones de CV.{" "}
+                            <Link href="/admin/cv-editor" className={`${ENLACE} underline`}>Crea una en Currículum</Link>.
+                        </span>
+                    </p>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         {cvVersions.map((cv) => (
                             <button
                                 key={cv.id}
                                 type="button"
                                 disabled={disabled}
+                                aria-pressed={cvVersionId === cv.id}
                                 onClick={() => onCvVersionChange(cv.id)}
-                                className={`text-left rounded-xl border px-3 py-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    cvVersionId === cv.id
-                                        ? "border-accent-1/50 bg-accent-1/10"
-                                        : "border-white/8 bg-white/[0.02] hover:border-white/15"
-                                }`}
+                                className={OPCION}
                             >
-                                <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="flex w-full min-w-0 items-center gap-1.5 text-sm font-medium text-[var(--txt)]">
                                     {cv.isDefault && (
-                                        <Star className="w-3 h-3 text-amber-300 shrink-0" />
+                                        <>
+                                            <Star className="size-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+                                            <span className="sr-only">Principal:</span>
+                                        </>
                                     )}
-                                    <span
-                                        className={`text-xs font-semibold truncate ${
-                                            cvVersionId === cv.id ? "text-accent-1" : "text-white"
-                                        }`}
-                                    >
-                                        {cv.name}
-                                    </span>
-                                </div>
-                                <div className="text-[10px] text-neutral-500">
-                                    {timeAgo(cv.updatedAt)}
-                                </div>
+                                    <span className="truncate">{cv.name}</span>
+                                </span>
+                                <span className="font-mono text-xs text-[var(--mut)]">{timeAgo(cv.updatedAt)}</span>
                             </button>
                         ))}
                     </div>
                 )}
-            </div>
+            </fieldset>
 
-            {/* Mode + AI settings row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <Field label="Modo" icon={<Cpu className="w-3.5 h-3.5" />}>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <fieldset className="m-0 border-0 p-0">
+                    <legend className={ETIQUETA}>Modo</legend>
                     <div className="grid grid-cols-2 gap-2">
                         <ModeButton
                             active={mode === "ASSISTED"}
                             disabled={disabled}
                             onClick={() => onModeChange("ASSISTED")}
-                            label="ASSISTED"
-                            hint="Analisis + plan"
+                            label="Asistido"
+                            hint="Análisis y plan"
                         />
                         <ModeButton
                             active={mode === "AUTO"}
                             disabled={disabled}
                             onClick={() => onModeChange("AUTO")}
-                            label="AUTO"
-                            hint="Crea version CV"
+                            label="Automático"
+                            hint="Crea una versión del CV"
                         />
                     </div>
-                </Field>
+                </fieldset>
 
-                <Field label="Proveedor IA">
+                <div>
+                    <label htmlFor={`${id}-prov`} className={ETIQUETA}>Proveedor de IA</label>
                     <select
+                        id={`${id}-prov`}
                         value={aiProvider}
                         onChange={(e) => onAiProviderChange(e.target.value as AiProviderChoice)}
                         disabled={disabled}
-                        className="w-full rounded-lg border border-white/10 bg-[#0a0f1c] px-3 py-2 text-xs text-white focus:outline-none focus:border-accent-1/50 disabled:opacity-50"
+                        className={CAMPO}
                     >
-                        <option value="AUTO">Auto (load-balanced)</option>
+                        <option value="AUTO">Automático (reparte la carga)</option>
                         <option value="GROQ">Groq</option>
                         <option value="OPENROUTER">OpenRouter</option>
                     </select>
-                </Field>
+                </div>
 
-                <Field label="Modelo IA">
+                <div>
+                    <label htmlFor={`${id}-modelo`} className={ETIQUETA}>Modelo de IA</label>
                     <select
+                        id={`${id}-modelo`}
                         value={aiModel}
                         onChange={(e) => onAiModelChange(e.target.value)}
                         disabled={disabled}
-                        className="w-full rounded-lg border border-white/10 bg-[#0a0f1c] px-3 py-2 text-xs text-white focus:outline-none focus:border-accent-1/50 disabled:opacity-50"
+                        className={CAMPO}
                     >
                         <option value="">Modelo por defecto</option>
                         {filteredModels.map((m) => (
@@ -150,48 +142,28 @@ export function AnalysisControls({
                             </option>
                         ))}
                     </select>
-                </Field>
+                </div>
             </div>
 
             <button
                 type="button"
                 onClick={onRun}
                 disabled={disabled || isRunning || !cvVersionId}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent-1 hover:bg-accent-1/90 disabled:bg-accent-1/30 disabled:cursor-not-allowed px-4 py-3 text-sm font-bold text-[#0a0f1c] transition-colors shadow-lg shadow-accent-1/10"
+                className={`${BOTON} w-full sm:w-auto`}
             >
                 {isRunning ? (
                     <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Ejecutando analisis...
+                        <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                        Ejecutando análisis…
                     </>
                 ) : (
                     <>
-                        <Play className="w-4 h-4" />
-                        Ejecutar analisis
+                        <Play className="size-4" aria-hidden="true" />
+                        Ejecutar análisis
                     </>
                 )}
             </button>
-        </div>
-    );
-}
-
-function Field({
-    label,
-    icon,
-    children,
-}: {
-    label: string;
-    icon?: React.ReactNode;
-    children: React.ReactNode;
-}) {
-    return (
-        <label className="block space-y-1.5">
-            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
-                {icon}
-                {label}
-            </span>
-            {children}
-        </label>
+        </section>
     );
 }
 
@@ -209,18 +181,9 @@ function ModeButton({
     hint: string;
 }) {
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={`rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                active
-                    ? "border-accent-1/50 bg-accent-1/10 text-accent-1"
-                    : "border-white/10 bg-[#0a0f1c] text-neutral-400 hover:border-white/20"
-            }`}
-        >
-            <div className="text-xs font-bold">{label}</div>
-            <div className="text-[10px] text-neutral-500">{hint}</div>
+        <button type="button" onClick={onClick} disabled={disabled} aria-pressed={active} className={OPCION}>
+            <span className="text-sm font-medium text-[var(--txt)]">{label}</span>
+            <span className="text-xs text-[var(--mut)]">{hint}</span>
         </button>
     );
 }

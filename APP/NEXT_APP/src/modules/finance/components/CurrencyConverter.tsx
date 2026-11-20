@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
+import { ArrowLeftRight, ArrowRight, Clock } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import { CAMPO, CIFRA, ERROR, ETIQUETA, FOCO, GIRA, ICONO, OPCION, OPCION_NO, OPCION_SI, SECCION, TARJETA } from "./estilos";
 
 interface Currency {
     id: string;
@@ -29,6 +31,7 @@ export function CurrencyConverter() {
     const [toCurrency, setToCurrency] = useState<string>("USD");
     const [result, setResult] = useState<ConversionResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const uid = useId();
 
     useEffect(() => {
         async function fetchCurrencies() {
@@ -95,62 +98,53 @@ export function CurrencyConverter() {
 
     if (loading) {
         return (
-            <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-6 bg-gray-800 rounded w-1/3" />
-                    <div className="h-14 bg-gray-800 rounded" />
-                    <div className="h-14 bg-gray-800 rounded" />
+            <div role="status" className={`${TARJETA} p-5 sm:p-6`}>
+                <span className="sr-only">Cargando monedas…</span>
+                <div aria-hidden="true" className="animate-pulse space-y-4 motion-reduce:animate-none">
+                    <div className="h-6 w-1/3 rounded bg-[var(--fondo-2)]" />
+                    <div className="h-14 rounded bg-[var(--fondo-2)]" />
+                    <div className="h-14 rounded bg-[var(--fondo-2)]" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Convertidor de Moneda</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                    </svg>
-                    <span>Actualizado cada 4h</span>
-                </div>
+        <section aria-labelledby={`${uid}-titulo`} className={`${TARJETA} space-y-6 p-5 sm:p-6`}>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 id={`${uid}-titulo`} className="text-lg font-semibold text-[var(--txt)]">Convertidor de moneda</h2>
+                <p className="flex items-center gap-1.5 text-sm text-[var(--mut)]">
+                    <Clock aria-hidden="true" className="size-4" />
+                    Actualizado cada 4h
+                </p>
             </div>
 
-            {/* Amount Input */}
-            <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-300">Cantidad</label>
+            <div>
+                <label htmlFor={`${uid}-cantidad`} className={ETIQUETA}>Cantidad</label>
                 <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
+                    <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-lg text-[var(--mut)]">
                         {fromCurrencyObj?.symbol || "$"}
                     </span>
                     <input
+                        id={`${uid}-cantidad`}
                         type="number"
                         value={amount}
                         onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-800/50 border border-gray-700/50 rounded-xl
-                                 text-white text-xl font-semibold placeholder-gray-500 focus:outline-none
-                                 focus:ring-2 focus:ring-blue-500/50"
+                        className={`block min-h-14 w-full rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-3 pr-4 pl-12 text-xl font-semibold text-[var(--txt)] tabular-nums placeholder:text-[var(--mut)] ${FOCO}`}
                         min="0"
                         step="0.01"
                     />
                 </div>
             </div>
 
-            {/* Currency Selection */}
-            <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-end">
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">De</label>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2 sm:gap-3">
+                <div>
+                    <label htmlFor={`${uid}-de`} className={ETIQUETA}>De</label>
                     <select
+                        id={`${uid}-de`}
                         value={fromCurrency}
                         onChange={(e) => setFromCurrency(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl
-                                 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none"
+                        className={CAMPO}
                     >
                         {currencies.map((c) => (
                             <option key={c.code} value={c.code}>
@@ -161,28 +155,22 @@ export function CurrencyConverter() {
                 </div>
 
                 <button
+                    type="button"
                     onClick={swapCurrencies}
-                    className="p-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30
-                             transition-colors mb-0.5"
+                    aria-label="Intercambiar monedas"
                     title="Intercambiar monedas"
+                    className={ICONO}
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                        />
-                    </svg>
+                    <ArrowLeftRight aria-hidden="true" className="size-[18px]" />
                 </button>
 
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">A</label>
+                <div>
+                    <label htmlFor={`${uid}-a`} className={ETIQUETA}>A</label>
                     <select
+                        id={`${uid}-a`}
                         value={toCurrency}
                         onChange={(e) => setToCurrency(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl
-                                 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none"
+                        className={CAMPO}
                     >
                         {currencies.map((c) => (
                             <option key={c.code} value={c.code}>
@@ -193,44 +181,44 @@ export function CurrencyConverter() {
                 </div>
             </div>
 
-            {/* Result */}
-            {converting ? (
-                <div className="flex items-center justify-center py-6">
-                    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-            ) : result ? (
-                <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-5 space-y-3">
-                    <div className="flex items-baseline justify-between">
-                        <span className="text-gray-400">
-                            {fromCurrencyObj?.symbol}
-                            {formatCurrency(result.amount).replace("$", "")} {result.from}
-                        </span>
-                        <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                        </svg>
+            <div aria-live="polite">
+                {converting ? (
+                    <p className="flex items-center justify-center gap-2 py-6 text-sm text-[var(--mut)]">
+                        <span aria-hidden="true" className={GIRA} />
+                        Convirtiendo…
+                    </p>
+                ) : result ? (
+                    <div className="space-y-2 rounded-lg bg-[var(--fondo-2)] p-5">
+                        <p className={`flex items-center gap-2 text-[var(--mut)] ${CIFRA}`}>
+                            <span>
+                                {fromCurrencyObj?.symbol}
+                                {formatCurrency(result.amount).replace("$", "")} {result.from}
+                            </span>
+                            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+                        </p>
+                        <p className={`text-3xl font-bold tracking-[-0.03em] break-words text-[var(--txt)] ${CIFRA}`}>
+                            {toCurrencyObj?.symbol}
+                            {result.converted.toLocaleString("es-CL", {
+                                minimumFractionDigits: toCurrencyObj?.decimals || 2,
+                                maximumFractionDigits: toCurrencyObj?.decimals || 2,
+                            })}{" "}
+                            <span className="text-xl font-semibold text-[var(--mut)]">{result.to}</span>
+                        </p>
+                        {result.formattedRate && (
+                            <p className="text-sm text-[var(--mut)]">Tasa: {result.formattedRate}</p>
+                        )}
                     </div>
-                    <div className="text-3xl font-bold text-white">
-                        {toCurrencyObj?.symbol}
-                        {result.converted.toLocaleString("es-CL", {
-                            minimumFractionDigits: toCurrencyObj?.decimals || 2,
-                            maximumFractionDigits: toCurrencyObj?.decimals || 2,
-                        })}{" "}
-                        <span className="text-xl text-gray-400">{result.to}</span>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                        Tasa: {result.formattedRate}
-                    </div>
-                </div>
-            ) : error ? (
-                <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
+                ) : null}
+            </div>
+            {!converting && !result && error ? (
+                <p role="alert" className={ERROR}>
                     {error}
-                </div>
+                </p>
             ) : null}
 
-            {/* Popular Conversions */}
-            <div className="pt-4 border-t border-gray-800/50">
-                <p className="text-sm text-gray-400 mb-3">Conversiones populares</p>
-                <div className="flex flex-wrap gap-2">
+            <div className="border-t border-[var(--linea)] pt-5">
+                <h3 id={`${uid}-populares`} className={`${SECCION} mb-3`}>Conversiones populares</h3>
+                <div role="group" aria-labelledby={`${uid}-populares`} className="flex flex-wrap gap-2">
                     {[
                         { from: "CLP", to: "USD" },
                         { from: "CLP", to: "EUR" },
@@ -240,21 +228,20 @@ export function CurrencyConverter() {
                     ].map(({ from, to }) => (
                         <button
                             key={`${from}-${to}`}
+                            type="button"
+                            aria-pressed={fromCurrency === from && toCurrency === to}
+                            aria-label={`${from} a ${to}`}
                             onClick={() => {
                                 setFromCurrency(from);
                                 setToCurrency(to);
                             }}
-                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors
-                                      ${fromCurrency === from && toCurrency === to
-                                          ? "bg-blue-500/30 text-blue-400"
-                                          : "bg-gray-800/50 text-gray-400 hover:text-white"
-                                      }`}
+                            className={`${OPCION} ${fromCurrency === from && toCurrency === to ? OPCION_SI : OPCION_NO}`}
                         >
                             {from} → {to}
                         </button>
                     ))}
                 </div>
             </div>
-        </div>
+        </section>
     );
 }

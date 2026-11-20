@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useCallback, useEffect, useId } from "react";
+import { Camera, Check, ChevronLeft, CircleAlert, ImagePlus, LoaderCircle, RotateCcw, ScanLine, TriangleAlert, X } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 import { OCRResultDisplay, type OCRData } from "./OCRResultDisplay";
+import { CabeceraFinanzas, CargandoFinanzas } from "./Piezas";
+import { AYUDA, BOTON, BOTON_SEC, CIFRA, ERROR, FOCO, ICONO_PELIGRO, MARCA, MARCA_NEUTRA, RIEL, SECCION, SUAVE, VACIO } from "./estilos";
 
 interface BatchItem {
     id: string;
@@ -18,15 +21,62 @@ interface BatchReceiptScannerProps {
     onCancel: () => void;
 }
 
+/** Estado de una boleta en la grilla: siempre con palabra, no solo color. */
+function EstadoBoleta({ item }: { item: BatchItem }) {
+    if (item.status === "processing") {
+        return (
+            <span className={MARCA_NEUTRA}>
+                <LoaderCircle aria-hidden="true" className="size-3 animate-spin motion-reduce:animate-none" />
+                Procesando
+            </span>
+        );
+    }
+    if (item.status === "completed" && item.result && !item.result.isValidDocument) {
+        return (
+            <span className={`${MARCA} bg-amber-500/10 text-amber-400`}>
+                <TriangleAlert aria-hidden="true" className="size-3" />
+                No válida
+            </span>
+        );
+    }
+    if (item.status === "completed") {
+        return (
+            <span className={`${MARCA} bg-emerald-500/10 text-emerald-400`}>
+                <Check aria-hidden="true" className="size-3" />
+                Listo
+            </span>
+        );
+    }
+    if (item.status === "error") {
+        return (
+            <span className={`${MARCA} bg-red-500/10 text-red-400`}>
+                <CircleAlert aria-hidden="true" className="size-3" />
+                Error
+            </span>
+        );
+    }
+    return <span className={MARCA_NEUTRA}>Pendiente</span>;
+}
+
 export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScannerProps) {
     const [items, setItems] = useState<BatchItem[]>([]);
     const [selectedItem, setSelectedItem] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
+    const [aviso, setAviso] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const base = useId();
+
+    // Al salir de la vista (Usar, Volver) la cámara se apaga aunque siga abierta
+    useEffect(() => {
+        const stream = streamRef;
+        return () => {
+            stream.current?.getTracks().forEach(track => track.stop());
+        };
+    }, []);
 
     // Generate unique ID
     const generateId = () => `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -34,10 +84,13 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
     // Add images from file input
     const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
+        let omitidos = 0;
 
         files.forEach(file => {
-            if (!file.type.startsWith("image/")) return;
-            if (file.size > 5 * 1024 * 1024) return; // Max 5MB
+            if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) { // Max 5MB
+                omitidos++;
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -51,6 +104,10 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
             reader.readAsDataURL(file);
         });
 
+        setAviso(omitidos === 0
+            ? null
+            : `${omitidos === 1 ? "Se omitió 1 archivo" : `Se omitieron ${omitidos} archivos`}: solo se aceptan imágenes de hasta 5 MB.`);
+
         // Reset input
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -60,6 +117,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
     // Camera functions
     const startCamera = useCallback(async () => {
         try {
+            setAviso(null);
             setShowCamera(true);
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -72,6 +130,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
         } catch (err) {
             console.error("Camera error:", err);
             setShowCamera(false);
+            setAviso("No se pudo abrir la cámara. Revisa el permiso del navegador o sube imágenes desde la galería.");
         }
     }, []);
 
@@ -177,6 +236,15 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
         onComplete(successfulResults);
     }, [items, onComplete]);
 
+    // Vuelve a dejar una boleta como pendiente para leerla otra vez
+    const volverAPendiente = (itemId: string) => {
+        setItems(prev => prev.map(i =>
+            i.id === itemId
+                ? { ...i, status: "pending" as const, result: undefined, error: undefined }
+                : i
+        ));
+    };
+
     // Get the selected item data
     const selectedItemData = items.find(item => item.id === selectedItem);
 
@@ -188,111 +256,112 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
         completed: items.filter(i => i.status === "completed").length,
         errors: items.filter(i => i.status === "error").length,
     };
+    // Solo las que son boleta o factura llegan a «Usar» (handleFinish descarta el resto)
+    const validas = items.filter(i => i.status === "completed" && i.result?.isValidDocument).length;
+    const hechas = stats.completed + stats.errors;
+    const avance = stats.total > 0 ? (hechas / stats.total) * 100 : 0;
 
     return (
-        <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col">
-            {/* Header */}
-            <div className="flex-shrink-0 px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => {
-                            stopCamera();
-                            onCancel();
-                        }}
-                        className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                    <div>
-                        <h2 className="text-lg font-semibold text-white">Escanear Boletas</h2>
-                        <p className="text-xs text-neutral-400">
-                            {stats.total} boleta{stats.total !== 1 ? "s" : ""} • {stats.completed} procesada{stats.completed !== 1 ? "s" : ""}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-2">
-                    {stats.pending > 0 && !isProcessing && (
-                        <button
-                            onClick={processAll}
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            Procesar ({stats.pending})
-                        </button>
-                    )}
-                    {stats.completed > 0 && !isProcessing && (
-                        <button
-                            onClick={handleFinish}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Usar ({stats.completed})
-                        </button>
-                    )}
-                </div>
+        <div className="max-w-[1180px] pb-8">
+            <div className="mb-4">
+                <button
+                    type="button"
+                    onClick={() => {
+                        stopCamera();
+                        onCancel();
+                    }}
+                    className={`-ml-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] sm:min-h-10 ${FOCO}`}
+                >
+                    <ChevronLeft aria-hidden="true" className="size-4" />
+                    Volver al resumen
+                </button>
             </div>
 
-            {/* Main content */}
-            <div className="flex-1 flex overflow-hidden min-h-0">
-                {/* Left panel - Image grid / Camera */}
-                <div className="w-1/2 border-r border-neutral-800 flex flex-col min-h-0">
+            <CabeceraFinanzas
+                titulo="Escanear boletas"
+                bajada={
+                    <span aria-live="polite">
+                        {stats.total} boleta{stats.total !== 1 ? "s" : ""} · {stats.completed} procesada{stats.completed !== 1 ? "s" : ""}
+                    </span>
+                }
+            >
+                {stats.pending > 0 && !isProcessing && (
+                    <button type="button" onClick={() => void processAll()} className={BOTON}>
+                        <ScanLine aria-hidden="true" className="size-4" />
+                        Procesar ({stats.pending})
+                    </button>
+                )}
+                {validas > 0 && !isProcessing && (
+                    <button type="button" onClick={handleFinish} className={stats.pending > 0 ? BOTON_SEC : BOTON}>
+                        <Check aria-hidden="true" className="size-4" />
+                        Usar ({validas})
+                    </button>
+                )}
+            </CabeceraFinanzas>
+
+            {/* Avance de la lectura */}
+            {isProcessing && (
+                <div className="mt-6">
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="text-[var(--txt)]">Leyendo boletas…</span>
+                        <span className={`${CIFRA} text-[var(--mut)]`}>{hechas} de {stats.total}</span>
+                    </div>
+                    <div
+                        className={`${RIEL} mt-2`}
+                        role="progressbar"
+                        aria-label="Boletas leídas"
+                        aria-valuemin={0}
+                        aria-valuemax={stats.total}
+                        aria-valuenow={hechas}
+                    >
+                        <div className="h-full rounded-full bg-[var(--acento)]" style={{ width: `${avance}%` }} />
+                    </div>
+                </div>
+            )}
+
+            {aviso && (
+                <p role="alert" className={`${ERROR} mt-6`}>{aviso}</p>
+            )}
+
+            <div className="mt-8 grid items-start gap-10 lg:grid-cols-2 lg:gap-12">
+                {/* Boletas: cámara o grilla */}
+                <section aria-labelledby={`${base}-boletas`} className="min-w-0">
+                    <h2 id={`${base}-boletas`} className={`${SECCION} mb-3`}>Boletas</h2>
+
                     {showCamera ? (
-                        <div className="flex-1 relative bg-black">
+                        <div>
+                            {/* Visor de la cámara: fondo negro propio, como una foto */}
                             <video
                                 ref={videoRef}
                                 autoPlay
                                 playsInline
                                 muted
-                                className="w-full h-full object-contain"
+                                aria-label="Vista de la cámara"
+                                className="aspect-[3/4] max-h-[65dvh] w-full rounded-xl bg-black object-contain sm:aspect-[4/3]"
                             />
                             <canvas ref={canvasRef} className="hidden" />
 
-                            {/* Camera controls */}
-                            <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-4">
-                                <button
-                                    onClick={stopCamera}
-                                    className="p-3 rounded-full bg-neutral-800/80 text-white hover:bg-neutral-700 transition-colors"
-                                >
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                                <button type="button" onClick={capturePhoto} className={`${BOTON} sm:flex-1`}>
+                                    <Camera aria-hidden="true" className="size-4" />
+                                    Tomar foto
                                 </button>
-                                <button
-                                    onClick={capturePhoto}
-                                    className="w-16 h-16 rounded-full bg-white border-4 border-neutral-400 hover:border-purple-400 transition-colors"
-                                />
-                                <div className="w-12" /> {/* Spacer for balance */}
+                                <button type="button" onClick={stopCamera} className={`${BOTON_SEC} sm:flex-1`}>
+                                    <X aria-hidden="true" className="size-4" />
+                                    Cerrar cámara
+                                </button>
                             </div>
+                            <p className={AYUDA}>Puedes tomar varias fotos seguidas.</p>
                         </div>
                     ) : (
                         <>
-                            {/* Add buttons */}
-                            <div className="p-4 border-b border-neutral-800 flex gap-2">
-                                <button
-                                    onClick={startCamera}
-                                    className="flex-1 py-3 px-4 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => void startCamera()} className={`${BOTON_SEC} flex-1`}>
+                                    <Camera aria-hidden="true" className="size-4" />
                                     Cámara
                                 </button>
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex-1 py-3 px-4 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className={`${BOTON_SEC} flex-1`}>
+                                    <ImagePlus aria-hidden="true" className="size-4" />
                                     Galería
                                 </button>
                                 <input
@@ -304,105 +373,72 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                                     className="hidden"
                                 />
                             </div>
+                            <p className={AYUDA}>Imágenes de hasta 5 MB.</p>
 
-                            {/* Image grid */}
-                            <div className="flex-1 overflow-y-auto p-4">
-                                {items.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-center text-neutral-500">
-                                        <svg className="w-16 h-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                        <p className="text-lg font-medium mb-1">Sin boletas</p>
-                                        <p className="text-sm">Usa la cámara o sube imágenes</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {items.map((item) => (
-                                            <div
-                                                key={item.id}
-                                                onClick={() => setSelectedItem(item.id)}
-                                                className={`relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${selectedItem === item.id
-                                                        ? "border-purple-500 ring-2 ring-purple-500/30"
-                                                        : "border-transparent hover:border-neutral-600"
-                                                    }`}
-                                            >
-                                                <img
-                                                    src={item.imageData}
-                                                    alt="Receipt"
-                                                    className="w-full h-full object-cover"
-                                                />
-
-                                                {/* Status overlay */}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
-                                                {/* Status badge */}
-                                                <div className="absolute top-2 right-2">
-                                                    {item.status === "pending" && (
-                                                        <span className="px-2 py-1 bg-neutral-600 text-white text-xs rounded-full">
-                                                            Pendiente
-                                                        </span>
-                                                    )}
-                                                    {item.status === "processing" && (
-                                                        <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full flex items-center gap-1">
-                                                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                            </svg>
-                                                            Procesando
-                                                        </span>
-                                                    )}
-                                                    {item.status === "completed" && (
-                                                        <span className="px-2 py-1 bg-emerald-600 text-white text-xs rounded-full">
-                                                            ✓ Listo
-                                                        </span>
-                                                    )}
-                                                    {item.status === "error" && (
-                                                        <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full">
-                                                            Error
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Remove button */}
+                            {items.length === 0 ? (
+                                <div className={`${VACIO} mt-4`}>
+                                    <p className="font-medium text-[var(--txt)]">Sin boletas</p>
+                                    <p className="mt-1 text-sm">Usa la cámara o sube imágenes.</p>
+                                </div>
+                            ) : (
+                                <ul className="m-0 mt-4 grid list-none grid-cols-2 gap-4 p-0 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                                    {items.map((item, index) => {
+                                        const elegida = selectedItem === item.id;
+                                        const numero = index + 1;
+                                        return (
+                                            <li key={item.id} className="min-w-0">
                                                 <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        removeItem(item.id);
-                                                    }}
-                                                    className="absolute top-2 left-2 p-1.5 bg-black/50 hover:bg-red-600 text-white rounded-full transition-colors"
+                                                    type="button"
+                                                    aria-pressed={elegida}
+                                                    onClick={() => setSelectedItem(item.id)}
+                                                    className={`block w-full overflow-hidden rounded-xl border-2 bg-[var(--fondo-2)] transition-colors duration-150 motion-reduce:transition-none ${elegida ? "border-[var(--acento)]" : "border-transparent hover:border-[var(--linea-2)]"} ${FOCO}`}
                                                 >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
+                                                    <img
+                                                        src={item.imageData}
+                                                        alt={`Boleta ${numero}`}
+                                                        className="aspect-[3/4] w-full object-cover"
+                                                    />
                                                 </button>
 
-                                                {/* Amount preview if completed */}
-                                                {item.status === "completed" && item.result?.financials?.total && (
-                                                    <div className="absolute bottom-2 left-2 right-2">
-                                                        <p className="text-white font-bold text-lg">
-                                                            ${item.result.financials.total.toLocaleString("es-CL")}
-                                                        </p>
-                                                        {item.result.merchant?.value?.name && (
-                                                            <p className="text-white/70 text-xs truncate">
+                                                <div className="mt-2 flex items-start gap-1">
+                                                    <div className="min-w-0 flex-1">
+                                                        <EstadoBoleta item={item} />
+                                                        {item.status === "completed" && item.result?.financials?.total ? (
+                                                            <p className={`mt-1 truncate font-semibold text-[var(--txt)] ${CIFRA}`}>
+                                                                {formatCurrency(item.result.financials.total)}
+                                                            </p>
+                                                        ) : null}
+                                                        {item.status === "completed" && item.result?.merchant?.value?.name ? (
+                                                            <p className="truncate text-xs text-[var(--mut)]">
                                                                 {item.result.merchant.value.name}
                                                             </p>
-                                                        )}
+                                                        ) : null}
                                                     </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeItem(item.id)}
+                                                        aria-label={`Quitar boleta ${numero}`}
+                                                        className={`${ICONO_PELIGRO} -mt-2 -mr-2`}
+                                                    >
+                                                        <X aria-hidden="true" className="size-4" />
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
                         </>
                     )}
-                </div>
+                </section>
 
-                {/* Right panel - Preview / Details */}
-                <div className="w-1/2 flex flex-col bg-neutral-900/50 min-h-0">
+                {/* Detalle de la boleta elegida */}
+                <section aria-labelledby={`${base}-detalle`} className="min-w-0">
+                    <h2 id={`${base}-detalle`} className={`${SECCION} mb-3`}>Detalle</h2>
+
                     {selectedItemData ? (
-                        <div className="flex-1 overflow-y-auto p-4 min-h-0">
-                            {selectedItemData.status === "completed" && selectedItemData.result ? (
+                        selectedItemData.status === "completed" && selectedItemData.result ? (
+                            selectedItemData.result.isValidDocument ? (
                                 <OCRResultDisplay
                                     data={selectedItemData.result}
                                     imageData={selectedItemData.imageData}
@@ -416,90 +452,52 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                                             }]);
                                         }
                                     }}
-                                    onRetry={() => {
-                                        setItems(prev => prev.map(i =>
-                                            i.id === selectedItemData.id
-                                                ? { ...i, status: "pending" as const, result: undefined, error: undefined }
-                                                : i
-                                        ));
-                                    }}
+                                    onRetry={() => volverAPendiente(selectedItemData.id)}
                                 />
-                            ) : selectedItemData.status === "error" ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center">
-                                    <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-                                        <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
+                            ) : (
+                                <div>
+                                    <div className="rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+                                        <p className="font-medium">Documento no válido</p>
+                                        <p className="mt-1">
+                                            {selectedItemData.result.validationMessage || "La imagen no parece ser una boleta o factura."}
+                                        </p>
                                     </div>
-                                    <p className="text-lg font-medium text-white mb-2">Error al procesar</p>
-                                    <p className="text-sm text-neutral-400 mb-4">{selectedItemData.error}</p>
-                                    <button
-                                        onClick={() => {
-                                            setItems(prev => prev.map(i =>
-                                                i.id === selectedItemData.id
-                                                    ? { ...i, status: "pending" as const, error: undefined }
-                                                    : i
-                                            ));
-                                        }}
-                                        className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg transition-colors"
-                                    >
+                                    <button type="button" onClick={() => volverAPendiente(selectedItemData.id)} className={`${BOTON_SEC} mt-4`}>
+                                        <RotateCcw aria-hidden="true" className="size-4" />
                                         Reintentar
                                     </button>
                                 </div>
-                            ) : selectedItemData.status === "processing" ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center">
-                                    <svg className="w-16 h-16 text-purple-400 animate-spin mb-4" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                    </svg>
-                                    <p className="text-lg font-medium text-white">Procesando con IA...</p>
-                                    <p className="text-sm text-neutral-400">Extrayendo datos de la boleta</p>
+                            )
+                        ) : selectedItemData.status === "error" ? (
+                            <div>
+                                <div role="alert" className={ERROR}>
+                                    <p className="font-medium">No se pudo procesar la boleta</p>
+                                    {selectedItemData.error ? <p className="mt-1">{selectedItemData.error}</p> : null}
                                 </div>
-                            ) : (
-                                <div className="h-full flex flex-col">
-                                    <img
-                                        src={selectedItemData.imageData}
-                                        alt="Receipt preview"
-                                        className="flex-1 object-contain rounded-xl"
-                                    />
-                                    <p className="text-center text-neutral-400 mt-4 text-sm">
-                                        Presiona "Procesar" para extraer los datos
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center text-neutral-500 p-8">
-                            <svg className="w-16 h-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <p className="text-lg font-medium mb-1">Vista previa</p>
-                            <p className="text-sm">Selecciona una boleta para ver los detalles</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Processing progress bar */}
-            {isProcessing && (
-                <div className="flex-shrink-0 px-4 py-3 border-t border-neutral-800 bg-neutral-900">
-                    <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                            <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${((stats.completed + stats.errors) / stats.total) * 100}%` }}
-                                    className="h-full bg-purple-500 rounded-full"
-                                />
+                                <button type="button" onClick={() => volverAPendiente(selectedItemData.id)} className={`${BOTON_SEC} mt-4`}>
+                                    <RotateCcw aria-hidden="true" className="size-4" />
+                                    Reintentar
+                                </button>
                             </div>
-                        </div>
-                        <span className="text-sm text-neutral-400">
-                            {stats.completed + stats.errors} / {stats.total}
-                        </span>
-                    </div>
-                </div>
-            )}
+                        ) : selectedItemData.status === "processing" ? (
+                            <CargandoFinanzas texto="Leyendo los datos de la boleta…" />
+                        ) : (
+                            <div>
+                                <img
+                                    src={selectedItemData.imageData}
+                                    alt="Vista previa de la boleta"
+                                    className="max-h-[60dvh] w-full rounded-xl bg-[var(--fondo-2)] object-contain"
+                                />
+                                <p className={`${SUAVE} mt-3 text-center`}>
+                                    Presiona «Procesar» para leer los datos.
+                                </p>
+                            </div>
+                        )
+                    ) : (
+                        <p className={VACIO}>Selecciona una boleta para ver los detalles.</p>
+                    )}
+                </section>
+            </div>
         </div>
     );
 }

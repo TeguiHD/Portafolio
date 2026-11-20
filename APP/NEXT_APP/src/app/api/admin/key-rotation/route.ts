@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { ipCliente } from "@/lib/ip-cliente";
 import { verifySuperAdminForApi } from '@/lib/auth/dal'
 import {
     getRotationStatus,
@@ -19,9 +20,7 @@ import {
 import { SecurityLogger } from '@/lib/security-logger'
 
 const getClientIP = (request: NextRequest): string => {
-    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        request.headers.get('x-real-ip') ||
-        '127.0.0.1'
+    return ipCliente(request.headers)
 }
 
 async function requireKeyRotationOperator(): Promise<{ allowed: boolean; userId?: string }> {

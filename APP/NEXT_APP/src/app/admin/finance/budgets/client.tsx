@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { BudgetList } from "@/modules/finance/components/BudgetList";
 import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+import { CabeceraFinanzas, CargandoFinanzas, CifrasFinanzas } from "@/modules/finance/components/Piezas";
+import { BOTON, BOTON_SEC, ERROR, SECCION, SUAVE } from "@/modules/finance/components/estilos";
 
 interface Budget {
     id: string;
@@ -40,7 +43,8 @@ export default function BudgetsPageClient() {
 
     const fetchBudgets = useCallback(async () => {
         try {
-            const res = await fetch("/api/finance/budgets");
+            // Con los pausados: sin esto desaparecían al recargar y no había forma de reactivarlos.
+            const res = await fetch("/api/finance/budgets?includeInactive=true");
             if (!res.ok) throw new Error("Error al cargar presupuestos");
             const { data, meta } = await res.json();
             setBudgets(data || []);
@@ -75,87 +79,89 @@ export default function BudgetsPageClient() {
 
     if (loading) {
         return (
-            <div className="space-y-6">
+            <div className="max-w-[1180px]">
                 <FinanceBreadcrumbs />
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                        <p className="text-gray-400">Cargando presupuestos...</p>
-                    </div>
-                </div>
+                <CargandoFinanzas texto="Cargando presupuestos..." />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="space-y-6">
+            <div className="max-w-[1180px]">
                 <FinanceBreadcrumbs />
-                <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
-                    <p className="text-red-400 mb-4">{error}</p>
-                    <button
-                        onClick={() => {
-                            setError(null);
-                            setLoading(true);
-                            fetchBudgets();
-                        }}
-                        className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30"
-                    >
-                        Reintentar
-                    </button>
+                <div role="alert" className="py-16 text-center">
+                    <p className={`${ERROR} inline-block`}>{error}</p>
+                    <div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setError(null);
+                                setLoading(true);
+                                fetchBudgets();
+                            }}
+                            className={`${BOTON_SEC} mt-3`}
+                        >
+                            Reintentar
+                        </button>
+                    </div>
                 </div>
             </div>
         );
     }
 
+    // La API de la lista no manda `meta`: el resumen se cuenta con los presupuestos activos ya cargados.
+    const activos = budgets.filter((b) => b.isActive);
+    const pausados = budgets.filter((b) => !b.isActive);
+    const resumen = meta ?? {
+        total: activos.length,
+        onTrack: activos.filter((b) => b.status === "ok").length,
+        warning: activos.filter((b) => b.status === "warning" || b.status === "danger").length,
+        exceeded: activos.filter((b) => b.status === "exceeded").length,
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="max-w-[1180px] pb-8">
             <FinanceBreadcrumbs />
-            
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Presupuestos</h1>
-                    <p className="text-gray-400">Controla tus límites de gasto</p>
-                </div>
-                <Link
-                    href="/admin/finance/budgets/new"
-                    className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-500
-                             text-white rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all
-                             font-medium shadow-lg shadow-blue-500/25"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+
+            <CabeceraFinanzas titulo="Presupuestos" bajada="Controla tus límites de gasto">
+                <Link href="/admin/finance/budgets/new" className={BOTON}>
+                    <Plus aria-hidden="true" className="size-4" />
                     Nuevo presupuesto
                 </Link>
-            </div>
+            </CabeceraFinanzas>
 
-            {/* Stats */}
-            {meta && budgets.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-800/50">
-                        <p className="text-sm text-gray-400 mb-1">Total presupuestos</p>
-                        <p className="text-2xl font-bold text-white">{meta.total}</p>
-                    </div>
-                    <div className="p-4 bg-green-500/10 rounded-xl border border-green-500/20">
-                        <p className="text-sm text-green-400 mb-1">En buen estado</p>
-                        <p className="text-2xl font-bold text-green-400">{meta.onTrack}</p>
-                    </div>
-                    <div className="p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
-                        <p className="text-sm text-yellow-400 mb-1">Con advertencia</p>
-                        <p className="text-2xl font-bold text-yellow-400">{meta.warning}</p>
-                    </div>
-                    <div className="p-4 bg-red-500/10 rounded-xl border border-red-500/20">
-                        <p className="text-sm text-red-400 mb-1">Excedidos</p>
-                        <p className="text-2xl font-bold text-red-400">{meta.exceeded}</p>
-                    </div>
+            {budgets.length > 0 && (
+                <div className="mt-8">
+                    <CifrasFinanzas
+                        etiqueta="Resumen de presupuestos"
+                        cifras={[
+                            { nombre: "Presupuestos activos", valor: resumen.total },
+                            { nombre: "En buen estado", valor: resumen.onTrack },
+                            { nombre: "Con advertencia", valor: resumen.warning },
+                            { nombre: "Excedidos", valor: resumen.exceeded, tono: resumen.exceeded > 0 ? "baja" : undefined },
+                        ]}
+                    />
                 </div>
             )}
 
-            {/* Budget List */}
-            <BudgetList budgets={budgets} onDelete={handleDelete} onToggleActive={handleToggleActive} />
+            <div className="mt-8">
+                {activos.length > 0 || pausados.length === 0 ? (
+                    <BudgetList budgets={activos} onDelete={handleDelete} onToggleActive={handleToggleActive} />
+                ) : (
+                    <p className={SUAVE}>No tienes presupuestos activos. Reactiva uno de los pausados o crea uno nuevo.</p>
+                )}
+            </div>
+
+            {/* Pausados aparte: se reactivan con el botón de reproducir de cada fila. */}
+            {pausados.length > 0 && (
+                <section aria-labelledby="presupuestos-pausados" className="mt-10">
+                    <h2 id="presupuestos-pausados" className={`${SECCION} mb-2`}>
+                        Pausados ({pausados.length})
+                    </h2>
+                    <BudgetList budgets={pausados} onDelete={handleDelete} onToggleActive={handleToggleActive} />
+                </section>
+            )}
         </div>
     );
 }
-

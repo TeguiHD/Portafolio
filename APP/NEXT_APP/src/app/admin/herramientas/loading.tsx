@@ -1,5 +1,6 @@
-// Tools has its own skeleton in ToolsPageSkeleton
-// This prevents the admin loading.tsx from showing DashboardPageSkeleton
+import { EsqueletoSeccion } from "@/modules/admin/armazon/EsqueletoSeccion";
+
+// El mismo esqueleto que muestra la lista mientras pide las herramientas: no salta al llegar el cliente.
 export default function Loading() {
-    return <div />;
+    return <EsqueletoSeccion nombre="las herramientas" cifras={4} filas={6} />;
 }

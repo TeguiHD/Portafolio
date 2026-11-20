@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FileText, Eye, ChevronRight, Share2, User } from "lucide-react";
+import { FileText, Eye, ChevronRight, Share2 } from "lucide-react";
 import ContactInfoModal from "../../clientes/contact-info-modal";
 import ShareModal from "@/components/quotations/ShareModal";
+import { BOTON, BOTON_SEC, CHIP, CHIP_NEUTRO, INICIALES, TARJETA } from "@/modules/quotations/estilos";
 
 interface Client {
     id: string;
@@ -13,6 +14,12 @@ interface Client {
     contactPhone?: string | null;
     slug: string;
     company?: string | null;
+    // Los trae la página (select de page.tsx): el formulario de contacto los necesita para no borrarlos al guardar.
+    rut?: string | null;
+    address?: string | null;
+    contactName?: string | null;
+    contactEmail?: string | null;
+    contactRole?: string | null;
     _count: { quotations: number };
     user?: { id: string; name: string | null; email: string | null } | null;
     sharedWith?: {
@@ -29,27 +36,9 @@ interface Props {
     isSpyMode?: boolean;
 }
 
-// Generate a consistent color based on client name
-function getAvatarColor(name: string): string {
-    const colors = [
-        "from-indigo-500 to-purple-600",
-        "from-emerald-500 to-teal-600",
-        "from-amber-500 to-orange-600",
-        "from-rose-500 to-pink-600",
-        "from-cyan-500 to-blue-600",
-        "from-violet-500 to-indigo-600",
-        "from-fuchsia-500 to-purple-600",
-        "from-lime-500 to-green-600",
-    ];
-    const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-}
-
 export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyMode }: Props) {
-    const [isHovered, setIsHovered] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
 
-    const avatarColor = getAvatarColor(client.name);
     const initials = client.name
         .split(" ")
         .map(w => w[0])
@@ -58,120 +47,76 @@ export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyM
         .toUpperCase();
 
     const isOwner = currentUserId && client.user?.id === currentUserId;
-    // isSharedWithMe logic removed as it was unused
-
-    // Wait, sharedWith contains who it is shared WITH.
-    // If I am browsing, and I see a client...
-    // If it's my client, sharedWith shows who *I* shared it with.
-    // If it's a shared client, the API returns it because I am in sharedWith list.
-    // So if !isOwner, it must be shared with me (or I am superadmin/spy).
-
+    // Si no es tuyo y no eres superadmin, llegó porque te lo compartieron.
     const sharedBy = !isOwner && !isSuperAdmin ? client.user?.name : null;
+    const propuestas = client._count.quotations;
 
     return (
-        <div
-            className="group relative bg-slate-900/80 backdrop-blur border border-slate-800 rounded-2xl overflow-hidden transition-all duration-300 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            {/* Gradient overlay on hover */}
-            <div
-                className={`absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 transition-opacity duration-300 ${isHovered ? "opacity-100" : "opacity-0"
-                    }`}
-            />
-
-            <div className="relative p-6">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                    {/* Avatar */}
-                    <div
-                        className={`w-14 h-14 rounded-xl bg-gradient-to-br ${avatarColor} flex items-center justify-center text-white font-bold text-lg shadow-lg relative`}
-                    >
-                        {initials}
-
-                        {/* Shared Badge (if shared with me) */}
-                        {sharedBy && (
-                            <div className="absolute -bottom-2 -right-2 bg-indigo-600 border-2 border-slate-900 rounded-full p-1" title={`Compartido por ${sharedBy}`}>
-                                <User size={10} className="text-white" />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Badges */}
-                    <div className="flex flex-col items-end gap-2">
-                        <span className="bg-slate-800/80 backdrop-blur text-slate-300 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-medium">
-                            <FileText size={12} />
-                            {client._count.quotations}
-                        </span>
-                        {isSpyMode && (
-                            <span className="bg-amber-500/10 text-amber-400 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                                <Eye size={10} />
-                                Spy
-                            </span>
-                        )}
-                        {/* Share button for owner */}
-                        {isOwner && (
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    setShowShareModal(true);
-                                }}
-                                className="bg-slate-800/80 hover:bg-indigo-500/20 hover:text-indigo-400 backdrop-blur text-slate-300 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-medium transition-colors"
-                            >
-                                <Share2 size={12} />
-                                Compartir
-                            </button>
-                        )}
-
-
-                    </div>
+        <article className={`${TARJETA} flex w-full flex-col p-5 transition-colors duration-150 hover:border-[var(--linea-2)]`}>
+            <div className="flex items-start gap-3">
+                <span aria-hidden="true" className={`${INICIALES} size-11 text-sm`}>{initials}</span>
+                <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-base font-semibold text-[var(--txt)]">{client.name}</h3>
+                    {client.company && <p className="truncate text-sm text-[var(--mut)]">{client.company}</p>}
+                    <p className="truncate font-mono text-xs text-[var(--mut)]">/{client.slug}</p>
                 </div>
+                <span className={`${CHIP_NEUTRO} tabular-nums`} title={`${propuestas} propuesta${propuestas === 1 ? "" : "s"}`}>
+                    <FileText size={12} aria-hidden="true" />
+                    {propuestas}
+                    <span className="sr-only"> propuesta{propuestas === 1 ? "" : "s"}</span>
+                </span>
+            </div>
 
-                {/* Client Info */}
-                <div className="mb-4">
-                    <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors mb-1 truncate">
-                        {client.name}
-                    </h3>
-                    {client.company && (
-                        <p className="text-sm text-slate-400 truncate mb-1">{client.company}</p>
-                    )}
-                    <p className="text-xs text-slate-500 font-mono">/{client.slug}</p>
+            {(sharedBy || isSpyMode || (isSuperAdmin && client.user && !isOwner)) && (
+                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                     {sharedBy && (
-                        <p className="text-xs text-indigo-400 mt-1 flex items-center gap-1">
-                            <Share2 size={10} /> Compartido por {sharedBy}
-                        </p>
+                        <span className="flex items-center gap-1 text-[var(--mut)]">
+                            <Share2 size={12} aria-hidden="true" /> Compartido por {sharedBy}
+                        </span>
+                    )}
+                    {isSpyMode && (
+                        <span className={`${CHIP} bg-amber-500/10 text-amber-400`}>
+                            <Eye size={12} aria-hidden="true" /> Modo espía
+                        </span>
+                    )}
+                    {isSuperAdmin && client.user && !isOwner && (
+                        <span className="min-w-0 truncate text-amber-400">
+                            Dueño: <span className="font-medium">{client.user.name || client.user.email}</span>
+                        </span>
                     )}
                 </div>
+            )}
 
-                {/* Owner info (superadmin spy mode) */}
-                {isSuperAdmin && client.user && !isOwner && (
-                    <div className="mb-4 py-2 px-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-                        <p className="text-xs text-amber-400/80 truncate">
-                            <span className="opacity-70">Propietario:</span>{" "}
-                            <span className="font-medium">{client.user.name || client.user.email}</span>
-                        </p>
-                    </div>
+            <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                <ContactInfoModal client={{
+                    id: client.id,
+                    name: client.name,
+                    email: client.email,
+                    contactPhone: client.contactPhone,
+                    company: client.company,
+                    slug: client.slug,
+                    rut: client.rut,
+                    address: client.address,
+                    contactName: client.contactName,
+                    contactEmail: client.contactEmail,
+                    contactRole: client.contactRole,
+                }} canDelete={isSuperAdmin || !!isOwner} />
+                {isOwner && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setShowShareModal(true);
+                        }}
+                        className={`${BOTON_SEC} flex-1`}
+                    >
+                        <Share2 size={16} aria-hidden="true" />
+                        <span>Compartir</span>
+                    </button>
                 )}
-
-                {/* Contact Actions */}
-                <div className="mb-4">
-                    <ContactInfoModal client={{
-                        id: client.id,
-                        name: client.name,
-                        email: client.email || undefined,
-                        contactPhone: client.contactPhone || undefined,
-                        company: client.company || undefined,
-                        slug: client.slug,
-                    }} canDelete={isSuperAdmin || !!isOwner} />
-                </div>
-
-                {/* Main Action */}
-                <Link
-                    href={`/admin/cotizaciones/${client.id}`}
-                    className="flex items-center justify-center gap-2 w-full bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/30 hover:border-indigo-500 text-indigo-400 hover:text-white px-4 py-2.5 rounded-xl font-medium transition-all duration-300 group/btn"
-                >
-                    <span>Ver cotizaciones</span>
-                    <ChevronRight size={16} className="transform group-hover/btn:translate-x-1 transition-transform" />
+                <Link href={`/admin/cotizaciones/${client.id}`} className={`${BOTON} w-full`}>
+                    Ver propuestas
+                    <ChevronRight size={16} aria-hidden="true" />
                 </Link>
             </div>
 
@@ -184,6 +129,6 @@ export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyM
                     currentUserId={currentUserId}
                 />
             )}
-        </div>
+        </article>
     );
 }

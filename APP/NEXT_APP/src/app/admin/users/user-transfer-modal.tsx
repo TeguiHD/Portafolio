@@ -1,10 +1,9 @@
-
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowRightLeft, User, Search, Loader2, Check } from "lucide-react";
+import { useState, useEffect, useCallback, useId } from "react";
+import { ArrowRight, User, Search, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
+import { Dialogo, cls } from "./dialogo";
 
 interface UserTransferModalProps {
     isOpen: boolean;
@@ -25,6 +24,9 @@ interface TargetUser {
     avatar: string | null;
 }
 
+/** Lo que trae GET /api/admin/users y se usa aquí. */
+type UsuarioApi = TargetUser & { isActive: boolean; deletionStatus?: string };
+
 export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferComplete }: UserTransferModalProps) {
     const [step, setStep] = useState<"select_target" | "confirm">("select_target");
     const [targetUsers, setTargetUsers] = useState<TargetUser[]>([]);
@@ -32,22 +34,21 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false);
     const [transferring, setTransferring] = useState(false);
+    // No hay <Toaster> montado en el panel: los errores también se muestran aquí.
+    const [aviso, setAviso] = useState<string | null>(null);
+    const id = useId();
 
     const fetchTargetUsers = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch("/api/admin/users");
-            const data = await res.json();
+            const data: { users?: UsuarioApi[] } = await res.json();
             if (data.users) {
-                // Filter out source user and inactive/deleted users if necessary
-                // Ideally, backend should support filtering, but for now filtering locally
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const validTargets = data.users.filter((u: any) =>
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    u.id !== sourceUser?.id && u.isActive && (u as any).deletionStatus !== "DELETED"
+                // Sin el usuario de origen ni cuentas inactivas o eliminadas (se filtra aquí: la API no lo hace).
+                const validTargets = data.users.filter((u) =>
+                    u.id !== sourceUser?.id && u.isActive && u.deletionStatus !== "DELETED"
                 );
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                setTargetUsers(validTargets.map((u: any) => ({
+                setTargetUsers(validTargets.map((u) => ({
                     id: u.id,
                     name: u.name,
                     email: u.email,
@@ -57,6 +58,7 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
         } catch (error) {
             console.error("Error fetching users:", error);
             toast.error("Error al cargar usuarios destino");
+            setAviso("No se pudieron cargar los usuarios de destino.");
         } finally {
             setLoading(false);
         }
@@ -67,6 +69,7 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
             setStep("select_target");
             setSelectedTarget(null);
             setSearchQuery("");
+            setAviso(null);
             fetchTargetUsers();
         }
     }, [isOpen, fetchTargetUsers]);
@@ -80,6 +83,7 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
         if (!sourceUser || !selectedTarget) return;
 
         setTransferring(true);
+        setAviso(null);
         try {
             const res = await fetch("/api/admin/users/transfer", {
                 method: "POST",
@@ -99,142 +103,141 @@ export function UserTransferModal({ isOpen, onClose, sourceUser, onTransferCompl
             onTransferComplete();
             onClose();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Error en la transferencia");
+            const texto = error instanceof Error && error.message ? error.message : "Error en la transferencia";
+            toast.error(texto);
+            setAviso(texto);
         } finally {
             setTransferring(false);
         }
     };
 
-    if (!isOpen || !sourceUser) return null;
+    const abierto = isOpen && !!sourceUser;
 
     return (
-        <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-                >
-                    {/* Header */}
-                    <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-500/20 rounded-lg">
-                                <ArrowRightLeft className="w-5 h-5 text-indigo-400" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-bold text-white">Transferir Datos</h2>
-                                <p className="text-xs text-slate-400">Origen: {sourceUser.name || sourceUser.email}</p>
+        <Dialogo
+            abierto={abierto}
+            alCerrar={onClose}
+            titulo="Transferir datos"
+            subtitulo={sourceUser ? `Desde ${sourceUser.name || sourceUser.email}` : undefined}
+            ancho="max-w-lg"
+        >
+            {sourceUser ? (
+                step === "select_target" ? (
+                    <div className="space-y-4">
+                        <p className="text-sm text-[var(--mut)]">Elige quién recibirá todos sus clientes y cotizaciones.</p>
+
+                        <div>
+                            <label htmlFor={`${id}-q`} className="sr-only">Buscar usuario de destino</label>
+                            <div className="relative">
+                                <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" />
+                                <input
+                                    id={`${id}-q`}
+                                    type="search"
+                                    placeholder="Buscar usuario de destino"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className={`${cls.campo} pl-9`}
+                                />
                             </div>
                         </div>
-                        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-                            <X size={20} />
+
+                        <div className="max-h-60 overflow-y-auto overscroll-contain border-y border-[var(--linea)]" aria-busy={loading}>
+                            {loading ? (
+                                <p className="py-4 text-center text-sm text-[var(--mut)]" role="status">Cargando usuarios…</p>
+                            ) : filteredTargets.length === 0 ? (
+                                <p className="py-4 text-center text-sm text-[var(--mut)]">No hay usuarios activos que coincidan.</p>
+                            ) : (
+                                <ul aria-label="Usuarios de destino">
+                                    {filteredTargets.map(user => {
+                                        const elegido = selectedTarget?.id === user.id;
+                                        return (
+                                            <li key={user.id} className="border-b border-[var(--linea)] last:border-b-0">
+                                                <button
+                                                    type="button"
+                                                    aria-pressed={elegido}
+                                                    onClick={() => setSelectedTarget(user)}
+                                                    className={`flex min-h-11 w-full items-center gap-3 px-2 py-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)] motion-reduce:transition-none ${elegido
+                                                        ? "bg-[color-mix(in_srgb,var(--acento)_10%,transparent)]"
+                                                        : "hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]"}`}
+                                                >
+                                                    <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--fondo-2)] text-[var(--mut)]">
+                                                        {user.avatar ? (
+                                                            <img src={user.avatar} alt="" className="size-full object-cover" />
+                                                        ) : (
+                                                            <User size={14} aria-hidden="true" />
+                                                        )}
+                                                    </span>
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block truncate font-medium text-[var(--txt)]">{user.name || "Sin nombre"}</span>
+                                                        <span className="block truncate text-xs text-[var(--mut)]">{user.email}</span>
+                                                    </span>
+                                                    {elegido && <Check size={16} className="shrink-0 text-[var(--acento)]" aria-hidden="true" />}
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </div>
+
+                        {aviso && <p role="alert" className="text-sm text-red-400">{aviso}</p>}
+
+                        <button
+                            type="button"
+                            onClick={() => setStep("confirm")}
+                            disabled={!selectedTarget}
+                            className={`${cls.principal} w-full`}
+                        >
+                            Continuar
                         </button>
                     </div>
+                ) : (
+                    <div className="space-y-5">
+                        <p className="flex flex-wrap items-center justify-center gap-3 text-lg font-semibold">
+                            <span className="text-[var(--mut)]">{sourceUser.name?.split(" ")[0] || sourceUser.email}</span>
+                            <ArrowRight size={18} className="text-[var(--acento)]" aria-hidden="true" />
+                            <span className="sr-only">pasa a</span>
+                            <span className="text-[var(--acento)]">{selectedTarget?.name?.split(" ")[0] || selectedTarget?.email}</span>
+                        </p>
 
-                    {/* Content */}
-                    <div className="p-5 overflow-y-auto flex-1">
-                        {step === "select_target" ? (
-                            <div className="space-y-4">
-                                <p className="text-sm text-slate-300">Selecciona el usuario que recibirá todos los clientes y cotizaciones.</p>
+                        <div>
+                            <h3 className="mb-2 text-[15px] font-semibold text-[var(--mut)]">Antes de confirmar</h3>
+                            <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--txt)] marker:text-amber-400">
+                                <li>Se transfieren todos los clientes y cotizaciones.</li>
+                                <li>El usuario de origen pierde el acceso a esos datos.</li>
+                                <li>Queda anotado en el registro de auditoría.</li>
+                            </ul>
+                        </div>
 
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar usuario destino..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-indigo-500 transition-colors"
-                                    />
-                                </div>
+                        {aviso && <p role="alert" className="text-sm text-red-400">{aviso}</p>}
 
-                                <div className="space-y-2 mt-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                                    {loading ? (
-                                        <div className="text-center py-4 text-slate-500">Cargando usuarios...</div>
-                                    ) : filteredTargets.length === 0 ? (
-                                        <div className="text-center py-4 text-slate-500">No se encontraron usuarios activos</div>
-                                    ) : (
-                                        filteredTargets.map(user => (
-                                            <button
-                                                key={user.id}
-                                                onClick={() => setSelectedTarget(user)}
-                                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${selectedTarget?.id === user.id
-                                                    ? "bg-indigo-500/20 border-indigo-500 text-white"
-                                                    : "bg-slate-800/30 border-slate-700 text-slate-300 hover:bg-slate-800"
-                                                    }`}
-                                            >
-                                                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
-                                                    {user.avatar ? (
-                                                        <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-                                                    ) : (
-                                                        <User size={14} />
-                                                    )}
-                                                </div>
-                                                <div className="text-left overflow-hidden">
-                                                    <p className="font-medium truncate">{user.name || "Sin nombre"}</p>
-                                                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
-                                                </div>
-                                                {selectedTarget?.id === user.id && (
-                                                    <Check size={16} className="ml-auto text-indigo-400" />
-                                                )}
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-
-                                <button
-                                    onClick={() => setStep("confirm")}
-                                    disabled={!selectedTarget}
-                                    className="w-full py-3 mt-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
-                                >
-                                    Continuar
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-6 text-center">
-                                <div className="flex items-center justify-center gap-4 text-xl font-bold text-white mb-4">
-                                    <div className="text-slate-400">{sourceUser.name?.split(" ")[0]}</div>
-                                    <ArrowRightLeft className="text-indigo-400" />
-                                    <div className="text-indigo-400">{selectedTarget?.name?.split(" ")[0]}</div>
-                                </div>
-
-                                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-left">
-                                    <h4 className="text-amber-400 font-bold mb-2 text-sm">⚠️ Atención</h4>
-                                    <ul className="text-sm text-amber-200/80 space-y-1 list-disc list-inside">
-                                        <li>Se transferirán TODOS los clientes y cotizaciones.</li>
-                                        <li>El usuario origen perderá el acceso a estos datos.</li>
-                                        <li>Esta acción quedará registrada en el log de auditoría.</li>
-                                    </ul>
-                                </div>
-
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        onClick={() => setStep("select_target")}
-                                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition-colors"
-                                    >
-                                        Atrás
-                                    </button>
-                                    <button
-                                        onClick={handleTransfer}
-                                        disabled={transferring}
-                                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        {transferring ? (
-                                            <>
-                                                <Loader2 size={18} className="animate-spin" />
-                                                Transfiriendo...
-                                            </>
-                                        ) : (
-                                            "Confirmar Transferencia"
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={() => setStep("select_target")}
+                                className={`${cls.secundario} flex-1`}
+                            >
+                                Atrás
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleTransfer}
+                                disabled={transferring}
+                                className={`${cls.principal} flex-1`}
+                            >
+                                {transferring ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                        Transfiriendo…
+                                    </>
+                                ) : (
+                                    "Confirmar transferencia"
+                                )}
+                            </button>
+                        </div>
                     </div>
-                </motion.div>
-            </div>
-        </AnimatePresence>
+                )
+            ) : null}
+        </Dialogo>
     );
 }

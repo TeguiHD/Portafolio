@@ -1,20 +1,24 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 import { toast } from "sonner";
 import { FilePlus2, Loader2 } from "lucide-react";
 import { parseJsonResponse } from "../../utils";
+import { BOTON, BOTON_SEC, CAMPO, ETIQUETA } from "../../estilos";
 
 const INITIAL = { title: "", company: "", location: "", description: "" };
 
-export function ManualVacancyForm({ onCreated }: { onCreated: () => void }) {
+/** Formulario de vacante manual; va dentro del diálogo de la búsqueda, que pone el título. */
+export function ManualVacancyForm({ onCreated, onCancel }: { onCreated: () => void; onCancel?: () => void }) {
     const [form, setForm] = useState(INITIAL);
     const [busy, setBusy] = useState(false);
+    const id = useId();
+    const largo = form.description.trim().length;
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        if (form.description.trim().length < 40) {
-            toast.error("La descripcion debe tener al menos 40 caracteres");
+        if (largo < 40) {
+            toast.error("La descripción debe tener al menos 40 caracteres");
             return;
         }
 
@@ -35,11 +39,11 @@ export function ManualVacancyForm({ onCreated }: { onCreated: () => void }) {
             if (!response.ok) {
                 throw new Error(payload.error || "No se pudo crear la vacante");
             }
-            toast.success("Vacante creada correctamente");
+            toast.success("Vacante creada");
             setForm(INITIAL);
             onCreated();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Error creando vacante");
+            toast.error(error instanceof Error ? error.message : "Error al crear la vacante");
         } finally {
             setBusy(false);
         }
@@ -50,97 +54,90 @@ export function ManualVacancyForm({ onCreated }: { onCreated: () => void }) {
     }
 
     return (
-        <div className="glass-panel rounded-2xl border border-white/10 p-5 sm:p-6 bg-[#0a0f1c]/60 backdrop-blur-xl">
-            <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                    <FilePlus2 className="w-4 h-4 text-emerald-400" />
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label htmlFor={`${id}-titulo`} className={ETIQUETA}>Cargo</label>
+                    <input
+                        id={`${id}-titulo`}
+                        type="text"
+                        autoFocus
+                        value={form.title}
+                        onChange={(e) => updateField("title", e.target.value)}
+                        placeholder="Desarrollador full stack"
+                        required
+                        minLength={3}
+                        className={CAMPO}
+                        disabled={busy}
+                    />
                 </div>
                 <div>
-                    <h2 className="text-base font-semibold text-white">Crear manual</h2>
-                    <p className="text-xs text-neutral-400">
-                        Ingresa una vacante cuando no tienes la URL (ej. mensajes directos)
-                    </p>
+                    <label htmlFor={`${id}-empresa`} className={ETIQUETA}>Empresa</label>
+                    <input
+                        id={`${id}-empresa`}
+                        type="text"
+                        value={form.company}
+                        onChange={(e) => updateField("company", e.target.value)}
+                        placeholder="Nombre de la empresa"
+                        required
+                        minLength={2}
+                        className={CAMPO}
+                        disabled={busy}
+                    />
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label className="block text-xs text-neutral-400 mb-1">Titulo del rol</label>
-                        <input
-                            type="text"
-                            value={form.title}
-                            onChange={(e) => updateField("title", e.target.value)}
-                            placeholder="Full Stack Developer"
-                            required
-                            minLength={3}
-                            className="w-full rounded-xl bg-[#0f172a] border border-white/10 px-3 py-2 text-sm text-white placeholder-neutral-600 focus:border-emerald-500/40 focus:outline-none"
-                            disabled={busy}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs text-neutral-400 mb-1">Empresa</label>
-                        <input
-                            type="text"
-                            value={form.company}
-                            onChange={(e) => updateField("company", e.target.value)}
-                            placeholder="ACME Corp"
-                            required
-                            minLength={2}
-                            className="w-full rounded-xl bg-[#0f172a] border border-white/10 px-3 py-2 text-sm text-white placeholder-neutral-600 focus:border-emerald-500/40 focus:outline-none"
-                            disabled={busy}
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-xs text-neutral-400 mb-1">Ubicacion (opcional)</label>
-                    <input
-                        type="text"
-                        value={form.location}
-                        onChange={(e) => updateField("location", e.target.value)}
-                        placeholder="Santiago, Chile"
-                        className="w-full rounded-xl bg-[#0f172a] border border-white/10 px-3 py-2 text-sm text-white placeholder-neutral-600 focus:border-emerald-500/40 focus:outline-none"
-                        disabled={busy}
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-xs text-neutral-400 mb-1">
-                        Descripcion{" "}
-                        <span className="text-neutral-600">
-                            ({form.description.trim().length}/40 minimo)
-                        </span>
-                    </label>
-                    <textarea
-                        value={form.description}
-                        onChange={(e) => updateField("description", e.target.value)}
-                        placeholder="Requisitos, responsabilidades, tecnologias..."
-                        rows={4}
-                        required
-                        className="w-full rounded-xl bg-[#0f172a] border border-white/10 px-3 py-2 text-sm text-white placeholder-neutral-600 focus:border-emerald-500/40 focus:outline-none resize-none"
-                        disabled={busy}
-                    />
-                </div>
-
-                <button
-                    type="submit"
+            <div>
+                <label htmlFor={`${id}-lugar`} className={ETIQUETA}>Ubicación (opcional)</label>
+                <input
+                    id={`${id}-lugar`}
+                    type="text"
+                    value={form.location}
+                    onChange={(e) => updateField("location", e.target.value)}
+                    placeholder="Santiago, Chile"
+                    className={CAMPO}
                     disabled={busy}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm font-semibold hover:bg-emerald-500/30 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                >
+                />
+            </div>
+
+            <div>
+                <label htmlFor={`${id}-desc`} className={ETIQUETA}>Descripción</label>
+                <textarea
+                    id={`${id}-desc`}
+                    value={form.description}
+                    onChange={(e) => updateField("description", e.target.value)}
+                    placeholder="Requisitos, responsabilidades, tecnologías…"
+                    rows={5}
+                    required
+                    aria-describedby={`${id}-cuenta`}
+                    className={`${CAMPO} resize-y`}
+                    disabled={busy}
+                />
+                <p id={`${id}-cuenta`} className={`mt-1.5 font-mono text-xs tabular-nums ${largo >= 40 ? "text-[var(--mut)]" : "text-amber-400"}`}>
+                    {largo} de 40 caracteres como mínimo
+                </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                {onCancel && (
+                    <button type="button" onClick={onCancel} className={BOTON_SEC}>
+                        Cancelar
+                    </button>
+                )}
+                <button type="submit" disabled={busy} className={BOTON}>
                     {busy ? (
                         <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Creando...
+                            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                            Creando…
                         </>
                     ) : (
                         <>
-                            <FilePlus2 className="w-4 h-4" />
+                            <FilePlus2 className="size-4" aria-hidden="true" />
                             Crear vacante
                         </>
                     )}
                 </button>
-            </form>
-        </div>
+            </div>
+        </form>
     );
 }

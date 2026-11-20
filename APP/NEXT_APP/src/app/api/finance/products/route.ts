@@ -16,6 +16,13 @@ const querySchema = z.object({
     category: z.string().optional(),
 });
 
+// Sin validar, un nombre que no fuera texto rompía la ruta con un 500.
+const updateProductSchema = z.object({
+    id: z.string().min(1),
+    category: z.string().trim().max(80).nullable().optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+});
+
 // GET - List products in user's catalog
 export async function GET(request: NextRequest) {
     try {
@@ -127,12 +134,11 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
         }
 
-        const body = await request.json();
-        const { id, category, name } = body;
-
-        if (!id) {
-            return NextResponse.json({ error: "ID de producto requerido" }, { status: 400 });
+        const cuerpo = updateProductSchema.safeParse(await request.json().catch(() => null));
+        if (!cuerpo.success) {
+            return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
         }
+        const { id, category, name } = cuerpo.data;
 
         // Verify product belongs to user
         const product = await prisma.product.findFirst({
@@ -143,12 +149,23 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
         }
 
+        // El catálogo no admite dos productos con el mismo nombre normalizado por usuario.
+        if (name !== undefined) {
+            const repetido = await prisma.product.findFirst({
+                where: { userId: session.user.id, normalizedName: name.toLowerCase(), NOT: { id } },
+                select: { id: true },
+            });
+            if (repetido) {
+                return NextResponse.json({ error: "Ya tienes un producto con ese nombre" }, { status: 400 });
+            }
+        }
+
         const updated = await prisma.product.update({
             where: { id },
             data: {
                 category: category !== undefined ? category : undefined,
                 name: name !== undefined ? name : undefined,
-                normalizedName: name !== undefined ? name.toLowerCase().trim() : undefined,
+                normalizedName: name !== undefined ? name.toLowerCase() : undefined,
             },
         });
 

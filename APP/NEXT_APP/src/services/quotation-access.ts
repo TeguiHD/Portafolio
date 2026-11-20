@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { hash, verify } from "argon2";
+import { ARGON2_CODIGO } from "@/lib/quotation-signature";
 import { checkRateLimit, resetRateLimit } from "@/lib/redis";
 import { generateSecureAccessCode, createSessionFingerprint } from "@/lib/secure-token";
 
@@ -72,15 +73,24 @@ export class QuotationAccessService {
         if (!rateResult.allowed) {
             return { allowed: false, reason: "rate_limited", remainingAttempts: 0 };
         }
+        // Tope por documento, sin IP: cambiar de IP (o falsear la cabecera) no da intentos infinitos.
+        const porDocumento = await checkRateLimit(`qt_rate_doc:${clientSlug}:${quotationSlug}`, 20, 60 * 60);
+        if (!porDocumento.allowed) {
+            return { allowed: false, reason: "rate_limited", remainingAttempts: 0 };
+        }
 
         // Find quotation (only visible ones)
         const quotation = await prisma.quotation.findFirst({
             where: {
                 slug: quotationSlug,
                 client: { slug: clientSlug },
+                isDeleted: false,
                 isVisible: true // Only allow access to visible quotations
             },
-            include: { client: true }
+            select: {
+                id: true, accessMode: true, accessCode: true, codeExpiresAt: true,
+                client: { select: { accessCode: true } },
+            }
         });
 
         if (!quotation) {
@@ -208,7 +218,7 @@ export class QuotationAccessService {
 
         // Generate new code with high entropy
         const plainCode = generateSecureAccessCode();
-        const hashedCode = await hash(plainCode);
+        const hashedCode = await hash(plainCode, ARGON2_CODIGO);
         const expiresAt = duration ? calculateExpiration(duration) : null;
 
         await prisma.quotation.update({
@@ -250,6 +260,7 @@ export class QuotationAccessService {
             where: {
                 slug: quotationSlug,
                 client: { slug: clientSlug },
+                isDeleted: false,
                 isVisible: true
             },
             include: {

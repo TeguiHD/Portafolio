@@ -14,7 +14,7 @@ const transferSchema = z.object({
 export async function POST(request: Request) {
     const session = await verifySuperAdminForApi();
     if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     try {
@@ -22,13 +22,13 @@ export async function POST(request: Request) {
         const validation = transferSchema.safeParse(body);
 
         if (!validation.success) {
-            return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+            return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
         }
 
         const { sourceUserId, targetUserId, mode } = validation.data;
 
         if (sourceUserId === targetUserId) {
-            return NextResponse.json({ error: "Cannot transfer to same user" }, { status: 400 });
+            return NextResponse.json({ error: "No se puede transferir al mismo usuario" }, { status: 400 });
         }
 
         // Verify users exist
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         ]);
 
         if (!sourceUser || !targetUser) {
-            return NextResponse.json({ error: "One or both users not found" }, { status: 404 });
+            return NextResponse.json({ error: "No se encontró uno de los usuarios" }, { status: 404 });
         }
 
         // Perform Transfer
@@ -76,6 +76,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: "Transferencia completada correctamente" });
     } catch (error) {
         console.error("Transfer error:", error);
-        return NextResponse.json({ error: "Error transferring data" }, { status: 500 });
+        return NextResponse.json({ error: "No se pudo transferir los datos" }, { status: 500 });
     }
 }

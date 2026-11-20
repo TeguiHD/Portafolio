@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { GitCompareArrows, ExternalLink, Send, Loader2, Target } from "lucide-react";
+import { ExternalLink, Send, Loader2 } from "lucide-react";
 import { MatchScoreGauge } from "./components/MatchScoreGauge";
 import { SkillsComparison } from "./components/SkillsComparison";
 import { LearningPlanCard } from "./components/LearningPlanCard";
@@ -14,6 +14,7 @@ import { SourceBadge } from "../components/SourceBadge";
 import { parseJsonResponse, formatDate } from "../utils";
 import type { CvVersionOption, AiProviderChoice } from "../types";
 import type { AnalysisSummary, AdaptationSummary } from "./page";
+import { BOTON, CAMPO, ENLACE, ETIQUETA, TITULO } from "../estilos";
 
 type VacancyOption = {
     id: string;
@@ -49,6 +50,7 @@ export default function AnalysisClient({
 }) {
     const router = useRouter();
     const [, startTransition] = useTransition();
+    const id = useId();
 
     const defaultCv = cvVersions.find((cv) => cv.isDefault) || cvVersions[0];
     const [cvVersionId, setCvVersionId] = useState<string>(defaultCv?.id || "");
@@ -68,7 +70,7 @@ export default function AnalysisClient({
             return;
         }
         if (!cvVersionId) {
-            toast.error("Selecciona una version de CV");
+            toast.error("Selecciona una versión de CV");
             return;
         }
 
@@ -109,7 +111,7 @@ export default function AnalysisClient({
             }>(response);
 
             if (!response.ok || !data) {
-                throw new Error("No se pudo ejecutar el analisis");
+                throw new Error("No se pudo ejecutar el análisis");
             }
 
             setAnalysis({
@@ -138,7 +140,7 @@ export default function AnalysisClient({
                 setAdaptation(null);
             }
 
-            toast.success(`Analisis listo - Match ${data.analysis.matchScore}%`);
+            toast.success(`Análisis listo: ${data.analysis.matchScore} % de coincidencia`);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Error inesperado");
         } finally {
@@ -162,9 +164,9 @@ export default function AnalysisClient({
             });
             const data = await parseJsonResponse<{ id: string }>(response);
             if (!response.ok || !data) {
-                throw new Error("No se pudo crear la postulacion");
+                throw new Error("No se pudo crear la postulación");
             }
-            toast.success("Postulacion creada");
+            toast.success("Postulación creada");
             startTransition(() => router.push("/admin/jobs/pipeline"));
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Error inesperado");
@@ -178,101 +180,90 @@ export default function AnalysisClient({
         router.push(`/admin/jobs/analysis?vacancyId=${id}`);
     }
 
-    // No vacancy selected: show vacancy picker
+    // Sin vacante elegida: solo el selector
     if (!selectedVacancy) {
         return (
-            <div className="space-y-6">
-                <div className="flex items-center gap-2">
-                    <GitCompareArrows className="w-5 h-5 text-accent-1" />
-                    <h2 className="text-lg font-semibold text-white">Analisis & Adaptacion</h2>
+            <div className="max-w-2xl space-y-6">
+                <div>
+                    <h2 className="text-xl font-semibold text-[var(--txt)]">Análisis y adaptación</h2>
+                    <p className="mt-1 text-sm text-[var(--mut)]">
+                        Elige una vacante para medir cuánto calza con tu CV.
+                    </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-6 space-y-4">
+                {vacancyOptions.length === 0 ? (
+                    <p className="border-t border-[var(--linea)] py-6 text-[var(--mut)]">
+                        No tienes vacantes activas.{" "}
+                        <Link href="/admin/jobs/search" className={`${ENLACE} underline`}>
+                            Buscar vacantes
+                        </Link>
+                    </p>
+                ) : (
                     <div>
-                        <h3 className="text-sm font-bold text-white mb-1">Selecciona una vacante</h3>
-                        <p className="text-xs text-neutral-500">
-                            Elige una vacante para ejecutar un analisis de compatibilidad contra tu CV.
-                        </p>
-                    </div>
-
-                    {vacancyOptions.length === 0 ? (
-                        <div className="rounded-lg border border-white/10 bg-white/5 p-6 text-center">
-                            <p className="text-sm text-neutral-400 mb-3">
-                                No tienes vacantes activas.
-                            </p>
-                            <Link
-                                href="/admin/jobs/search"
-                                className="inline-flex items-center gap-1 text-sm text-accent-1 hover:text-accent-1/80"
-                            >
-                                Ir a Buscar Vacantes
-                            </Link>
-                        </div>
-                    ) : (
+                        <label htmlFor={`${id}-vacante`} className={ETIQUETA}>Vacante</label>
                         <select
+                            id={`${id}-vacante`}
                             onChange={(e) => handleSelectVacancy(e.target.value)}
                             defaultValue=""
-                            className="w-full rounded-lg border border-white/10 bg-[#0a0f1c] px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent-1/50"
+                            className={CAMPO}
                         >
                             <option value="" disabled>
-                                Elige una vacante...
+                                Elige una vacante…
                             </option>
                             {vacancyOptions.map((v) => (
                                 <option key={v.id} value={v.id}>
-                                    {v.title} - {v.company}
+                                    {v.title} · {v.company}
                                 </option>
                             ))}
                         </select>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Vacancy header */}
-            <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-5">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                            <SourceBadge source={selectedVacancy.source} />
-                            {selectedVacancy.sourceUrl && (
-                                <a
-                                    href={selectedVacancy.sourceUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] text-neutral-400 hover:text-accent-1"
-                                >
-                                    <ExternalLink className="w-3 h-3" />
-                                    Ver publicacion
-                                </a>
-                            )}
-                        </div>
-                        <h2 className="text-lg font-bold text-white truncate">
-                            {selectedVacancy.title}
-                        </h2>
-                        <p className="text-sm text-neutral-400">
-                            {selectedVacancy.company}
-                            {selectedVacancy.location ? ` · ${selectedVacancy.location}` : ""}
-                        </p>
+        <div className="space-y-10">
+            <header className="flex flex-col gap-4 border-b border-[var(--linea)] pb-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-3">
+                        <SourceBadge source={selectedVacancy.source} />
+                        {selectedVacancy.sourceUrl && (
+                            <a
+                                href={selectedVacancy.sourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`${ENLACE} text-sm`}
+                            >
+                                <ExternalLink className="size-3.5" aria-hidden="true" />
+                                Ver publicación
+                                <span className="sr-only">(se abre en otra pestaña)</span>
+                            </a>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <select
-                            onChange={(e) => handleSelectVacancy(e.target.value)}
-                            value={selectedVacancy.id}
-                            className="rounded-lg border border-white/10 bg-[#0a0f1c] px-3 py-2 text-xs text-white focus:outline-none focus:border-accent-1/50 max-w-[240px]"
-                        >
-                            {vacancyOptions.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                    {v.title} - {v.company}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <h2 className="text-xl font-semibold leading-snug text-[var(--txt)]">{selectedVacancy.title}</h2>
+                    <p className="mt-1 text-sm text-[var(--mut)]">
+                        {selectedVacancy.company}
+                        {selectedVacancy.location ? ` · ${selectedVacancy.location}` : ""}
+                    </p>
                 </div>
-            </div>
+                <div className="w-full lg:w-72">
+                    <label htmlFor={`${id}-cambiar`} className={ETIQUETA}>Cambiar de vacante</label>
+                    <select
+                        id={`${id}-cambiar`}
+                        onChange={(e) => handleSelectVacancy(e.target.value)}
+                        value={selectedVacancy.id}
+                        className={CAMPO}
+                    >
+                        {vacancyOptions.map((v) => (
+                            <option key={v.id} value={v.id}>
+                                {v.title} · {v.company}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </header>
 
-            {/* Controls */}
             <AnalysisControls
                 cvVersions={cvVersions}
                 cvVersionId={cvVersionId}
@@ -288,72 +279,72 @@ export default function AnalysisClient({
                 onRun={handleRunAnalysis}
             />
 
-            {/* Results */}
-            {analysis ? (
-                <div className="space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-5">
-                        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                            <div className="flex items-center gap-2">
-                                <Target className="w-4 h-4 text-accent-1" />
-                                <h3 className="text-sm font-bold text-white">Resultado del analisis</h3>
+            <div>
+                {analysis ? (
+                    <div className="space-y-10">
+                        <section aria-labelledby={`${id}-resultado`}>
+                            <h3 id={`${id}-resultado`} className={`${TITULO} mb-3 flex flex-wrap items-baseline justify-between gap-x-3`}>
+                                Resultado del análisis
+                                <time dateTime={analysis.createdAt} className="font-mono text-xs font-medium">
+                                    {formatDate(analysis.createdAt)}
+                                </time>
+                            </h3>
+                            <div className="border-t border-[var(--linea)] pt-5">
+                                <MatchScoreGauge score={analysis.matchScore} />
+                                {analysis.summary && (
+                                    <p className="mt-5 max-w-[70ch] text-sm leading-relaxed text-[var(--mut)]">
+                                        {analysis.summary}
+                                    </p>
+                                )}
                             </div>
-                            <span className="text-[10px] text-neutral-500 font-mono">
-                                {formatDate(analysis.createdAt)}
-                            </span>
-                        </div>
-                        <MatchScoreGauge score={analysis.matchScore} />
-                        {analysis.summary && (
-                            <p className="text-xs text-neutral-400 mt-4 pt-4 border-t border-white/5">
-                                {analysis.summary}
-                            </p>
-                        )}
-                    </div>
+                        </section>
 
-                    <SkillsComparison
-                        matched={analysis.matchedSkills}
-                        recommended={analysis.recommendedSkills}
-                        missing={analysis.missingSkills}
-                    />
-
-                    {adaptation && (
-                        <AdaptationPreview
-                            mode={adaptation.mode}
-                            appliedChanges={adaptation.appliedChanges}
-                            adaptedCvVersionId={adaptation.adaptedCvVersionId}
+                        <SkillsComparison
+                            matched={analysis.matchedSkills}
+                            recommended={analysis.recommendedSkills}
+                            missing={analysis.missingSkills}
                         />
-                    )}
 
-                    <LearningPlanCard
-                        learningPlan={analysis.learningPlan}
-                        recommendations={analysis.recommendations}
-                    />
-
-                    <button
-                        type="button"
-                        onClick={handleCreateApplication}
-                        disabled={isCreatingApp}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-50 px-4 py-3 text-sm font-bold text-emerald-300 transition-colors"
-                    >
-                        {isCreatingApp ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Creando postulacion...
-                            </>
-                        ) : (
-                            <>
-                                <Send className="w-4 h-4" />
-                                Crear postulacion y mover al pipeline
-                            </>
+                        {adaptation && (
+                            <AdaptationPreview
+                                mode={adaptation.mode}
+                                appliedChanges={adaptation.appliedChanges}
+                                adaptedCvVersionId={adaptation.adaptedCvVersionId}
+                            />
                         )}
-                    </button>
-                </div>
-            ) : (
-                <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/40 backdrop-blur-xl p-8 text-center">
-                    <p className="text-sm text-neutral-400">
-                        Ejecuta el analisis para ver el resultado de compatibilidad.
+
+                        <LearningPlanCard
+                            learningPlan={analysis.learningPlan}
+                            recommendations={analysis.recommendations}
+                        />
+
+                        <div className="border-t border-[var(--linea)] pt-6">
+                            <button
+                                type="button"
+                                onClick={handleCreateApplication}
+                                disabled={isCreatingApp}
+                                className={`${BOTON} w-full sm:w-auto`}
+                            >
+                                {isCreatingApp ? (
+                                    <>
+                                        <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                        Creando postulación…
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="size-4" aria-hidden="true" />
+                                        Crear postulación y pasar a seguimiento
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="border-t border-[var(--linea)] py-6 text-[var(--mut)]">
+                        Ejecuta el análisis para ver la compatibilidad con tu CV.
                     </p>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ipCliente } from "@/lib/ip-cliente";
 import { verifySessionForApi } from '@/lib/auth/dal'
 import { hasPermission } from '@/lib/permission-check'
 import { getAutonomousDefenseDecisions } from '@/lib/autonomous-defense'
@@ -142,7 +143,7 @@ export async function PATCH(request: NextRequest) {
             userId: session.user.id,
             targetId: id,
             targetType: 'threat-pending-action',
-            ipAddress: request.headers.get('x-forwarded-for') ?? 'unknown',
+            ipAddress: ipCliente(request.headers),
             metadata: { reviewAction: action, actionType: pending.actionType, ipHash: pending.ipHash },
         })
 

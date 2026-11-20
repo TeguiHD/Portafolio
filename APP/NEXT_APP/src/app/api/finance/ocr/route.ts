@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
@@ -23,8 +24,7 @@ export async function POST(request: NextRequest) {
     
     // Get request context for security logging
     const headersList = await headers();
-    const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || 
-                     headersList.get('x-real-ip') || 'unknown';
+    const ipAddress = ipCliente(headersList);
     const userAgent = headersList.get('user-agent') || 'unknown';
 
     try {

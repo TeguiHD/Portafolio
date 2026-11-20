@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { useId } from "react";
+import { CircleCheck, TriangleAlert, CircleX } from "lucide-react";
 
 export function SkillsComparison({
     matched,
@@ -12,27 +13,27 @@ export function SkillsComparison({
     missing: string[];
 }) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-6">
             <SkillGroup
-                title="Match directo"
-                subtitle="Ya en tu CV"
+                title="Coinciden"
+                subtitle="Ya están en tu CV."
                 skills={matched}
-                icon={<CheckCircle2 className="w-4 h-4" />}
-                color="emerald"
+                icon={<CircleCheck className="size-4 text-emerald-400" aria-hidden="true" />}
+                chip="bg-emerald-500/10 text-emerald-400"
             />
             <SkillGroup
                 title="Brechas blandas"
-                subtitle="Se agregan con semantica transferible"
+                subtitle="Se reformulan desde lo que ya sabes hacer."
                 skills={recommended}
-                icon={<AlertTriangle className="w-4 h-4" />}
-                color="amber"
+                icon={<TriangleAlert className="size-4 text-amber-400" aria-hidden="true" />}
+                chip="bg-amber-500/10 text-amber-400"
             />
             <SkillGroup
                 title="Brechas duras"
-                subtitle="Aprendizaje sugerido - NO se inventan"
+                subtitle="Aprendizaje sugerido; no se agregan al CV."
                 skills={missing}
-                icon={<XCircle className="w-4 h-4" />}
-                color="red"
+                icon={<CircleX className="size-4 text-red-400" aria-hidden="true" />}
+                chip="bg-red-500/10 text-red-400"
             />
         </div>
     );
@@ -43,59 +44,34 @@ function SkillGroup({
     subtitle,
     skills,
     icon,
-    color,
+    chip,
 }: {
     title: string;
     subtitle: string;
     skills: string[];
     icon: React.ReactNode;
-    color: "emerald" | "amber" | "red";
+    chip: string;
 }) {
-    const styles = {
-        emerald: {
-            bg: "bg-emerald-500/5",
-            border: "border-emerald-500/20",
-            titleColor: "text-emerald-300",
-            badge: "bg-emerald-500/10 text-emerald-300 border-emerald-500/25",
-        },
-        amber: {
-            bg: "bg-amber-500/5",
-            border: "border-amber-500/20",
-            titleColor: "text-amber-300",
-            badge: "bg-amber-500/10 text-amber-300 border-amber-500/25",
-        },
-        red: {
-            bg: "bg-red-500/5",
-            border: "border-red-500/20",
-            titleColor: "text-red-300",
-            badge: "bg-red-500/10 text-red-300 border-red-500/25",
-        },
-    }[color];
-
+    const id = useId();
     return (
-        <div className={`rounded-2xl ${styles.bg} border ${styles.border} p-4`}>
-            <div className={`flex items-center gap-2 mb-1 ${styles.titleColor}`}>
+        <section aria-labelledby={id} className="border-t border-[var(--linea)] pt-4">
+            <h3 id={id} className="m-0 flex items-center gap-2 text-sm font-semibold text-[var(--txt)]">
                 {icon}
-                <h3 className="text-sm font-bold">{title}</h3>
-                <span className="ml-auto text-xs font-mono text-neutral-500">
-                    {skills.length}
-                </span>
-            </div>
-            <p className="text-[10px] text-neutral-500 mb-3">{subtitle}</p>
+                {title}
+                <span className="ml-auto font-mono text-xs font-medium tabular-nums text-[var(--mut)]">{skills.length}</span>
+            </h3>
+            <p className="mb-3 mt-1 text-xs text-[var(--mut)]">{subtitle}</p>
             {skills.length === 0 ? (
-                <p className="text-xs text-neutral-600 italic">Ninguna detectada</p>
+                <p className="text-sm text-[var(--mut)]">Ninguna detectada.</p>
             ) : (
-                <div className="flex flex-wrap gap-1.5">
+                <ul className="flex flex-wrap gap-1.5">
                     {skills.map((skill) => (
-                        <span
-                            key={skill}
-                            className={`text-xs px-2 py-0.5 rounded-md border ${styles.badge}`}
-                        >
+                        <li key={skill} className={`rounded-md px-2 py-0.5 text-xs ${chip}`}>
                             {skill}
-                        </span>
+                        </li>
                     ))}
-                </div>
+                </ul>
             )}
-        </div>
+        </section>
     );
 }

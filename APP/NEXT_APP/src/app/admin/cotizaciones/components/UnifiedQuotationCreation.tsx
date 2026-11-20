@@ -2,16 +2,20 @@
 
 import { useState, useTransition, useRef, useCallback, useEffect, useMemo } from "react";
 import {
-    Plus, Search, ArrowRight, X, Code, Globe, Lock, Loader2,
-    Copy, Check, ExternalLink, Sparkles, FileText, SearchIcon,
+    Plus, Search, ArrowRight, ArrowLeft, X, Code, Globe, Lock, Loader2,
+    Copy, Check, ExternalLink, Sparkles, FileText, SearchIcon, Info,
     ChevronDown, ChevronUp, AlertTriangle, Eye, RefreshCw, Maximize2, Minimize2
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { createInitialQuotationData, QuotationData } from "../../../../modules/quotations/types";
 import QuotationWorkspace from "../quotation-workspace";
+import CreateClientModal from "./CreateClientModal";
 import { createQuotationAction } from "../[clientId]/actions";
 import { toast } from "sonner";
 import { transpileLatexToHtml } from "@/lib/latex-to-html";
+import { copiarTexto } from "@/lib/tools/copiar";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import Ventana from "@/modules/quotations/components/Ventana";
+import { AYUDA, BOTON, BOTON_ICONO, BOTON_MINI, BOTON_SEC, BOTON_SUAVE, CAMPO, ETIQUETA, FOCO, OPCION, SOBRE } from "@/modules/quotations/estilos";
 
 interface Client {
     id: string;
@@ -104,6 +108,7 @@ function CodeFinder({
     required,
     showLineNumbers = true,
     highlightLines,
+    etiqueta,
 }: {
     value: string;
     onChange: (v: string) => void;
@@ -114,6 +119,8 @@ function CodeFinder({
     required?: boolean;
     showLineNumbers?: boolean;
     highlightLines?: number[];
+    /** Nombre accesible del área de código. */
+    etiqueta: string;
 }) {
     const [showFinder, setShowFinder] = useState(false);
     const [query, setQuery] = useState("");
@@ -177,6 +184,7 @@ function CodeFinder({
             requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = start + 2; });
             return;
         }
+        // Escape con el buscador abierto lo cierra a él, no la ventana.
         if (e.key === "Escape" && showFinder) {
             e.preventDefault();
             setShowFinder(false);
@@ -186,9 +194,10 @@ function CodeFinder({
 
     const handleFinderKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
+            e.preventDefault();
             if (e.shiftKey) prev(); else next();
         }
-        if (e.key === "Escape") { setShowFinder(false); setQuery(""); }
+        if (e.key === "Escape") { e.preventDefault(); setShowFinder(false); setQuery(""); }
     };
 
     const syncGutterScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -197,44 +206,45 @@ function CodeFinder({
 
     const lineCount = Math.max(value.split("\n").length, rows);
     const lineSet = new Set(highlightLines || []);
+    const mini = `grid size-8 place-items-center rounded text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] disabled:opacity-30 ${FOCO}`;
 
     return (
         <div className="relative">
-            {/* Finder bar */}
             {showFinder && (
-                <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 shadow-xl">
-                    <SearchIcon size={13} className="text-slate-400 shrink-0" />
+                <div role="search" className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded-lg border border-[var(--linea-2)] bg-[var(--sup)] py-1 pl-2 pr-1 shadow-xl">
+                    <SearchIcon size={14} aria-hidden="true" className="shrink-0 text-[var(--mut)]" />
                     <input
                         ref={queryRef}
                         value={query}
                         onChange={e => setQuery(e.target.value)}
                         onKeyDown={handleFinderKey}
-                        placeholder="Buscar..."
-                        className="bg-transparent text-white text-xs outline-none w-32 placeholder:text-slate-500"
+                        placeholder="Buscar…"
+                        aria-label="Buscar en el código"
+                        className="w-32 bg-transparent text-xs text-[var(--txt)] outline-none placeholder:text-[var(--mut)]"
                     />
                     {query && (
-                        <span className="text-[10px] text-slate-400 shrink-0 min-w-[48px] text-center">
+                        <span aria-live="polite" className="min-w-[48px] shrink-0 text-center text-[11px] tabular-nums text-[var(--mut)]">
                             {matches.length === 0 ? "0/0" : `${matchIdx + 1}/${matches.length}`}
                         </span>
                     )}
-                    <button type="button" onClick={prev} disabled={matches.length === 0} className="p-0.5 hover:text-white text-slate-400 disabled:opacity-30"><ChevronUp size={14} /></button>
-                    <button type="button" onClick={next} disabled={matches.length === 0} className="p-0.5 hover:text-white text-slate-400 disabled:opacity-30"><ChevronDown size={14} /></button>
-                    <button type="button" onClick={() => { setShowFinder(false); setQuery(""); }} className="p-0.5 hover:text-white text-slate-400 ml-1"><X size={13} /></button>
+                    <button type="button" onClick={prev} disabled={matches.length === 0} aria-label="Coincidencia anterior" className={mini}><ChevronUp size={14} aria-hidden="true" /></button>
+                    <button type="button" onClick={next} disabled={matches.length === 0} aria-label="Coincidencia siguiente" className={mini}><ChevronDown size={14} aria-hidden="true" /></button>
+                    <button type="button" onClick={() => { setShowFinder(false); setQuery(""); }} aria-label="Cerrar búsqueda" className={mini}><X size={14} aria-hidden="true" /></button>
                 </div>
             )}
 
-            <div className="flex rounded-lg overflow-hidden border border-slate-800 bg-slate-950 focus-within:border-violet-500 focus-within:ring-1 focus-within:ring-violet-500">
+            <div className="flex overflow-hidden rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] focus-within:border-[var(--acento)]">
                 {showLineNumbers && (
                     <div
                         ref={gutterRef}
                         aria-hidden="true"
-                        className="select-none text-right font-mono text-[11px] leading-[18px] text-slate-600 bg-slate-900/80 border-r border-slate-800 px-2 py-4 overflow-hidden"
+                        className="select-none overflow-hidden border-r border-[var(--linea)] px-2 py-3 text-right font-mono text-[11px] leading-[18px] text-[var(--mut)]"
                         style={{ minWidth: "3ch" }}
                     >
                         {Array.from({ length: lineCount }).map((_, i) => (
                             <div
                                 key={i}
-                                className={lineSet.has(i + 1) ? "text-red-400 font-bold" : ""}
+                                className={lineSet.has(i + 1) ? "font-bold text-red-400" : ""}
                             >{i + 1}</div>
                         ))}
                     </div>
@@ -250,10 +260,11 @@ function CodeFinder({
                     rows={rows}
                     placeholder={placeholder}
                     spellCheck={false}
+                    aria-label={etiqueta}
                     className={className + " leading-[18px]"}
                 />
             </div>
-            <p className="text-[10px] text-slate-600 mt-1 text-right">
+            <p className="mt-1 text-right text-[11px] text-[var(--mut)]">
                 {value.length > 0 ? `${lineCount} líneas · ${value.length} caracteres · ` : ""}
                 Ctrl+F para buscar · Tab inserta 2 espacios
             </p>
@@ -300,72 +311,69 @@ function LatexPreviewFrame({
         return () => clearTimeout(t);
     }, [compile]);
 
-    const box = (
-        <div className={`flex flex-col bg-slate-950 rounded-xl border border-slate-800 overflow-hidden ${fullscreen ? "fixed inset-4 z-[60]" : "h-full min-h-[300px]"}`}>
-            <div className="flex items-center justify-between px-3 py-2 bg-slate-900 border-b border-slate-800 shrink-0">
-                <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-                    <span className="ml-2 text-[11px] text-slate-500 font-mono">nicoholas-latex engine · HTML</span>
-                </div>
-                <div className="flex items-center gap-2">
+    return (
+        <div className={`flex flex-col overflow-hidden rounded-xl border border-[var(--linea-2)] bg-[var(--fondo-2)] ${fullscreen ? "fixed inset-4 z-[60] shadow-2xl" : "h-full min-h-[300px]"}`}>
+            <div className="flex shrink-0 items-center justify-between border-b border-[var(--linea)] px-3 py-1">
+                <span className="font-mono text-[11px] text-[var(--mut)]">LaTeX a HTML</span>
+                <div className="flex items-center gap-1">
                     <button type="button" onClick={compile}
-                        className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors">
-                        <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
-                        {loading ? "Compilando…" : "Re-compilar"}
+                        className={`flex min-h-8 items-center gap-1 rounded px-1 text-[11px] text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] ${FOCO}`}>
+                        <RefreshCw size={12} aria-hidden="true" className={loading ? "animate-spin motion-reduce:animate-none" : ""} />
+                        {loading ? "Compilando…" : "Volver a compilar"}
                     </button>
                     <button type="button" onClick={() => setFullscreen(f => !f)}
-                        className="text-slate-400 hover:text-white transition-colors"
-                        aria-label="Pantalla completa">
-                        {fullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                        className={`grid size-8 place-items-center rounded text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] ${FOCO}`}
+                        aria-label={fullscreen ? "Salir de pantalla completa" : "Vista previa a pantalla completa"}
+                        aria-pressed={fullscreen}>
+                        {fullscreen ? <Minimize2 size={14} aria-hidden="true" /> : <Maximize2 size={14} aria-hidden="true" />}
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 relative overflow-hidden">
+            <div className="relative flex-1 overflow-hidden">
                 {!latex.trim() && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600 gap-2">
-                        <FileText size={28} strokeWidth={1.2} />
-                        <p className="text-sm">El preview aparece aquí</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--mut)]">
+                        <FileText size={24} strokeWidth={1.4} aria-hidden="true" />
+                        <p className="text-sm">La vista previa aparece aquí</p>
                     </div>
                 )}
                 {result && (
                     <iframe
                         srcDoc={result.html}
-                        className="w-full h-full border-0 bg-white"
-                        title="LaTeX Preview"
+                        className="h-full w-full border-0 bg-white"
+                        title="Vista previa LaTeX"
                         sandbox="allow-same-origin"
                     />
                 )}
             </div>
 
             {result && (result.warnings.length > 0 || result.errors.length > 0) && (
-                <div className="border-t border-slate-800 max-h-28 overflow-y-auto px-3 py-2 text-[11px] font-mono bg-slate-900/60 shrink-0">
+                <div className="max-h-28 shrink-0 overflow-y-auto border-t border-[var(--linea)] bg-[var(--sup)] px-3 py-2 font-mono text-[11px]">
                     {result.errors.map((e, i) => (
-                        <div key={`e${i}`} className="text-red-400 flex gap-2">
-                            <AlertTriangle size={11} className="shrink-0 mt-0.5" />
+                        <div key={`e${i}`} className="flex gap-2 text-red-400">
+                            <AlertTriangle size={12} aria-hidden="true" className="mt-0.5 shrink-0" />
                             <span>Línea {e.line}: {e.message}</span>
                         </div>
                     ))}
                     {result.warnings.slice(0, 8).map((w, i) => (
-                        <div key={`w${i}`} className="text-amber-400/80">⚠ {w}</div>
+                        <div key={`w${i}`} className="flex gap-2 text-amber-400">
+                            <Info size={12} aria-hidden="true" className="mt-0.5 shrink-0" />
+                            <span>{w}</span>
+                        </div>
                     ))}
                     {result.warnings.length > 8 && (
-                        <div className="text-slate-500">+{result.warnings.length - 8} avisos más</div>
+                        <div className="text-[var(--mut)]">Y {result.warnings.length - 8} avisos más</div>
                     )}
                 </div>
             )}
         </div>
     );
-    return box;
 }
 
 // ─────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────
 export default function UnifiedQuotationCreation({ clients = [], preSelectedClient, onClose, onSuccess }: Props) {
-    const router = useRouter();
     const [step, setStep] = useState<Step>(preSelectedClient ? "choose-mode" : "select-client");
     const [selectedClient, setSelectedClient] = useState<Client | null>(preSelectedClient || null);
 
@@ -391,15 +399,16 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
         setStep("choose-mode");
     };
 
-    const handleCreateClient = () => {
-        router.push("/admin/clientes");
-    };
+    // El cliente se crea aquí mismo y queda elegido: antes «Crear cliente» llevaba a otra página y se perdía el asistente.
+    const [creandoCliente, setCreandoCliente] = useState(false);
+    const handleCreateClient = () => setCreandoCliente(true);
 
     // --- SHARED SUBMIT LOGIC ---
     const [accessMode, setAccessMode] = useState<"public" | "code">("code");
     const [isPending, startTransition] = useTransition();
     const [result, setResult] = useState<{ link: string; code?: string } | null>(null);
     const [copied, setCopied] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // HTML embed state
     const [htmlCode, setHtmlCode] = useState("");
@@ -413,13 +422,18 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
         [latexPreview]
     );
 
-    // Shared form state (folio / projectName / codeDuration)
+    // Shared form state (folio / projectName / total / codeDuration)
     const [folio, setFolio] = useState("");
     const [projectName, setProjectName] = useState("");
+    // Total en pesos (solo dígitos). Sin él la propuesta queda en $0 y no se le pueden registrar pagos.
+    const [totalTexto, setTotalTexto] = useState("");
     const [codeDuration, setCodeDuration] = useState("15d");
+    // Publicada desde el constructor: cerrar ya no pregunta «¿salir sin publicar?».
+    const [publicadaEnConstructor, setPublicadaEnConstructor] = useState(false);
+    const [codigoCopiado, setCodigoCopiado] = useState(false);
 
     const copyToClipboard = async (text: string) => {
-        await navigator.clipboard.writeText(text);
+        if (!(await copiarTexto(text))) { setError("No se pudo copiar: selecciónalo y cópialo a mano."); return; }
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -449,8 +463,9 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
     // Build FormData and call action
     const submitWithHtml = (htmlContent: string) => {
         if (!selectedClient) return;
+        setError(null);
         if (!folio.trim() || !projectName.trim() || !htmlContent.trim()) {
-            toast.error("Completa todos los campos requeridos");
+            setError("Completa el folio, el nombre del proyecto y el contenido.");
             return;
         }
         const fd = new FormData();
@@ -458,17 +473,18 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
         fd.set("folio", folio.trim());
         fd.set("projectName", projectName.trim());
         fd.set("htmlContent", htmlContent);
+        fd.set("total", totalTexto || "0");
         fd.set("accessMode", accessMode);
         fd.set("codeDuration", codeDuration);
 
         startTransition(async () => {
             const res = await createQuotationAction(fd);
             if (res.success) {
-                toast.success("¡Cotización creada!");
+                toast.success("Propuesta publicada");
                 setResult({ link: res.link!, code: res.accessCode });
                 if (onSuccess) onSuccess();
             } else {
-                toast.error(res.error || "Error al crear");
+                setError(res.error || "No se pudo publicar la propuesta");
             }
         });
     };
@@ -480,389 +496,388 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
 
     const handleLatexSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!latexCode.trim()) { toast.error("Pega tu código LaTeX primero"); return; }
+        setError(null);
+        if (!latexCode.trim()) { setError("Pega tu código LaTeX primero."); return; }
         setIsConvertingLatex(true);
         try {
             const out = transpileLatexToHtml(latexCode, { standalone: true });
             if (out.errors.length > 0) {
-                toast.warning(`Se publicará con ${out.errors.length} error(es) detectado(s). Revisa el preview.`);
+                toast.warning(`Se publicará con ${out.errors.length} error(es) detectado(s). Revisa la vista previa.`);
             }
             setIsConvertingLatex(false);
             submitWithHtml(out.html);
         } catch (err: unknown) {
             setIsConvertingLatex(false);
-            toast.error("Error al compilar LaTeX: " + (err instanceof Error ? err.message : "desconocido"));
+            setError("Error al compilar LaTeX: " + (err instanceof Error ? err.message : "desconocido"));
         }
     };
+
+    // Lo escrito se pierde al cerrar: Escape y la X preguntan antes si hay trabajo sin publicar.
+    const hayTrabajo = () =>
+        !result && !publicadaEnConstructor && (
+            step === "workspace" ||
+            (step === "code-embed" && !!(htmlCode.trim() || folio.trim() || projectName.trim() || totalTexto)) ||
+            (step === "latex-embed" && !!(latexCode.trim() || folio.trim() || projectName.trim() || totalTexto))
+        );
+    const antesDeCerrar = async () =>
+        !hayTrabajo() || confirmar({ titulo: "¿Salir sin publicar?", detalle: "Se pierde lo que escribiste en esta propuesta.", accion: "Salir sin publicar", peligro: true });
+
+    const irA = (destino: Step) => { setError(null); setStep(destino); };
+    const ocupado = isPending || isConvertingLatex;
+    const para = selectedClient ? `Para ${selectedClient.name}` : undefined;
+    // Es una sola ventana que cambia de contenido: la clave del paso mueve el foco al cambiar.
+    const pasoClave = result ? "resultado" : step;
     // ─────────────────────────────────────────────
 
     // SUCCESS VIEW (shared)
     if (result) {
         return (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-6">
-                    <div className="text-center">
-                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Check className="w-8 h-8 text-green-400" />
+            <Ventana paso={pasoClave} titulo="Propuesta publicada" descripcion="Comparte el enlace con tu cliente." icono={<Check size={18} className="text-emerald-400" />} alCerrar={onClose}>
+                {(cerrar) => (
+                    <div className="space-y-5">
+                        <div>
+                            <p className="mb-1.5 text-sm font-medium text-[var(--txt)]">Enlace</p>
+                            <div className="flex items-center gap-2 rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-1 pl-3 pr-1">
+                                <code className="min-w-0 flex-1 select-all break-all font-mono text-sm text-[var(--acento)]">{result.link}</code>
+                                <button type="button" onClick={() => copyToClipboard(result.link)} aria-label={copied ? "Enlace copiado" : "Copiar enlace"} className={BOTON_ICONO}>
+                                    {copied ? <Check size={16} aria-hidden="true" className="text-emerald-400" /> : <Copy size={16} aria-hidden="true" />}
+                                </button>
+                                <a href={result.link} target="_blank" rel="noreferrer" aria-label="Abrir la propuesta (se abre en otra pestaña)" className={BOTON_ICONO}>
+                                    <ExternalLink size={16} aria-hidden="true" />
+                                </a>
+                            </div>
                         </div>
-                        <h2 className="text-xl font-bold text-white mb-2">¡Cotización Publicada!</h2>
-                        <p className="text-slate-400">Comparte el enlace con tu cliente</p>
+                        {result.code && (
+                            <div className="rounded-lg bg-amber-500/10 p-4 text-center">
+                                <p className="text-sm text-[var(--txt)]">Código de acceso para el cliente</p>
+                                <code className="mt-1 block select-all break-all font-mono text-2xl font-bold text-[var(--txt)]">{result.code}</code>
+                                <p className="mt-1 text-xs text-[var(--mut)]">Se muestra una sola vez. Si lo pierdes, genera otro en «Acceso».</p>
+                                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                                    <button type="button" className={BOTON_MINI}
+                                        onClick={async () => {
+                                            if (!(await copiarTexto(result.code!))) { setError("No se pudo copiar: selecciónalo y cópialo a mano."); return; }
+                                            setCodigoCopiado(true);
+                                            toast.success("Código copiado");
+                                        }}>
+                                        {codigoCopiado ? <Check size={12} aria-hidden="true" className="text-emerald-400" /> : <Copy size={12} aria-hidden="true" />}
+                                        {codigoCopiado ? "Código copiado" : "Copiar código"}
+                                    </button>
+                                    <button type="button" className={BOTON_MINI}
+                                        onClick={async () => {
+                                            if (!(await copiarTexto(`${result.link}\nCódigo de acceso: ${result.code}`))) { setError("No se pudo copiar: selecciónalo y cópialo a mano."); return; }
+                                            toast.success("Enlace y código copiados para enviarlos");
+                                        }}>
+                                        <Copy size={12} aria-hidden="true" /> Copiar enlace y código
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+                        <button type="button" onClick={cerrar} className={`${BOTON_SEC} w-full`} data-autofocus>
+                            Cerrar
+                        </button>
                     </div>
-                    <div className="bg-slate-800 rounded-xl p-4">
-                        <p className="text-xs text-slate-500 mb-2">Enlace de acceso:</p>
-                        <div className="flex items-center gap-2">
-                            <code className="flex-1 text-indigo-400 text-sm break-all">{result.link}</code>
-                            <button onClick={() => copyToClipboard(result.link)} className="bg-slate-700 hover:bg-slate-600 p-2 rounded-lg transition-colors">
-                                {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
-                            </button>
-                            <a href={result.link} target="_blank" className="bg-slate-700 hover:bg-slate-600 p-2 rounded-lg transition-colors">
-                                <ExternalLink size={16} />
-                            </a>
-                        </div>
-                    </div>
-                    {result.code && (
-                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 text-center">
-                            <p className="text-xs text-orange-400 mb-1">Código de acceso (compartir con cliente):</p>
-                            <code className="text-2xl font-bold text-white">{result.code}</code>
-                        </div>
-                    )}
-                    <button onClick={onClose} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-lg font-medium transition-colors">
-                        Cerrar
-                    </button>
-                </div>
-            </div>
+                )}
+            </Ventana>
         );
     }
 
     // ─── STEP 1: SELECT CLIENT ───
     if (step === "select-client") {
         return (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl flex flex-col overflow-hidden shadow-2xl h-[600px]">
-                    <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-white">Nueva Cotización</h2>
-                        <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            <Ventana paso={pasoClave} titulo="Nueva propuesta" descripcion="Elige el cliente." alCerrar={onClose} ancho="max-w-2xl" clase="h-[min(92dvh,640px)]" cuerpo="p-0 flex flex-col">
+                <div className="flex shrink-0 items-center gap-2 p-4 sm:px-6">
+                    <label htmlFor="buscar-cliente-propuesta" className="sr-only">Buscar cliente por nombre o correo</label>
+                    <div className="relative min-w-0 flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" size={16} aria-hidden="true" />
+                        <input
+                            id="buscar-cliente-propuesta"
+                            type="search"
+                            placeholder="Nombre o correo"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className={`${CAMPO} pl-9`}
+                            data-autofocus
+                        />
                     </div>
-                    <div className="flex-1 overflow-y-auto p-8">
-                        <h3 className="text-2xl font-bold text-white mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Selecciona un Cliente</h3>
-                        <div className="relative mb-6 group">
-                            <Search className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Buscar por nombre o email..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-lg transition-all"
-                                autoFocus
-                            />
-                        </div>
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                            {filteredClients.map(client => (
-                                <button
-                                    key={client.id}
-                                    onClick={() => handleClientSelect(client)}
-                                    className="w-full text-left p-4 rounded-xl bg-slate-800/30 hover:bg-indigo-600/10 border border-transparent hover:border-indigo-500/30 transition-all group flex items-center justify-between"
-                                >
-                                    <div>
-                                        <p className="font-semibold text-white group-hover:text-indigo-300 transition-colors text-lg">{client.name}</p>
-                                        <p className="text-sm text-slate-500">{client.email || "Sin email registrado"}</p>
-                                    </div>
-                                    <div className="bg-slate-800 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100">
-                                        <ArrowRight size={16} className="text-indigo-400" />
-                                    </div>
-                                </button>
-                            ))}
-                            {filteredClients.length === 0 && (
-                                <div className="text-center py-12 border-2 border-dashed border-slate-800 rounded-xl">
-                                    <p className="text-slate-500 mb-4">No se encontraron clientes</p>
-                                    <button onClick={handleCreateClient} className="text-indigo-400 hover:text-indigo-300 font-medium flex items-center justify-center gap-2 mx-auto">
-                                        <Plus size={16} /> Crear nuevo cliente
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    <button type="button" onClick={handleCreateClient} className={BOTON_SEC} aria-label="Cliente nuevo">
+                        <Plus size={16} aria-hidden="true" />
+                        <span className="hidden sm:inline">Cliente nuevo</span>
+                    </button>
                 </div>
-            </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+                    {filteredClients.length > 0 ? (
+                        <ul className="border-t border-[var(--linea)]">
+                            {filteredClients.map(client => (
+                                <li key={client.id} className="border-b border-[var(--linea)]">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleClientSelect(client)}
+                                        className={`group flex w-full items-center justify-between gap-3 px-2 py-3 text-left transition-colors duration-150 ${SOBRE} ${FOCO}`}
+                                    >
+                                        <span className="min-w-0">
+                                            <span className="block truncate font-medium text-[var(--txt)]">{client.name}</span>
+                                            <span className="block truncate text-sm text-[var(--mut)]">{client.email || "Sin correo registrado"}</span>
+                                        </span>
+                                        <ArrowRight size={16} aria-hidden="true" className="shrink-0 text-[var(--mut)] transition-colors duration-150 group-hover:text-[var(--acento)]" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="border-y border-[var(--linea)] py-10 text-center">
+                            <p className="mb-4 text-[var(--mut)]">{clients.length === 0 ? "Todavía no tienes clientes." : "Ningún cliente coincide."}</p>
+                            <button type="button" onClick={handleCreateClient} className={BOTON_SEC}>
+                                <Plus size={16} aria-hidden="true" /> Crear cliente nuevo
+                            </button>
+                        </div>
+                    )}
+                </div>
+                <CreateClientModal
+                    isOpen={creandoCliente}
+                    onClose={() => setCreandoCliente(false)}
+                    onSuccess={(_id, cliente) => {
+                        setCreandoCliente(false);
+                        // La lista de fondo se pone al día y el cliente nuevo queda elegido para seguir con la propuesta.
+                        onSuccess?.();
+                        handleClientSelect(cliente);
+                    }}
+                />
+            </Ventana>
         );
     }
 
     // ─── STEP 2: CHOOSE MODE ───
     if (step === "choose-mode" && selectedClient) {
+        const modos: { paso: Step; Icono: typeof Sparkles; titulo: string; texto: string }[] = [
+            { paso: "workspace", Icono: Sparkles, titulo: "Constructor visual", texto: "Formulario paso a paso con un asistente de IA que propone servicios y textos." },
+            { paso: "code-embed", Icono: Code, titulo: "Pegar HTML", texto: "Pega el HTML de la propuesta (con Tailwind si quieres) y publícalo tal cual." },
+            { paso: "latex-embed", Icono: FileText, titulo: "Pegar LaTeX", texto: "Pega código LaTeX, revisa la vista previa y se publica convertido a HTML." },
+        ];
         return (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl p-8 shadow-2xl relative overflow-hidden">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-lg transition-colors">
-                        <X size={24} />
+            <Ventana paso={pasoClave} titulo="Nueva propuesta" descripcion={para} alCerrar={onClose} ancho="max-w-4xl">
+                <p className="mb-4 text-sm text-[var(--mut)]">¿Cómo quieres armarla?</p>
+                <ul className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {modos.map(({ paso, Icono, titulo, texto }) => (
+                        <li key={paso} className="flex">
+                            <button
+                                type="button"
+                                onClick={() => irA(paso)}
+                                className={`group flex w-full flex-col items-start rounded-xl border border-[var(--linea-2)] p-5 text-left transition-colors duration-150 hover:border-[var(--acento)] ${SOBRE} ${FOCO}`}
+                            >
+                                <Icono size={20} aria-hidden="true" className="mb-3 text-[var(--acento)]" />
+                                <span className="font-semibold text-[var(--txt)]">{titulo}</span>
+                                <span className="mt-1 text-sm text-[var(--mut)]">{texto}</span>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+                <div className="mt-6 text-center">
+                    <button
+                        type="button"
+                        onClick={() => preSelectedClient ? onClose() : irA("select-client")}
+                        className={BOTON_SUAVE}
+                    >
+                        <ArrowLeft size={16} aria-hidden="true" /> {preSelectedClient ? "Cancelar" : "Elegir otro cliente"}
                     </button>
-                    <div className="text-center mb-10">
-                        <h2 className="text-3xl font-bold text-white mb-2">Crear Nueva Cotización</h2>
-                        <p className="text-slate-400 text-lg">Para: <span className="text-indigo-400 font-semibold">{selectedClient.name}</span></p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-4xl mx-auto">
-                        {/* Option 1: Builder */}
-                        <button
-                            onClick={() => setStep("workspace")}
-                            className="group relative bg-slate-800/50 hover:bg-indigo-600/10 border border-slate-700 hover:border-indigo-500 rounded-2xl p-7 text-left transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 flex flex-col items-center text-center"
-                        >
-                            <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                                <Sparkles className="w-8 h-8 text-indigo-400" />
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-2 group-hover:text-indigo-300">Constructor Visual</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">
-                                Editor inteligente con <strong>Asistencia IA</strong> para crear cotizaciones paso a paso.
-                            </p>
-                        </button>
-
-                        {/* Option 2: HTML Embedder */}
-                        <button
-                            onClick={() => setStep("code-embed")}
-                            className="group relative bg-slate-800/50 hover:bg-emerald-600/10 border border-slate-700 hover:border-emerald-500 rounded-2xl p-7 text-left transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 flex flex-col items-center text-center"
-                        >
-                            <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                                <Code className="w-8 h-8 text-emerald-400" />
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-300">Incrustar HTML</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">
-                                Pega tu código <strong>HTML/Tailwind</strong> directamente y publícalo al instante.
-                            </p>
-                        </button>
-
-                        {/* Option 3: LaTeX Embedder */}
-                        <button
-                            onClick={() => setStep("latex-embed")}
-                            className="group relative bg-slate-800/50 hover:bg-violet-600/10 border border-slate-700 hover:border-violet-500 rounded-2xl p-7 text-left transition-all duration-300 hover:shadow-2xl hover:shadow-violet-500/10 flex flex-col items-center text-center"
-                        >
-                            <div className="w-16 h-16 bg-violet-500/20 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                                <FileText className="w-8 h-8 text-violet-400" />
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-2 group-hover:text-violet-300">Incrustar LaTeX</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">
-                                Pega código <strong>LaTeX</strong> y previsualiza el documento tipograficamente.
-                            </p>
-                            <span className="mt-3 px-2 py-0.5 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-400 text-[10px] font-semibold tracking-wide uppercase">Nuevo</span>
-                        </button>
-                    </div>
-                    <div className="mt-8 text-center">
-                        <button
-                            onClick={() => preSelectedClient ? onClose() : setStep("select-client")}
-                            className="text-slate-500 hover:text-white text-sm transition-colors"
-                        >
-                            Volver atrás
-                        </button>
-                    </div>
                 </div>
-            </div>
+            </Ventana>
         );
     }
 
     // ─── STEP 3A: WORKSPACE (Builder) ───
     if (step === "workspace" && selectedClient) {
         return (
-            <div className="fixed inset-0 bg-black z-50 animate-in fade-in duration-300">
-                <QuotationWorkspace
-                    initialData={initialData}
-                    clientId={selectedClient.id}
-                    clientName={selectedClient.name}
-                    onClose={onClose}
-                />
-            </div>
+            <Ventana paso={pasoClave} titulo={`Constructor de propuestas: ${selectedClient.name}`} sinCabecera pantallaCompleta alCerrar={onClose} antesDeCerrar={antesDeCerrar} cuerpo="p-0 flex flex-col">
+                {(cerrar) => (
+                    <QuotationWorkspace
+                        initialData={initialData}
+                        clientId={selectedClient.id}
+                        clientName={selectedClient.name}
+                        onClose={cerrar}
+                        onPublished={() => setPublicadaEnConstructor(true)}
+                    />
+                )}
+            </Ventana>
         );
     }
 
     // ─── STEP 3B: CODE EMBED (HTML) ───
     if (step === "code-embed" && selectedClient) {
         return (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between p-6 border-b border-slate-800">
+            <Ventana paso={pasoClave} titulo="Pegar HTML" descripcion={para} icono={<Code size={18} />} alCerrar={onClose} antesDeCerrar={antesDeCerrar} ancho="max-w-2xl" cuerpo="p-0">
+                <form onSubmit={handleHtmlSubmit} className="space-y-5 p-4 sm:p-6">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Code className="text-emerald-400" /> Incrustar Código HTML
-                            </h2>
-                            <p className="text-sm text-slate-400">Para: {selectedClient.name}</p>
+                            <label htmlFor="html-folio" className={ETIQUETA}>Folio (único)</label>
+                            <input id="html-folio" value={folio} onChange={e => setFolio(e.target.value)} required placeholder="WEB-2026-001" className={CAMPO} data-autofocus />
                         </div>
-                        <button onClick={() => setStep("choose-mode")} className="text-slate-400 hover:text-white p-2 transition-colors"><X size={20} /></button>
+                        <div>
+                            <label htmlFor="html-proyecto" className={ETIQUETA}>Nombre del proyecto</label>
+                            <input id="html-proyecto" value={projectName} onChange={e => setProjectName(e.target.value)} required placeholder="Plataforma web" className={CAMPO} />
+                        </div>
+                        <div className="sm:col-span-2">
+                            <label htmlFor="html-total" className={ETIQUETA}>Total (CLP)</label>
+                            <input id="html-total" type="text" inputMode="numeric" autoComplete="off" placeholder="1.190.000" className={`${CAMPO} tabular-nums`}
+                                value={totalTexto ? Number(totalTexto).toLocaleString("es-CL") : ""}
+                                onChange={e => setTotalTexto(e.target.value.replace(/\D/g, "").slice(0, 13))}
+                                aria-describedby="html-total-ayuda" />
+                            <p id="html-total-ayuda" className={AYUDA}>Lo que se cobra en total: con él se registran los pagos y las cuotas.</p>
+                        </div>
                     </div>
 
-                    <form onSubmit={handleHtmlSubmit} className="p-6 space-y-5">
-                        {/* Basic Info */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Folio (ID único)</label>
-                                <input
-                                    value={folio} onChange={e => setFolio(e.target.value)}
-                                    required placeholder="WEB-2026-001"
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Nombre del Proyecto</label>
-                                <input
-                                    value={projectName} onChange={e => setProjectName(e.target.value)}
-                                    required placeholder="Plataforma Web"
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
-                                />
-                            </div>
-                        </div>
+                    <AccessModeSelector mode={accessMode} setMode={setAccessMode} duration={codeDuration} setDuration={setCodeDuration} />
 
-                        {/* Access */}
-                        <AccessModeSelector mode={accessMode} setMode={setAccessMode} duration={codeDuration} setDuration={setCodeDuration} accentClass="emerald" />
-
-                        {/* HTML Code */}
-                        <div>
-                            <label className="block text-sm text-slate-400 mb-1 flex items-center gap-2">
-                                <Code size={14} /> Código HTML de la Cotización
-                            </label>
-                            <CodeFinder
-                                value={htmlCode}
-                                onChange={setHtmlCode}
-                                name="htmlContent"
-                                required
-                                rows={13}
-                                placeholder={'<!DOCTYPE html>\n<html>\n  <head>...</head>\n  <body>...</body>\n</html>'}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-xs font-mono text-green-400 placeholder:text-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none"
-                            />
-                            <p className="text-xs text-slate-500 mt-1">CDNs como Tailwind CSS están permitidos.</p>
-                        </div>
-
-                        <div className="flex gap-3 pt-4 border-t border-slate-800">
-                            <button type="button" onClick={() => setStep("choose-mode")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-lg font-medium transition-colors">Volver</button>
-                            <button type="submit" disabled={isPending} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                                {isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Creando...</> : "Publicar Cotización"}
+                    <div>
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                            <span id="html-codigo" className="flex items-center gap-2 text-sm font-medium text-[var(--txt)]">
+                                <Code size={14} aria-hidden="true" /> HTML de la propuesta
+                            </span>
+                            <button type="button"
+                                onClick={async () => {
+                                    const { PROPUESTA_HTML_TEMPLATE } = await import("@/modules/quotations/templates/propuesta-html");
+                                    setHtmlCode(PROPUESTA_HTML_TEMPLATE);
+                                }}
+                                disabled={!!htmlCode.trim()}
+                                title="Carga el diseño de propuesta con los datos por completar"
+                                className={BOTON_MINI}>
+                                Usar plantilla
                             </button>
                         </div>
-                    </form>
-                </div>
-            </div>
+                        <CodeFinder
+                            value={htmlCode}
+                            onChange={setHtmlCode}
+                            name="htmlContent"
+                            required
+                            rows={13}
+                            etiqueta="HTML de la propuesta"
+                            placeholder={'<!DOCTYPE html>\n<html>\n  <head>...</head>\n  <body>...</body>\n</html>'}
+                            className="w-full resize-none bg-transparent p-3 font-mono text-xs text-[var(--txt)] outline-none placeholder:text-[var(--mut)]"
+                        />
+                        <p className={AYUDA}>Se permiten CDN como Tailwind.</p>
+                    </div>
+
+                    {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+
+                    <div className="flex gap-2 border-t border-[var(--linea)] pt-4">
+                        <button type="button" onClick={() => irA("choose-mode")} className={`${BOTON_SEC} flex-1`}>Volver</button>
+                        <button type="submit" disabled={isPending} className={`${BOTON} flex-1`}>
+                            {isPending ? <><Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> Publicando…</> : "Publicar propuesta"}
+                        </button>
+                    </div>
+                </form>
+            </Ventana>
         );
     }
 
     // ─── STEP 3C: LATEX EMBED ───
     if (step === "latex-embed" && selectedClient) {
         return (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-hidden">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl h-[92vh] flex flex-col shadow-2xl shadow-violet-950/20">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
+            <Ventana paso={pasoClave} titulo="Pegar LaTeX" descripcion={para} icono={<FileText size={18} />} alCerrar={onClose} antesDeCerrar={antesDeCerrar} ancho="max-w-6xl" clase="h-[min(92dvh,900px)]" cuerpo="p-0 flex flex-col">
+                <form onSubmit={handleLatexSubmit} className="flex min-h-0 flex-1 flex-col">
+                    <div className="grid shrink-0 grid-cols-2 gap-3 border-b border-[var(--linea)] px-4 py-3 sm:px-6 md:grid-cols-3 lg:grid-cols-5">
                         <div>
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <FileText className="text-violet-400" /> Incrustar Código LaTeX
-                            </h2>
-                            <p className="text-sm text-slate-400">Para: {selectedClient.name}</p>
+                            <label htmlFor="tex-folio" className={ETIQUETA}>Folio</label>
+                            <input id="tex-folio" value={folio} onChange={e => setFolio(e.target.value)} required placeholder="TEX-2026-001" className={CAMPO} data-autofocus />
                         </div>
-                        <button onClick={() => setStep("choose-mode")} className="text-slate-400 hover:text-white p-2 transition-colors"><X size={20} /></button>
-                    </div>
-
-                    <form onSubmit={handleLatexSubmit} className="flex flex-col flex-1 overflow-hidden">
-                        {/* Meta fields */}
-                        <div className="px-6 pt-4 pb-3 border-b border-slate-800/60 shrink-0 grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label htmlFor="tex-proyecto" className={ETIQUETA}>Nombre del proyecto</label>
+                            <input id="tex-proyecto" value={projectName} onChange={e => setProjectName(e.target.value)} required placeholder="Propuesta técnica" className={CAMPO} />
+                        </div>
+                        <div>
+                            <label htmlFor="tex-total" className={ETIQUETA}>Total (CLP)</label>
+                            <input id="tex-total" type="text" inputMode="numeric" autoComplete="off" placeholder="1.190.000" className={`${CAMPO} tabular-nums`}
+                                value={totalTexto ? Number(totalTexto).toLocaleString("es-CL") : ""}
+                                onChange={e => setTotalTexto(e.target.value.replace(/\D/g, "").slice(0, 13))} />
+                        </div>
+                        <div>
+                            <label htmlFor="tex-acceso" className={ETIQUETA}>Acceso</label>
+                            <select id="tex-acceso" value={accessMode} onChange={e => setAccessMode(e.target.value as "public" | "code")} className={CAMPO}>
+                                <option value="code">Privada (con código)</option>
+                                <option value="public">Pública (sin código)</option>
+                            </select>
+                        </div>
+                        {accessMode === "code" && (
                             <div>
-                                <label className="block text-xs text-slate-400 mb-1">Folio</label>
-                                <input value={folio} onChange={e => setFolio(e.target.value)} required placeholder="TEX-2026-001"
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder:text-slate-500 focus:border-violet-500 outline-none" />
-                            </div>
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1">Nombre del Proyecto</label>
-                                <input value={projectName} onChange={e => setProjectName(e.target.value)} required placeholder="Propuesta Técnica"
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder:text-slate-500 focus:border-violet-500 outline-none" />
-                            </div>
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1">Modo de Acceso</label>
-                                <select value={accessMode} onChange={e => setAccessMode(e.target.value as "public" | "code")}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-violet-500 outline-none">
-                                    <option value="code">Privado (con código)</option>
-                                    <option value="public">Público (sin código)</option>
+                                <label htmlFor="tex-validez" className={ETIQUETA}>Validez del código</label>
+                                <select id="tex-validez" value={codeDuration} onChange={e => setCodeDuration(e.target.value)} className={CAMPO}>
+                                    <option value="7d">1 semana</option>
+                                    <option value="15d">15 días</option>
+                                    <option value="30d">1 mes</option>
+                                    <option value="indefinite">Sin vencimiento</option>
                                 </select>
                             </div>
-                            {accessMode === "code" && (
-                                <div>
-                                    <label className="block text-xs text-slate-400 mb-1">Validez del Código</label>
-                                    <select value={codeDuration} onChange={e => setCodeDuration(e.target.value)}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-violet-500 outline-none">
-                                        <option value="7d">1 Semana</option>
-                                        <option value="15d">15 Días</option>
-                                        <option value="30d">1 Mes</option>
-                                        <option value="indefinite">Indefinido</option>
-                                    </select>
-                                </div>
-                            )}
-                        </div>
+                        )}
+                    </div>
 
-                        {/* Split pane: editor | preview */}
-                        <div className="flex flex-1 overflow-hidden">
-                            {/* LEFT: Editor */}
-                            <div className="flex flex-col w-1/2 border-r border-slate-800 overflow-hidden">
-                                {/* Editor toolbar */}
-                                <div className="flex items-center justify-between px-4 py-2 bg-slate-900/60 border-b border-slate-800 shrink-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Editor LaTeX</span>
-                                        <button type="button"
-                                            onClick={() => setLatexCode(LATEX_STARTER_TEMPLATE)}
-                                            disabled={!!latexCode.trim()}
-                                            className="text-[11px] text-violet-400 hover:text-violet-300 border border-violet-500/30 rounded px-2 py-0.5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-                                            Plantilla
-                                        </button>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button type="button" onClick={openOverleaf}
-                                            className="flex items-center gap-1.5 text-[11px] text-green-400 hover:text-green-300 border border-green-500/30 rounded px-2 py-1 transition-colors">
-                                            <ExternalLink size={11} /> Abrir en Overleaf
-                                        </button>
-                                        <button type="button" onClick={() => copyToClipboard(latexCode)}
-                                            className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-white border border-slate-700 rounded px-2 py-1 transition-colors">
-                                            {copied ? <Check size={11} className="text-green-400" /> : <Copy size={11} />} Copiar
-                                        </button>
-                                    </div>
+                    {/* Editor y vista previa: lado a lado en pantallas anchas, uno bajo el otro en celular */}
+                    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+                        <section aria-labelledby="tex-editor" className="flex min-h-[60dvh] flex-col border-[var(--linea)] md:min-h-0 md:w-1/2 md:border-r">
+                            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--linea)] px-4 py-2">
+                                <div className="flex items-center gap-2">
+                                    <h3 id="tex-editor" className="text-sm font-medium text-[var(--mut)]">Editor LaTeX</h3>
+                                    <button type="button"
+                                        onClick={() => setLatexCode(LATEX_STARTER_TEMPLATE)}
+                                        disabled={!!latexCode.trim()}
+                                        className={BOTON_MINI}>
+                                        Usar plantilla
+                                    </button>
                                 </div>
-                                <div className="flex-1 p-3 overflow-y-auto">
-                                    <CodeFinder
-                                        value={latexCode}
-                                        onChange={setLatexCode}
-                                        rows={28}
-                                        highlightLines={latexErrorLines}
-                                        placeholder={`\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\begin{document}\n\n\\section{Alcance del Proyecto}\n% Tu contenido aqui\n\n\\end{document}`}
-                                        className="flex-1 bg-transparent p-3 text-xs font-mono text-violet-200 placeholder:text-slate-700 outline-none resize-none w-full"
-                                    />
+                                <div className="flex gap-2">
+                                    <button type="button" onClick={openOverleaf} className={BOTON_MINI}>
+                                        <ExternalLink size={12} aria-hidden="true" /> Abrir en Overleaf
+                                    </button>
+                                    <button type="button" onClick={() => copyToClipboard(latexCode)} className={BOTON_MINI}>
+                                        {copied ? <Check size={12} aria-hidden="true" className="text-emerald-400" /> : <Copy size={12} aria-hidden="true" />} {copied ? "Copiado" : "Copiar"}
+                                    </button>
                                 </div>
                             </div>
-
-                            {/* RIGHT: Preview */}
-                            <div className="flex flex-col w-1/2 overflow-hidden">
-                                <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/60 border-b border-slate-800 shrink-0">
-                                    <Eye size={13} className="text-slate-400" />
-                                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Vista Previa</span>
-                                    {latexPreview && (
-                                        <span className="text-[10px] text-slate-500 ml-2">
-                                            {latexPreview.errors.length > 0 && <span className="text-red-400">{latexPreview.errors.length} error(es)</span>}
-                                            {latexPreview.errors.length > 0 && latexPreview.warnings.length > 0 && " · "}
-                                            {latexPreview.warnings.length > 0 && <span className="text-amber-400/80">{latexPreview.warnings.length} aviso(s)</span>}
-                                        </span>
-                                    )}
-                                    <span className="text-[10px] text-slate-600 ml-auto">400ms debounce</span>
-                                </div>
-                                <div className="flex-1 p-3 overflow-y-auto">
-                                    <LatexPreviewFrame latex={latexCode} onResult={setLatexPreview} />
-                                </div>
+                            <div className="flex-1 overflow-y-auto p-3">
+                                <CodeFinder
+                                    value={latexCode}
+                                    onChange={setLatexCode}
+                                    rows={28}
+                                    etiqueta="Código LaTeX"
+                                    highlightLines={latexErrorLines}
+                                    placeholder={`\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\begin{document}\n\n\\section{Alcance del Proyecto}\n% Tu contenido aqui\n\n\\end{document}`}
+                                    className="w-full flex-1 resize-none bg-transparent p-3 font-mono text-xs text-[var(--txt)] outline-none placeholder:text-[var(--mut)]"
+                                />
                             </div>
-                        </div>
+                        </section>
 
-                        {/* Footer */}
-                        <div className="flex gap-3 px-6 py-4 border-t border-slate-800 shrink-0">
-                            <button type="button" onClick={() => setStep("choose-mode")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-lg font-medium transition-colors">
-                                Volver
-                            </button>
-                            <button type="submit" disabled={isPending || isConvertingLatex} className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-3 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                                {(isPending || isConvertingLatex) ? (
-                                    <><Loader2 className="w-4 h-4 animate-spin" /> {isConvertingLatex ? "Compilando LaTeX…" : "Guardando…"}</>
-                                ) : (
-                                    "Compilar y Publicar"
+                        <section aria-labelledby="tex-vista" className="flex min-h-[60dvh] flex-col md:min-h-0 md:w-1/2">
+                            <div className="flex shrink-0 items-center gap-2 border-b border-[var(--linea)] px-4 py-2">
+                                <Eye size={14} aria-hidden="true" className="text-[var(--mut)]" />
+                                <h3 id="tex-vista" className="text-sm font-medium text-[var(--mut)]">Vista previa</h3>
+                                {latexPreview && (
+                                    <span className="ml-2 text-xs" aria-live="polite">
+                                        {latexPreview.errors.length > 0 && <span className="text-red-400">{latexPreview.errors.length} error(es)</span>}
+                                        {latexPreview.errors.length > 0 && latexPreview.warnings.length > 0 && <span className="text-[var(--mut)]"> · </span>}
+                                        {latexPreview.warnings.length > 0 && <span className="text-amber-400">{latexPreview.warnings.length} aviso(s)</span>}
+                                    </span>
                                 )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-3">
+                                <LatexPreviewFrame latex={latexCode} onResult={setLatexPreview} />
+                            </div>
+                        </section>
+                    </div>
+
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[var(--linea)] px-4 py-3 sm:px-6">
+                        {error && <p role="alert" className="basis-full text-sm text-red-400">{error}</p>}
+                        <button type="button" onClick={() => irA("choose-mode")} className={`${BOTON_SEC} flex-1`}>
+                            Volver
+                        </button>
+                        <button type="submit" disabled={ocupado} className={`${BOTON} flex-1`}>
+                            {ocupado ? (
+                                <><Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> {isConvertingLatex ? "Compilando LaTeX…" : "Publicando…"}</>
+                            ) : (
+                                "Compilar y publicar"
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </Ventana>
         );
     }
 
@@ -873,48 +888,39 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
 // Reusable access mode selector
 // ─────────────────────────────────────────────
 function AccessModeSelector({
-    mode, setMode, duration, setDuration, accentClass
+    mode, setMode, duration, setDuration
 }: {
     mode: "public" | "code";
     setMode: (m: "public" | "code") => void;
     duration: string;
     setDuration: (d: string) => void;
-    accentClass: string;
 }) {
-    const accent = {
-        emerald: { active: "border-emerald-500 bg-emerald-500/10", icon: "text-emerald-400" },
-        violet: { active: "border-violet-500 bg-violet-500/10", icon: "text-violet-400" },
-    }[accentClass] ?? { active: "border-indigo-500 bg-indigo-500/10", icon: "text-indigo-400" };
-
     return (
-        <div>
-            <label className="block text-sm text-slate-400 mb-3">Modo de Acceso</label>
+        <fieldset>
+            <legend className={ETIQUETA}>Acceso</legend>
             <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => setMode("public")}
-                    className={`p-4 rounded-xl border-2 transition-all text-left ${mode === "public" ? accent.active : "border-slate-700 bg-slate-800/50 hover:border-slate-600"}`}>
-                    <Globe className={`w-5 h-5 mb-2 ${mode === "public" ? "text-green-400" : "text-slate-400"}`} />
-                    <p className="font-semibold text-white text-sm">Público</p>
-                    <p className="text-xs text-slate-400">Sin código requerido</p>
+                <button type="button" onClick={() => setMode("public")} aria-pressed={mode === "public"} className={`${OPCION} p-4`}>
+                    <Globe size={18} aria-hidden="true" className={`mb-2 ${mode === "public" ? "text-[var(--acento)]" : "text-[var(--mut)]"}`} />
+                    <span className="block text-sm font-semibold text-[var(--txt)]">Pública</span>
+                    <span className="block text-xs text-[var(--mut)]">Sin código</span>
                 </button>
-                <button type="button" onClick={() => setMode("code")}
-                    className={`p-4 rounded-xl border-2 transition-all text-left ${mode === "code" ? accent.active : "border-slate-700 bg-slate-800/50 hover:border-slate-600"}`}>
-                    <Lock className={`w-5 h-5 mb-2 ${mode === "code" ? accent.icon : "text-slate-400"}`} />
-                    <p className="font-semibold text-white text-sm">Privado</p>
-                    <p className="text-xs text-slate-400">Requiere código</p>
+                <button type="button" onClick={() => setMode("code")} aria-pressed={mode === "code"} className={`${OPCION} p-4`}>
+                    <Lock size={18} aria-hidden="true" className={`mb-2 ${mode === "code" ? "text-[var(--acento)]" : "text-[var(--mut)]"}`} />
+                    <span className="block text-sm font-semibold text-[var(--txt)]">Privada</span>
+                    <span className="block text-xs text-[var(--mut)]">Pide un código</span>
                 </button>
             </div>
             {mode === "code" && (
                 <div className="mt-3">
-                    <label className="block text-sm text-slate-400 mb-1">Validez del Código</label>
-                    <select value={duration} onChange={e => setDuration(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-indigo-500 outline-none">
-                        <option value="7d">1 Semana (7 días)</option>
-                        <option value="15d">15 Días</option>
-                        <option value="30d">1 Mes (30 días)</option>
-                        <option value="indefinite">Indefinido</option>
+                    <label htmlFor="html-validez" className={ETIQUETA}>Validez del código</label>
+                    <select id="html-validez" value={duration} onChange={e => setDuration(e.target.value)} className={CAMPO}>
+                        <option value="7d">1 semana (7 días)</option>
+                        <option value="15d">15 días</option>
+                        <option value="30d">1 mes (30 días)</option>
+                        <option value="indefinite">Sin vencimiento</option>
                     </select>
                 </div>
             )}
-        </div>
+        </fieldset>
     );
 }

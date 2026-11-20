@@ -1,10 +1,34 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef, useCallback, useId } from "react";
+import Link from "next/link";
+import { Camera, ChevronRight, FileText, ImageUp, ReceiptText, ScanLine, TriangleAlert, X } from "lucide-react";
+import DialogoFormulario from "@/app/admin/gestion-comercial/dialogo-formulario";
 import { useFinance } from "../context/FinanceContext";
 import type { TransactionType, AccountType } from "../types";
 import { OCRResultDisplay, type OCRData } from "./OCRResultDisplay";
+import { CargandoFinanzas } from "./Piezas";
+import {
+    BOTON,
+    BOTON_SEC,
+    CAMPO,
+    CIFRA,
+    ENLACE,
+    ERROR,
+    ETIQUETA,
+    FOCO,
+    GIRA,
+    ICONO,
+    ICONO_PELIGRO,
+    OPCION,
+    OPCION_NO,
+    OPCION_SI,
+    SECCION,
+    SOBRE,
+    SUAVE,
+    SUBE,
+} from "./estilos";
+import { hoyChile } from "../fechas";
 
 interface Account {
     id: string;
@@ -86,9 +110,22 @@ function parseFormattedValue(value: string): string {
     return value.replace(/\./g, '').replace(',', '.');
 }
 
+/** Campo del monto: como CAMPO, pero más grande y con espacio a la izquierda para el símbolo de la moneda. */
+const CAMPO_MONTO = `block min-h-12 w-full rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-2 pr-3 pl-10 text-xl font-semibold text-[var(--txt)] tabular-nums placeholder:text-[var(--mut)] ${FOCO}`;
+
+const TIPO_DOCUMENTO: Record<NonNullable<TransactionFormData["documentType"]>, string> = {
+    boleta: "Boleta",
+    factura: "Factura",
+    ticket: "Ticket",
+    unknown: "Documento",
+};
+
 export function TransactionForm({ initialData, onSuccess, onCancel }: TransactionFormProps) {
     const { baseCurrency, triggerRefresh } = useFinance();
     const isEditing = !!initialData?.id;
+    const idSinCuentas = useId();
+    const idCuenta = useId();
+    const idBase = useId();
 
     // Determine initial type - if it's undefined, default to EXPENSE
     const initialType = initialData?.type || "EXPENSE";
@@ -103,7 +140,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
         categoryId: initialData?.categoryId || "",
         accountId: initialData?.accountId || "",
         currencyId: initialData?.currencyId || "",
-        transactionDate: initialData?.transactionDate || new Date().toISOString().split("T")[0],
+        transactionDate: initialData?.transactionDate || hoyChile(),
     });
 
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -314,7 +351,7 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
         const ocrData = scanResult;
         const merchantName = ocrData.merchant?.value?.name || "";
         const totalAmount = ocrData.financials?.total || ocrData.amount?.value || 0;
-        const dateValue = ocrData.emissionDate?.value || ocrData.date?.value || new Date().toISOString().split("T")[0];
+        const dateValue = ocrData.emissionDate?.value || ocrData.date?.value || hoyChile();
 
         // Map OCR items to form items
         const formItems = ocrData.items?.map(item => ({
@@ -385,7 +422,9 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
             const payload = {
                 ...formData,
                 amount: parseFloat(parseFormattedValue(formData.displayAmount)),
-                categoryId: formData.categoryId || undefined,
+                // Al editar, «sin categoría» se manda como null para que se guarde; al crear, la API la sugiere.
+                categoryId: formData.categoryId || (isEditing ? null : undefined),
+                currencyId: formData.currencyId || undefined,
             };
 
             const url = isEditing
@@ -448,571 +487,504 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
         }
     };
 
-    const typeColors = {
-        EXPENSE: "bg-red-500/20 border-red-500/50 text-red-400",
-        INCOME: "bg-emerald-500/20 border-emerald-500/50 text-emerald-400",
-    };
+    const simbolo = currencies.find(c => c.id === formData.currencyId)?.symbol || "$";
 
     if (loadingData) {
-        return (
-            <div className="animate-pulse space-y-4 p-6">
-                <div className="h-10 bg-neutral-800 rounded-lg" />
-                <div className="h-10 bg-neutral-800 rounded-lg" />
-                <div className="h-10 bg-neutral-800 rounded-lg" />
-            </div>
-        );
+        return <CargandoFinanzas texto="Cargando formulario…" />;
     }
 
     return (
-        <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleSubmit}
-            className="space-y-6"
-        >
-            {error && (
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                    {error}
-                </div>
-            )}
-
-            {/* Transaction Type Toggle - Solo Gasto/Ingreso */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-800/50 rounded-xl">
-                {(["EXPENSE", "INCOME"] as const).map((type) => (
-                    <button
-                        key={type}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, type, categoryId: "" }))}
-                        className={`py-3 px-4 rounded-lg text-sm font-medium transition-all ${formData.type === type
-                            ? typeColors[type]
-                            : "text-neutral-400 hover:text-white hover:bg-neutral-700/50"
-                            }`}
-                    >
-                        {type === "EXPENSE" ? "💸 Gasto" : "💰 Ingreso"}
-                    </button>
-                ))}
-            </div>
-
-            {/* Quick Actions - AI Scan Button */}
-            <button
-                type="button"
-                onClick={() => setShowScanner(true)}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 hover:border-purple-500/50 rounded-xl text-purple-300 hover:text-purple-200 transition-all group"
-            >
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 flex items-center justify-center transition-colors">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </div>
-                <div className="text-left">
-                    <span className="block text-sm font-medium">Completar con IA</span>
-                    <span className="block text-xs text-purple-400/70">Escanear boleta para autocompletar</span>
-                </div>
-                <svg className="w-5 h-5 ml-auto opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-            </button>
-
-            {/* Amount */}
-            <div>
-                <label className="block text-sm font-medium text-neutral-300 mb-2">
-                    Monto *
-                </label>
-                <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500">
-                        {currencies.find(c => c.id === formData.currencyId)?.symbol || "$"}
-                    </span>
-                    <input
-                        type="text"
-                        name="amount"
-                        value={formData.displayAmount}
-                        onChange={handleChange}
-                        required
-                        placeholder="0"
-                        inputMode="decimal"
-                        className="w-full pl-10 pr-4 py-3.5 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white text-xl placeholder-neutral-500 focus:outline-none focus:border-accent-1 transition-colors"
-                    />
-                </div>
-            </div>
-
-            {/* Account & Category Selection */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-2">
-                        Cuenta *
-                    </label>
-                    <select
-                        name="accountId"
-                        value={formData.accountId}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-4 py-3 pr-10 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white focus:outline-none focus:border-accent-1 focus:ring-2 focus:ring-accent-1/20 transition-all appearance-none cursor-pointer"
-                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
-                    >
-                        <option value="">Seleccionar cuenta</option>
-                        {accounts.map((account) => (
-                            <option key={account.id} value={account.id}>
-                                {account.name} ({account.currency.code})
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-2">
-                        Categoría
-                    </label>
-                    <select
-                        name="categoryId"
-                        value={formData.categoryId}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 pr-10 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white focus:outline-none focus:border-accent-1 focus:ring-2 focus:ring-accent-1/20 transition-all appearance-none cursor-pointer"
-                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
-                    >
-                        <option value="">Sin categoría</option>
-                        {filteredCategories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.icon} {category.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            {/* Description & Merchant */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-2">
-                        Descripción
-                    </label>
-                    <input
-                        type="text"
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        placeholder="Ej: Almuerzo"
-                        className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-accent-1 transition-colors"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-2">
-                        {formData.type === "EXPENSE" ? "Comercio" : "Fuente"}
-                    </label>
-                    <input
-                        type="text"
-                        name="merchant"
-                        value={formData.merchant}
-                        onChange={handleChange}
-                        placeholder={formData.type === "EXPENSE" ? "Ej: Supermercado Lider" : "Ej: Cliente, Empleador"}
-                        className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-accent-1 transition-colors"
-                    />
-                </div>
-            </div>
-
-            {/* Date */}
-            <div>
-                <label className="block text-sm font-medium text-neutral-300 mb-2">
-                    Fecha *
-                </label>
-                <input
-                    type="date"
-                    name="transactionDate"
-                    value={formData.transactionDate}
-                    onChange={handleChange}
-                    required
-                    max={new Date().toISOString().split("T")[0]}
-                    className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white focus:outline-none focus:border-accent-1 transition-colors"
-                />
-            </div>
-
-            {/* Expense-specific fields - Receipt details */}
-            {formData.type === "EXPENSE" && (formData.documentType || formData.documentNumber || formData.rut) && (
-                <div className="bg-neutral-800/30 rounded-xl p-4 space-y-3">
-                    <h4 className="text-sm font-medium text-neutral-300 flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Datos del Documento
-                    </h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                        {formData.documentType && (
-                            <div>
-                                <span className="text-neutral-500">Tipo:</span>
-                                <span className="ml-2 text-white capitalize">{formData.documentType}</span>
-                            </div>
-                        )}
-                        {formData.documentNumber && (
-                            <div>
-                                <span className="text-neutral-500">Folio:</span>
-                                <span className="ml-2 text-white">{formData.documentNumber}</span>
-                            </div>
-                        )}
-                        {formData.rut && (
-                            <div>
-                                <span className="text-neutral-500">RUT:</span>
-                                <span className="ml-2 text-white">{formData.rut}</span>
-                            </div>
-                        )}
-                        {formData.subtotal && formData.subtotal > 0 && (
-                            <div>
-                                <span className="text-neutral-500">Neto:</span>
-                                <span className="ml-2 text-white">${formData.subtotal.toLocaleString("es-CL")}</span>
-                            </div>
-                        )}
-                        {formData.tax && formData.tax > 0 && (
-                            <div>
-                                <span className="text-neutral-500">IVA:</span>
-                                <span className="ml-2 text-white">${formData.tax.toLocaleString("es-CL")}</span>
-                            </div>
-                        )}
-                        {formData.discount && formData.discount > 0 && (
-                            <div>
-                                <span className="text-neutral-500">Descuento:</span>
-                                <span className="ml-2 text-green-400">-${formData.discount.toLocaleString("es-CL")}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Notes */}
-            <div>
-                <label className="block text-sm font-medium text-neutral-300 mb-2">
-                    Notas
-                </label>
-                <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    rows={2}
-                    placeholder="Notas adicionales..."
-                    className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-accent-1 transition-colors resize-none"
-                />
-            </div>
-
-            {/* Items from Receipt */}
-            {formData.items && formData.items.length > 0 && (
-                <div className="border border-neutral-700 rounded-xl overflow-hidden">
-                    <div className="bg-neutral-800/50 px-4 py-3 flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-neutral-300 flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                            Productos ({formData.items.length})
-                        </h4>
-                        <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, items: undefined }))}
-                            className="text-neutral-500 hover:text-red-400 text-xs transition-colors"
-                        >
-                            Quitar todos
-                        </button>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-neutral-800/30 sticky top-0">
-                                <tr className="text-neutral-400 text-xs">
-                                    <th className="text-left px-4 py-2">Producto</th>
-                                    <th className="text-center px-2 py-2 w-16">Cant.</th>
-                                    <th className="text-right px-2 py-2 w-24">Precio</th>
-                                    <th className="text-right px-4 py-2 w-24">Total</th>
-                                    <th className="w-10"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-800">
-                                {formData.items.map((item, idx) => (
-                                    <tr key={idx} className="text-neutral-300 hover:bg-neutral-800/30">
-                                        <td className="px-4 py-2">
-                                            <input
-                                                type="text"
-                                                value={item.description}
-                                                onChange={(e) => {
-                                                    const newItems = [...formData.items!];
-                                                    newItems[idx] = { ...newItems[idx], description: e.target.value };
-                                                    setFormData(prev => ({ ...prev, items: newItems }));
-                                                }}
-                                                className="w-full bg-transparent border-none focus:outline-none focus:bg-neutral-700/50 rounded px-1 -ml-1"
-                                            />
-                                        </td>
-                                        <td className="px-2 py-2 text-center">
-                                            <input
-                                                type="number"
-                                                value={item.quantity}
-                                                onChange={(e) => {
-                                                    const newItems = [...formData.items!];
-                                                    const qty = parseFloat(e.target.value) || 1;
-                                                    newItems[idx] = {
-                                                        ...newItems[idx],
-                                                        quantity: qty,
-                                                        totalPrice: qty * newItems[idx].unitPrice
-                                                    };
-                                                    setFormData(prev => ({ ...prev, items: newItems }));
-                                                }}
-                                                className="w-12 bg-transparent border-none text-center focus:outline-none focus:bg-neutral-700/50 rounded"
-                                                min="1"
-                                            />
-                                        </td>
-                                        <td className="px-2 py-2 text-right text-neutral-400">
-                                            ${item.unitPrice.toLocaleString("es-CL")}
-                                        </td>
-                                        <td className="px-4 py-2 text-right font-medium text-white">
-                                            ${item.totalPrice.toLocaleString("es-CL")}
-                                        </td>
-                                        <td className="pr-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const newItems = formData.items!.filter((_, i) => i !== idx);
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        items: newItems.length > 0 ? newItems : undefined
-                                                    }));
-                                                }}
-                                                className="p-1 text-neutral-500 hover:text-red-400 transition-colors"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot className="bg-neutral-800/50">
-                                <tr className="text-white font-medium">
-                                    <td colSpan={3} className="px-4 py-2 text-right">Total:</td>
-                                    <td className="px-4 py-2 text-right">
-                                        ${formData.items.reduce((sum, item) => sum + item.totalPrice, 0).toLocaleString("es-CL")}
-                                    </td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex items-center gap-3 pt-4">
-                {onCancel && (
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        className="flex-1 py-3 px-4 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition-colors"
-                    >
-                        Cancelar
-                    </button>
+        <>
+            <form onSubmit={handleSubmit} className="space-y-5">
+                {error && (
+                    <p role="alert" className={ERROR}>
+                        {error}
+                    </p>
                 )}
+
+                {/* Tipo: solo gasto o ingreso */}
+                <fieldset>
+                    <legend className="sr-only">Tipo de transacción</legend>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(["EXPENSE", "INCOME"] as const).map((type) => (
+                            <button
+                                key={type}
+                                type="button"
+                                aria-pressed={formData.type === type}
+                                onClick={() => setFormData(prev => ({ ...prev, type, categoryId: "" }))}
+                                className={`${OPCION} ${formData.type === type ? OPCION_SI : OPCION_NO}`}
+                            >
+                                {type === "EXPENSE" ? "Gasto" : "Ingreso"}
+                            </button>
+                        ))}
+                    </div>
+                </fieldset>
+
+                {/* Escanear boleta para autocompletar */}
                 <button
-                    type="submit"
-                    disabled={loading || !formData.displayAmount || !formData.accountId}
-                    className="flex-1 py-3 px-4 bg-accent-1 hover:bg-accent-1/90 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                    type="button"
+                    onClick={() => setShowScanner(true)}
+                    className={`flex min-h-11 w-full items-center gap-3 rounded-lg border border-[var(--linea-2)] px-3 py-2.5 text-left transition-colors duration-150 motion-reduce:transition-none ${SOBRE} ${FOCO}`}
                 >
-                    {loading ? (
-                        <>
-                            <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Guardando...
-                        </>
-                    ) : (
-                        <>
-                            {isEditing ? "Actualizar" : "Registrar"} transacción
-                        </>
-                    )}
+                    <ScanLine aria-hidden="true" className="size-[18px] shrink-0 text-[var(--acento)]" />
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-[var(--txt)]">Completar con IA</span>
+                        <span className="block text-xs text-[var(--mut)]">Escanear boleta para autocompletar</span>
+                    </span>
+                    <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-[var(--mut)]" />
                 </button>
-            </div>
 
-            {/* Receipt Scanner Modal */}
-            <AnimatePresence>
-                {showScanner && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 overflow-y-auto"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="w-full max-w-lg bg-neutral-900 rounded-2xl overflow-hidden max-h-[90vh] flex flex-col my-auto"
+                {/* Monto */}
+                <div>
+                    <label htmlFor={`${idBase}-monto`} className={ETIQUETA}>
+                        Monto *
+                    </label>
+                    <div className="relative">
+                        <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">
+                            {simbolo}
+                        </span>
+                        <input
+                            id={`${idBase}-monto`}
+                            type="text"
+                            name="amount"
+                            value={formData.displayAmount}
+                            onChange={handleChange}
+                            required
+                            placeholder="0"
+                            inputMode="decimal"
+                            className={CAMPO_MONTO}
+                        />
+                    </div>
+                </div>
+
+                {/* Cuenta y categoría */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="min-w-0">
+                        <label htmlFor={idCuenta} className={ETIQUETA}>
+                            Cuenta *
+                        </label>
+                        <select
+                            id={idCuenta}
+                            name="accountId"
+                            value={formData.accountId}
+                            onChange={handleChange}
+                            required
+                            className={CAMPO}
                         >
-                            {/* Header */}
-                            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-                                <h3 className="text-lg font-semibold text-white">Escanear Boleta</h3>
-                                <button
-                                    onClick={closeScanner}
-                                    className="p-2 text-neutral-400 hover:text-white transition-colors"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
+                            <option value="">Seleccionar cuenta</option>
+                            {accounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                    {account.name} ({account.currency.code})
+                                </option>
+                            ))}
+                        </select>
+                        {/* Sin cuentas el botón de registrar queda deshabilitado: aquí se explica por qué y cómo salir de ahí. */}
+                        {!loadingData && accounts.length === 0 && (
+                            <p id={idSinCuentas} className="mt-2 text-sm text-[var(--mut)]">
+                                Aún no tienes cuentas, y cada transacción se registra en una.{" "}
+                                <Link href="/admin/finance/accounts?nueva=1" className={`${ENLACE} underline`}>
+                                    Crea tu primera cuenta
+                                </Link>{" "}
+                                y vuelve aquí.
+                            </p>
+                        )}
+                    </div>
 
-                            {/* Content */}
-                            <div className="p-4 overflow-y-auto flex-1 min-h-0">
-                                {scanError && (
-                                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 text-sm">
-                                        {scanError}
-                                    </div>
-                                )}
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-categoria`} className={ETIQUETA}>
+                            Categoría
+                        </label>
+                        <select
+                            id={`${idBase}-categoria`}
+                            name="categoryId"
+                            value={formData.categoryId}
+                            onChange={handleChange}
+                            className={CAMPO}
+                        >
+                            <option value="">Sin categoría</option>
+                            {filteredCategories.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                    {category.icon} {category.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
 
-                                {/* Idle State */}
-                                {scannerState === "idle" && (
-                                    <div className="text-center space-y-4 py-6">
-                                        <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto">
-                                            <svg className="w-10 h-10 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-neutral-400">
-                                            Toma una foto o sube una imagen de tu boleta
-                                        </p>
-                                        <div className="flex flex-col gap-3">
-                                            <button
-                                                onClick={startCamera}
-                                                className="flex items-center justify-center gap-2 py-3 px-6 bg-purple-600 text-white rounded-xl hover:bg-purple-500 transition-colors"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                </svg>
-                                                Usar Cámara
-                                            </button>
-                                            <button
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="flex items-center justify-center gap-2 py-3 px-6 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition-colors"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                                Subir Imagen
-                                            </button>
-                                            <input
-                                                ref={fileInputRef}
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleFileUpload}
-                                                className="hidden"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                {/* Descripción y comercio */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-descripcion`} className={ETIQUETA}>
+                            Descripción
+                        </label>
+                        <input
+                            id={`${idBase}-descripcion`}
+                            type="text"
+                            name="description"
+                            value={formData.description}
+                            onChange={handleChange}
+                            placeholder="Ej: Almuerzo"
+                            className={CAMPO}
+                        />
+                    </div>
 
-                                {/* Camera View */}
-                                {scannerState === "capturing" && (
-                                    <div className="relative">
-                                        <video
-                                            ref={videoRef}
-                                            autoPlay
-                                            playsInline
-                                            className="w-full rounded-xl"
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-comercio`} className={ETIQUETA}>
+                            {formData.type === "EXPENSE" ? "Comercio" : "Fuente"}
+                        </label>
+                        <input
+                            id={`${idBase}-comercio`}
+                            type="text"
+                            name="merchant"
+                            value={formData.merchant}
+                            onChange={handleChange}
+                            placeholder={formData.type === "EXPENSE" ? "Ej: Supermercado Lider" : "Ej: Cliente, Empleador"}
+                            className={CAMPO}
+                        />
+                    </div>
+                </div>
+
+                {/* Fecha */}
+                <div>
+                    <label htmlFor={`${idBase}-fecha`} className={ETIQUETA}>
+                        Fecha *
+                    </label>
+                    <input
+                        id={`${idBase}-fecha`}
+                        type="date"
+                        name="transactionDate"
+                        value={formData.transactionDate}
+                        onChange={handleChange}
+                        required
+                        max={hoyChile()}
+                        className={CAMPO}
+                    />
+                </div>
+
+                {/* Datos del documento escaneado (solo gastos) */}
+                {formData.type === "EXPENSE" && (formData.documentType || formData.documentNumber || formData.rut) && (
+                    <section aria-labelledby={`${idBase}-documento`} className="border-y border-[var(--linea)] py-4">
+                        <h2 id={`${idBase}-documento`} className={`${SECCION} mb-3 flex items-center gap-2`}>
+                            <FileText aria-hidden="true" className="size-4" />
+                            Datos del documento
+                        </h2>
+                        <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
+                            {formData.documentType && (
+                                <div className="min-w-0">
+                                    <dt className="text-[var(--mut)]">Tipo</dt>
+                                    <dd className="m-0 text-[var(--txt)]">{TIPO_DOCUMENTO[formData.documentType] ?? formData.documentType}</dd>
+                                </div>
+                            )}
+                            {formData.documentNumber && (
+                                <div className="min-w-0">
+                                    <dt className="text-[var(--mut)]">Folio</dt>
+                                    <dd className="m-0 truncate text-[var(--txt)]">{formData.documentNumber}</dd>
+                                </div>
+                            )}
+                            {formData.rut && (
+                                <div className="min-w-0">
+                                    <dt className="text-[var(--mut)]">RUT</dt>
+                                    <dd className="m-0 truncate text-[var(--txt)]">{formData.rut}</dd>
+                                </div>
+                            )}
+                            {(formData.subtotal ?? 0) > 0 && (
+                                <div className="min-w-0">
+                                    <dt className="text-[var(--mut)]">Neto</dt>
+                                    <dd className={`m-0 text-[var(--txt)] ${CIFRA}`}>${formData.subtotal?.toLocaleString("es-CL")}</dd>
+                                </div>
+                            )}
+                            {(formData.tax ?? 0) > 0 && (
+                                <div className="min-w-0">
+                                    <dt className="text-[var(--mut)]">IVA</dt>
+                                    <dd className={`m-0 text-[var(--txt)] ${CIFRA}`}>${formData.tax?.toLocaleString("es-CL")}</dd>
+                                </div>
+                            )}
+                            {(formData.discount ?? 0) > 0 && (
+                                <div className="min-w-0">
+                                    <dt className="text-[var(--mut)]">Descuento</dt>
+                                    <dd className={`m-0 ${SUBE} ${CIFRA}`}>−${formData.discount?.toLocaleString("es-CL")}</dd>
+                                </div>
+                            )}
+                        </dl>
+                    </section>
+                )}
+
+                {/* Notas */}
+                <div>
+                    <label htmlFor={`${idBase}-notas`} className={ETIQUETA}>
+                        Notas
+                    </label>
+                    <textarea
+                        id={`${idBase}-notas`}
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleChange}
+                        rows={2}
+                        placeholder="Notas adicionales..."
+                        className={`${CAMPO} resize-none`}
+                    />
+                </div>
+
+                {/* Productos de la boleta */}
+                {formData.items && formData.items.length > 0 && (
+                    <section aria-labelledby={`${idBase}-productos`}>
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                            <h2 id={`${idBase}-productos`} className={`${SECCION} flex items-center gap-2`}>
+                                <ReceiptText aria-hidden="true" className="size-4" />
+                                Productos ({formData.items.length})
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, items: undefined }))}
+                                className={`inline-flex min-h-11 items-center rounded-lg px-2 text-sm text-[var(--mut)] transition-colors duration-150 hover:text-red-400 motion-reduce:transition-none sm:min-h-10 ${FOCO}`}
+                            >
+                                Quitar todos
+                            </button>
+                        </div>
+                        <div className="max-h-60 overflow-auto rounded-lg border border-[var(--linea)]">
+                            <table className="w-full min-w-[420px] text-sm">
+                                <thead className="sticky top-0 bg-[var(--sup)]">
+                                    <tr className="border-b border-[var(--linea)]">
+                                        <th scope="col" className="px-3 py-2 text-left text-sm font-medium text-[var(--mut)]">Producto</th>
+                                        <th scope="col" className="w-16 px-2 py-2 text-center text-sm font-medium text-[var(--mut)]">Cant.</th>
+                                        <th scope="col" className="w-24 px-2 py-2 text-right text-sm font-medium text-[var(--mut)]">Precio</th>
+                                        <th scope="col" className="w-24 px-3 py-2 text-right text-sm font-medium text-[var(--mut)]">Total</th>
+                                        <th scope="col" className="w-12">
+                                            <span className="sr-only">Quitar</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {formData.items.map((item, idx) => (
+                                        <tr key={idx} className="border-b border-[var(--linea)] text-[var(--txt)]">
+                                            <td className="px-3 py-1">
+                                                <input
+                                                    type="text"
+                                                    aria-label={`Descripción del producto ${idx + 1}`}
+                                                    value={item.description}
+                                                    onChange={(e) => {
+                                                        const newItems = [...formData.items!];
+                                                        newItems[idx] = { ...newItems[idx], description: e.target.value };
+                                                        setFormData(prev => ({ ...prev, items: newItems }));
+                                                    }}
+                                                    className={`-ml-1 w-full min-w-0 rounded bg-transparent px-1 py-1.5 text-[var(--txt)] focus-visible:bg-[var(--fondo-2)] ${FOCO}`}
+                                                />
+                                            </td>
+                                            <td className="px-2 py-1 text-center">
+                                                <input
+                                                    type="number"
+                                                    aria-label={`Cantidad del producto ${idx + 1}`}
+                                                    value={item.quantity}
+                                                    onChange={(e) => {
+                                                        const newItems = [...formData.items!];
+                                                        const qty = parseFloat(e.target.value) || 1;
+                                                        newItems[idx] = {
+                                                            ...newItems[idx],
+                                                            quantity: qty,
+                                                            totalPrice: qty * newItems[idx].unitPrice
+                                                        };
+                                                        setFormData(prev => ({ ...prev, items: newItems }));
+                                                    }}
+                                                    className={`w-14 rounded bg-transparent py-1.5 text-center text-[var(--txt)] tabular-nums focus-visible:bg-[var(--fondo-2)] ${FOCO}`}
+                                                    min="1"
+                                                />
+                                            </td>
+                                            <td className={`px-2 py-1 text-right text-[var(--mut)] ${CIFRA}`}>
+                                                ${item.unitPrice.toLocaleString("es-CL")}
+                                            </td>
+                                            <td className={`px-3 py-1 text-right font-medium ${CIFRA}`}>
+                                                ${item.totalPrice.toLocaleString("es-CL")}
+                                            </td>
+                                            <td className="pr-1 text-right">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newItems = formData.items!.filter((_, i) => i !== idx);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            items: newItems.length > 0 ? newItems : undefined
+                                                        }));
+                                                    }}
+                                                    aria-label={`Quitar ${item.description || `producto ${idx + 1}`}`}
+                                                    className={ICONO_PELIGRO}
+                                                >
+                                                    <X aria-hidden="true" className="size-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="font-medium text-[var(--txt)]">
+                                        <th scope="row" colSpan={3} className="px-3 py-2 text-right font-medium">Total</th>
+                                        <td className={`px-3 py-2 text-right ${CIFRA}`}>
+                                            ${formData.items.reduce((sum, item) => sum + item.totalPrice, 0).toLocaleString("es-CL")}
+                                        </td>
+                                        <td />
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </section>
+                )}
+
+                {/* Acciones */}
+                <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                    {onCancel && (
+                        <button type="button" onClick={onCancel} className={BOTON_SEC}>
+                            Cancelar
+                        </button>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={loading || !formData.displayAmount || !formData.accountId}
+                        aria-describedby={!loadingData && accounts.length === 0 ? idSinCuentas : undefined}
+                        className={BOTON}
+                    >
+                        {loading ? (
+                            <>
+                                <span aria-hidden="true" className={GIRA} />
+                                Guardando...
+                            </>
+                        ) : (
+                            <>
+                                {isEditing ? "Actualizar" : "Registrar"} transacción
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
+
+            {/* Escáner de boletas: va fuera del <form> para que ningún botón suyo lo envíe */}
+            {showScanner && (
+                <DialogoFormulario titulo="Escanear boleta" alCerrar={closeScanner}>
+                    {(cerrar) => (
+                        <>
+                            <button type="button" onClick={cerrar} aria-label="Cerrar" className={`${ICONO} absolute top-2 right-2`}>
+                                <X aria-hidden="true" className="size-[18px]" />
+                            </button>
+
+                            {scanError && (
+                                <p role="alert" className={`${ERROR} mb-4`}>
+                                    {scanError}
+                                </p>
+                            )}
+
+                            {/* Sin imagen */}
+                            {scannerState === "idle" && (
+                                <div className="space-y-4">
+                                    <p className={SUAVE}>
+                                        Toma una foto o sube una imagen de tu boleta
+                                    </p>
+                                    <div className="grid gap-3">
+                                        <button type="button" onClick={startCamera} className={BOTON}>
+                                            <Camera aria-hidden="true" className="size-4" />
+                                            Usar cámara
+                                        </button>
+                                        <button type="button" onClick={() => fileInputRef.current?.click()} className={BOTON_SEC}>
+                                            <ImageUp aria-hidden="true" className="size-4" />
+                                            Subir imagen
+                                        </button>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleFileUpload}
+                                            className="hidden"
                                         />
-                                        <div className="absolute inset-0 pointer-events-none">
-                                            <div className="absolute inset-4 border-2 border-white/50 rounded-xl" />
-                                        </div>
-                                        <button
-                                            onClick={capturePhoto}
-                                            className="absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 bg-white rounded-full flex items-center justify-center"
-                                        >
-                                            <div className="w-12 h-12 bg-white rounded-full border-4 border-neutral-300" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Cámara */}
+                            {scannerState === "capturing" && (
+                                <div className="relative">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        className="w-full rounded-lg bg-[var(--fondo-2)]"
+                                    />
+                                    <div aria-hidden="true" className="pointer-events-none absolute inset-4 rounded-lg border-2 border-[var(--acento)]" />
+                                    <button
+                                        type="button"
+                                        onClick={capturePhoto}
+                                        aria-label="Tomar foto"
+                                        className={`absolute bottom-4 left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full border-4 border-[var(--sup)] bg-[var(--acento)] text-[var(--acento-tinta)] ${FOCO}`}
+                                    >
+                                        <Camera aria-hidden="true" className="size-5" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Vista previa */}
+                            {scannerState === "preview" && imageData && (
+                                <div className="space-y-4">
+                                    <img
+                                        src={imageData}
+                                        alt="Vista previa de la boleta"
+                                        className="max-h-64 w-full rounded-lg bg-[var(--fondo-2)] object-contain"
+                                    />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button type="button" onClick={resetScanner} className={BOTON_SEC}>
+                                            Reintentar
+                                        </button>
+                                        <button type="button" onClick={processImage} className={BOTON}>
+                                            Analizar
                                         </button>
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {/* Preview */}
-                                {scannerState === "preview" && imageData && (
-                                    <div className="space-y-4">
-                                        <img
-                                            src={imageData}
-                                            alt="Preview"
-                                            className="w-full rounded-xl max-h-64 object-contain bg-neutral-800"
-                                        />
-                                        <div className="flex gap-3">
-                                            <button
-                                                onClick={resetScanner}
-                                                className="flex-1 py-3 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition-colors"
-                                            >
+                            {/* Analizando */}
+                            {scannerState === "processing" && (
+                                <div role="status" className="space-y-3 py-8 text-center">
+                                    <span aria-hidden="true" className="mx-auto block size-8 animate-spin rounded-full border-[3px] border-[var(--acento)] border-t-transparent motion-reduce:animate-none" />
+                                    <p className="font-medium text-[var(--txt)]">Analizando documento...</p>
+                                    <p className={SUAVE}>Validando y extrayendo información</p>
+                                </div>
+                            )}
+
+                            {/* Resultado */}
+                            {scannerState === "result" && scanResult && (
+                                <div className="space-y-4">
+                                    {!scanResult.isValidDocument ? (
+                                        <div className="space-y-4">
+                                            <div role="alert" className="flex items-start gap-3 rounded-lg bg-amber-500/10 px-4 py-3">
+                                                <TriangleAlert aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-amber-400" />
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-amber-400">Documento no válido</p>
+                                                    <p className="mt-1 text-sm text-[var(--mut)]">
+                                                        {scanResult.validationMessage || "La imagen no parece ser una boleta o factura"}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button type="button" onClick={resetScanner} className={`${BOTON_SEC} w-full`}>
                                                 Reintentar
                                             </button>
-                                            <button
-                                                onClick={processImage}
-                                                className="flex-1 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-500 transition-colors"
-                                            >
-                                                Analizar
-                                            </button>
                                         </div>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <OCRResultDisplay
+                                            data={scanResult}
+                                            imageData={imageData}
+                                            processingTime={processingTime}
+                                            onConfirm={() => {
+                                                applyOCRData();
+                                                // Cierra el <dialog> nativo para que el foco vuelva al botón que lo abrió.
+                                                cerrar();
+                                            }}
+                                            onRetry={resetScanner}
+                                        />
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </DialogoFormulario>
+            )}
 
-                                {/* Processing */}
-                                {scannerState === "processing" && (
-                                    <div className="text-center py-8 space-y-4">
-                                        <div className="w-16 h-16 mx-auto relative">
-                                            <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full" />
-                                            <div className="absolute inset-0 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                                        </div>
-                                        <div>
-                                            <p className="text-white font-medium">Analizando documento...</p>
-                                            <p className="text-neutral-400 text-sm">Validando y extrayendo información</p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Result State */}
-                                {scannerState === "result" && scanResult && (
-                                    <div className="space-y-4">
-                                        {/* Invalid Document */}
-                                        {!scanResult.isValidDocument ? (
-                                            <div className="space-y-4">
-                                                <div className="p-4 bg-amber-500/20 border border-amber-500/40 rounded-xl">
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="p-2 bg-amber-500/20 rounded-lg">
-                                                            <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                            </svg>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-amber-400 font-medium">Documento no válido</p>
-                                                            <p className="text-amber-300/70 text-sm mt-1">
-                                                                {scanResult.validationMessage || "La imagen no parece ser una boleta o factura"}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={resetScanner}
-                                                    className="w-full py-3 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition-colors"
-                                                >
-                                                    Reintentar
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            /* Valid Document - Use OCRResultDisplay component */
-                                            <OCRResultDisplay
-                                                data={scanResult}
-                                                imageData={imageData}
-                                                processingTime={processingTime}
-                                                onConfirm={applyOCRData}
-                                                onRetry={resetScanner}
-                                            />
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Hidden canvas for camera capture */}
+            {/* Lienzo oculto para la foto de la cámara */}
             <canvas ref={canvasRef} className="hidden" />
-        </motion.form>
+        </>
     );
 }

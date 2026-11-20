@@ -1,86 +1,67 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role } from '@/generated/prisma/client';
+import type { Prisma } from '@/generated/prisma/client';
+import { accesoFinanzas, categoriaUsable, cuentaPropia, monedaActiva } from "../../_lib/acceso";
+import { diaAncla, editarRecurrenteSchema, esFrecuencia, primeraFecha, siguienteFecha, tipoDeRecurrente } from "../../_lib/recurrentes";
+import { diaGuardado, diasEntre, hoyChile } from "@/modules/finance/fechas";
 
 export const dynamic = "force-dynamic";
 
-const updateRecurringPaymentSchema = z.object({
-    name: z.string().optional(),
-    amount: z.number().positive().optional(),
-    categoryId: z.string().nullable().optional(),
-    accountId: z.string().nullable().optional(),
-    endDate: z.string().datetime().nullable().optional(),
-    reminderDays: z.number().min(0).max(30).optional(),
-    isActive: z.boolean().optional(),
-});
+const CATEGORIA = { select: { id: true, name: true, icon: true, color: true, type: true } } as const;
+
+const accionSchema = z.object({ action: z.enum(["mark_paid", "skip", "snooze"]) });
 
 interface RouteParams {
     params: Promise<{ id: string }>;
 }
 
 // GET - Get single recurring payment with history
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(_request: Request, { params }: RouteParams) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
-
+        const acceso = await accesoFinanzas("finance.recurring.view");
+        if (!acceso.ok) return acceso.respuesta;
+        const userId = acceso.userId;
         const { id } = await params;
 
-        const canView = await hasPermission(session.user.id, session.user.role as Role, "finance.recurring.view");
-        if (!canView) {
-            return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-        }
-
         const payment = await prisma.recurringPayment.findFirst({
-            where: { id, userId: session.user.id },
-            include: {
-                category: { select: { id: true, name: true, icon: true, color: true } },
-            },
+            where: { id, userId },
+            include: { category: CATEGORIA },
         });
 
         if (!payment) {
             return NextResponse.json({ error: "Pago recurrente no encontrado" }, { status: 404 });
         }
 
-        // Get related transactions (last 12)
+        // Últimos 12 movimientos, solo con lo que se muestra (sin notas ni datos del documento).
         const relatedTransactions = await prisma.transaction.findMany({
-            where: {
-                userId: session.user.id,
-                recurringPaymentId: id,
-                isDeleted: false,
-            },
+            where: { userId, recurringPaymentId: id, isDeleted: false },
             orderBy: { transactionDate: "desc" },
             take: 12,
-            include: {
+            select: {
+                id: true,
+                type: true,
+                amount: true,
+                description: true,
+                transactionDate: true,
                 category: { select: { name: true, icon: true } },
             },
         });
 
-        // Calculate stats
         const now = new Date();
-        const daysUntilDue = payment.nextDueDate
-            ? Math.ceil((new Date(payment.nextDueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-            : null;
+        const daysUntilDue = diasEntre(hoyChile(now), diaGuardado(payment.nextDueDate)); // días de calendario en Chile
 
         let status: "upcoming" | "due_soon" | "overdue" | "inactive" = "upcoming";
-        if (!payment.isActive) {
-            status = "inactive";
-        } else if (daysUntilDue !== null) {
-            if (daysUntilDue < 0) status = "overdue";
-            else if (daysUntilDue <= 3) status = "due_soon";
-        }
+        if (!payment.isActive) status = "inactive";
+        else if (daysUntilDue < 0) status = "overdue";
+        else if (daysUntilDue <= 3) status = "due_soon";
 
-        // Total paid/received
         const totalPaid = relatedTransactions.reduce((sum, t) => sum + t.amount, 0);
 
         return NextResponse.json({
             data: {
                 ...payment,
+                type: tipoDeRecurrente(payment.category),
                 daysUntilDue,
                 status,
                 totalPaid,
@@ -94,45 +75,87 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 }
 
-// PUT - Update recurring payment
+// PUT - Update recurring payment (mismas reglas que al crear)
 export async function PUT(request: Request, { params }: RouteParams) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
-
+        const acceso = await accesoFinanzas("finance.recurring.manage");
+        if (!acceso.ok) return acceso.respuesta;
+        const userId = acceso.userId;
         const { id } = await params;
 
-        const canEdit = await hasPermission(session.user.id, session.user.role as Role, "finance.recurring.manage");
-        if (!canEdit) {
-            return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-        }
+        const data = editarRecurrenteSchema.parse(await request.json().catch(() => null));
 
-        const body = await request.json();
-        const data = updateRecurringPaymentSchema.parse(body);
-
-        // Verify ownership
-        const existing = await prisma.recurringPayment.findFirst({
-            where: { id, userId: session.user.id },
-        });
-
+        const existing = await prisma.recurringPayment.findFirst({ where: { id, userId } });
         if (!existing) {
             return NextResponse.json({ error: "Pago recurrente no encontrado" }, { status: 404 });
         }
 
+        const cambios: Prisma.RecurringPaymentUncheckedUpdateInput = {};
+        if (data.name !== undefined) cambios.name = data.name;
+        if (data.amount !== undefined) cambios.amount = data.amount;
+        if (data.reminderDays !== undefined) cambios.reminderDays = data.reminderDays;
+        if (data.isActive !== undefined) cambios.isActive = data.isActive;
+        if (data.dayOfWeek !== undefined) cambios.dayOfWeek = data.dayOfWeek;
+
+        // Fechas: se valida el par final (lo nuevo o lo que ya había).
+        const startDate = data.startDate ? new Date(data.startDate) : existing.startDate;
+        const endDate = data.endDate !== undefined ? (data.endDate ? new Date(data.endDate) : null) : existing.endDate;
+        if (endDate && endDate < startDate) {
+            return NextResponse.json({ error: "La fecha de fin no puede ser anterior a la de inicio" }, { status: 400 });
+        }
+        if (data.startDate) cambios.startDate = startDate;
+        if (data.endDate !== undefined) cambios.endDate = endDate;
+
+        // Categoría: se valida solo si cambia (una ya asignada que luego se desactivó no impide guardar lo demás).
+        if (data.categoryId !== undefined && data.categoryId !== existing.categoryId) {
+            if (data.categoryId) {
+                const categoria = await categoriaUsable(userId, data.categoryId);
+                if (!categoria || categoria.type === "TRANSFER") {
+                    return NextResponse.json({ error: "La categoría no es válida" }, { status: 400 });
+                }
+            }
+            cambios.categoryId = data.categoryId || null;
+        }
+
+        // Cuenta: igual; si cambia y no llega moneda, el pago pasa a la moneda de la cuenta nueva.
+        if (data.accountId !== undefined && data.accountId !== existing.accountId) {
+            if (data.accountId) {
+                const cuenta = await cuentaPropia(userId, data.accountId);
+                if (!cuenta) return NextResponse.json({ error: "La cuenta no es válida" }, { status: 400 });
+                if (!data.currencyId) cambios.currencyId = cuenta.currencyId;
+            }
+            cambios.accountId = data.accountId || null;
+        }
+        if (data.currencyId && data.currencyId !== existing.currencyId) {
+            const moneda = await monedaActiva(data.currencyId);
+            if (!moneda) return NextResponse.json({ error: "La moneda no es válida" }, { status: 400 });
+            cambios.currencyId = moneda;
+        }
+
+        // Calendario: si cambia la frecuencia, el inicio o el día del mes, se recalcula el próximo vencimiento.
+        const frecuenciaGuardada = existing.frequency.toLowerCase();
+        const frequency = data.frequency ?? (esFrecuencia(frecuenciaGuardada) ? frecuenciaGuardada : "monthly");
+        const dayOfMonth = frequency === "monthly"
+            ? (data.dayOfMonth !== undefined ? data.dayOfMonth ?? null : existing.dayOfMonth)
+            : null;
+        // El día del mes solo cuenta en los mensuales: pausar un pago semanal viejo con día guardado no debe recalcular.
+        const cambiaCalendario =
+            frequency !== frecuenciaGuardada ||
+            startDate.getTime() !== existing.startDate.getTime() ||
+            (frequency === "monthly" && dayOfMonth !== existing.dayOfMonth);
+        if (cambiaCalendario) {
+            cambios.frequency = frequency;
+            cambios.dayOfMonth = dayOfMonth;
+            cambios.nextDueDate = primeraFecha(startDate, frequency, dayOfMonth);
+        }
+
         const payment = await prisma.recurringPayment.update({
             where: { id },
-            data: {
-                ...data,
-                endDate: data.endDate !== undefined ? (data.endDate ? new Date(data.endDate) : null) : undefined,
-            },
-            include: {
-                category: { select: { id: true, name: true, icon: true, color: true } },
-            },
+            data: cambios,
+            include: { category: CATEGORIA },
         });
 
-        return NextResponse.json({ data: payment });
+        return NextResponse.json({ data: { ...payment, type: tipoDeRecurrente(payment.category) } });
     } catch (error) {
         console.error("Error updating recurring payment:", error);
         if (error instanceof z.ZodError) {
@@ -142,130 +165,122 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 }
 
-// PATCH - Mark as paid / Skip / Process
+class YaRegistrado extends Error {}
+
+// PATCH - Mark as paid / Skip / Snooze
 export async function PATCH(request: Request, { params }: RouteParams) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
-
+        const acceso = await accesoFinanzas("finance.recurring.manage");
+        if (!acceso.ok) return acceso.respuesta;
+        const userId = acceso.userId;
         const { id } = await params;
 
-        const canEdit = await hasPermission(session.user.id, session.user.role as Role, "finance.recurring.manage");
-        if (!canEdit) {
-            return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-        }
-
-        const body = await request.json();
-        const action = body.action as "mark_paid" | "skip" | "snooze";
+        const { action } = accionSchema.parse(await request.json().catch(() => null));
 
         const existing = await prisma.recurringPayment.findFirst({
-            where: { id, userId: session.user.id },
-            include: {
-                category: true,
-            },
+            where: { id, userId },
+            include: { category: { select: { type: true } } },
         });
 
         if (!existing) {
             return NextResponse.json({ error: "Pago recurrente no encontrado" }, { status: 404 });
         }
-
-        let transaction = null;
-
-        if (action === "mark_paid") {
-            // Determine type from category or default to EXPENSE
-            const transactionType = existing.category?.type || "EXPENSE";
-
-            // Get account ID - use existing or find default account
-            let accountId = existing.accountId;
-            if (!accountId) {
-                const defaultAccount = await prisma.financeAccount.findFirst({
-                    where: { userId: session.user.id, isActive: true },
-                    orderBy: { isDefault: "desc" },
-                });
-                if (!defaultAccount) {
-                    return NextResponse.json({ error: "No hay cuenta disponible para registrar el pago" }, { status: 400 });
-                }
-                accountId = defaultAccount.id;
-            }
-
-            // Create the transaction
-            transaction = await prisma.transaction.create({
-                data: {
-                    userId: session.user.id,
-                    amount: existing.amount,
-                    type: transactionType,
-                    categoryId: existing.categoryId,
-                    accountId: accountId,
-                    currencyId: existing.currencyId,
-                    description: existing.name,
-                    merchant: existing.name,
-                    transactionDate: new Date(),
-                    recurringPaymentId: id,
-                    source: "recurring",
-                },
-            });
-
-            // Update account balance
-            await prisma.financeAccount.update({
-                where: { id: accountId },
-                data: {
-                    currentBalance: {
-                        [transactionType === "INCOME" ? "increment" : "decrement"]: existing.amount,
-                    },
-                },
-            });
+        if (!existing.isActive) {
+            return NextResponse.json({ error: "El pago está pausado. Actívalo para registrarlo o saltarlo." }, { status: 400 });
         }
 
-        // Calculate next due date
-        const nextDueDate = calculateNextDueDate(
-            existing.nextDueDate || new Date(),
-            existing.frequency,
-            existing.dayOfMonth ?? undefined,
-            existing.dayOfWeek ?? undefined
-        );
+        // Cuenta para registrar el pago: la del pago si sigue siendo propia y activa; si no, la principal.
+        let accountId: string | null = null;
+        if (action === "mark_paid") {
+            const propia = existing.accountId ? await cuentaPropia(userId, existing.accountId) : null;
+            if (propia) {
+                accountId = propia.id;
+            } else {
+                const principal = await prisma.financeAccount.findFirst({
+                    where: { userId, isActive: true },
+                    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+                    select: { id: true },
+                });
+                if (!principal) {
+                    return NextResponse.json({ error: "No hay cuenta disponible para registrar el pago" }, { status: 400 });
+                }
+                accountId = principal.id;
+            }
+        }
 
-        // Check if payment should end
-        const shouldDeactivate = existing.endDate && nextDueDate > existing.endDate;
+        const ancla = diaAncla(existing.startDate, existing.frequency.toLowerCase() === "monthly" ? existing.dayOfMonth : null);
+        const nextDueDate = siguienteFecha(existing.nextDueDate, existing.frequency, ancla);
+        const shouldDeactivate = Boolean(existing.endDate && nextDueDate > existing.endDate);
+        const transactionType = tipoDeRecurrente(existing.category);
 
-        await prisma.recurringPayment.update({
-            where: { id },
-            data: {
-                nextDueDate: shouldDeactivate ? new Date() : nextDueDate,
-                isActive: shouldDeactivate ? false : true,
-            },
+        // Movimiento, saldo y próximo vencimiento juntos: o se guardan los tres o ninguno.
+        const transaction = await prisma.$transaction(async (tx) => {
+            // Primero se avanza el vencimiento, solo si sigue siendo el que se leyó: un doble toque (o dos pestañas)
+            // ya no registra el pago dos veces ni descuenta dos veces el saldo.
+            const avance = await tx.recurringPayment.updateMany({
+                where: { id, userId, isActive: true, nextDueDate: existing.nextDueDate },
+                data: shouldDeactivate ? { isActive: false } : { nextDueDate },
+            });
+            if (avance.count === 0) throw new YaRegistrado();
+
+            let creada: { id: string; amount: number } | null = null;
+            if (action === "mark_paid" && accountId) {
+                creada = await tx.transaction.create({
+                    data: {
+                        userId,
+                        amount: existing.amount,
+                        type: transactionType,
+                        categoryId: existing.categoryId,
+                        accountId,
+                        currencyId: existing.currencyId,
+                        description: existing.name,
+                        merchant: existing.name,
+                        // El día de hoy en Chile, guardado como los demás movimientos (medianoche UTC de ese día).
+                        transactionDate: new Date(`${hoyChile()}T00:00:00Z`),
+                        recurringPaymentId: id,
+                        source: "recurring",
+                    },
+                    select: { id: true, amount: true },
+                });
+                await tx.financeAccount.update({
+                    where: { id: accountId },
+                    data: {
+                        currentBalance: transactionType === "INCOME" ? { increment: existing.amount } : { decrement: existing.amount },
+                    },
+                });
+            }
+
+            return creada;
         });
 
         return NextResponse.json({
             success: true,
             action,
-            transaction: transaction ? { id: transaction.id, amount: transaction.amount } : null,
+            transaction,
             nextDueDate: shouldDeactivate ? null : nextDueDate,
         });
     } catch (error) {
+        if (error instanceof YaRegistrado) {
+            return NextResponse.json({ error: "Ese vencimiento ya se registró. La lista se actualizó." }, { status: 409 });
+        }
         console.error("Error processing recurring payment:", error);
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
+        }
         return NextResponse.json({ error: "Error al procesar pago" }, { status: 500 });
     }
 }
 
 // DELETE - Delete recurring payment
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(_request: Request, { params }: RouteParams) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
-
+        const acceso = await accesoFinanzas("finance.recurring.manage");
+        if (!acceso.ok) return acceso.respuesta;
         const { id } = await params;
 
-        const canDelete = await hasPermission(session.user.id, session.user.role as Role, "finance.recurring.manage");
-        if (!canDelete) {
-            return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-        }
-
         const existing = await prisma.recurringPayment.findFirst({
-            where: { id, userId: session.user.id },
+            where: { id, userId: acceso.userId },
+            select: { id: true },
         });
 
         if (!existing) {
@@ -279,41 +294,4 @@ export async function DELETE(request: Request, { params }: RouteParams) {
         console.error("Error deleting recurring payment:", error);
         return NextResponse.json({ error: "Error al eliminar pago recurrente" }, { status: 500 });
     }
-}
-
-function calculateNextDueDate(
-    currentDate: Date,
-    frequency: string,
-    dayOfMonth?: number,
-    _dayOfWeek?: number
-): Date {
-    const next = new Date(currentDate);
-    const freq = frequency.toUpperCase();
-
-    switch (freq) {
-        case "DAILY":
-            next.setDate(next.getDate() + 1);
-            break;
-        case "WEEKLY":
-            next.setDate(next.getDate() + 7);
-            break;
-        case "BIWEEKLY":
-            next.setDate(next.getDate() + 14);
-            break;
-        case "MONTHLY":
-            next.setMonth(next.getMonth() + 1);
-            if (dayOfMonth) {
-                const daysInMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-                next.setDate(Math.min(dayOfMonth, daysInMonth));
-            }
-            break;
-        case "QUARTERLY":
-            next.setMonth(next.getMonth() + 3);
-            break;
-        case "YEARLY":
-            next.setFullYear(next.getFullYear() + 1);
-            break;
-    }
-
-    return next;
 }

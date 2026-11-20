@@ -1,10 +1,45 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback, useId } from "react";
+import {
+    ArrowDownLeft,
+    ArrowLeftRight,
+    ArrowUpRight,
+    ChevronLeft,
+    ChevronRight,
+    Pencil,
+    Search,
+    SlidersHorizontal,
+    Trash2,
+    type LucideIcon,
+} from "lucide-react";
 import { formatCurrency, type SupportedCurrency } from "@/lib/currency";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
 import { useFinance } from "../context/FinanceContext";
 import type { TransactionType } from "../types";
+import { CargandoFinanzas } from "./Piezas";
+import { diaGuardado, diasEntre, fechaDia, hoyChile } from "../fechas";
+import {
+    BAJA,
+    BOTON_SEC,
+    CAMPO,
+    CIFRA,
+    ERROR,
+    ETIQUETA,
+    FICHA,
+    FILA,
+    FOCO,
+    ICONO,
+    ICONO_PELIGRO,
+    LISTA,
+    OPCION,
+    OPCION_NO,
+    OPCION_SI,
+    SUAVE,
+    SUBE,
+    TARJETA,
+    VACIO,
+} from "./estilos";
 
 export interface TransactionListItem {
     id: string;
@@ -12,10 +47,12 @@ export interface TransactionListItem {
     amount: number;
     description: string | null;
     merchant: string | null;
+    /** La API de la lista devuelve las notas; editar sin ellas las borraría. */
+    notes?: string | null;
     transactionDate: string;
     category: { id: string; name: string; icon: string | null } | null;
     account: { id: string; name: string; currency: { code: string; symbol: string } };
-    currency: { code: string; symbol: string };
+    currency: { id: string; code: string; symbol: string };
 }
 
 interface TransactionListProps {
@@ -31,6 +68,16 @@ interface Filters {
     endDate: string;
     search: string;
 }
+
+/** Cómo se muestra cada tipo: el signo y el color van con el nombre del tipo en texto. */
+const TIPO: Record<TransactionType, { label: string; sign: string; monto: string; Icono: LucideIcon }> = {
+    EXPENSE: { label: "Gasto", sign: "−", monto: BAJA, Icono: ArrowUpRight },
+    INCOME: { label: "Ingreso", sign: "+", monto: SUBE, Icono: ArrowDownLeft },
+    TRANSFER: { label: "Transferencia", sign: "", monto: "text-[var(--txt)]", Icono: ArrowLeftRight },
+};
+
+/** Buscador: como CAMPO, con espacio a la izquierda para la lupa. */
+const CAMPO_BUSCAR = `block min-h-11 w-full rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-2 pr-3 pl-9 text-[15px] text-[var(--txt)] placeholder:text-[var(--mut)] sm:min-h-10 ${FOCO}`;
 
 export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
     const { baseCurrency: _baseCurrency, refreshKey } = useFinance();  // baseCurrency reserved for future formatting
@@ -48,7 +95,8 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
     const [showFilters, setShowFilters] = useState(false);
     const [categories, setCategories] = useState<{ id: string; name: string; icon: string | null }[]>([]);
     const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const idBase = useId();
 
     const fetchTransactions = useCallback(async (page = 1) => {
         setLoading(true);
@@ -122,6 +170,14 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
     };
 
     const handleDelete = async (id: string) => {
+        if (!(await confirmar({
+            titulo: "¿Eliminar transacción?",
+            detalle: "Esta acción revertirá los cambios en el balance de tu cuenta.",
+            accion: "Eliminar",
+            peligro: true,
+        }))) return;
+
+        setDeleteError(null);
         try {
             const response = await fetch(`/api/finance/transactions/${id}`, {
                 method: "DELETE",
@@ -130,309 +186,248 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
                 setTransactions(prev => prev.filter(t => t.id !== id));
                 setPagination(prev => ({ ...prev, total: prev.total - 1 }));
                 onDelete?.(id);
+            } else {
+                setDeleteError("No se pudo eliminar la transacción. Inténtalo de nuevo.");
             }
         } catch (error) {
             console.error("Error deleting transaction:", error);
+            setDeleteError("No se pudo eliminar la transacción. Inténtalo de nuevo.");
         }
-        setDeleteConfirm(null);
     };
 
+    // El día guardado se compara con el de hoy en Chile, por fecha de calendario (no por horas transcurridas).
     const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+        const dia = diaGuardado(dateStr);
+        const hoy = hoyChile();
+        const diffDays = diasEntre(dia, hoy);
 
         if (diffDays === 0) return "Hoy";
         if (diffDays === 1) return "Ayer";
 
-        return date.toLocaleDateString("es-CL", { day: "numeric", month: "short", year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
-    };
-
-    const typeConfig = {
-        EXPENSE: { color: "text-red-400", bg: "bg-red-500/10", label: "Gasto", sign: "-" },
-        INCOME: { color: "text-emerald-400", bg: "bg-emerald-500/10", label: "Ingreso", sign: "+" },
-        TRANSFER: { color: "text-blue-400", bg: "bg-blue-500/10", label: "Transferencia", sign: "" },
+        return fechaDia(dateStr, { day: "numeric", month: "short", year: dia.slice(0, 4) !== hoy.slice(0, 4) ? "numeric" : undefined });
     };
 
     const activeFiltersCount = Object.values(filters).filter(v => v !== "").length;
+    const idFiltros = `${idBase}-filtros`;
 
     return (
         <div className="space-y-4">
-            {/* Search and Filters Header */}
-            <div className="flex flex-col sm:flex-row gap-3">
-                {/* Search */}
-                <div className="flex-1 relative">
-                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+            {/* Búsqueda y filtros */}
+            <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative min-w-0 flex-1">
+                    <label htmlFor={`${idBase}-buscar`} className="sr-only">
+                        Buscar transacciones
+                    </label>
+                    <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[var(--mut)]" />
                     <input
-                        type="text"
+                        id={`${idBase}-buscar`}
+                        type="search"
                         value={filters.search}
                         onChange={(e) => handleFilterChange("search", e.target.value)}
                         placeholder="Buscar transacciones..."
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-accent-1 transition-colors"
+                        className={CAMPO_BUSCAR}
                     />
                 </div>
 
-                {/* Filter Toggle */}
                 <button
+                    type="button"
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-colors ${showFilters || activeFiltersCount > 0
-                        ? "bg-accent-1/10 border-accent-1/30 text-accent-1"
-                        : "bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-white"
-                        }`}
+                    aria-expanded={showFilters}
+                    aria-controls={showFilters ? idFiltros : undefined}
+                    className={`${OPCION} ${showFilters || activeFiltersCount > 0 ? OPCION_SI : OPCION_NO}`}
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                    </svg>
+                    <SlidersHorizontal aria-hidden="true" className="size-4" />
                     <span>Filtros</span>
                     {activeFiltersCount > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-accent-1 text-white text-xs flex items-center justify-center">
+                        <span className={`grid h-5 min-w-5 place-items-center rounded-full bg-[var(--acento)] px-1 text-xs font-semibold text-[var(--acento-tinta)] ${CIFRA}`}>
                             {activeFiltersCount}
+                            <span className="sr-only"> activos</span>
                         </span>
                     )}
                 </button>
             </div>
 
-            {/* Expanded Filters */}
-            <AnimatePresence>
-                {showFilters && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 p-4 bg-neutral-900/50 border border-neutral-800 rounded-xl">
-                            <select
-                                value={filters.type}
-                                onChange={(e) => handleFilterChange("type", e.target.value)}
-                                className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1"
-                            >
-                                <option value="">Todos los tipos</option>
-                                <option value="EXPENSE">Gastos</option>
-                                <option value="INCOME">Ingresos</option>
-                                <option value="TRANSFER">Transferencias</option>
-                            </select>
-
-                            <select
-                                value={filters.categoryId}
-                                onChange={(e) => handleFilterChange("categoryId", e.target.value)}
-                                className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1"
-                            >
-                                <option value="">Todas las categorías</option>
-                                {categories.map(c => (
-                                    <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-                                ))}
-                            </select>
-
-                            <select
-                                value={filters.accountId}
-                                onChange={(e) => handleFilterChange("accountId", e.target.value)}
-                                className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1"
-                            >
-                                <option value="">Todas las cuentas</option>
-                                {accounts.map(a => (
-                                    <option key={a.id} value={a.id}>{a.name}</option>
-                                ))}
-                            </select>
-
-                            <input
-                                type="date"
-                                value={filters.startDate}
-                                onChange={(e) => handleFilterChange("startDate", e.target.value)}
-                                placeholder="Desde"
-                                className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1"
-                            />
-
-                            <input
-                                type="date"
-                                value={filters.endDate}
-                                onChange={(e) => handleFilterChange("endDate", e.target.value)}
-                                placeholder="Hasta"
-                                className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1"
-                            />
-
-                            {activeFiltersCount > 0 && (
-                                <button
-                                    onClick={clearFilters}
-                                    className="col-span-full sm:col-span-1 px-3 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                                >
-                                    Limpiar filtros
-                                </button>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Results count */}
-            <div className="flex items-center justify-between text-sm text-neutral-500">
-                <span>{pagination.total} transacciones encontradas</span>
-            </div>
-
-            {/* Transaction List */}
-            {loading ? (
-                <div className="space-y-2">
-                    {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="animate-pulse flex items-center gap-4 p-4 bg-neutral-900/50 rounded-xl">
-                            <div className="w-10 h-10 bg-neutral-800 rounded-xl" />
-                            <div className="flex-1 space-y-2">
-                                <div className="h-4 w-32 bg-neutral-800 rounded" />
-                                <div className="h-3 w-24 bg-neutral-800 rounded" />
-                            </div>
-                            <div className="h-5 w-20 bg-neutral-800 rounded" />
-                        </div>
-                    ))}
-                </div>
-            ) : transactions.length === 0 ? (
-                <div className="text-center py-12 bg-neutral-900/50 border border-neutral-800 rounded-xl">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-neutral-800 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
+            {/* Filtros desplegados */}
+            {showFilters && (
+                <div id={idFiltros} className={`${TARJETA} grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-5`}>
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-tipo`} className={ETIQUETA}>Tipo</label>
+                        <select
+                            id={`${idBase}-tipo`}
+                            value={filters.type}
+                            onChange={(e) => handleFilterChange("type", e.target.value)}
+                            className={CAMPO}
+                        >
+                            <option value="">Todos los tipos</option>
+                            <option value="EXPENSE">Gastos</option>
+                            <option value="INCOME">Ingresos</option>
+                            <option value="TRANSFER">Transferencias</option>
+                        </select>
                     </div>
-                    <h3 className="text-lg font-medium text-white mb-1">No hay transacciones</h3>
-                    <p className="text-neutral-500">Registra tu primera transacción para comenzar</p>
-                </div>
-            ) : (
-                <div className="space-y-2">
-                    {transactions.map((transaction, index) => {
-                        const config = typeConfig[transaction.type];
-                        return (
-                            <motion.div
-                                key={transaction.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.02 }}
-                                className="group flex items-center gap-4 p-4 bg-neutral-900/50 border border-neutral-800 rounded-xl hover:border-neutral-700 transition-colors"
-                            >
-                                {/* Icon */}
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${config.bg}`}>
-                                    {transaction.category?.icon || (transaction.type === "INCOME" ? "💰" : transaction.type === "EXPENSE" ? "💸" : "🔄")}
-                                </div>
 
-                                {/* Details */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-medium text-white truncate">
-                                            {transaction.description || transaction.merchant || transaction.category?.name || "Sin descripción"}
-                                        </span>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
-                                            {config.label}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-neutral-500">
-                                        <span>{transaction.account.name}</span>
-                                        <span>•</span>
-                                        <span>{formatDate(transaction.transactionDate)}</span>
-                                    </div>
-                                </div>
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-categoria`} className={ETIQUETA}>Categoría</label>
+                        <select
+                            id={`${idBase}-categoria`}
+                            value={filters.categoryId}
+                            onChange={(e) => handleFilterChange("categoryId", e.target.value)}
+                            className={CAMPO}
+                        >
+                            <option value="">Todas las categorías</option>
+                            {categories.map(c => (
+                                <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                            ))}
+                        </select>
+                    </div>
 
-                                {/* Amount */}
-                                <div className="text-right">
-                                    <span className={`font-semibold ${config.color}`}>
-                                        {config.sign}{formatCurrency(transaction.amount, transaction.currency.code as SupportedCurrency)}
-                                    </span>
-                                </div>
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-cuenta`} className={ETIQUETA}>Cuenta</label>
+                        <select
+                            id={`${idBase}-cuenta`}
+                            value={filters.accountId}
+                            onChange={(e) => handleFilterChange("accountId", e.target.value)}
+                            className={CAMPO}
+                        >
+                            <option value="">Todas las cuentas</option>
+                            {accounts.map(a => (
+                                <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                        </select>
+                    </div>
 
-                                {/* Actions */}
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {onEdit && (
-                                        <button
-                                            onClick={() => onEdit(transaction)}
-                                            className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors"
-                                            title="Editar"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                            </svg>
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => setDeleteConfirm(transaction.id)}
-                                        className="p-2 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                        title="Eliminar"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-desde`} className={ETIQUETA}>Desde</label>
+                        <input
+                            id={`${idBase}-desde`}
+                            type="date"
+                            value={filters.startDate}
+                            onChange={(e) => handleFilterChange("startDate", e.target.value)}
+                            className={CAMPO}
+                        />
+                    </div>
+
+                    <div className="min-w-0">
+                        <label htmlFor={`${idBase}-hasta`} className={ETIQUETA}>Hasta</label>
+                        <input
+                            id={`${idBase}-hasta`}
+                            type="date"
+                            value={filters.endDate}
+                            onChange={(e) => handleFilterChange("endDate", e.target.value)}
+                            className={CAMPO}
+                        />
+                    </div>
+
+                    {activeFiltersCount > 0 && (
+                        <div className="col-span-full">
+                            <button type="button" onClick={clearFilters} className={BOTON_SEC}>
+                                Limpiar filtros
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Pagination */}
+            {/* Cantidad de resultados */}
+            <p aria-live="polite" className={`${SUAVE} ${CIFRA}`}>
+                {pagination.total} {pagination.total === 1 ? "transacción encontrada" : "transacciones encontradas"}
+            </p>
+
+            {deleteError && (
+                <p role="alert" className={ERROR}>
+                    {deleteError}
+                </p>
+            )}
+
+            {/* Lista */}
+            {loading ? (
+                <CargandoFinanzas texto="Cargando transacciones…" />
+            ) : transactions.length === 0 ? (
+                <div className={VACIO}>
+                    <p className="font-medium text-[var(--txt)]">No hay transacciones</p>
+                    <p className="mt-1 text-sm">
+                        {activeFiltersCount > 0 ? "Ninguna coincide con la búsqueda o los filtros." : "Registra tu primera transacción para comenzar"}
+                    </p>
+                </div>
+            ) : (
+                <ul className={`${LISTA} m-0 list-none p-0`}>
+                    {transactions.map((transaction) => {
+                        const tipo = TIPO[transaction.type];
+                        const Icono = tipo.Icono;
+                        const nombre = transaction.description || transaction.merchant || transaction.category?.name || "Sin descripción";
+                        return (
+                            <li key={transaction.id} className={FILA}>
+                                {/* Emoji de la categoría (dato del usuario) o el ícono del tipo */}
+                                <span aria-hidden="true" className={FICHA}>
+                                    {transaction.category?.icon || <Icono className="size-[18px]" />}
+                                </span>
+
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium text-[var(--txt)]">{nombre}</p>
+                                    <p className="truncate text-sm text-[var(--mut)]">
+                                        {tipo.label} · {transaction.account.name} · {formatDate(transaction.transactionDate)}
+                                    </p>
+                                </div>
+
+                                {/* En celular el monto va sobre las acciones para dejar más ancho al texto */}
+                                <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+                                    <span className={`text-right font-semibold whitespace-nowrap sm:min-w-28 ${CIFRA} ${tipo.monto}`}>
+                                        {tipo.sign}{formatCurrency(transaction.amount, transaction.currency.code as SupportedCurrency)}
+                                    </span>
+                                    <div className="flex">
+                                        {onEdit && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onEdit(transaction)}
+                                                aria-label={`Editar ${nombre}`}
+                                                className={ICONO}
+                                            >
+                                                <Pencil aria-hidden="true" className="size-4" />
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleDelete(transaction.id)}
+                                            aria-label={`Eliminar ${nombre}`}
+                                            className={ICONO_PELIGRO}
+                                        >
+                                            <Trash2 aria-hidden="true" className="size-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+
+            {/* Paginación */}
             {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-4">
+                <nav aria-label="Páginas de transacciones" className="flex items-center justify-center gap-2 pt-2">
                     <button
+                        type="button"
                         onClick={() => fetchTransactions(pagination.page - 1)}
                         disabled={pagination.page === 1}
-                        className="p-2 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Página anterior"
+                        className={`${ICONO} disabled:cursor-not-allowed`}
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
+                        <ChevronLeft aria-hidden="true" className="size-5" />
                     </button>
 
-                    <span className="px-4 py-2 text-neutral-400">
+                    <span className={`${SUAVE} ${CIFRA} px-2`}>
                         Página {pagination.page} de {pagination.totalPages}
                     </span>
 
                     <button
+                        type="button"
                         onClick={() => fetchTransactions(pagination.page + 1)}
                         disabled={pagination.page === pagination.totalPages}
-                        className="p-2 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Página siguiente"
+                        className={`${ICONO} disabled:cursor-not-allowed`}
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        <ChevronRight aria-hidden="true" className="size-5" />
                     </button>
-                </div>
+                </nav>
             )}
-
-            {/* Delete Confirmation Modal */}
-            <AnimatePresence>
-                {deleteConfirm && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-                        onClick={() => setDeleteConfirm(null)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm mx-4"
-                        >
-                            <h3 className="text-lg font-semibold text-white mb-2">¿Eliminar transacción?</h3>
-                            <p className="text-neutral-400 text-sm mb-6">
-                                Esta acción revertirá los cambios en el balance de tu cuenta.
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setDeleteConfirm(null)}
-                                    className="flex-1 py-2.5 px-4 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(deleteConfirm)}
-                                    className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
-                                >
-                                    Eliminar
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }

@@ -4,11 +4,14 @@ import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RecurringForm } from "@/modules/finance/components";
+import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+import { CabeceraFinanzas, CargandoFinanzas } from "@/modules/finance/components/Piezas";
+import { ENLACE, SUAVE, TARJETA } from "@/modules/finance/components/estilos";
 
+/** Lo que devuelve GET /api/finance/recurring/[id] (el tipo lo deriva la API de la categoría). */
 interface RecurringPayment {
     id: string;
     name: string;
-    description: string | null;
     amount: number;
     type: "INCOME" | "EXPENSE";
     frequency: string;
@@ -17,8 +20,7 @@ interface RecurringPayment {
     endDate: string | null;
     nextDueDate: string | null;
     isActive: boolean;
-    autoCreate: boolean;
-    notifyDaysBefore: number | null;
+    reminderDays: number;
     categoryId: string | null;
     accountId: string | null;
 }
@@ -50,72 +52,58 @@ export default function EditRecurringPage({ params }: { params: Promise<{ id: st
         router.push("/admin/finance/recurring");
     };
 
+    // La ruta /recurring/[id]/edit no tiene nombre propio: «Editar» hace que las migas muestren «Volver a Recurrentes».
+    const volver = <FinanceBreadcrumbs extraItems={[{ label: "Editar", href: `/admin/finance/recurring/${id}/edit` }]} />;
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="max-w-2xl pb-8">
+                {volver}
+                <CargandoFinanzas texto="Cargando pago recurrente…" />
             </div>
         );
     }
 
     if (error || !payment) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+            <div className="max-w-2xl pb-8">
+                {volver}
+                <div role="alert" className="py-16 text-center">
+                    <p className="font-medium text-[var(--txt)]">Error al cargar</p>
+                    <p className={`${SUAVE} mt-1`}>{error || "Pago no encontrado"}</p>
+                    <Link href="/admin/finance/recurring" className={`mt-4 inline-block text-sm ${ENLACE}`}>
+                        Volver a pagos recurrentes
+                    </Link>
                 </div>
-                <h2 className="text-xl font-semibold text-white mb-2">Error al cargar</h2>
-                <p className="text-gray-400 mb-6">{error || "Pago no encontrado"}</p>
-                <Link href="/admin/finance/recurring" className="text-blue-400 hover:text-blue-300">
-                    Volver a pagos recurrentes
-                </Link>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/admin/finance/recurring"
-                    className="p-2 bg-gray-800/50 rounded-xl hover:bg-gray-700/50 transition-colors"
-                >
-                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                </Link>
-                <div>
-                    <h1 className="text-3xl font-bold text-white">Editar Pago Recurrente</h1>
-                    <p className="text-gray-400 mt-1">{payment.name}</p>
-                </div>
-            </div>
+        <div className="max-w-2xl pb-8">
+            {volver}
 
-            {/* Form */}
-            <div className="max-w-2xl">
-                <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6 md:p-8">
-                    <RecurringForm
-                        initialData={{
-                            id: payment.id,
-                            name: payment.name,
-                            description: payment.description || "",
-                            amount: payment.amount,
-                            type: payment.type,
-                            frequency: payment.frequency,
-                            dayOfMonth: payment.dayOfMonth,
-                            startDate: payment.startDate.split("T")[0],
-                            endDate: payment.endDate?.split("T")[0] || "",
-                            isActive: payment.isActive,
-                            autoCreate: payment.autoCreate,
-                            notifyDaysBefore: payment.notifyDaysBefore,
-                            categoryId: payment.categoryId || "",
-                            accountId: payment.accountId || "",
-                        }}
-                        onSuccess={handleSuccess}
-                    />
-                </div>
+            <CabeceraFinanzas titulo="Editar pago recurrente" bajada={payment.name} />
+
+            <div className={`${TARJETA} mt-6 p-5 sm:p-6`}>
+                <RecurringForm
+                    initialData={{
+                        id: payment.id,
+                        name: payment.name,
+                        amount: payment.amount,
+                        type: payment.type,
+                        frequency: payment.frequency,
+                        dayOfMonth: payment.dayOfMonth,
+                        startDate: payment.startDate.split("T")[0],
+                        endDate: payment.endDate?.split("T")[0] || "",
+                        isActive: payment.isActive,
+                        reminderDays: payment.reminderDays,
+                        categoryId: payment.categoryId || "",
+                        accountId: payment.accountId || "",
+                    }}
+                    onSuccess={handleSuccess}
+                    onCancel={() => router.push("/admin/finance/recurring")}
+                />
             </div>
         </div>
     );

@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("Quotations fetch error:", error);
         return NextResponse.json(
-            { error: "Failed to fetch quotations" },
+            { error: "No se pudieron cargar las propuestas" },
             { status: 500 }
         );
     }
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
         // SECURITY: Validate email format if provided
         if (clientEmail && !isValidEmail(clientEmail)) {
             return NextResponse.json(
-                { error: "Invalid email format" },
+                { error: "El correo no es válido" },
                 { status: 400 }
             );
         }
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error("Quotation create error:", error);
         return NextResponse.json(
-            { error: "Failed to create quotation" },
+            { error: "No se pudo crear la propuesta" },
             { status: 500 }
         );
     }

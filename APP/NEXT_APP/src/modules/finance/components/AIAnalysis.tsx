@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Sparkles, Wrench } from "lucide-react";
+import { CabeceraFinanzas } from "./Piezas";
+import { BOTON, CAMPO, ERROR, GIRA, LISTA, MARCA, OPCION, OPCION_NO, SECCION, SUAVE, TARJETA, VACIO } from "./estilos";
 
 interface Analysis {
     resumen: string;
@@ -24,18 +27,32 @@ interface AnalysisResponse {
     latencyMs: number;
 }
 
-const PRIORITY_CONFIG = {
-    alta: { bg: "bg-red-500/20", border: "border-red-500/30", text: "text-red-400", label: "Alta" },
-    media: { bg: "bg-yellow-500/20", border: "border-yellow-500/30", text: "text-yellow-400", label: "Media" },
-    baja: { bg: "bg-blue-500/20", border: "border-blue-500/30", text: "text-blue-400", label: "Baja" },
+const PRIORIDAD = {
+    alta: { marca: "bg-red-500/10 text-red-400", texto: "Prioridad alta" },
+    media: { marca: "bg-amber-500/10 text-amber-400", texto: "Prioridad media" },
+    baja: { marca: "bg-[var(--fondo-2)] text-[var(--mut)]", texto: "Prioridad baja" },
 };
 
-const CATEGORY_ICONS = {
-    ahorro: "💰",
-    gastos: "💸",
-    ingresos: "📈",
-    deuda: "📊",
+const CATEGORIA = {
+    ahorro: "Ahorro",
+    gastos: "Gastos",
+    ingresos: "Ingresos",
+    deuda: "Deuda",
 };
+
+const PREGUNTAS = [
+    "¿Cómo puedo reducir mis gastos?",
+    "¿Estoy ahorrando lo suficiente?",
+    "¿Qué categoría debería recortar?",
+];
+
+/** Lectura de la puntuación (0 a 100) con los mismos cortes que pintaban el anillo: siempre con texto. */
+function nivel(score: number) {
+    if (score >= 80) return { texto: "Sólida", color: "text-emerald-400", barra: "bg-emerald-500" };
+    if (score >= 60) return { texto: "Aceptable", color: "text-amber-400", barra: "bg-amber-500" };
+    if (score >= 40) return { texto: "Mejorable", color: "text-amber-400", barra: "bg-amber-500" };
+    return { texto: "Débil", color: "text-red-400", barra: "bg-red-500" };
+}
 
 export function AIAnalysis() {
     const [loading, setLoading] = useState(false);
@@ -71,8 +88,10 @@ export function AIAnalysis() {
         }
     };
 
-    const askQuestion = async () => {
-        if (!question.trim()) return;
+    // Recibe el texto: los atajos llamaban con el estado anterior (setQuestion aún no se aplicaba) y mandaban la
+    // pregunta vieja o ninguna.
+    const askQuestion = async (texto: string = question) => {
+        if (!texto.trim()) return;
 
         setAskingQuestion(true);
         setAnswer(null);
@@ -81,7 +100,7 @@ export function AIAnalysis() {
             const res = await fetch("/api/finance/ai/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "question", question }),
+                body: JSON.stringify({ action: "question", question: texto }),
             });
 
             const data = await res.json();
@@ -98,273 +117,176 @@ export function AIAnalysis() {
         }
     };
 
-    const getScoreColor = (score: number) => {
-        if (score >= 80) return "text-green-400";
-        if (score >= 60) return "text-yellow-400";
-        if (score >= 40) return "text-orange-400";
-        return "text-red-400";
-    };
-
-    const getScoreGradient = (score: number) => {
-        if (score >= 80) return "from-green-500 to-emerald-500";
-        if (score >= 60) return "from-yellow-500 to-amber-500";
-        if (score >= 40) return "from-orange-500 to-amber-500";
-        return "from-red-500 to-rose-500";
-    };
+    const idPregunta = useId();
+    const nivelActual = analysis ? nivel(analysis.puntuacion) : null;
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <span className="text-2xl">🤖</span>
-                        Análisis con IA
-                    </h2>
-                    <p className="text-gray-400 mt-1">
-                        Obtén consejos personalizados basados en tus datos financieros
-                    </p>
-                </div>
-                <button
-                    onClick={runAnalysis}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600
-                             text-white font-medium rounded-xl hover:from-purple-500 hover:to-blue-500
-                             disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                    {loading ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Analizando...
-                        </>
-                    ) : (
-                        <>
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            {analysis ? "Actualizar análisis" : "Analizar mis finanzas"}
-                        </>
-                    )}
+        <div className="max-w-[1180px] space-y-12 pb-8">
+            <CabeceraFinanzas titulo="Análisis con IA" bajada="Consejos a partir de tus transacciones, presupuestos y metas.">
+                <button type="button" onClick={runAnalysis} disabled={loading} className={BOTON}>
+                    {loading ? <span aria-hidden="true" className={GIRA} /> : <Sparkles aria-hidden="true" className="size-4" />}
+                    {loading ? "Analizando…" : analysis ? "Actualizar análisis" : "Analizar mis finanzas"}
                 </button>
+            </CabeceraFinanzas>
+
+            <div aria-live="polite" className="space-y-12">
+                {error && <p role="alert" className={ERROR}>{error}</p>}
+
+                {!analysis && !loading && !error && (
+                    <p className={VACIO}>
+                        Pulsa «Analizar mis finanzas»: la IA revisa tus transacciones, presupuestos y metas y te propone consejos.
+                    </p>
+                )}
+
+                {analysis && nivelActual && (
+                    <>
+                        {/* Puntuación y resumen */}
+                        <section aria-labelledby="ia-resumen" className="grid items-start gap-8 md:grid-cols-[220px_minmax(0,1fr)] md:gap-12">
+                            <div>
+                                <p className="m-0 text-sm text-[var(--mut)]">Puntuación financiera</p>
+                                <p className="m-0 mt-1 flex items-baseline gap-2">
+                                    <span className="text-5xl font-extrabold tracking-[-0.04em] text-[var(--txt)] tabular-nums">{analysis.puntuacion}</span>
+                                    <span className="text-sm text-[var(--mut)]">de 100</span>
+                                </p>
+                                <div
+                                    className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--linea-2)]"
+                                    role="progressbar"
+                                    aria-label="Puntuación financiera"
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-valuenow={analysis.puntuacion}
+                                >
+                                    <div className={`h-full rounded-full ${nivelActual.barra}`} style={{ width: `${Math.min(Math.max(analysis.puntuacion, 0), 100)}%` }} />
+                                </div>
+                                <p className={`m-0 mt-2 text-sm font-medium ${nivelActual.color}`}>{nivelActual.texto}</p>
+                            </div>
+                            <div>
+                                <h2 id="ia-resumen" className={`${SECCION} mb-2`}>Resumen</h2>
+                                <p className="m-0 text-lg text-[var(--txt)]">{analysis.resumen}</p>
+                                {analysis.siguiente_paso && (
+                                    <div className="mt-5 flex items-start gap-3 border-t border-[var(--linea)] pt-4">
+                                        <ArrowRight aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-[var(--acento)]" />
+                                        <p className="m-0 text-[var(--txt)]">
+                                            <span className="font-semibold">Siguiente paso: </span>
+                                            {analysis.siguiente_paso}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* Alertas */}
+                        {analysis.alertas.length > 0 && (
+                            <section aria-labelledby="ia-alertas">
+                                <h2 id="ia-alertas" className={`${SECCION} mb-2`}>Alertas importantes</h2>
+                                <ul className={`${LISTA} m-0 list-none p-0`}>
+                                    {analysis.alertas.map((alerta, i) => (
+                                        <li key={i} className="flex items-start gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                            <AlertTriangle aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-red-400" />
+                                            <span className="text-[var(--txt)]">{alerta}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        )}
+
+                        {/* Puntos fuertes y áreas de mejora */}
+                        <div className="grid items-start gap-12 md:grid-cols-2">
+                            <section aria-labelledby="ia-fuertes">
+                                <h2 id="ia-fuertes" className={`${SECCION} mb-2`}>Puntos fuertes</h2>
+                                <ul className={`${LISTA} m-0 list-none p-0`}>
+                                    {analysis.puntos_fuertes.map((punto, i) => (
+                                        <li key={i} className="flex items-start gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                            <CheckCircle2 aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-emerald-400" />
+                                            <span className="text-[var(--txt)]">{punto}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                            <section aria-labelledby="ia-mejora">
+                                <h2 id="ia-mejora" className={`${SECCION} mb-2`}>Áreas de mejora</h2>
+                                <ul className={`${LISTA} m-0 list-none p-0`}>
+                                    {analysis.areas_mejora.map((area, i) => (
+                                        <li key={i} className="flex items-start gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                            <Wrench aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-amber-400" />
+                                            <span className="text-[var(--txt)]">{area}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        </div>
+
+                        {/* Consejos */}
+                        <section aria-labelledby="ia-consejos">
+                            <h2 id="ia-consejos" className={`${SECCION} mb-2`}>Consejos personalizados</h2>
+                            <ul className={`${LISTA} m-0 list-none p-0`}>
+                                {analysis.consejos.map((consejo, i) => {
+                                    const prioridad = PRIORIDAD[consejo.prioridad] ?? PRIORIDAD.media;
+                                    return (
+                                        <li key={i} className="border-b border-[var(--linea)] px-1 py-4">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h3 className="m-0 mr-auto text-[15px] font-semibold text-[var(--txt)]">{consejo.titulo}</h3>
+                                                <span className={`${MARCA} bg-[var(--fondo-2)] text-[var(--mut)]`}>{CATEGORIA[consejo.categoria] ?? consejo.categoria}</span>
+                                                <span className={`${MARCA} ${prioridad.marca}`}>{prioridad.texto}</span>
+                                            </div>
+                                            <p className={`${SUAVE} m-0 mt-1.5`}>{consejo.descripcion}</p>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </section>
+                    </>
+                )}
             </div>
 
-            {/* Error */}
-            {error && (
-                <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400">
-                    {error}
-                </div>
-            )}
-
-            {/* Analysis Results */}
-            {analysis && (
-                <div className="space-y-6">
-                    {/* Score & Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6 text-center">
-                            <p className="text-sm text-gray-400 mb-3">Puntuación Financiera</p>
-                            <div className="relative w-24 h-24 mx-auto">
-                                <svg className="w-24 h-24 -rotate-90" viewBox="0 0 36 36">
-                                    <circle
-                                        cx="18"
-                                        cy="18"
-                                        r="16"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="3"
-                                        className="text-gray-800"
-                                    />
-                                    <circle
-                                        cx="18"
-                                        cy="18"
-                                        r="16"
-                                        fill="none"
-                                        stroke="url(#scoreGradient)"
-                                        strokeWidth="3"
-                                        strokeDasharray={`${analysis.puntuacion} 100`}
-                                        strokeLinecap="round"
-                                    />
-                                    <defs>
-                                        <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                            <stop offset="0%" className={`${getScoreGradient(analysis.puntuacion).split(" ")[0].replace("from-", "stop-")}`} />
-                                            <stop offset="100%" className={`${getScoreGradient(analysis.puntuacion).split(" ")[1].replace("to-", "stop-")}`} />
-                                        </linearGradient>
-                                    </defs>
-                                </svg>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className={`text-3xl font-bold ${getScoreColor(analysis.puntuacion)}`}>
-                                        {analysis.puntuacion}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="md:col-span-2 bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                            <p className="text-sm text-gray-400 mb-2">Resumen</p>
-                            <p className="text-white text-lg">{analysis.resumen}</p>
-                            {analysis.siguiente_paso && (
-                                <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                                    <p className="text-sm text-blue-400 font-medium">📌 Siguiente paso:</p>
-                                    <p className="text-gray-300 mt-1">{analysis.siguiente_paso}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Alerts */}
-                    {analysis.alertas.length > 0 && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl space-y-2">
-                            <h4 className="text-red-400 font-semibold flex items-center gap-2">
-                                ⚠️ Alertas importantes
-                            </h4>
-                            {analysis.alertas.map((alerta, i) => (
-                                <p key={i} className="text-gray-300 pl-6">• {alerta}</p>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Strengths & Improvements */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                            <h4 className="text-green-400 font-semibold mb-4 flex items-center gap-2">
-                                ✅ Puntos fuertes
-                            </h4>
-                            <ul className="space-y-2">
-                                {analysis.puntos_fuertes.map((punto, i) => (
-                                    <li key={i} className="text-gray-300 flex items-start gap-2">
-                                        <span className="text-green-400 mt-1">•</span>
-                                        {punto}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                            <h4 className="text-yellow-400 font-semibold mb-4 flex items-center gap-2">
-                                🔧 Áreas de mejora
-                            </h4>
-                            <ul className="space-y-2">
-                                {analysis.areas_mejora.map((area, i) => (
-                                    <li key={i} className="text-gray-300 flex items-start gap-2">
-                                        <span className="text-yellow-400 mt-1">•</span>
-                                        {area}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* Consejos */}
-                    <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                        <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-                            💡 Consejos personalizados
-                        </h4>
-                        <div className="grid gap-4">
-                            {analysis.consejos.map((consejo, i) => {
-                                const priority = PRIORITY_CONFIG[consejo.prioridad];
-                                return (
-                                    <div
-                                        key={i}
-                                        className={`p-4 rounded-xl border ${priority.bg} ${priority.border}`}
-                                    >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex items-start gap-3">
-                                                <span className="text-2xl">{CATEGORY_ICONS[consejo.categoria]}</span>
-                                                <div>
-                                                    <h5 className="text-white font-medium">{consejo.titulo}</h5>
-                                                    <p className="text-gray-300 text-sm mt-1">{consejo.descripcion}</p>
-                                                </div>
-                                            </div>
-                                            <span className={`text-xs px-2 py-1 rounded-full ${priority.bg} ${priority.text}`}>
-                                                {priority.label}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Ask a Question */}
-            <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-                    💬 Pregunta sobre tus finanzas
-                </h4>
-                <div className="flex gap-3">
+            {/* Pregunta libre */}
+            <section aria-labelledby={`${idPregunta}-t`} className={`${TARJETA} p-5 sm:p-6`}>
+                <h2 id={`${idPregunta}-t`} className="m-0 text-base font-semibold text-[var(--txt)]">Pregunta sobre tus finanzas</h2>
+                <form
+                    className="mt-4 flex flex-col gap-3 sm:flex-row"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        void askQuestion();
+                    }}
+                >
+                    <label htmlFor={idPregunta} className="sr-only">Tu pregunta</label>
                     <input
+                        id={idPregunta}
                         type="text"
                         value={question}
                         onChange={(e) => setQuestion(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && askQuestion()}
                         placeholder="Ej: ¿Cómo puedo ahorrar más este mes?"
-                        className="flex-1 px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl
-                                 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        className={`${CAMPO} sm:flex-1`}
                     />
-                    <button
-                        onClick={askQuestion}
-                        disabled={askingQuestion || !question.trim()}
-                        className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-500
-                                 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        {askingQuestion ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                            </svg>
-                        )}
+                    <button type="submit" disabled={askingQuestion || !question.trim()} className={BOTON}>
+                        {askingQuestion ? <span aria-hidden="true" className={GIRA} /> : <ArrowRight aria-hidden="true" className="size-4" />}
+                        {askingQuestion ? "Pensando…" : "Preguntar"}
                     </button>
-                </div>
+                </form>
 
-                {answer && (
-                    <div className="mt-4 p-4 bg-gray-800/50 rounded-xl">
-                        <p className="text-gray-300 whitespace-pre-wrap">{answer}</p>
-                    </div>
-                )}
-
-                {/* Quick Questions */}
-                <div className="mt-4 flex flex-wrap gap-2">
-                    {[
-                        "¿Cómo puedo reducir mis gastos?",
-                        "¿Estoy ahorrando lo suficiente?",
-                        "¿Qué categoría debería recortar?",
-                    ].map((q) => (
+                <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Preguntas frecuentes">
+                    {PREGUNTAS.map((q) => (
                         <button
                             key={q}
+                            type="button"
+                            disabled={askingQuestion}
                             onClick={() => {
                                 setQuestion(q);
-                                askQuestion();
+                                void askQuestion(q);
                             }}
-                            className="text-sm px-3 py-1.5 bg-gray-800/50 text-gray-400 rounded-lg
-                                     hover:text-white hover:bg-gray-700/50 transition-colors"
+                            className={`${OPCION} ${OPCION_NO} disabled:opacity-50`}
                         >
                             {q}
                         </button>
                     ))}
                 </div>
-            </div>
 
-            {/* Empty State */}
-            {!analysis && !loading && (
-                <div className="text-center py-12 bg-gray-900/30 rounded-2xl border border-dashed border-gray-800">
-                    <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-4xl">🧠</span>
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">Análisis Inteligente</h3>
-                    <p className="text-gray-400 max-w-md mx-auto mb-6">
-                        Nuestra IA analizará tus transacciones, presupuestos y metas para darte
-                        consejos personalizados y ayudarte a mejorar tus finanzas.
-                    </p>
-                    <button
-                        onClick={runAnalysis}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white
-                                 font-medium rounded-xl hover:from-purple-500 hover:to-blue-500 transition-all"
-                    >
-                        Comenzar análisis
-                    </button>
+                <div aria-live="polite">
+                    {answer && (
+                        <p className="m-0 mt-5 border-t border-[var(--linea)] pt-4 whitespace-pre-wrap text-[var(--txt)]">{answer}</p>
+                    )}
                 </div>
-            )}
+            </section>
         </div>
     );
 }

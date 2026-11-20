@@ -1,0 +1,54 @@
+/* Tema del interior del panel (etapa 1 del panel).
+   Las 21 secciones se escribieron con clases de Tailwind fijas para fondo oscuro (~3.000: text-white, bg-white/5,
+   bg-neutral-800, text-red-400…) y con el acento naranja del panel viejo. En vez de reescribirlas una a una:
+   1) Tailwind 4 lee los colores de variables (--color-*): dentro de .panel se redefinen. El acento pasa a ser el del sitio
+      en ambos temas; en tema claro la escala neutra se invierte y los tonos de estado se oscurecen para leerse sobre claro.
+   2) Blanco y negro con transparencia vienen fijos en el CSS: esos se traducen por clase (como herramientas/tema-claro.css).
+   Va sin capa (@layer): gana a las utilidades. Si aparece una clase oscura sin traducir, se agrega a su grupo. */
+
+.panel { --color-accent-1: var(--acento); --color-accent-2: var(--cerca); --color-primary: var(--sup); }
+
+/* ---- 1. Variables: escala neutra invertida y estados legibles sobre claro ---- */
+:root[data-tema="claro"] .panel {
+  color-scheme: light;
+  --color-neutral-950: var(--fondo); --color-neutral-900: var(--sup); --color-neutral-800: var(--fondo-2); --color-neutral-700: #dcdad3;
+  --color-neutral-600: #7b8494; --color-neutral-500: var(--mut); --color-neutral-400: #445063; --color-neutral-300: #2b3441; --color-neutral-200: #1b222c; --color-neutral-100: var(--txt);
+  --color-slate-950: var(--fondo); --color-slate-900: var(--sup); --color-slate-800: var(--fondo-2); --color-slate-700: #dcdad3;
+  --color-slate-600: #7b8494; --color-slate-500: var(--mut); --color-slate-400: #445063; --color-slate-300: #2b3441; --color-slate-200: #1b222c; --color-slate-100: var(--txt);
+  --color-gray-950: var(--fondo); --color-gray-900: var(--sup); --color-gray-800: var(--fondo-2); --color-gray-700: #dcdad3;
+  --color-gray-600: #7b8494; --color-gray-500: var(--mut); --color-gray-400: #445063; --color-gray-300: #2b3441; --color-gray-200: #1b222c;
+  --color-zinc-900: var(--sup); --color-zinc-800: var(--fondo-2); --color-zinc-700: #dcdad3; --color-zinc-500: var(--mut); --color-zinc-400: #445063;
+  --color-red-200: #9f1239; --color-red-300: #be123c; --color-red-400: #be123c; --color-rose-300: #be123c; --color-rose-400: #be123c;
+  --color-green-300: #15803d; --color-green-400: #15803d; --color-emerald-200: #065f46; --color-emerald-300: #047857; --color-emerald-400: #047857;
+  --color-teal-300: #0f766e; --color-teal-400: #0f766e; --color-lime-400: #4d7c0f;
+  --color-blue-200: #1e40af; --color-blue-300: #1d4ed8; --color-blue-400: #1d4ed8; --color-sky-300: #0369a1; --color-sky-400: #0369a1;
+  --color-cyan-200: #155e75; --color-cyan-300: #0e7490; --color-cyan-400: #0e7490;
+  --color-indigo-300: #4338ca; --color-indigo-400: #4338ca; --color-violet-200: #5b21b6; --color-violet-300: #6d28d9; --color-violet-400: #6d28d9;
+  --color-purple-200: #6b21a8; --color-purple-300: #7e22ce; --color-purple-400: #7e22ce; --color-fuchsia-400: #a21caf; --color-pink-400: #be185d;
+  --color-amber-200: #92400e; --color-amber-300: #b45309; --color-amber-400: #b45309; --color-yellow-300: #a16207; --color-yellow-400: #a16207;
+  --color-orange-300: #c2410c; --color-orange-400: #c2410c;
+}
+/* Textos oscuros fijos que ya vivían sobre superficies claras (chips blancos, vistas previas): no se invierten. */
+:root[data-tema="claro"] .panel :is(.text-slate-900, .text-slate-800, .text-gray-800, .text-gray-900, .text-neutral-700, .text-neutral-800, .text-neutral-900) { color: #1e293b; }
+
+/* ---- 2. Blanco y negro fijos ---- */
+:root[data-tema="claro"] .panel :is(.text-white, .hover\:text-white:hover, .group:hover .group-hover\:text-white) { color: var(--txt); }
+/* El texto blanco sobre un botón de color se queda blanco. */
+:root[data-tema="claro"] .panel :is([class*="bg-gradient-to"], [class*="bg-red-5"], [class*="bg-red-6"], [class*="bg-emerald-5"], [class*="bg-emerald-6"], [class*="bg-green-5"], [class*="bg-green-6"], [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-indigo-5"], [class*="bg-indigo-6"], [class*="bg-violet-5"], [class*="bg-violet-6"], [class*="bg-purple-5"], [class*="bg-purple-6"], [class*="bg-orange-5"], [class*="bg-amber-5"], [class*="bg-amber-6"], [class*="bg-teal-5"], [class*="bg-teal-6"], [class*="bg-cyan-5"], [class*="bg-cyan-6"], [class*="bg-rose-5"], [class*="bg-pink-5"], [class*="bg-accent-1"]:not([class*="bg-accent-1/"])).text-white { color: #fff; }
+:root[data-tema="claro"] .panel :is(.bg-white\/5, .bg-white\/\[0\.02\], .bg-white\/\[0\.03\], .bg-white\/\[0\.04\], .bg-white\/\[0\.05\], .hover\:bg-white\/5:hover, .hover\:bg-white\/\[0\.02\]:hover, .hover\:bg-white\/\[0\.05\]:hover, .group:hover .group-hover\:bg-white\/5) { background-color: color-mix(in srgb, var(--txt) 4%, transparent); }
+:root[data-tema="claro"] .panel :is(.bg-white\/8, .bg-white\/10, .hover\:bg-white\/10:hover) { background-color: color-mix(in srgb, var(--txt) 7%, transparent); }
+:root[data-tema="claro"] .panel :is(.bg-white\/15, .bg-white\/20, .hover\:bg-white\/20:hover) { background-color: color-mix(in srgb, var(--txt) 11%, transparent); }
+:root[data-tema="claro"] .panel :is(.bg-black\/20, .bg-black\/30, .bg-black\/40, .bg-black\/50) { background-color: var(--fondo-2); }
+:root[data-tema="claro"] .panel :is(.border-white\/5, .border-white\/\[0\.05\], .border-white\/\[0\.06\], .border-white\/\[0\.07\], .border-white\/\[0\.08\]) { border-color: var(--linea); }
+:root[data-tema="claro"] .panel :is(.border-white\/10, .border-white\/15, .hover\:border-white\/10:hover) { border-color: var(--linea-2); }
+:root[data-tema="claro"] .panel :is(.border-white\/20, .border-white\/30, .border-white\/40, .hover\:border-white\/20:hover, .hover\:border-white\/30:hover) { border-color: color-mix(in srgb, var(--txt) 24%, transparent); }
+:root[data-tema="claro"] .panel :is(.divide-white\/5, .divide-white\/10) > :not(:last-child) { border-color: var(--linea); }
+:root[data-tema="claro"] .panel :is(.placeholder-neutral-500, .placeholder-neutral-600, .placeholder-gray-500, .placeholder-slate-500, .placeholder\:text-neutral-500, .placeholder\:text-neutral-600, .placeholder\:text-slate-500)::placeholder { color: var(--mut); }
+
+/* ---- 3. Superficies con color fijo ---- */
+:root[data-tema="claro"] .panel :is(.bg-\[\#0a0f1c\], .bg-\[\#0a0f1c\]\/60, .bg-\[\#0a0f1c\]\/40, .bg-\[\#0f172a\], .bg-\[\#0d1117\], .bg-\[\#0c1224\], .bg-\[\#0F1724\], .bg-\[\#05080f\], .bg-\[\#0a0e1a\], .bg-\[\#111923\], .bg-\[\#1a1a2e\]) { background-color: var(--sup); }
+/* Fondos de página propios (degradados azul noche): el fondo lo pone el armazón. */
+:root[data-tema="claro"] .panel :is([class*="from-[#05"], [class*="from-[#0a"], [class*="from-[#0c"], [class*="from-[#1a1a2e]"]) { background-image: none; background-color: transparent; }
+:root[data-tema="claro"] .panel .glass-panel { background: var(--sup); border-color: var(--linea-2); box-shadow: 0 1px 2px rgb(13 40 60 / .05), 0 24px 50px -36px rgb(13 40 60 / .35); }
+:root[data-tema="claro"] .panel :is(input, textarea, select):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]) { color-scheme: light; }
+:root[data-tema="claro"] .panel ::selection { color: #fff; background: #0d9488; }

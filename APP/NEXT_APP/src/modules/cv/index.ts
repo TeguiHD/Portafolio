@@ -11,12 +11,9 @@ export { SkillsSection, type SkillCategory } from "./components/SkillsSection";
 export { CertificationsSection } from "./components/CertificationsSection";
 export { LanguagesSection } from "./components/LanguagesSection";
 export { DesignConfigPanel } from "./components/DesignConfigPanel";
-export { LatexPreview } from "./components/LatexPreview";
 export { LatexPreviewEnhanced } from "./components/LatexPreviewEnhanced";
-export { LatexPdfPreview } from "./components/LatexPdfPreview";
-export { CvAIChat, FloatingCvChat, InlineCvChat } from "./components/CvAIChat";
+export { CvAIChat, FloatingCvChat } from "./components/CvAIChat";
 export { SocialNetworksEditor, AVAILABLE_NETWORKS, type NetworkType } from "./components/SocialNetworksEditor";
-export { ValidatedInput, ValidatedTextarea } from "./components/ValidatedFormFields";
 
 // Validation
 export {

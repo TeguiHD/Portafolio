@@ -416,6 +416,7 @@ export async function POST(request: NextRequest) {
                 if (IS_DEV) console.log(`[QuotationChat] Trying ${provider.name}...`);
 
                 response = await fetch(provider.url, {
+                    signal: AbortSignal.timeout(60_000),
                     method: "POST",
                     headers: provider.headers(apiKey),
                     body: JSON.stringify({

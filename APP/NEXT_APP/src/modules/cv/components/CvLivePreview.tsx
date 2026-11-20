@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { ZoomIn, ZoomOut } from "lucide-react";
+import { FOCO } from "./estilos";
 import type { CvData } from "../utils/latex-templates-enhanced";
 import {
     type CvDesignConfig,
@@ -113,62 +114,51 @@ export function CvLivePreview({ data, designConfig, className = "" }: CvLivePrev
     if (!isMounted) {
         return (
             <div className={`flex flex-col ${className}`}>
-                <div className="flex-1 bg-neutral-800 rounded-xl animate-pulse" style={{ minHeight: 500 }} />
+                <div className="flex-1 animate-pulse rounded-xl bg-[var(--fondo-2)] motion-reduce:animate-none" style={{ minHeight: 500 }} />
             </div>
         );
     }
 
     return (
         <div className={`flex flex-col h-full ${className}`}>
-            {/* Toolbar */}
-            <div className="flex items-center justify-between mb-3 p-2 rounded-lg bg-white/5 border border-accent-1/10">
-                <div className="flex items-center gap-2 text-xs text-neutral-400">
-                    <svg className="w-4 h-4 text-accent-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    <span>Preview en vivo</span>
-                </div>
-
-                {/* Zoom controls */}
-                <div className="flex items-center gap-1">
+            {/* Barra de zoom */}
+            <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-sm text-[var(--mut)]">Escala</p>
+                <div role="group" aria-label="Zoom de la vista previa" className="flex items-center gap-1">
                     <button
+                        type="button"
                         onClick={handleZoomOut}
-                        className="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                        title="Alejar"
+                        aria-label="Alejar"
+                        className={`inline-flex size-11 items-center justify-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] hover:text-[var(--txt)] sm:size-9 ${FOCO}`}
                     >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
-                        </svg>
+                        <ZoomOut className="size-4" aria-hidden="true" />
                     </button>
                     <button
+                        type="button"
                         onClick={handleResetZoom}
-                        className="px-1.5 py-0.5 rounded hover:bg-white/10 text-neutral-400 hover:text-white transition-colors text-xs"
-                        title="Restablecer"
+                        aria-label={`Zoom ${Math.round(scale * 100)} %. Restablecer`}
+                        className={`inline-flex min-h-11 items-center justify-center rounded-lg px-2 font-mono text-xs tabular-nums text-[var(--txt)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] sm:min-h-9 ${FOCO}`}
                     >
                         {Math.round(scale * 100)}%
                     </button>
                     <button
+                        type="button"
                         onClick={handleZoomIn}
-                        className="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                        title="Acercar"
+                        aria-label="Acercar"
+                        className={`inline-flex size-11 items-center justify-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] hover:text-[var(--txt)] sm:size-9 ${FOCO}`}
                     >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
+                        <ZoomIn className="size-4" aria-hidden="true" />
                     </button>
                 </div>
             </div>
 
-            {/* Preview container */}
+            {/* Mesa: la hoja (papel blanco con los colores del diseño) va igual que antes */}
             <div
                 ref={containerRef}
-                className="flex-1 overflow-auto rounded-xl bg-neutral-600 p-4"
+                className="flex-1 overflow-auto rounded-xl border border-[var(--linea)] bg-[var(--fondo-2)] p-4"
                 style={{ maxHeight: "calc(100vh - 200px)" }}
             >
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                <div
                     className="origin-top"
                     style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
                 >
@@ -483,13 +473,12 @@ export function CvLivePreview({ data, designConfig, className = "" }: CvLivePrev
                             </footer>
                         )}
                     </div>
-                </motion.div>
+                </div>
             </div>
 
-            {/* Info */}
-            <div className="mt-2 text-xs text-neutral-500 text-center">
-                Vista previa aproximada • El PDF final puede variar ligeramente
-            </div>
+            <p className="mt-2 text-center text-xs text-[var(--mut)]">
+                Vista previa aproximada: el PDF final puede variar un poco.
+            </p>
         </div>
     );
 }

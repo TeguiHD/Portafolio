@@ -1,9 +1,10 @@
 import { Metadata } from "next";
 import { requirePagePermission } from "@/lib/page-security";
-import { FinanceProvider } from "@/modules/finance";
+import { FinanceProvider } from "@/modules/finance/context/FinanceContext";
+import { NavFinanzas } from "@/modules/finance/components/NavFinanzas";
 
 export const metadata: Metadata = {
-    title: "Finanzas | Admin Panel",
+    title: "Finanzas | Panel",
     description: "Gestión de finanzas personales",
 };
 
@@ -18,6 +19,7 @@ export default async function FinanceLayout({
 
     return (
         <FinanceProvider>
+            <NavFinanzas />
             {children}
         </FinanceProvider>
     );

@@ -1,18 +1,8 @@
 "use client";
 
-import { AIAnalysis } from "@/modules/finance/components";
+import { AIAnalysis } from "@/modules/finance/components/AIAnalysis";
 
+// La cabecera (título y botón de analizar) la pinta AIAnalysis, que es quien tiene el estado del análisis.
 export default function AIAnalysisPageClient() {
-    return (
-        <div className="space-y-8">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-white">Análisis Inteligente</h1>
-                <p className="text-gray-400 mt-1">Obtén insights y consejos personalizados con IA</p>
-            </div>
-
-            <AIAnalysis />
-        </div>
-    );
+    return <AIAnalysis />;
 }
-

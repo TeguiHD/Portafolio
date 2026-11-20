@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Prisma, type Role } from '@/generated/prisma/client';
 import { logFinanceEvent, AuditActions } from "@/lib/audit";
 import { logger } from "@/lib/logger";
+import { categoriaUsable } from "../_lib/acceso";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,8 @@ export async function GET(request: Request) {
         if (params.startDate || params.endDate) {
             where.transactionDate = {};
             if (params.startDate) where.transactionDate.gte = new Date(params.startDate);
-            if (params.endDate) where.transactionDate.lte = new Date(params.endDate);
+            // «Hasta el 30» incluye todo el 30 (antes cortaba a su medianoche y dejaba fuera lo que tenía hora).
+            if (params.endDate) where.transactionDate.lte = new Date(/^\d{4}-\d{2}-\d{2}$/.test(params.endDate) ? `${params.endDate}T23:59:59.999Z` : params.endDate);
         }
 
         if (params.search) {
@@ -144,9 +146,9 @@ export async function POST(request: Request) {
         const body = await request.json();
         const data = createTransactionSchema.parse(body);
 
-        // Verify account belongs to user
+        // Verify account belongs to user (y que no esté eliminada)
         const account = await prisma.financeAccount.findFirst({
-            where: { id: data.accountId, userId: session.user.id },
+            where: { id: data.accountId, userId: session.user.id, isActive: true },
             include: { currency: true },
         });
 
@@ -154,14 +156,22 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
         }
 
-        // For transfers, verify destination account
-        if (data.type === "TRANSFER" && data.toAccountId) {
+        // Una transferencia sin destino no movería ningún saldo: se exige y debe ser otra cuenta propia.
+        if (data.type === "TRANSFER") {
+            if (!data.toAccountId || data.toAccountId === data.accountId) {
+                return NextResponse.json({ error: "Elige una cuenta de destino distinta de la de origen" }, { status: 400 });
+            }
             const toAccount = await prisma.financeAccount.findFirst({
-                where: { id: data.toAccountId, userId: session.user.id },
+                where: { id: data.toAccountId, userId: session.user.id, isActive: true },
             });
             if (!toAccount) {
                 return NextResponse.json({ error: "Cuenta destino no encontrada" }, { status: 404 });
             }
+        }
+
+        // La categoría debe ser del sistema o del propio usuario.
+        if (data.categoryId && !(await categoriaUsable(session.user.id, data.categoryId))) {
+            return NextResponse.json({ error: "La categoría no es válida" }, { status: 400 });
         }
 
         // Get exchange rate if currencies differ
@@ -214,7 +224,7 @@ export async function POST(request: Request) {
                     notes: data.notes,
                     categoryId,
                     accountId: data.accountId,
-                    toAccountId: data.toAccountId,
+                    toAccountId: data.type === "TRANSFER" ? data.toAccountId : null,
                     currencyId: data.currencyId,
                     transactionDate: data.transactionDate,
                     receiptId: data.receiptId,

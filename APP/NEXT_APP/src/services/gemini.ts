@@ -395,11 +395,14 @@ export async function generateExamplesForRegex(regex: string, flags: string): Pr
             };
         }
 
-        // SECURITY: Validate each example against the regex
-        const validatedRegex = new RegExp(regex, flags.replace(/,/g, ""));
+        // SECURITY(CWE-1333): la regex del usuario NO se ejecuta aquí. Hacerlo en el hilo principal de Node permitía colgar
+        // todo el sitio con una expresión catastrófica (ReDoS). Solo se compila (no recorre texto) para rechazar las inválidas;
+        // los ejemplos se comprueban en el navegador, en el worker con límite de tiempo del probador.
+        try { new RegExp(regex, flags.replace(/,/g, "")); } catch {
+            return { success: false, error: "La expresión no es válida", latencyMs: Date.now() - startTime };
+        }
         const validExamples = parsed.examples
-            .filter((ex: unknown) => typeof ex === "string" && ex.length <= 100)
-            .filter((ex: string) => validatedRegex.test(ex))
+            .filter((ex: unknown) => typeof ex === "string" && ex.length > 0 && ex.length <= 100)
             .slice(0, 5);
 
         if (validExamples.length === 0) {

@@ -1,5 +1,5 @@
-// Audit has its own skeleton in AuditPageSkeleton
-// This prevents the admin loading.tsx from showing DashboardPageSkeleton
+import { EsqueletoSeccion } from "@/modules/admin/armazon/EsqueletoSeccion";
+
 export default function Loading() {
-    return <div />;
+    return <EsqueletoSeccion nombre="auditoría" barra filas={8} />;
 }

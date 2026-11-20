@@ -1,86 +1,73 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { hasPermission } from "@/lib/permission-check";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { Prisma, type Role } from '@/generated/prisma/client';
+import type { Prisma } from '@/generated/prisma/client';
+import { accesoFinanzas, categoriaUsable, cuentaPropia, monedaActiva, monedaPorDefecto } from "../_lib/acceso";
+import { crearRecurrenteSchema, equivalenteMensual, primeraFecha, tipoDeRecurrente } from "../_lib/recurrentes";
+import { diaGuardado, diasEntre, hoyChile } from "@/modules/finance/fechas";
 
 export const dynamic = "force-dynamic";
 
-const createRecurringPaymentSchema = z.object({
-    name: z.string().min(1, "El nombre es requerido"),
-    amount: z.number().positive("El monto debe ser positivo"),
-    categoryId: z.string().optional(),
-    accountId: z.string().optional(),
-    currencyId: z.string(),
-    frequency: z.enum(["daily", "weekly", "biweekly", "monthly", "quarterly", "yearly"]),
-    startDate: z.string().datetime(),
-    endDate: z.string().datetime().optional(),
-    dayOfMonth: z.number().min(1).max(31).optional(),
-    dayOfWeek: z.number().min(0).max(6).optional(),
-    reminderDays: z.number().min(0).max(30).default(3),
-});
+const CATEGORIA = { select: { id: true, name: true, icon: true, color: true, type: true } } as const;
 
 // GET - List recurring payments
 export async function GET(request: Request) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
+        const acceso = await accesoFinanzas("finance.recurring.view");
+        if (!acceso.ok) return acceso.respuesta;
+        const userId = acceso.userId;
 
-        const canView = await hasPermission(session.user.id, session.user.role as Role, "finance.recurring.view");
-        if (!canView) {
-            return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-        }
         const { searchParams } = new URL(request.url);
         const includeInactive = searchParams.get("includeInactive") === "true";
 
-        const whereClause: Prisma.RecurringPaymentWhereInput = { userId: session.user.id };
+        const whereClause: Prisma.RecurringPaymentWhereInput = { userId };
         if (!includeInactive) {
             whereClause.isActive = true;
         }
 
         const recurring = await prisma.recurringPayment.findMany({
             where: whereClause,
-            include: {
-                category: { select: { id: true, name: true, icon: true, color: true } },
-            },
+            include: { category: CATEGORIA },
             orderBy: [{ isActive: "desc" }, { nextDueDate: "asc" }],
         });
 
-        // Calculate upcoming payments for next 30 days
+        // La cuenta no es una relación en el esquema: se busca aparte, solo entre las del usuario.
+        const idsCuentas = [...new Set(recurring.map((p) => p.accountId).filter((id): id is string => Boolean(id)))];
+        const cuentas = idsCuentas.length
+            ? await prisma.financeAccount.findMany({
+                where: { id: { in: idsCuentas }, userId },
+                select: { id: true, name: true, icon: true },
+            })
+            : [];
+        const cuentaPorId = new Map(cuentas.map((c) => [c.id, c]));
+
         const now = new Date();
         const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
         const withStatus = recurring.map((payment) => {
-            const daysUntilDue = payment.nextDueDate
-                ? Math.ceil((new Date(payment.nextDueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-                : null;
+            const daysUntilDue = diasEntre(hoyChile(now), diaGuardado(payment.nextDueDate)); // días de calendario en Chile
 
             let status: "upcoming" | "due_soon" | "overdue" | "inactive" = "upcoming";
-            if (!payment.isActive) {
-                status = "inactive";
-            } else if (daysUntilDue !== null) {
-                if (daysUntilDue < 0) status = "overdue";
-                else if (daysUntilDue <= 3) status = "due_soon";
-            }
+            if (!payment.isActive) status = "inactive";
+            else if (daysUntilDue < 0) status = "overdue";
+            else if (daysUntilDue <= 3) status = "due_soon";
 
             return {
                 ...payment,
+                type: tipoDeRecurrente(payment.category),
+                account: payment.accountId ? cuentaPorId.get(payment.accountId) ?? null : null,
                 daysUntilDue,
                 status,
             };
         });
 
-        // Summary
         const activePayments = withStatus.filter((p) => p.isActive);
+        // Solo gastos: un ingreso recurrente no suma al gasto mensual.
         const totalMonthlyExpenses = activePayments
-            .reduce((sum, p) => sum + calculateMonthlyEquivalent(p.amount, p.frequency), 0);
+            .filter((p) => p.type === "EXPENSE")
+            .reduce((sum, p) => sum + equivalenteMensual(p.amount, p.frequency), 0);
 
-        const upcomingThisMonth = activePayments.filter(
-            (p) => p.nextDueDate && new Date(p.nextDueDate) <= thirtyDaysFromNow
-        );
+        const upcomingThisMonth = activePayments.filter((p) => p.nextDueDate <= thirtyDaysFromNow);
 
         return NextResponse.json({
             data: withStatus,
@@ -101,52 +88,67 @@ export async function GET(request: Request) {
 // POST - Create recurring payment
 export async function POST(request: Request) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
+        const acceso = await accesoFinanzas("finance.recurring.manage");
+        if (!acceso.ok) return acceso.respuesta;
+        const userId = acceso.userId;
 
-        const canCreate = await hasPermission(session.user.id, session.user.role as Role, "finance.recurring.manage");
-        if (!canCreate) {
-            return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-        }
+        const data = crearRecurrenteSchema.parse(await request.json().catch(() => null));
 
-        const body = await request.json();
-        const data = createRecurringPaymentSchema.parse(body);
-
-        // Calculate next due date
         const startDate = new Date(data.startDate);
-        let nextDueDate = startDate;
-
-        // If start date is in the past, calculate next occurrence
-        const now = new Date();
-        if (startDate < now) {
-            nextDueDate = calculateNextOccurrence(startDate, data.frequency, data.dayOfMonth, data.dayOfWeek);
+        const endDate = data.endDate ? new Date(data.endDate) : null;
+        if (endDate && endDate < startDate) {
+            return NextResponse.json({ error: "La fecha de fin no puede ser anterior a la de inicio" }, { status: 400 });
         }
+
+        if (data.categoryId) {
+            const categoria = await categoriaUsable(userId, data.categoryId);
+            if (!categoria || categoria.type === "TRANSFER") {
+                return NextResponse.json({ error: "La categoría no es válida" }, { status: 400 });
+            }
+        }
+
+        let monedaDeCuenta: string | null = null;
+        if (data.accountId) {
+            const cuenta = await cuentaPropia(userId, data.accountId);
+            if (!cuenta) return NextResponse.json({ error: "La cuenta no es válida" }, { status: 400 });
+            monedaDeCuenta = cuenta.currencyId;
+        }
+
+        let currencyId: string | null;
+        if (data.currencyId) {
+            currencyId = await monedaActiva(data.currencyId);
+            if (!currencyId) return NextResponse.json({ error: "La moneda no es válida" }, { status: 400 });
+        } else {
+            currencyId = await monedaPorDefecto(userId, monedaDeCuenta);
+            if (!currencyId) {
+                return NextResponse.json({ error: "No hay monedas configuradas. Crea una cuenta primero." }, { status: 400 });
+            }
+        }
+
+        // El día del mes solo aplica a los pagos mensuales.
+        const dayOfMonth = data.frequency === "monthly" ? data.dayOfMonth ?? null : null;
 
         const payment = await prisma.recurringPayment.create({
             data: {
-                userId: session.user.id,
+                userId,
                 name: data.name,
                 amount: data.amount,
-                currencyId: data.currencyId,
+                currencyId,
                 categoryId: data.categoryId || null,
                 accountId: data.accountId || null,
                 frequency: data.frequency,
                 startDate,
-                endDate: data.endDate ? new Date(data.endDate) : null,
-                dayOfMonth: data.dayOfMonth,
-                dayOfWeek: data.dayOfWeek,
+                endDate,
+                dayOfMonth,
+                dayOfWeek: data.dayOfWeek ?? null,
                 reminderDays: data.reminderDays,
-                nextDueDate,
+                nextDueDate: primeraFecha(startDate, data.frequency, dayOfMonth),
                 isActive: true,
             },
-            include: {
-                category: { select: { id: true, name: true, icon: true, color: true } },
-            },
+            include: { category: CATEGORIA },
         });
 
-        return NextResponse.json({ data: payment }, { status: 201 });
+        return NextResponse.json({ data: { ...payment, type: tipoDeRecurrente(payment.category) } }, { status: 201 });
     } catch (error) {
         console.error("Error creating recurring payment:", error);
         if (error instanceof z.ZodError) {
@@ -154,66 +156,4 @@ export async function POST(request: Request) {
         }
         return NextResponse.json({ error: "Error al crear pago recurrente" }, { status: 500 });
     }
-}
-
-function calculateMonthlyEquivalent(amount: number, frequency: string): number {
-    switch (frequency.toLowerCase()) {
-        case "daily":
-            return amount * 30;
-        case "weekly":
-            return amount * 4.33;
-        case "biweekly":
-            return amount * 2.17;
-        case "monthly":
-            return amount;
-        case "quarterly":
-            return amount / 3;
-        case "yearly":
-            return amount / 12;
-        default:
-            return amount;
-    }
-}
-
-function calculateNextOccurrence(
-    fromDate: Date,
-    frequency: string,
-    dayOfMonth?: number,
-    _dayOfWeek?: number
-): Date {
-    const now = new Date();
-    const next = new Date(fromDate);
-    const freq = frequency.toLowerCase();
-
-    while (next <= now) {
-        switch (freq) {
-            case "daily":
-                next.setDate(next.getDate() + 1);
-                break;
-            case "weekly":
-                next.setDate(next.getDate() + 7);
-                break;
-            case "biweekly":
-                next.setDate(next.getDate() + 14);
-                break;
-            case "monthly":
-                next.setMonth(next.getMonth() + 1);
-                if (dayOfMonth) {
-                    next.setDate(Math.min(dayOfMonth, getDaysInMonth(next)));
-                }
-                break;
-            case "quarterly":
-                next.setMonth(next.getMonth() + 3);
-                break;
-            case "yearly":
-                next.setFullYear(next.getFullYear() + 1);
-                break;
-        }
-    }
-
-    return next;
-}
-
-function getDaysInMonth(date: Date): number {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }

@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { Bell, ChevronRight, Plus, ScanLine, Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useFinance } from "../context/FinanceContext";
 import { BatchReceiptScanner } from "./BatchReceiptScanner";
 import { FinanceOnboarding } from "./FinanceOnboarding";
-import { OfflineIndicator } from "./PWAComponents";
+import { OfflineIndicator } from "@/components/pwa/PWAComponents";
+import { EsqueletoFinanzas } from "./EsqueletoFinanzas";
+import { CabeceraFinanzas, CifrasFinanzas } from "./Piezas";
+import { BAJA, BOTON, BOTON_SEC, CIFRA, ENLACE, FICHA, FOCO, LISTA, RIEL, SECCION, SOBRE, SUAVE, SUBE, VACIO } from "./estilos";
 import type { OCRData } from "./OCRResultDisplay";
+import { fechaDia } from "../fechas";
 
 // Types
 interface DashboardData {
@@ -49,19 +54,19 @@ interface FinanceDashboardCleanProps {
     userId: string;
 }
 
+/** Ritmo del gasto frente al presupuesto prorrateado al día de hoy (lo calcula la API). */
+const RITMO: Record<DashboardData["monthProgress"]["status"], { texto: string; barra: string; color: string }> = {
+    under: { texto: "Bajo el ritmo del mes", barra: "bg-emerald-500", color: "text-emerald-400" },
+    "on-track": { texto: "Al ritmo del mes", barra: "bg-amber-500", color: "text-amber-400" },
+    over: { texto: "Sobre el ritmo del mes", barra: "bg-red-500", color: "text-red-400" },
+};
+
 export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardCleanProps) {
     const { baseCurrency, refreshKey } = useFinance();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
-    const [showFabMenu, setShowFabMenu] = useState(false);
-    const [isMounted, setIsMounted] = useState(false);
-
-    // Track client-side mount to prevent SSR animation mismatch
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
 
     // Fetch dashboard data
     const fetchData = useCallback(async () => {
@@ -115,16 +120,7 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
 
     // Loading
     if (loading && !data) {
-        return (
-            <div className="space-y-6 animate-pulse">
-                <div className="h-40 bg-neutral-800/50 rounded-2xl" />
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="h-24 bg-neutral-800/50 rounded-xl" />
-                    <div className="h-24 bg-neutral-800/50 rounded-xl" />
-                </div>
-                <div className="h-64 bg-neutral-800/50 rounded-2xl" />
-            </div>
-        );
+        return <EsqueletoFinanzas />;
     }
 
     // Onboarding
@@ -148,263 +144,159 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
         );
     }
 
-    if (!data) return null;
+    if (!data) {
+        return (
+            <div role="alert" className="max-w-[1180px] py-16 text-center">
+                <p className="text-[var(--txt)]">No se pudo cargar el resumen de finanzas.</p>
+                <button type="button" onClick={() => void fetchData()} className={`${BOTON_SEC} mt-3`}>
+                    Reintentar
+                </button>
+            </div>
+        );
+    }
 
-    const spentPercent = data.monthProgress.budget > 0
-        ? Math.min((data.monthProgress.spent / data.monthProgress.budget) * 100, 100)
+    const { monthProgress, balance } = data;
+    const spentPercent = monthProgress.budget > 0
+        ? Math.min((monthProgress.spent / monthProgress.budget) * 100, 100)
         : 0;
+    const ritmo = RITMO[monthProgress.status];
+    const top = data.topCategories[0];
+    const pendientes = data.pendingReminders || 0;
 
     return (
-        <div className="pb-24 max-w-4xl mx-auto">
+        <div className="max-w-[1180px] pb-8">
             <OfflineIndicator />
 
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white">Finanzas</h1>
-                <p className="text-neutral-500 text-sm">
-                    {new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}
-                </p>
-            </div>
-
-            {/* Balance Card */}
-            <motion.div
-                initial={isMounted ? { opacity: 0, y: 20 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-2xl p-6 mb-6 border border-neutral-700/50"
+            <CabeceraFinanzas
+                titulo="Finanzas"
+                bajada={new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Santiago" })}
             >
-                <p className="text-neutral-400 text-sm mb-1">Balance disponible</p>
-                <div className="flex items-baseline gap-3">
-                    <span className="text-3xl md:text-4xl font-bold text-white">
-                        {formatCurrency(data.balance.available, baseCurrency)}
-                    </span>
-                    {data.balance.change !== 0 && (
-                        <span className={`text-sm px-2 py-0.5 rounded-full ${data.balance.change >= 0
-                                ? "bg-emerald-500/20 text-emerald-400"
-                                : "bg-red-500/20 text-red-400"
-                            }`}>
-                            {data.balance.change >= 0 ? "+" : ""}{data.balance.changePercent.toFixed(1)}%
-                        </span>
-                    )}
-                </div>
+                <button type="button" onClick={() => setShowScanner(true)} className={BOTON_SEC}>
+                    <ScanLine aria-hidden="true" className="size-4" />
+                    Escanear boleta
+                </button>
+                <Link href="/admin/finance/transactions/new" className={BOTON}>
+                    <Plus aria-hidden="true" className="size-4" />
+                    Nueva transacción
+                </Link>
+            </CabeceraFinanzas>
 
-                {/* Month Progress */}
-                <div className="mt-6 pt-4 border-t border-neutral-700/50">
-                    <div className="flex justify-between text-sm mb-2">
-                        <span className="text-neutral-400">Gastos del mes</span>
-                        <span className="text-white">
-                            {formatCurrency(data.monthProgress.spent)}
-                            <span className="text-neutral-500"> / {formatCurrency(data.monthProgress.budget)}</span>
-                        </span>
-                    </div>
-                    <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${spentPercent}%` }}
-                            transition={{ duration: 0.8, ease: "easeOut" }}
-                            className={`h-full rounded-full ${data.monthProgress.status === "under" ? "bg-emerald-500" :
-                                    data.monthProgress.status === "on-track" ? "bg-amber-500" :
-                                        "bg-red-500"
-                                }`}
-                        />
-                    </div>
-                    <p className="text-xs text-neutral-500 mt-2">
-                        Día {data.monthProgress.dayOfMonth} de {data.monthProgress.daysInMonth}
-                    </p>
-                </div>
-            </motion.div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-                <motion.a
-                    href="/admin/finance/categories"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 hover:border-neutral-700 transition-colors"
-                >
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">📊</span>
-                        <span className="text-sm text-neutral-400">Top categoría</span>
-                    </div>
-                    {data.topCategories[0] ? (
-                        <>
-                            <p className="text-white font-medium truncate">{data.topCategories[0].name}</p>
-                            <p className="text-neutral-500 text-sm">{formatCurrency(data.topCategories[0].amount)}</p>
-                        </>
-                    ) : (
-                        <p className="text-neutral-500 text-sm">Sin gastos</p>
-                    )}
-                </motion.a>
-
-                <motion.a
-                    href="/admin/finance/reminders"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 hover:border-neutral-700 transition-colors"
-                >
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">🔔</span>
-                        <span className="text-sm text-neutral-400">Recordatorios</span>
-                    </div>
-                    <p className="text-white font-medium">
-                        {data.pendingReminders || 0} pendiente{data.pendingReminders !== 1 ? "s" : ""}
-                    </p>
-                    <p className="text-neutral-500 text-sm">este mes</p>
-                </motion.a>
-            </div>
-
-            {/* Recent Transactions */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-neutral-900/50 border border-neutral-800 rounded-2xl overflow-hidden"
-            >
-                <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-                    <h2 className="font-medium text-white">Últimos movimientos</h2>
-                    <a
-                        href="/admin/finance/transactions"
-                        className="text-sm text-blue-400 hover:text-blue-300"
-                    >
-                        Ver todo
-                    </a>
-                </div>
-
-                {data.recentTransactions.length > 0 ? (
-                    <div className="divide-y divide-neutral-800/50">
-                        {data.recentTransactions.slice(0, 5).map((tx) => (
-                            <div key={tx.id} className="flex items-center gap-4 p-4 hover:bg-neutral-800/30 transition-colors">
-                                <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-lg">
-                                    {tx.categoryIcon || "💰"}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-white truncate">{tx.description}</p>
-                                    <p className="text-xs text-neutral-500">
-                                        {new Date(tx.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
-                                    </p>
-                                </div>
-                                <span className={`font-medium ${tx.type === "expense" ? "text-red-400" : "text-emerald-400"
-                                    }`}>
-                                    {tx.type === "expense" ? "-" : "+"}{formatCurrency(tx.amount)}
+            <div className="mt-8">
+                <CifrasFinanzas
+                    etiqueta="Resumen del mes"
+                    cifras={[
+                        {
+                            nombre: "Balance disponible",
+                            valor: formatCurrency(balance.available, baseCurrency),
+                            tono: balance.available < 0 ? "baja" : undefined,
+                            nota: balance.change !== 0 ? (
+                                <span className={balance.change >= 0 ? SUBE : BAJA}>
+                                    {balance.change >= 0 ? "+" : ""}{balance.changePercent.toFixed(1)} % vs. mes anterior
                                 </span>
-                            </div>
-                        ))}
+                            ) : undefined,
+                        },
+                        {
+                            nombre: "Gastado este mes",
+                            valor: formatCurrency(monthProgress.spent),
+                            nota: monthProgress.budget > 0 ? `de ${formatCurrency(monthProgress.budget)}` : undefined,
+                        },
+                    ]}
+                />
+            </div>
+
+            <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,1fr)] lg:gap-14">
+                {/* Últimos movimientos */}
+                <section aria-labelledby="fin-ultimos">
+                    <div className="mb-2 flex items-baseline justify-between gap-4">
+                        <h2 id="fin-ultimos" className={SECCION}>Últimos movimientos</h2>
+                        <Link href="/admin/finance/transactions" className={`text-sm ${ENLACE}`}>
+                            Ver todo
+                        </Link>
                     </div>
-                ) : (
-                    <div className="p-8 text-center">
-                        <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center mx-auto mb-3">
-                            <span className="text-2xl">📝</span>
+
+                    {data.recentTransactions.length > 0 ? (
+                        <ul className={`${LISTA} m-0 list-none p-0`}>
+                            {data.recentTransactions.slice(0, 5).map((tx) => (
+                                <li key={tx.id} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5 sm:gap-4">
+                                    <span aria-hidden="true" className={FICHA}>{tx.categoryIcon || "·"}</span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-medium text-[var(--txt)]">{tx.description}</p>
+                                        <p className="text-xs text-[var(--mut)]">
+                                            {fechaDia(tx.date)}
+                                        </p>
+                                    </div>
+                                    <span className={`shrink-0 font-semibold ${CIFRA} ${tx.type === "expense" ? BAJA : SUBE}`}>
+                                        {tx.type === "expense" ? "−" : "+"}{formatCurrency(tx.amount)}
+                                        <span className="sr-only">{tx.type === "expense" ? " (gasto)" : " (ingreso)"}</span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className={VACIO}>
+                            <p>Sin transacciones aún.</p>
+                            <Link href="/admin/finance/transactions/new" className={`mt-2 inline-block text-sm ${ENLACE}`}>
+                                Registrar la primera
+                            </Link>
                         </div>
-                        <p className="text-neutral-400 mb-2">Sin transacciones aún</p>
-                        <button
-                            onClick={() => setShowFabMenu(true)}
-                            className="text-blue-400 hover:text-blue-300 text-sm"
-                        >
-                            Registrar primera transacción →
-                        </button>
-                    </div>
-                )}
-            </motion.div>
-
-            {/* Quick Links */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="mt-6 grid grid-cols-3 gap-3"
-            >
-                <a
-                    href="/admin/finance/accounts"
-                    className="flex flex-col items-center gap-2 p-4 bg-neutral-900/30 border border-neutral-800/50 rounded-xl hover:bg-neutral-800/30 transition-colors text-center"
-                >
-                    <span className="text-2xl">🏦</span>
-                    <span className="text-xs text-neutral-400">Cuentas</span>
-                </a>
-                <a
-                    href="/admin/finance/budgets"
-                    className="flex flex-col items-center gap-2 p-4 bg-neutral-900/30 border border-neutral-800/50 rounded-xl hover:bg-neutral-800/30 transition-colors text-center"
-                >
-                    <span className="text-2xl">📋</span>
-                    <span className="text-xs text-neutral-400">Presupuestos</span>
-                </a>
-                <a
-                    href="/admin/finance/goals"
-                    className="flex flex-col items-center gap-2 p-4 bg-neutral-900/30 border border-neutral-800/50 rounded-xl hover:bg-neutral-800/30 transition-colors text-center"
-                >
-                    <span className="text-2xl">🎯</span>
-                    <span className="text-xs text-neutral-400">Metas</span>
-                </a>
-            </motion.div>
-
-            {/* Floating Action Button */}
-            <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
-                <AnimatePresence>
-                    {showFabMenu && (
-                        <>
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
-                                onClick={() => setShowFabMenu(false)}
-                            />
-
-                            <motion.button
-                                initial={{ opacity: 0, y: 20, scale: 0.8 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 20, scale: 0.8 }}
-                                transition={{ delay: 0.05 }}
-                                onClick={() => {
-                                    setShowFabMenu(false);
-                                    setShowScanner(true);
-                                }}
-                                className="relative z-40 flex items-center gap-3 px-4 py-3 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-500 transition-colors"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                <span className="font-medium">Escanear boleta</span>
-                            </motion.button>
-
-                            <motion.button
-                                initial={{ opacity: 0, y: 20, scale: 0.8 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 20, scale: 0.8 }}
-                                onClick={() => {
-                                    setShowFabMenu(false);
-                                    window.location.href = "/admin/finance/transactions/new";
-                                }}
-                                className="relative z-40 flex items-center gap-3 px-4 py-3 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-500 transition-colors"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                <span className="font-medium">Ingreso manual</span>
-                            </motion.button>
-                        </>
                     )}
-                </AnimatePresence>
+                </section>
 
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowFabMenu(!showFabMenu)}
-                    className={`relative z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${showFabMenu
-                            ? "bg-neutral-700"
-                            : "bg-blue-600 hover:bg-blue-500"
-                        }`}
-                >
-                    <svg
-                        className={`w-6 h-6 text-white transition-transform ${showFabMenu ? "rotate-45" : ""}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                    </svg>
-                </motion.button>
+                <div className="grid gap-10">
+                    {/* Ritmo del mes */}
+                    <section aria-labelledby="fin-mes">
+                        <h2 id="fin-mes" className={`${SECCION} mb-3`}>Gastos del mes</h2>
+                        <div className="flex items-baseline justify-between gap-3 text-sm">
+                            <span className={`font-medium ${ritmo.color}`}>{ritmo.texto}</span>
+                            <span className={`${CIFRA} text-[var(--mut)]`}>
+                                Día {monthProgress.dayOfMonth} de {monthProgress.daysInMonth}
+                            </span>
+                        </div>
+                        <div
+                            className={`${RIEL} mt-2.5`}
+                            role="progressbar"
+                            aria-label="Gastado del presupuesto del mes"
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={Math.round(spentPercent)}
+                        >
+                            <div className={`h-full rounded-full ${ritmo.barra}`} style={{ width: `${spentPercent}%` }} />
+                        </div>
+                        <p className={`${SUAVE} mt-2 ${CIFRA}`}>
+                            {formatCurrency(monthProgress.spent)}
+                            {monthProgress.budget > 0 ? ` de ${formatCurrency(monthProgress.budget)} (${Math.round(spentPercent)} %)` : " gastados"}
+                        </p>
+                    </section>
+
+                    {/* Atajos con dato */}
+                    <ul className={`${LISTA} m-0 list-none p-0`}>
+                        <li>
+                            <Link href="/admin/finance/categories" className={`flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5 transition-colors duration-150 ${SOBRE} ${FOCO}`}>
+                                <Tag aria-hidden="true" className="size-[18px] shrink-0 text-[var(--mut)]" />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm text-[var(--mut)]">Categoría con más gasto</span>
+                                    <span className="block truncate font-medium text-[var(--txt)]">
+                                        {top ? top.name : "Sin gastos"}
+                                    </span>
+                                </span>
+                                {top ? <span className={`shrink-0 text-sm font-semibold text-[var(--txt)] ${CIFRA}`}>{formatCurrency(top.amount)}</span> : null}
+                                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-[var(--mut)]" />
+                            </Link>
+                        </li>
+                        <li>
+                            <Link href="/admin/finance/reminders" className={`flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5 transition-colors duration-150 ${SOBRE} ${FOCO}`}>
+                                <Bell aria-hidden="true" className="size-[18px] shrink-0 text-[var(--mut)]" />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm text-[var(--mut)]">Recordatorios</span>
+                                    <span className="block font-medium text-[var(--txt)]">
+                                        {pendientes} pendiente{pendientes !== 1 ? "s" : ""} este mes
+                                    </span>
+                                </span>
+                                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-[var(--mut)]" />
+                            </Link>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     );

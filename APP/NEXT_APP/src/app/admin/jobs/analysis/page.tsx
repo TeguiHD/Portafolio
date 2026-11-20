@@ -152,8 +152,10 @@ export default async function JobsAnalysisPage({
         }
     }
 
+    // La clave por vacante reinicia el cliente al cambiar de vacante; sin ella seguía mostrando el análisis de la anterior.
     return (
         <AnalysisClient
+            key={selectedVacancy?.id ?? "sin-vacante"}
             cvVersions={cvVersions}
             vacancyOptions={vacancyOptions}
             selectedVacancy={selectedVacancy}

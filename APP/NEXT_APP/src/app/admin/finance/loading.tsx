@@ -1,6 +1,5 @@
-// Finance has its own loading state in FinanceDashboard component
-// This prevents the admin loading.tsx from showing DashboardPageSkeleton
+import { EsqueletoFinanzas } from "@/modules/finance/components/EsqueletoFinanzas";
+
 export default function Loading() {
-    // Empty div - FinanceDashboard handles its own skeleton with proper structure
-    return <div />;
+    return <EsqueletoFinanzas />;
 }

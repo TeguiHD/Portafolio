@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { accesoFinanzas } from "../../_lib/acceso";
 
 // GET /api/finance/transactions/frequent
 // Returns frequently used transactions for quick-add feature
 export async function GET(_request: NextRequest) {
     try {
-        const session = await auth();
+        const acceso = await accesoFinanzas("finance.transactions.view");
+        if (!acceso.ok) return acceso.respuesta;
 
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
-
-        const userId = session.user.id;
+        const userId = acceso.userId;
 
         // Get transactions from last 90 days grouped by description/category/amount
         const frequentTransactions = await prisma.$queryRaw<

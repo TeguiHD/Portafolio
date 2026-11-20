@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { X, Plus, Loader2, Building2, User, Mail, Phone, FileText, MapPin } from "lucide-react";
+import { useId, useState, useTransition } from "react";
+import { Plus, Loader2, Building2, User, Mail, Phone, FileText, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { formatRut, getRutError } from "@/lib/rut";
+import Ventana from "@/modules/quotations/components/Ventana";
+import { BOTON, BOTON_SEC, CAMPO, ERROR_CAMPO } from "@/modules/quotations/estilos";
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess: (clientId: string) => void;
+    /** Recibe el cliente creado: quien abrió la ventana puede elegirlo de inmediato (p. ej. el asistente de propuestas). */
+    onSuccess: (clientId: string, cliente: { id: string; name: string; slug: string; email: string | null }) => void;
     autoOpen?: boolean;
     initialProjectName?: string;
     clientId?: string;
@@ -23,7 +26,15 @@ interface FormErrors {
 }
 
 export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props) {
+    if (!isOpen) return null;
+    // Se monta al abrir: el formulario parte vacío cada vez.
+    return <Formulario onClose={onClose} onSuccess={onSuccess} />;
+}
+
+function Formulario({ onClose, onSuccess }: Pick<Props, "onClose" | "onSuccess">) {
     const [isPending, startTransition] = useTransition();
+    const uid = useId();
+    const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: "",
         company: "",
@@ -43,7 +54,7 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
         }
 
         if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = "Email inválido";
+            newErrors.email = "Correo no válido";
         }
 
         const rutError = getRutError(formData.rut);
@@ -69,6 +80,7 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorGeneral(null);
         if (!validate()) return;
 
         startTransition(async () => {
@@ -90,14 +102,14 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
                 const data = await res.json();
 
                 if (res.ok && data.client) {
-                    toast.success("Cliente creado exitosamente");
-                    onSuccess(data.client.id);
+                    toast.success("Cliente creado");
+                    onSuccess(data.client.id, { id: data.client.id, name: data.client.name, slug: data.client.slug, email: formData.email.trim() || null });
                     handleClose();
                 } else {
-                    toast.error(data.error || "Error al crear cliente");
+                    setErrorGeneral(data.error || "No se pudo crear el cliente");
                 }
             } catch {
-                toast.error("Error al crear cliente");
+                setErrorGeneral("No se pudo crear el cliente: revisa la conexión");
             }
         });
     };
@@ -108,202 +120,80 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess }: Props)
         onClose();
     };
 
-    if (!isOpen) return null;
+    const campo = (
+        nombre: keyof typeof formData,
+        etiqueta: React.ReactNode,
+        Icono: typeof User | null,
+        extra: { type?: string; placeholder?: string; maxLength: number; error?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; clase?: string; autofocus?: boolean },
+    ) => (
+        <div>
+            <label htmlFor={`${uid}-${nombre}`} className="mb-1.5 block text-sm font-medium text-[var(--txt)]">{etiqueta}</label>
+            <div className="relative">
+                {Icono && <Icono size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" />}
+                <input
+                    id={`${uid}-${nombre}`}
+                    type={extra.type ?? "text"}
+                    value={formData[nombre]}
+                    onChange={extra.onChange ?? handleChange(nombre)}
+                    placeholder={extra.placeholder}
+                    maxLength={extra.maxLength}
+                    aria-invalid={extra.error ? true : undefined}
+                    aria-describedby={extra.error ? `${uid}-${nombre}-error` : undefined}
+                    className={`${CAMPO} ${Icono ? "pl-9" : ""} ${extra.clase ?? ""}`}
+                    data-autofocus={extra.autofocus || undefined}
+                />
+            </div>
+            {extra.error && <p id={`${uid}-${nombre}-error`} className={ERROR_CAMPO}>{extra.error}</p>}
+        </div>
+    );
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-500/10 rounded-lg">
-                            <User className="text-indigo-400" size={20} />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-white">Nuevo Cliente</h2>
-                            <p className="text-xs text-slate-400">Completa la información del cliente</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleClose}
-                        className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
+        <Ventana
+            titulo="Nuevo cliente"
+            descripcion="Solo el nombre es obligatorio."
+            icono={<User size={18} />}
+            alCerrar={handleClose}
+        >
+            {(cerrar) => (
+                <form onSubmit={handleFormSubmit} className="space-y-4">
+                    {campo("name", <>Nombre del cliente <span className="text-red-400" aria-hidden="true">*</span><span className="sr-only">(obligatorio)</span></>, User, { maxLength: 100, placeholder: "Nombre completo o razón social", error: errors.name, autofocus: true })}
 
-                {/* Form */}
-                <form onSubmit={handleFormSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-                    {/* Nombre - Requerido */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Nombre del Cliente <span className="text-red-400">*</span>
-                        </label>
-                        <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={handleChange("name")}
-                                placeholder="Nombre completo o razón social"
-                                maxLength={100}
-                                className={`w-full bg-slate-800/50 border rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:ring-1 outline-none transition-colors ${
-                                    errors.name
-                                        ? "border-red-500 focus:ring-red-500"
-                                        : "border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
-                                }`}
-                                autoFocus
-                            />
-                        </div>
-                        {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {campo("company", "Empresa", Building2, { maxLength: 100, placeholder: "Empresa SpA" })}
+                        {campo("rut", "RUT", FileText, { maxLength: 12, placeholder: "12.345.678-9", error: errors.rut, onChange: handleRutChange, clase: "font-mono" })}
                     </div>
 
-                    {/* Empresa + RUT */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Empresa
-                            </label>
-                            <div className="relative">
-                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                <input
-                                    type="text"
-                                    value={formData.company}
-                                    onChange={handleChange("company")}
-                                    placeholder="Empresa S.A."
-                                    maxLength={100}
-                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                                />
-                            </div>
-                        </div>
+                    {campo("representative", "Representante o contacto", null, { maxLength: 100, placeholder: "Nombre del contacto principal" })}
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                RUT
-                            </label>
-                            <div className="relative">
-                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                <input
-                                    type="text"
-                                    value={formData.rut}
-                                    onChange={handleRutChange}
-                                    placeholder="12.345.678-9"
-                                    maxLength={12}
-                                    className={`w-full bg-slate-800/50 border rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:ring-1 outline-none transition-colors font-mono tracking-wide ${
-                                        errors.rut
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
-                                    }`}
-                                />
-                            </div>
-                            {errors.rut && <p className="text-xs text-red-400 mt-1">{errors.rut}</p>}
-                        </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {campo("email", "Correo", Mail, { type: "email", maxLength: 254, placeholder: "correo@ejemplo.cl", error: errors.email })}
+                        {campo("phone", "Teléfono", Phone, { type: "tel", maxLength: 20, placeholder: "+56 9 1234 5678" })}
                     </div>
 
-                    {/* Representante */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Representante / Contacto
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.representative}
-                            onChange={handleChange("representative")}
-                            placeholder="Nombre del contacto principal"
-                            maxLength={100}
-                            className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                        />
-                    </div>
+                    {campo("address", "Dirección", MapPin, { maxLength: 200, placeholder: "Av. Providencia 1234, of. 505" })}
 
-                    {/* Email & Teléfono */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Email
-                            </label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={handleChange("email")}
-                                    placeholder="correo@ejemplo.cl"
-                                    maxLength={254}
-                                    className={`w-full bg-slate-800/50 border rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:ring-1 outline-none transition-colors ${
-                                        errors.email
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
-                                    }`}
-                                />
-                            </div>
-                            {errors.email && <p className="text-xs text-red-400 mt-1">{errors.email}</p>}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Teléfono
-                            </label>
-                            <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                <input
-                                    type="tel"
-                                    value={formData.phone}
-                                    onChange={handleChange("phone")}
-                                    placeholder="+56 9 1234 5678"
-                                    maxLength={20}
-                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                                />
-                            </div>
-                        </div>
-                    </div>
+                    {errorGeneral && <p role="alert" className="text-sm text-red-400">{errorGeneral}</p>}
 
-                    {/* Dirección */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Dirección
-                        </label>
-                        <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                            <input
-                                type="text"
-                                value={formData.address}
-                                onChange={handleChange("address")}
-                                placeholder="Av. Providencia 1234, Of. 505"
-                                maxLength={200}
-                                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-4 border-t border-slate-800">
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            disabled={isPending}
-                            className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
-                        >
+                    <div className="flex gap-2 border-t border-[var(--linea)] pt-4">
+                        <button type="button" onClick={cerrar} disabled={isPending} className={`${BOTON_SEC} flex-1`}>
                             Cancelar
                         </button>
-                        <button
-                            type="submit"
-                            disabled={isPending}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
+                        <button type="submit" disabled={isPending} className={`${BOTON} flex-1`}>
                             {isPending ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Creando...
+                                    <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                    Creando…
                                 </>
                             ) : (
                                 <>
-                                    <Plus size={18} />
-                                    Crear Cliente
+                                    <Plus size={16} aria-hidden="true" />
+                                    Crear cliente
                                 </>
                             )}
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+            )}
+        </Ventana>
     );
 }

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("Connection fetch error:", error);
         return NextResponse.json(
-            { error: "Failed to fetch connections" },
+            { error: "No se pudieron cargar las conexiones" },
             { status: 500 }
         );
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
         if (!validation.success) {
             return NextResponse.json(
-                { error: "Invalid input" },
+                { error: "Ese código no es válido." },
                 { status: 400 }
             );
         }
@@ -87,14 +87,14 @@ export async function POST(request: NextRequest) {
 
         if (!targetUser) {
             return NextResponse.json(
-                { error: "User not found" },
+                { error: "No hay nadie con ese código." },
                 { status: 404 }
             );
         }
 
         if (targetUser.id === session.user.id) {
             return NextResponse.json(
-                { error: "Cannot connect with yourself" },
+                { error: "Ese es tu propio código." },
                 { status: 400 }
             );
         }
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
 
         if (existingConnection) {
             return NextResponse.json(
-                { error: "Connection request already sent or exists" },
+                { error: "Ya le enviaste una solicitud o ya están conectados." },
                 { status: 400 }
             );
         }
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
         if (reverseConnection) {
             return NextResponse.json(
-                { error: "This user has already sent you a request. Please check your incoming requests." },
+                { error: "Esa persona ya te envió una solicitud: búscala en tu red." },
                 { status: 400 }
             );
         }
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error("Connection request error:", error);
         return NextResponse.json(
-            { error: "Failed to send connection request" },
+            { error: "No se pudo enviar la solicitud" },
             { status: 500 }
         );
     }
@@ -164,7 +164,7 @@ export async function PUT(request: NextRequest) {
         const connectionId = searchParams.get("id");
 
         if (!connectionId) {
-            return NextResponse.json({ error: "Connection ID required" }, { status: 400 });
+            return NextResponse.json({ error: "Falta la conexión" }, { status: 400 });
         }
 
         const body = await request.json();
@@ -172,7 +172,7 @@ export async function PUT(request: NextRequest) {
 
         if (!validation.success) {
             return NextResponse.json(
-                { error: "Invalid status" },
+                { error: "Estado no válido" },
                 { status: 400 }
             );
         }
@@ -185,12 +185,12 @@ export async function PUT(request: NextRequest) {
         });
 
         if (!connection) {
-            return NextResponse.json({ error: "Connection not found" }, { status: 404 });
+            return NextResponse.json({ error: "No existe esa conexión" }, { status: 404 });
         }
 
         if (connection.addresseeId !== session.user.id) {
             return NextResponse.json(
-                { error: "Unauthorized to update this connection" },
+                { error: "No puedes cambiar esta conexión" },
                 { status: 403 }
             );
         }
@@ -204,7 +204,7 @@ export async function PUT(request: NextRequest) {
     } catch (error) {
         console.error("Connection update error:", error);
         return NextResponse.json(
-            { error: "Failed to update connection" },
+            { error: "No se pudo actualizar la conexión" },
             { status: 500 }
         );
     }

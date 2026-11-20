@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X, Globe, Lock, Loader2, Check, Copy, AlertTriangle } from "lucide-react";
+import { Globe, Lock, Loader2, Check, Copy, AlertTriangle } from "lucide-react";
 import { updateQuotationAccessAction } from "./actions";
 import { toast } from "sonner";
+import { copiarTexto } from "@/lib/tools/copiar";
+import Ventana from "@/modules/quotations/components/Ventana";
+import { AYUDA, BOTON, BOTON_ICONO, BOTON_SEC, CAMPO, ETIQUETA, OPCION } from "@/modules/quotations/estilos";
 
 interface Props {
     isOpen: boolean;
@@ -11,17 +14,24 @@ interface Props {
     quotationId: string;
     currentMode: "public" | "code";
     expiresAt: Date | null;
+    /** Tras cambiar el acceso: la tarjeta muestra el modo y el vencimiento nuevos. */
+    onChanged?: () => void;
 }
 
-export default function AccessControlModal({ isOpen, onClose, quotationId, currentMode, expiresAt: _expiresAt }: Props) {
+export default function AccessControlModal({ isOpen, ...props }: Props) {
+    if (!isOpen) return null;
+    // Se monta al abrir: el código nuevo se ve una sola vez y no queda guardado al volver a abrir.
+    return <Contenido {...props} />;
+}
+
+function Contenido({ onClose, quotationId, currentMode, onChanged }: Omit<Props, "isOpen">) {
     const [mode, setMode] = useState<"public" | "code">(currentMode);
     const [duration, setDuration] = useState<string>("15d");
     const [isPending, startTransition] = useTransition();
     const [newCode, setNewCode] = useState<string | null>(null);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [copied, setCopied] = useState(false);
-
-    if (!isOpen) return null;
+    const [error, setError] = useState<string | null>(null);
 
     const handleSave = () => {
         // If switching to private or refreshing code, show confirmation first
@@ -43,11 +53,13 @@ export default function AccessControlModal({ isOpen, onClose, quotationId, curre
     };
 
     const performUpdate = () => {
+        setError(null);
         startTransition(async () => {
             const res = await updateQuotationAccessAction(quotationId, mode, mode === "code" ? duration : undefined);
             if (res.success) {
+                onChanged?.();
                 if (mode === "public") {
-                    toast.success("Cotización ahora es pública");
+                    toast.success("La propuesta ahora es pública");
                     onClose();
                 } else {
                     toast.success("Código de acceso generado");
@@ -57,176 +69,118 @@ export default function AccessControlModal({ isOpen, onClose, quotationId, curre
                     }
                 }
             } else {
-                toast.error(res.error || "Error al actualizar acceso");
+                setError(res.error || "No se pudo cambiar el acceso");
             }
         });
     };
 
     const copyCode = async () => {
-        if (newCode) {
-            await navigator.clipboard.writeText(newCode);
+        if (!newCode) return;
+        if (await copiarTexto(newCode)) {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-            toast.success("Código copiado al portapapeles");
+        } else {
+            setError("No se pudo copiar: selecciona el código y cópialo a mano.");
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-                {/* Header */}
-                <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-900/50">
-                    <h3 className="font-bold text-white flex items-center gap-2">
-                        {newCode ? (
-                            <>
-                                <Check className="text-green-400" size={20} />
-                                Acceso Actualizado
-                            </>
-                        ) : (
-                            <>
-                                <Lock className="text-indigo-400" size={20} />
-                                Gestionar Acceso
-                            </>
-                        )}
-                    </h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="p-5">
-                    {newCode ? (
-                        // SUCCESS VIEW WITH CODE
-                        <div className="space-y-6">
-                            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-6 text-center">
-                                <p className="text-sm text-green-400 mb-2 font-medium">¡Nuevo código generado!</p>
-                                <div className="flex items-center justify-center gap-3 my-4">
-                                    <code className="text-3xl font-mono font-bold text-white tracking-wider">{newCode}</code>
-                                    <button
-                                        onClick={copyCode}
-                                        className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors"
-                                        title="Copiar"
-                                    >
-                                        {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
-                                    </button>
-                                </div>
-                                <div className="flex items-start gap-2 text-left text-xs text-slate-400 bg-slate-950/50 p-3 rounded-lg">
-                                    <AlertTriangle size={14} className="text-orange-400 shrink-0 mt-0.5" />
-                                    <p>
-                                        <strong>IMPORTANTE:</strong> Este código se muestra una sola vez.
-                                        Cópialo y compártelo ahora. Por seguridad, solo almacenamos una versión cifrada.
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium transition-colors"
-                            >
-                                Entendido, cerrar
+        <Ventana
+            titulo={newCode ? "Código nuevo" : "Acceso a la propuesta"}
+            icono={newCode ? <Check size={18} className="text-emerald-400" /> : <Lock size={18} />}
+            alCerrar={onClose}
+            ancho="max-w-md"
+        >
+            {(cerrar) => newCode ? (
+                <div className="space-y-5">
+                    <div className="text-center">
+                        <p className="text-sm text-[var(--mut)]">Compártelo con el cliente ahora:</p>
+                        <div className="mt-3 flex items-center justify-center gap-2">
+                            <code className="select-all font-mono text-3xl font-bold tabular-nums text-[var(--txt)]">{newCode}</code>
+                            <button type="button" onClick={copyCode} aria-label={copied ? "Código copiado" : "Copiar código"} className={BOTON_ICONO}>
+                                {copied ? <Check size={18} aria-hidden="true" className="text-emerald-400" /> : <Copy size={18} aria-hidden="true" />}
                             </button>
                         </div>
-                    ) : showConfirmation ? (
-                        // CONFIRMATION VIEW
-                        <div className="space-y-4">
-                            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 flex gap-3">
-                                <AlertTriangle className="text-orange-400 shrink-0" size={24} />
-                                <div>
-                                    <h4 className="text-orange-400 font-bold text-sm mb-1">¿Generar nuevo código?</h4>
-                                    <p className="text-xs text-slate-300 leading-relaxed">
-                                        Al generar un nuevo código, <strong>el código anterior dejará de funcionar inmediatamente</strong>.
-                                        Los usuarios que intenten acceder con el código antiguo perderán acceso.
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3 pt-2">
-                                <button
-                                    onClick={() => setShowConfirmation(false)}
-                                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2.5 rounded-xl font-medium transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={performUpdate}
-                                    disabled={isPending}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-                                >
-                                    {isPending ? <Loader2 className="animate-spin" size={18} /> : "Sí, generar"}
-                                </button>
-                            </div>
+                    </div>
+                    <p className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-sm text-[var(--txt)]">
+                        <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-400" />
+                        <span>Se muestra una sola vez: solo guardamos una versión cifrada.</span>
+                    </p>
+                    {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+                    <button type="button" onClick={cerrar} className={`${BOTON} w-full`} data-autofocus>
+                        Listo, cerrar
+                    </button>
+                </div>
+            ) : showConfirmation ? (
+                <div className="space-y-4">
+                    <div className="flex gap-3">
+                        <AlertTriangle size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-400" />
+                        <div>
+                            <h3 className="font-semibold text-[var(--txt)]">¿Generar un código nuevo?</h3>
+                            <p className="mt-1 text-sm text-[var(--mut)]">
+                                El código anterior deja de funcionar al instante y quien lo use pierde el acceso.
+                            </p>
                         </div>
-                    ) : (
-                        // EDIT FORM VIEW
-                        <div className="space-y-6">
-                            {/* Mode Selection */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    onClick={() => setMode("public")}
-                                    className={`p-4 rounded-xl border-2 transition-all text-left relative ${mode === "public"
-                                        ? "border-green-500 bg-green-500/10"
-                                        : "border-slate-800 bg-slate-800/50 hover:border-slate-700"
-                                        }`}
-                                >
-                                    <Globe className={`w-5 h-5 mb-2 ${mode === "public" ? "text-green-400" : "text-slate-400"}`} />
-                                    <p className="font-bold text-white text-sm">Público</p>
-                                    <p className="text-xs text-slate-400 mt-1">Sin restricciones</p>
-                                    {mode === "public" && <Check className="absolute top-3 right-3 text-green-400" size={16} />}
-                                </button>
+                    </div>
+                    {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+                    <div className="flex gap-2 pt-1">
+                        <button type="button" onClick={() => setShowConfirmation(false)} className={`${BOTON_SEC} flex-1`} data-autofocus>
+                            Cancelar
+                        </button>
+                        <button type="button" onClick={performUpdate} disabled={isPending} className={`${BOTON} flex-1`}>
+                            {isPending ? <><Loader2 className="animate-spin motion-reduce:animate-none" size={16} aria-hidden="true" /> Generando…</> : "Sí, generar"}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-5">
+                    <div role="group" aria-label="Quién puede verla" className="grid grid-cols-2 gap-3">
+                        <button type="button" onClick={() => setMode("public")} aria-pressed={mode === "public"} className={`${OPCION} p-4`}>
+                            <Globe size={18} aria-hidden="true" className={`mb-2 ${mode === "public" ? "text-[var(--acento)]" : "text-[var(--mut)]"}`} />
+                            <span className="block text-sm font-semibold text-[var(--txt)]">Pública</span>
+                            <span className="mt-0.5 block text-xs text-[var(--mut)]">Basta el enlace</span>
+                        </button>
+                        <button type="button" onClick={() => setMode("code")} aria-pressed={mode === "code"} className={`${OPCION} p-4`}>
+                            <Lock size={18} aria-hidden="true" className={`mb-2 ${mode === "code" ? "text-[var(--acento)]" : "text-[var(--mut)]"}`} />
+                            <span className="block text-sm font-semibold text-[var(--txt)]">Privada</span>
+                            <span className="mt-0.5 block text-xs text-[var(--mut)]">Pide un código</span>
+                        </button>
+                    </div>
 
-                                <button
-                                    onClick={() => setMode("code")}
-                                    className={`p-4 rounded-xl border-2 transition-all text-left relative ${mode === "code"
-                                        ? "border-indigo-500 bg-indigo-500/10"
-                                        : "border-slate-800 bg-slate-800/50 hover:border-slate-700"
-                                        }`}
-                                >
-                                    <Lock className={`w-5 h-5 mb-2 ${mode === "code" ? "text-indigo-400" : "text-slate-400"}`} />
-                                    <p className="font-bold text-white text-sm">Privado</p>
-                                    <p className="text-xs text-slate-400 mt-1">Requiere código</p>
-                                    {mode === "code" && <Check className="absolute top-3 right-3 text-indigo-400" size={16} />}
-                                </button>
-                            </div>
-
-                            {/* Options for Private Mode */}
-                            {mode === "code" && (
-                                <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800 space-y-3">
-                                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                        Validez del Código
-                                    </label>
-                                    <select
-                                        value={duration}
-                                        onChange={(e) => setDuration(e.target.value)}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none"
-                                    >
-                                        <option value="7d">1 Semana (7 días)</option>
-                                        <option value="15d">15 Días</option>
-                                        <option value="30d">1 Mes (30 días)</option>
-                                        <option value="indefinite">Indefinido</option>
-                                    </select>
-                                    <p className="text-xs text-slate-500">
-                                        Después de este tiempo, deberás generar un nuevo código.
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Actions */}
-                            <div className="pt-2">
-                                <button
-                                    onClick={handleSave}
-                                    disabled={isPending || (mode === currentMode && mode === "public")}
-                                    className="w-full bg-white hover:bg-slate-200 text-slate-900 py-3 rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {isPending ? (
-                                        <Loader2 className="animate-spin" size={18} />
-                                    ) : (
-                                        mode === "code" ? (currentMode === "code" ? "Generar Nuevo Código" : "Proteger con Código") : "Hacer Público"
-                                    )}
-                                </button>
-                            </div>
+                    {mode === "code" && (
+                        <div>
+                            <label htmlFor={`validez-${quotationId}`} className={ETIQUETA}>Validez del código</label>
+                            <select
+                                id={`validez-${quotationId}`}
+                                value={duration}
+                                onChange={(e) => setDuration(e.target.value)}
+                                className={CAMPO}
+                            >
+                                <option value="7d">1 semana (7 días)</option>
+                                <option value="15d">15 días</option>
+                                <option value="30d">1 mes (30 días)</option>
+                                <option value="indefinite">Sin vencimiento</option>
+                            </select>
+                            <p className={AYUDA}>Pasado ese plazo tendrás que generar otro.</p>
                         </div>
                     )}
+
+                    {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isPending || (mode === currentMode && mode === "public")}
+                        className={`${BOTON} w-full`}
+                    >
+                        {isPending ? (
+                            <><Loader2 className="animate-spin motion-reduce:animate-none" size={16} aria-hidden="true" /> Guardando…</>
+                        ) : (
+                            mode === "code" ? (currentMode === "code" ? "Generar código nuevo" : "Proteger con código") : "Hacer pública"
+                        )}
+                    </button>
                 </div>
-            </div>
-        </div>
+            )}
+        </Ventana>
     );
 }

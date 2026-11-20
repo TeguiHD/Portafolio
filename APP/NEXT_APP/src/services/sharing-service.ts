@@ -1,4 +1,6 @@
-"use server";
+// Solo servidor: estas funciones reciben el userId por parámetro y no verifican la sesión,
+// así que nunca pueden ser acciones públicas ("use server"). Las llaman rutas que ya autentican.
+import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";

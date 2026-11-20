@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
 
     // Only superadmin can use this endpoint
     if (session?.user?.role !== "SUPERADMIN") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
 
     const query = request.nextUrl.searchParams.get("q")?.trim();
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
                     { slug: { contains: query, mode: "insensitive" } },
                     { email: { contains: query, mode: "insensitive" } },
                     { user: { name: { contains: query, mode: "insensitive" } } },
-                    { user: { email: { contains: query, mode: "insensitive" } } },
                 ]
             },
             include: {
@@ -37,6 +36,7 @@ export async function GET(request: NextRequest) {
         // Search quotations
         const quotations = await prisma.quotation.findMany({
             where: {
+                isDeleted: false, // las borradas no aparecen en la búsqueda
                 OR: [
                     { folio: { contains: query, mode: "insensitive" } },
                     { projectName: { contains: query, mode: "insensitive" } },
@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
                 id: q.id,
                 name: `#${q.folio} - ${q.projectName}`,
                 subtitle: `Cliente: ${q.clientName} • Usuario: ${q.user?.name || q.user?.email || "Desconocido"}`,
-                link: q.clientId ? `/admin/cotizaciones/${q.clientId}` : `/admin/quotations/${q.id}`,
+                // Sin cliente asignado la propuesta vive en la lista general (/admin/quotations/:id no existe).
+                link: q.clientId ? `/admin/cotizaciones/${q.clientId}` : "/admin/cotizaciones",
             })),
         ];
 

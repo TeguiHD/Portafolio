@@ -1,10 +1,10 @@
-
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { X, Share2, Copy, Check, Clock, Trash2, Shield, RefreshCcw, User } from "lucide-react";
+import { useState, useEffect, useCallback, useId, useRef } from "react";
+import { X, Share2, Copy, Check, Clock, Trash2, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
-import { createPortal } from "react-dom";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import { copiarTexto } from "@/lib/tools/copiar";
 
 interface ShareModalProps {
     isOpen: boolean;
@@ -23,8 +23,24 @@ interface SharedUser {
     sharedAt: string;
 }
 
+/* Clases del tema (tokens de src/app/tokens.css): valen en claro y oscuro sin tema-panel.css. */
+const FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]";
+const SOBRE = "hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]";
+const BASE_BOTON = `inline-flex min-h-11 md:min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${FOCO}`;
+const BOTON = `${BASE_BOTON} bg-[var(--acento)] font-semibold text-[var(--acento-tinta)] hover:bg-[color-mix(in_srgb,var(--acento)_86%,var(--txt))]`;
+const BOTON_SUAVE = `${BASE_BOTON} text-[var(--mut)] hover:text-[var(--txt)] ${SOBRE}`;
+const BOTON_ICONO = `inline-grid size-11 md:size-10 shrink-0 place-items-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] hover:text-[var(--txt)] disabled:cursor-not-allowed disabled:opacity-40 ${FOCO}`;
+
+const HORAS = [1, 24, 168] as const;
+const nombreHoras = (horas: number) => (horas === 1 ? "1 hora" : horas === 24 ? "24 horas" : "1 semana");
+
+/**
+ * Compartir un cliente con otro usuario del panel. <dialog> nativo abierto con showModal(): atrapa el foco,
+ * deja inerte el resto, Escape o tocar fuera lo cierran y al cerrar el foco vuelve al botón que lo abrió.
+ */
 export default function ShareModal({ isOpen, onClose, client }: ShareModalProps) {
-    const [mounted, setMounted] = useState(false);
+    const dialogo = useRef<HTMLDialogElement>(null);
+    const id = useId();
     const [activeTab, setActiveTab] = useState<"invite" | "manage">("invite");
 
     // Invite State
@@ -37,11 +53,6 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
     const [sharedUsers, setSharedUsers] = useState<SharedUser[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [isRevoking, setIsRevoking] = useState<string | null>(null);
-
-    useEffect(() => {
-        setMounted(true);
-        return () => setMounted(false);
-    }, []);
 
     const fetchSharingStats = useCallback(async () => {
         try {
@@ -62,27 +73,30 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
 
     useEffect(() => {
         if (isOpen) {
-            document.body.style.overflow = 'hidden';
             fetchSharingStats();
+            const d = dialogo.current;
+            if (d && !d.open) d.showModal();
         } else {
-            document.body.style.overflow = 'unset';
             // Reset state on close
             setGeneratedCode(null);
             setActiveTab("invite");
         }
+    }, [isOpen, fetchSharingStats]);
 
-        // Escape key listener
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
+    // Tocar fuera cierra: nativo con closedby="any"; donde no existe (Safari), se mira el punto del clic.
+    useEffect(() => {
+        const d = dialogo.current;
+        if (!isOpen || !d || "closedBy" in HTMLDialogElement.prototype) return;
+        const fuera = (ev: MouseEvent) => {
+            if (ev.target !== d) return;
+            const r = d.getBoundingClientRect();
+            if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) d.close();
         };
-        window.addEventListener("keydown", handleEsc);
+        d.addEventListener("click", fuera);
+        return () => d.removeEventListener("click", fuera);
+    }, [isOpen]);
 
-        return () => {
-            document.body.style.overflow = 'unset';
-            window.removeEventListener("keydown", handleEsc);
-        };
-    }, [isOpen, onClose, fetchSharingStats]);
-
+    const cerrar = () => dialogo.current?.close();
 
     const handleGenerateCode = async () => {
         try {
@@ -99,12 +113,12 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Error al generar código");
+            if (!res.ok) throw new Error(data.error || "No se pudo generar el código");
 
             setGeneratedCode(data.code);
-            toast.success("Código generado correctamente");
+            toast.success("Código generado");
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Error al generar código");
+            toast.error(error instanceof Error ? error.message : "No se pudo generar el código");
         } finally {
             setIsGenerating(false);
         }
@@ -112,18 +126,17 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
 
     const handleCopyCode = async () => {
         if (!generatedCode) return;
-        try {
-            await navigator.clipboard.writeText(generatedCode);
+        if (await copiarTexto(generatedCode)) {
             setCopied(true);
-            toast.success("Código copiado al portapapeles");
+            toast.success("Código copiado");
             setTimeout(() => setCopied(false), 2000);
-        } catch {
-            toast.error("Error al copiar");
+        } else {
+            toast.error("No se pudo copiar");
         }
     };
 
     const handleRevokeAccess = async (targetUserId: string) => {
-        if (!confirm("¿Estás seguro de querer revocar el acceso a este usuario?")) return;
+        if (!(await confirmar({ titulo: "¿Quitarle el acceso a este usuario?", detalle: "Dejará de ver este cliente y sus propuestas.", accion: "Quitar acceso", peligro: true }))) return;
 
         try {
             setIsRevoking(targetUserId);
@@ -137,200 +150,175 @@ export default function ShareModal({ isOpen, onClose, client }: ShareModalProps)
                 }),
             });
 
-            if (!res.ok) throw new Error("Error al revocar acceso");
+            if (!res.ok) throw new Error("No se pudo quitar el acceso");
 
             setSharedUsers(prev => prev.filter(u => u.userId !== targetUserId));
-            toast.success("Acceso revocado correctamente");
+            toast.success("Acceso quitado");
         } catch {
-            toast.error("Error al revocar acceso");
+            toast.error("No se pudo quitar el acceso");
         } finally {
             setIsRevoking(null);
         }
     };
 
-    if (!mounted || !isOpen) return null;
+    if (!isOpen) return null;
 
-    return createPortal(
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={onClose} // Close on backdrop click
+    const pestana = (activa: boolean) =>
+        // El contorno de foco va hacia dentro: hacia fuera lo cortaría el borde del diálogo.
+        `flex-1 min-h-11 border-b-2 px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)] ${activa
+            ? "border-[var(--acento)] text-[var(--txt)]"
+            : "border-transparent text-[var(--mut)] hover:text-[var(--txt)]"}`;
+
+    return (
+        <dialog
+            ref={dialogo}
+            closedby="any"
+            onClose={onClose}
+            aria-labelledby={`${id}-t`}
+            aria-describedby={`${id}-d`}
+            className="m-auto w-[calc(100%-24px)] max-w-lg max-h-[min(85dvh,760px)] overflow-hidden rounded-2xl border border-[var(--linea-2)] bg-[var(--sup)] p-0 text-[var(--txt)] shadow-2xl overscroll-contain open:flex open:flex-col backdrop:bg-black/60 backdrop:overflow-hidden backdrop:overscroll-contain"
         >
-            <div
-                className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
-                onClick={(e) => e.stopPropagation()} // Prevent close on content click
-            >
-                {/* Header */}
-                <div className="p-6 border-b border-white/5 relative">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full"
-                    >
-                        <X size={20} />
-                    </button>
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Share2 className="text-indigo-400" size={24} />
-                        Compartir Cliente
-                    </h2>
-                    <p className="text-sm text-gray-400 mt-1">
-                        Gestiona el acceso a <span className="text-white font-medium">{client.name}</span>
+            <div className="flex items-start gap-3 border-b border-[var(--linea)] p-5 pr-3 sm:p-6 sm:pr-4">
+                <Share2 size={18} aria-hidden="true" className="mt-1 shrink-0 text-[var(--mut)]" />
+                <div className="min-w-0 flex-1">
+                    <h2 id={`${id}-t`} className="text-lg font-semibold">Compartir cliente</h2>
+                    <p id={`${id}-d`} className="mt-0.5 text-sm text-[var(--mut)]">
+                        Gestiona el acceso a <span className="font-medium text-[var(--txt)]">{client.name}</span>
                     </p>
                 </div>
-
-                {/* Tabs */}
-                <div className="flex border-b border-white/5">
-                    <button
-                        onClick={() => setActiveTab("invite")}
-                        className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === "invite"
-                            ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                            : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-                            }`}
-                    >
-                        Generar Invitación
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("manage")}
-                        className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === "manage"
-                            ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                            : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-                            }`}
-                    >
-                        Usuarios con Acceso ({sharedUsers.length})
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="p-6 flex-1 overflow-y-auto">
-                    {activeTab === "invite" ? (
-                        <div className="space-y-6">
-                            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
-                                <h3 className="text-sm font-medium text-indigo-400 mb-2 flex items-center gap-2">
-                                    <Shield size={16} />
-                                    Compartición Segura
-                                </h3>
-                                <p className="text-xs text-indigo-300/80 leading-relaxed">
-                                    Genera un código temporal único. Compártelo solo con el destinatario.
-                                    Por seguridad, el código expirará automáticamente.
-                                </p>
-                            </div>
-
-                            {!generatedCode ? (
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm text-gray-400 mb-2">Expiración del código</label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {[1, 24, 168].map((hours) => (
-                                                <button
-                                                    key={hours}
-                                                    onClick={() => setExpiration(hours)}
-                                                    className={`py-2 px-3 rounded-lg text-sm border transition-colors ${expiration === hours
-                                                        ? "bg-white/10 border-indigo-500 text-white"
-                                                        : "bg-transparent border-white/10 text-gray-400 hover:border-white/20"
-                                                        }`}
-                                                >
-                                                    {hours === 1 ? "1 Hora" : hours === 24 ? "24 Horas" : "1 Semana"}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={handleGenerateCode}
-                                        disabled={isGenerating}
-                                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isGenerating ? (
-                                            <>
-                                                <RefreshCcw className="animate-spin" size={18} />
-                                                Generando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Share2 size={18} />
-                                                Generar Código de Acceso
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-                                    <div className="text-center">
-                                        <div className="text-sm text-gray-400 mb-2">Tu código de acceso es:</div>
-                                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between gap-4 group hover:border-white/20 transition-colors">
-                                            <code className="text-2xl font-mono text-white font-bold tracking-wider">
-                                                {generatedCode}
-                                            </code>
-                                            <button
-                                                onClick={handleCopyCode}
-                                                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                                title="Copiar"
-                                            >
-                                                {copied ? <Check className="text-green-400" size={20} /> : <Copy size={20} />}
-                                            </button>
-                                        </div>
-                                        <p className="text-xs text-amber-400/80 mt-3 flex items-center justify-center gap-1.5">
-                                            <Clock size={12} />
-                                            Este código expira en {expiration === 1 ? "1 hora" : expiration === 24 ? "24 horas" : "1 semana"}
-                                        </p>
-                                    </div>
-
-                                    <button
-                                        onClick={() => setGeneratedCode(null)}
-                                        className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                                    >
-                                        Generar otro código
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {isLoadingUsers ? (
-                                <div className="text-center py-8 text-gray-500">Cargando usuarios...</div>
-                            ) : sharedUsers.length === 0 ? (
-                                <div className="text-center py-8 border border-dashed border-white/10 rounded-xl bg-white/5">
-                                    <User className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                                    <p className="text-gray-400 text-sm">Nadie tiene acceso a este cliente aún.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {sharedUsers.map((user) => (
-                                        <div
-                                            key={user.userId}
-                                            className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl hover:border-white/10 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">
-                                                    {user.userName?.substring(0, 2).toUpperCase() || "U"}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-white">{user.userName || "Usuario"}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        Desde: {new Date(user.sharedAt).toLocaleDateString()}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                onClick={() => handleRevokeAccess(user.userId)}
-                                                disabled={isRevoking === user.userId}
-                                                className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                                title="Revocar acceso"
-                                            >
-                                                {isRevoking === user.userId ? (
-                                                    <RefreshCcw className="animate-spin" size={16} />
-                                                ) : (
-                                                    <Trash2 size={16} />
-                                                )}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                <button type="button" onClick={cerrar} className={BOTON_ICONO} aria-label="Cerrar">
+                    <X size={18} aria-hidden="true" />
+                </button>
             </div>
-        </div>,
-        document.body
+
+            <div className="flex border-b border-[var(--linea)]" role="group" aria-label="Qué hacer">
+                <button type="button" aria-pressed={activeTab === "invite"} onClick={() => setActiveTab("invite")} className={pestana(activeTab === "invite")}>
+                    Generar invitación
+                </button>
+                <button type="button" aria-pressed={activeTab === "manage"} onClick={() => setActiveTab("manage")} className={pestana(activeTab === "manage")}>
+                    Usuarios con acceso ({sharedUsers.length})
+                </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
+                {activeTab === "invite" ? (
+                    <div className="space-y-5">
+                        <p className="text-sm leading-relaxed text-[var(--mut)]">
+                            El código sirve una sola vez, da acceso de solo lectura y vence solo. Compártelo solo con quien corresponda.
+                        </p>
+
+                        {!generatedCode ? (
+                            <div className="space-y-5">
+                                <fieldset>
+                                    <legend className="mb-2 text-sm font-medium text-[var(--txt)]">Vence en</legend>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {HORAS.map((hours) => (
+                                            <button
+                                                key={hours}
+                                                type="button"
+                                                aria-pressed={expiration === hours}
+                                                onClick={() => setExpiration(hours)}
+                                                className={`min-h-11 md:min-h-10 rounded-lg border px-3 text-sm transition-colors duration-150 ${FOCO} ${expiration === hours
+                                                    ? "border-[var(--acento)] bg-[color-mix(in_srgb,var(--acento)_13%,transparent)] font-medium text-[var(--txt)]"
+                                                    : `border-[var(--linea-2)] text-[var(--mut)] hover:text-[var(--txt)] ${SOBRE}`
+                                                    }`}
+                                            >
+                                                {nombreHoras(hours)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </fieldset>
+
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateCode}
+                                    disabled={isGenerating}
+                                    className={`${BOTON} w-full`}
+                                >
+                                    {isGenerating ? (
+                                        <>
+                                            <RefreshCcw className="motion-safe:animate-spin" size={16} aria-hidden="true" />
+                                            Generando…
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Share2 size={16} aria-hidden="true" />
+                                            Generar código de acceso
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="mb-2 text-sm text-[var(--mut)]">Tu código de acceso:</p>
+                                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-2 pl-4 pr-2">
+                                        <code className="min-w-0 break-all font-mono text-2xl font-bold tracking-[0.06em] text-[var(--txt)]">
+                                            {generatedCode}
+                                        </code>
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyCode}
+                                            className={BOTON_ICONO}
+                                            title="Copiar"
+                                            aria-label={copied ? "Código copiado" : "Copiar código"}
+                                        >
+                                            {copied ? <Check className="text-emerald-400" size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+                                        </button>
+                                    </div>
+                                    <p className="mt-3 flex items-center gap-1.5 text-sm text-[var(--mut)]">
+                                        <Clock size={14} aria-hidden="true" className="text-amber-400" />
+                                        Vence en {nombreHoras(expiration)}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setGeneratedCode(null)}
+                                    className={`${BOTON_SUAVE} w-full`}
+                                >
+                                    Generar otro código
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ) : isLoadingUsers ? (
+                    <p className="py-6 text-center text-sm text-[var(--mut)]" role="status">Cargando usuarios…</p>
+                ) : sharedUsers.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-[var(--mut)]">Nadie tiene acceso a este cliente aún.</p>
+                ) : (
+                    <ul className="border-t border-[var(--linea)]">
+                        {sharedUsers.map((user) => (
+                            <li key={user.userId} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] font-mono text-xs font-semibold text-[var(--acento)]">
+                                    {user.userName?.substring(0, 2).toUpperCase() || "U"}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-[var(--txt)]">{user.userName || "Usuario"}</p>
+                                    <p className="text-xs text-[var(--mut)]">
+                                        Desde el {new Date(user.sharedAt).toLocaleDateString("es-CL")}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => handleRevokeAccess(user.userId)}
+                                    disabled={isRevoking === user.userId}
+                                    className={`${BOTON_ICONO} hover:bg-red-500/10 hover:text-red-400`}
+                                    title="Quitar acceso"
+                                    aria-label={`Quitar acceso a ${user.userName || "este usuario"}`}
+                                >
+                                    {isRevoking === user.userId ? (
+                                        <RefreshCcw className="motion-safe:animate-spin" size={16} aria-hidden="true" />
+                                    ) : (
+                                        <Trash2 size={16} aria-hidden="true" />
+                                    )}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </dialog>
     );
 }

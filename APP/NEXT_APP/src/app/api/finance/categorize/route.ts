@@ -1,52 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { z } from "zod";
 import { categorizeTransaction, batchCategorize } from "@/services/auto-categorization";
+import { accesoFinanzas } from "../_lib/acceso";
+
+const movimientoSchema = z.object({
+    description: z.string().trim().min(1).max(500),
+    amount: z.number().finite().default(0),
+    type: z.enum(["income", "expense"]).default("expense"),
+    merchantName: z.string().max(200).optional(),
+});
+
+// Uno solo o un lote acotado (cada uno consulta la base).
+const cuerpoSchema = z.union([
+    movimientoSchema,
+    z.object({ transactions: z.array(movimientoSchema).min(1).max(100) }),
+]);
 
 // POST /api/finance/categorize
 // Auto-categorize a transaction or batch of transactions
 export async function POST(request: NextRequest) {
     try {
-        const session = await auth();
+        const acceso = await accesoFinanzas("finance.view");
+        if (!acceso.ok) return acceso.respuesta;
 
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+        const cuerpo = cuerpoSchema.safeParse(await request.json().catch(() => null));
+        if (!cuerpo.success) {
+            return NextResponse.json({ error: "Se requiere description o transactions[]" }, { status: 400 });
         }
 
-        const userId = session.user.id;
-        const body = await request.json();
-
-        // Single transaction
-        if (body.description) {
-            const result = await categorizeTransaction(
-                {
-                    description: body.description,
-                    amount: body.amount || 0,
-                    type: body.type || "expense",
-                    merchantName: body.merchantName,
-                },
-                userId
-            );
-
-            return NextResponse.json({
-                success: true,
-                data: result,
-            });
+        if ("transactions" in cuerpo.data) {
+            const results = await batchCategorize(cuerpo.data.transactions, acceso.userId);
+            return NextResponse.json({ success: true, data: results });
         }
 
-        // Batch categorization
-        if (body.transactions && Array.isArray(body.transactions)) {
-            const results = await batchCategorize(body.transactions, userId);
-
-            return NextResponse.json({
-                success: true,
-                data: results,
-            });
-        }
-
-        return NextResponse.json(
-            { error: "Se requiere description o transactions[]" },
-            { status: 400 }
-        );
+        const result = await categorizeTransaction(cuerpo.data, acceso.userId);
+        return NextResponse.json({ success: true, data: result });
     } catch (error) {
         console.error("Error categorizing:", error);
         return NextResponse.json(

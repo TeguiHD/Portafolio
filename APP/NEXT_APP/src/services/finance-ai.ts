@@ -110,6 +110,7 @@ export async function analyzeFinancesWithAI(data: FinancialData): Promise<Analys
         const userPrompt = buildAnalysisPrompt(data);
 
         const response = await fetch(OPENROUTER_API_URL, {
+            signal: AbortSignal.timeout(60_000),
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -239,6 +240,7 @@ Mantén la respuesta en 2-3 párrafos máximo.`;
                 .join(", ")}`;
 
         const response = await fetch(OPENROUTER_API_URL, {
+            signal: AbortSignal.timeout(60_000),
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

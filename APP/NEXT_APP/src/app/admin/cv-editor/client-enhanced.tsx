@@ -1,9 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import {
+    Award,
+    BarChart3,
+    Briefcase,
+    Download,
+    Eye,
+    FolderGit2,
+    GraduationCap,
+    Languages,
+    Loader2,
+    Palette,
+    Save,
+    User,
+    Wrench,
+} from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
-import { CvEditorPageSkeleton } from "@/components/ui/Skeleton";
+import { EsqueletoSeccion } from "@/modules/admin/armazon/EsqueletoSeccion";
+import { BOTON, BOTON_SEC, CAMPO, ENLACE, ETIQUETA } from "@/modules/cv/components/estilos";
 import { ExperienceSection, type Experience } from "@/modules/cv/components/ExperienceSection";
 import { EducationSection, type Education } from "@/modules/cv/components/EducationSection";
 import { ProjectsSection, type Project } from "@/modules/cv/components/ProjectsSection";
@@ -24,6 +39,7 @@ import {
 } from "@/modules/cv/utils/latex-templates-enhanced";
 import {
     type CvDesignConfig,
+    CV_THEMES,
     DEFAULT_DESIGN_CONFIG,
 } from "@/modules/cv/utils/cv-design";
 
@@ -82,6 +98,7 @@ export default function CvEditorPageClientEnhanced() {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const toast = useToast();
+    const base = useId();
 
     // Load versions on mount
     const loadVersion = useCallback(async (id: string) => {
@@ -134,8 +151,11 @@ export default function CvEditorPageClientEnhanced() {
                     const responseData = await res.json();
                     console.log("[CV Editor] Versions loaded:", responseData);
                     setVersions(responseData);
+                    // ?versionId=… (el enlace «Abrir la versión adaptada» de Postulaciones) manda sobre la principal
+                    const pedida = new URLSearchParams(window.location.search).get("versionId");
+                    const versionPedida = pedida ? responseData.find((v: CvVersion) => v.id === pedida) : undefined;
                     const defaultVersion = responseData.find((v: CvVersion) => v.isDefault);
-                    const versionToLoad = defaultVersion || responseData[0];
+                    const versionToLoad = versionPedida || defaultVersion || responseData[0];
                     console.log("[CV Editor] Version to load:", versionToLoad);
                     if (versionToLoad) {
                         await loadVersion(versionToLoad.id);
@@ -272,400 +292,347 @@ export default function CvEditorPageClientEnhanced() {
         setHasUnsavedChanges(true);
     }, []);
 
-    // Tab configuration with icons
-    const tabs: { id: Tab; label: string; icon: React.ReactNode; count?: number; color?: string }[] = [
-        {
-            id: "personal",
-            label: "Personal",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
-        },
-        {
-            id: "experience",
-            label: "Experiencia",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
-            count: data.experience.length,
-            color: "accent-1",
-        },
-        {
-            id: "education",
-            label: "Educación",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" /></svg>,
-            count: data.education.length,
-            color: "teal-400",
-        },
-        {
-            id: "skills",
-            label: "Skills",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>,
-            count: data.skills.length,
-            color: "yellow-400",
-        },
-        {
-            id: "projects",
-            label: "Proyectos",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>,
-            count: data.projects.length,
-            color: "purple-400",
-        },
-        {
-            id: "certifications",
-            label: "Certificaciones",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>,
-            count: data.certifications?.length || 0,
-            color: "amber-400",
-        },
-        {
-            id: "languages",
-            label: "Idiomas",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>,
-            count: data.languages?.length || 0,
-            color: "blue-400",
-        },
-        {
-            id: "design",
-            label: "Diseño",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>,
-        },
-        {
-            id: "latex",
-            label: "Exportar",
-            icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>,
-        },
+    // Pestañas del editor
+    const tabs: { id: Tab; label: string; icon: ReactNode; count?: number }[] = [
+        { id: "personal", label: "Datos personales", icon: <User className="size-4" aria-hidden="true" /> },
+        { id: "experience", label: "Experiencia", icon: <Briefcase className="size-4" aria-hidden="true" />, count: data.experience.length },
+        { id: "education", label: "Educación", icon: <GraduationCap className="size-4" aria-hidden="true" />, count: data.education.length },
+        { id: "skills", label: "Habilidades", icon: <Wrench className="size-4" aria-hidden="true" />, count: data.skills.length },
+        { id: "projects", label: "Proyectos", icon: <FolderGit2 className="size-4" aria-hidden="true" />, count: data.projects.length },
+        { id: "certifications", label: "Certificaciones", icon: <Award className="size-4" aria-hidden="true" />, count: data.certifications?.length || 0 },
+        { id: "languages", label: "Idiomas", icon: <Languages className="size-4" aria-hidden="true" />, count: data.languages?.length || 0 },
+        { id: "design", label: "Diseño", icon: <Palette className="size-4" aria-hidden="true" /> },
+        { id: "latex", label: "Exportar", icon: <Download className="size-4" aria-hidden="true" /> },
     ];
 
+    // Flechas, Inicio y Fin recorren las pestañas (patrón de pestañas de ARIA)
+    const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+        let next = -1;
+        if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
+        else if (e.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+        else if (e.key === "Home") next = 0;
+        else if (e.key === "End") next = tabs.length - 1;
+        if (next < 0) return;
+        e.preventDefault();
+        setActiveTab(tabs[next].id);
+        document.getElementById(`${base}-tab-${tabs[next].id}`)?.focus();
+    };
+
     if (isLoading) {
-        return <CvEditorPageSkeleton />;
+        return <EsqueletoSeccion nombre="el currículum" barra filas={5} />;
     }
 
+    const versionActual = versions.find((v) => v.id === currentVersionId);
+    const nombreFormato =
+        designConfig.layout === "two-column-sidebar" ? "Con barra lateral" : designConfig.layout === "compact-grid" ? "Compacto" : "Clásico";
+    const nombrePagina = designConfig.page.size === "a4" ? "A4" : designConfig.page.size === "letter" ? "Carta" : "Legal";
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                        Editor de CV
-                        <span className="px-2 py-0.5 rounded-full bg-accent-1/20 text-accent-1 text-xs font-normal">
-                            Pro
-                        </span>
-                        {hasUnsavedChanges && (
-                            <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-normal">
-                                Sin guardar
-                            </span>
-                        )}
+        <div className="max-w-[1440px] space-y-8">
+            <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <h1 className="text-[clamp(30px,3.6vw,44px)] font-extrabold leading-none tracking-[-0.04em] text-[var(--txt)]">
+                        Currículum
                     </h1>
-                    <p className="text-neutral-400 mt-1">
-                        {currentVersionId
-                            ? `Editando: ${versions.find(v => v.id === currentVersionId)?.name || "CV"}`
-                            : "Crea y gestiona versiones de tu curriculum profesional"
-                        }
+                    <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-[var(--mut)]">
+                        <span>{versionActual ? `Editando: ${versionActual.name}` : "Crea y ordena las versiones de tu CV."}</span>
+                        <span role="status" className="text-sm">
+                            {hasUnsavedChanges && (
+                                <span className="inline-flex items-center gap-1.5 text-amber-400">
+                                    <span aria-hidden="true" className="size-1.5 rounded-full bg-amber-400" />
+                                    Cambios sin guardar
+                                </span>
+                            )}
+                        </span>
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                     {versions.length > 0 && (
-                        <select
-                            value={currentVersionId || ""}
-                            onChange={(e) => e.target.value && loadVersion(e.target.value)}
-                            className="px-3 py-2 rounded-xl bg-white/5 border border-accent-1/20 text-white text-sm focus:outline-none focus:border-accent-1/50"
-                        >
-                            <option value="" disabled>Seleccionar versión</option>
-                            {versions.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                    {v.name} {v.isDefault && "⭐"}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="sm:w-64">
+                            <label htmlFor={`${base}-version`} className={ETIQUETA}>Versión</label>
+                            <select
+                                id={`${base}-version`}
+                                value={currentVersionId || ""}
+                                onChange={(e) => e.target.value && loadVersion(e.target.value)}
+                                className={CAMPO}
+                            >
+                                <option value="" disabled>Elige una versión</option>
+                                {versions.map((v) => (
+                                    <option key={v.id} value={v.id}>
+                                        {v.name}{v.isDefault ? " (principal)" : ""}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     )}
-
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => saveVersion()}
-                        disabled={isSaving}
-                        className="px-4 py-2.5 rounded-xl bg-accent-1 text-black font-semibold flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {isSaving ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                                Guardando...
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                                </svg>
-                                Guardar
-                            </>
-                        )}
-                    </motion.button>
-
-                    {/* Preview toggle */}
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setShowPreview(!showPreview)}
-                        className={`px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors ${showPreview
-                            ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                            : "bg-white/5 text-neutral-400 border border-white/10 hover:text-white"
-                            }`}
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span className="hidden sm:inline">{showPreview ? "Ocultar" : "Preview"}</span>
-                    </motion.button>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowPreview(!showPreview)}
+                            aria-pressed={showPreview}
+                            className={`${BOTON_SEC} flex-1 aria-pressed:border-[var(--acento)] sm:flex-none`}
+                        >
+                            <Eye className="size-4" aria-hidden="true" />
+                            Vista previa
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => saveVersion()}
+                            disabled={isSaving}
+                            className={`${BOTON} flex-1 sm:flex-none`}
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                    Guardando…
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="size-4" aria-hidden="true" />
+                                    Guardar
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </header>
 
-            {/* Theme/Language/Layout Quick Info */}
-            <div className="flex items-center gap-4 text-sm flex-wrap">
-                <span className="text-neutral-400">
-                    Tema: <span className="text-white">{designConfig.theme}</span>
-                </span>
-                <span className="text-neutral-600">•</span>
-                <span className="text-neutral-400">
-                    Formato: <span className="text-white">{
-                        designConfig.layout === "two-column-sidebar" ? "Sidebar" :
-                            designConfig.layout === "compact-grid" ? "Grid" : "Clásico"
-                    }</span>
-                </span>
-                <span className="text-neutral-600">•</span>
-                <span className="text-neutral-400">
-                    Idioma: <span className="text-white">{designConfig.language === "es" ? "🇪🇸 Español" : "🇺🇸 English"}</span>
-                </span>
-                <span className="text-neutral-600">•</span>
-                <span className="text-neutral-400">
-                    Página: <span className="text-white">{designConfig.page.size.toUpperCase()}</span>
-                </span>
-            </div>
+            <dl aria-label="Diseño actual" className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                {[
+                    ["Tema", CV_THEMES[designConfig.theme]?.name ?? designConfig.theme],
+                    ["Formato", nombreFormato],
+                    ["Idioma", designConfig.language === "es" ? "Español" : "English"],
+                    ["Página", nombrePagina],
+                ].map(([k, v]) => (
+                    <div key={k} className="flex gap-1.5">
+                        <dt className="text-[var(--mut)]">{k}:</dt>
+                        <dd className="m-0 text-[var(--txt)]">{v}</dd>
+                    </div>
+                ))}
+            </dl>
 
-            {/* Jobs integration panel */}
             {currentVersionId && (
                 <CvJobsIntegrationPanel cvVersionId={currentVersionId} />
             )}
 
-            {/* Main content area - split view when preview is enabled */}
-            <div className={`flex gap-6 ${showPreview ? 'flex-col xl:flex-row' : ''}`}>
-                {/* Editor section */}
-                <div className={showPreview ? 'flex-1 xl:max-w-[60%]' : 'w-full'}>
-                    {/* Tabs */}
-                    <div className="glass-panel rounded-xl border border-accent-1/20 p-1 flex gap-1 overflow-x-auto mb-6">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.id
-                                    ? "bg-accent-1/20 text-accent-1"
-                                    : "text-neutral-400 hover:text-white"
-                                    }`}
-                            >
-                                {tab.icon}
-                                {tab.label}
-                                {tab.count !== undefined && tab.count > 0 && (
-                                    <span className={`px-1.5 py-0.5 rounded-full bg-${tab.color || "accent-1"}/20 text-${tab.color || "accent-1"} text-xs`}>
-                                        {tab.count}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
+            <div className={showPreview ? "grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]" : ""}>
+                <div className="min-w-0">
+                    {/* Las pestañas se desplazan dentro de su franja en celular; la página nunca se mueve de lado. */}
+                    <div className="mb-8 overflow-x-auto border-b border-[var(--linea)] [scrollbar-width:thin]">
+                        <div role="tablist" aria-label="Partes del currículum" className="flex min-w-max gap-1">
+                            {tabs.map((tab, index) => {
+                                const activa = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        id={`${base}-tab-${tab.id}`}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={activa}
+                                        tabIndex={activa ? 0 : -1}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        onKeyDown={(e) => onTabKeyDown(e, index)}
+                                        className={`-mb-px inline-flex min-h-11 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)] ${
+                                            activa
+                                                ? "border-[var(--acento)] text-[var(--txt)]"
+                                                : "border-transparent text-[var(--mut)] hover:text-[var(--txt)]"
+                                        }`}
+                                    >
+                                        {tab.icon}
+                                        {tab.label}
+                                        {tab.count !== undefined && tab.count > 0 && (
+                                            <span className="font-mono text-xs tabular-nums text-[var(--mut)]">{tab.count}</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    {/* Content */}
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={activeTab}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            {activeTab === "personal" && (
-                                <div className="glass-panel rounded-2xl border border-accent-1/20 p-6">
-                                    <h3 className="font-semibold text-white mb-6">Información Personal</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-2">Nombre completo</label>
-                                            <input
-                                                type="text"
-                                                value={data.personalInfo.name}
-                                                onChange={(e) => updatePersonalInfo({ name: e.target.value })}
-                                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-2">Título / Headline</label>
-                                            <input
-                                                type="text"
-                                                value={data.personalInfo.headline || data.personalInfo.title}
-                                                onChange={(e) => updatePersonalInfo({ headline: e.target.value, title: e.target.value })}
-                                                placeholder="Full Stack Developer | Tech Lead"
-                                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-2">Email</label>
-                                            <input
-                                                type="email"
-                                                value={data.personalInfo.email}
-                                                onChange={(e) => updatePersonalInfo({ email: e.target.value })}
-                                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-2">Teléfono</label>
-                                            <input
-                                                type="tel"
-                                                value={data.personalInfo.phone}
-                                                onChange={(e) => updatePersonalInfo({ phone: e.target.value })}
-                                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-2">Ubicación</label>
-                                            <input
-                                                type="text"
-                                                value={data.personalInfo.location}
-                                                onChange={(e) => updatePersonalInfo({ location: e.target.value })}
-                                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-2">Website / Portfolio</label>
-                                            <input
-                                                type="text"
-                                                value={data.personalInfo.website || ""}
-                                                onChange={(e) => updatePersonalInfo({ website: e.target.value })}
-                                                placeholder="www.miportfolio.com"
-                                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50"
-                                            />
-                                        </div>
+                    <div
+                        id={`${base}-panel`}
+                        role="tabpanel"
+                        aria-labelledby={`${base}-tab-${activeTab}`}
+                    >
+                        {activeTab === "personal" && (
+                            <section aria-labelledby={`${base}-personal`} className="space-y-5">
+                                <h2 id={`${base}-personal`} className="text-xl font-semibold text-[var(--txt)]">Datos personales</h2>
+                                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                    <div>
+                                        <label htmlFor={`${base}-nombre`} className={ETIQUETA}>Nombre completo</label>
+                                        <input
+                                            id={`${base}-nombre`}
+                                            type="text"
+                                            autoComplete="name"
+                                            value={data.personalInfo.name}
+                                            onChange={(e) => updatePersonalInfo({ name: e.target.value })}
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${base}-titular`} className={ETIQUETA}>Título profesional</label>
+                                        <input
+                                            id={`${base}-titular`}
+                                            type="text"
+                                            autoComplete="organization-title"
+                                            value={data.personalInfo.headline || data.personalInfo.title}
+                                            onChange={(e) => updatePersonalInfo({ headline: e.target.value, title: e.target.value })}
+                                            placeholder="Desarrollador full stack"
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${base}-correo`} className={ETIQUETA}>Correo</label>
+                                        <input
+                                            id={`${base}-correo`}
+                                            type="email"
+                                            autoComplete="email"
+                                            value={data.personalInfo.email}
+                                            onChange={(e) => updatePersonalInfo({ email: e.target.value })}
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${base}-telefono`} className={ETIQUETA}>Teléfono</label>
+                                        <input
+                                            id={`${base}-telefono`}
+                                            type="tel"
+                                            autoComplete="tel"
+                                            value={data.personalInfo.phone}
+                                            onChange={(e) => updatePersonalInfo({ phone: e.target.value })}
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${base}-ubicacion`} className={ETIQUETA}>Ubicación</label>
+                                        <input
+                                            id={`${base}-ubicacion`}
+                                            type="text"
+                                            value={data.personalInfo.location}
+                                            onChange={(e) => updatePersonalInfo({ location: e.target.value })}
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${base}-web`} className={ETIQUETA}>Sitio web o portafolio</label>
+                                        <input
+                                            id={`${base}-web`}
+                                            type="text"
+                                            inputMode="url"
+                                            autoComplete="url"
+                                            value={data.personalInfo.website || ""}
+                                            onChange={(e) => updatePersonalInfo({ website: e.target.value })}
+                                            placeholder="www.miportafolio.cl"
+                                            className={CAMPO}
+                                        />
+                                    </div>
 
-                                        {/* Social Networks - Dynamic Editor */}
-                                        <div className="md:col-span-2 pt-4 border-t border-accent-1/10">
-                                            <SocialNetworksEditor
-                                                networks={data.socialNetworks || data.personalInfo.socialNetworks || []}
-                                                onChange={(networks) => {
-                                                    updateData({ socialNetworks: networks });
-                                                    // Sync back to personalInfo fields for DB persistence
-                                                    const linkedinNet = networks.find(n => n.network === "LinkedIn");
-                                                    const githubNet = networks.find(n => n.network === "GitHub");
-                                                    const websiteNet = networks.find(n => n.network === "Website");
-                                                    updatePersonalInfo({
-                                                        socialNetworks: networks,
-                                                        linkedin: linkedinNet?.username || "",
-                                                        github: githubNet?.username || "",
-                                                        website: websiteNet?.username || "",
-                                                    });
-                                                }}
-                                            />
-                                        </div>
+                                    <div className="border-t border-[var(--linea)] pt-5 md:col-span-2">
+                                        <SocialNetworksEditor
+                                            networks={data.socialNetworks || data.personalInfo.socialNetworks || []}
+                                            onChange={(networks) => {
+                                                updateData({ socialNetworks: networks });
+                                                // Copia a los campos de personalInfo, que son los que se guardan en la base
+                                                const linkedinNet = networks.find(n => n.network === "LinkedIn");
+                                                const githubNet = networks.find(n => n.network === "GitHub");
+                                                const websiteNet = networks.find(n => n.network === "Website");
+                                                updatePersonalInfo({
+                                                    socialNetworks: networks,
+                                                    linkedin: linkedinNet?.username || "",
+                                                    github: githubNet?.username || "",
+                                                    website: websiteNet?.username || "",
+                                                });
+                                            }}
+                                        />
+                                    </div>
 
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm text-neutral-400 mb-2">
-                                                Resumen profesional
-                                                <span className="text-neutral-500 ml-2">
-                                                    ({data.personalInfo.summary.length}/500 caracteres)
-                                                </span>
-                                            </label>
-                                            <textarea
-                                                value={data.personalInfo.summary}
-                                                onChange={(e) => updatePersonalInfo({ summary: e.target.value })}
-                                                rows={4}
-                                                maxLength={500}
-                                                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-accent-1/20 text-white focus:outline-none focus:border-accent-1/50 resize-none"
-                                                placeholder="Breve descripción de tu perfil profesional..."
-                                            />
-                                        </div>
+                                    <div className="md:col-span-2">
+                                        <label htmlFor={`${base}-resumen`} className={ETIQUETA}>Resumen profesional</label>
+                                        <textarea
+                                            id={`${base}-resumen`}
+                                            value={data.personalInfo.summary}
+                                            onChange={(e) => updatePersonalInfo({ summary: e.target.value })}
+                                            rows={4}
+                                            maxLength={500}
+                                            aria-describedby={`${base}-resumen-cuenta`}
+                                            className={`${CAMPO} resize-y`}
+                                            placeholder="Tu perfil profesional en pocas líneas…"
+                                        />
+                                        <p id={`${base}-resumen-cuenta`} className="mt-1.5 font-mono text-xs tabular-nums text-[var(--mut)]">
+                                            {data.personalInfo.summary.length} de 500 caracteres
+                                        </p>
                                     </div>
                                 </div>
-                            )}
+                            </section>
+                        )}
 
-                            {activeTab === "experience" && (
-                                <ExperienceSection
-                                    experiences={data.experience}
-                                    onChange={(experiences) => updateData({ experience: experiences })}
-                                />
-                            )}
+                        {activeTab === "experience" && (
+                            <ExperienceSection
+                                experiences={data.experience}
+                                onChange={(experiences) => updateData({ experience: experiences })}
+                            />
+                        )}
 
-                            {activeTab === "education" && (
-                                <EducationSection
-                                    education={data.education}
-                                    onChange={(education) => updateData({ education })}
-                                />
-                            )}
+                        {activeTab === "education" && (
+                            <EducationSection
+                                education={data.education}
+                                onChange={(education) => updateData({ education })}
+                            />
+                        )}
 
-                            {activeTab === "skills" && (
-                                <SkillsSection
-                                    skills={data.skills}
-                                    onChange={(skills) => updateData({ skills })}
-                                />
-                            )}
+                        {activeTab === "skills" && (
+                            <SkillsSection
+                                skills={data.skills}
+                                onChange={(skills) => updateData({ skills })}
+                            />
+                        )}
 
-                            {activeTab === "projects" && (
-                                <ProjectsSection
-                                    projects={data.projects}
-                                    onChange={(projects) => updateData({ projects })}
-                                />
-                            )}
+                        {activeTab === "projects" && (
+                            <ProjectsSection
+                                projects={data.projects}
+                                onChange={(projects) => updateData({ projects })}
+                            />
+                        )}
 
-                            {activeTab === "certifications" && (
-                                <CertificationsSection
-                                    certifications={data.certifications || []}
-                                    onChange={(certifications) => updateData({ certifications })}
-                                />
-                            )}
+                        {activeTab === "certifications" && (
+                            <CertificationsSection
+                                certifications={data.certifications || []}
+                                onChange={(certifications) => updateData({ certifications })}
+                            />
+                        )}
 
-                            {activeTab === "languages" && (
-                                <LanguagesSection
-                                    languages={data.languages || []}
-                                    onChange={(languages) => updateData({ languages })}
-                                />
-                            )}
+                        {activeTab === "languages" && (
+                            <LanguagesSection
+                                languages={data.languages || []}
+                                onChange={(languages) => updateData({ languages })}
+                            />
+                        )}
 
-                            {activeTab === "design" && (
-                                <DesignConfigPanel
-                                    config={designConfig}
-                                    onChange={updateDesignConfig}
-                                />
-                            )}
+                        {activeTab === "design" && (
+                            <DesignConfigPanel
+                                config={designConfig}
+                                onChange={updateDesignConfig}
+                            />
+                        )}
 
-                            {activeTab === "latex" && (
-                                <LatexPreviewEnhanced
-                                    data={data}
-                                    designConfig={designConfig}
-                                />
-                            )}
-                        </motion.div>
-                    </AnimatePresence>
-
-                </div>
-
-                {/* Live Preview Panel */}
-                {showPreview && (
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="xl:w-[40%] xl:sticky xl:top-4 h-fit"
-                    >
-                        <div className="glass-panel rounded-2xl border border-purple-500/20 p-4">
-                            <div className="flex items-center gap-2 text-sm text-purple-400 mb-3">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                Vista previa en tiempo real
-                            </div>
-                            <CvLivePreview
+                        {activeTab === "latex" && (
+                            <LatexPreviewEnhanced
                                 data={data}
                                 designConfig={designConfig}
                             />
-                        </div>
-                    </motion.div>
+                        )}
+                    </div>
+                </div>
+
+                {showPreview && (
+                    <aside aria-labelledby={`${base}-vista`} className="min-w-0 xl:sticky xl:top-20">
+                        <h2 id={`${base}-vista`} className="mb-3 text-[15px] font-semibold text-[var(--mut)]">Vista previa en vivo</h2>
+                        <CvLivePreview data={data} designConfig={designConfig} />
+                    </aside>
                 )}
             </div>
 
-            {/* Floating AI Chat Button - only for supported sections */}
+            {/* Asistente flotante: solo en las secciones que sabe completar */}
             {(activeTab === "experience" || activeTab === "projects") && (
                 <FloatingCvChat
                     data={data}
@@ -704,51 +671,43 @@ function CvJobsIntegrationPanel({ cvVersionId }: { cvVersionId: string }) {
     }, [cvVersionId]);
 
     if (loading) {
-        return (
-            <div className="h-14 rounded-2xl border border-white/5 bg-white/[0.02] animate-pulse" />
-        );
+        return <div aria-hidden="true" className="h-12 animate-pulse rounded-lg bg-[color-mix(in_srgb,var(--txt)_7%,transparent)] motion-reduce:animate-none" />;
     }
 
     const hasActivity = summary && (summary.analysisCount > 0 || summary.adaptationCount > 0);
 
     return (
-        <div className="rounded-2xl border border-white/8 bg-[#0a0f1c]/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-            {/* Stats */}
-            <div className="flex items-center gap-4 flex-1 flex-wrap">
-                <div className="flex items-center gap-2 text-xs">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                    <span className="text-neutral-400">Análisis:</span>
-                    <span className="font-semibold text-white">{summary?.analysisCount ?? 0}</span>
+        <section
+            aria-label="Uso de esta versión en Postulaciones"
+            className="flex flex-col gap-3 border-y border-[var(--linea)] py-3 sm:flex-row sm:items-center sm:gap-6"
+        >
+            <dl className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+                <div className="flex gap-1.5">
+                    <dt className="text-[var(--mut)]">Análisis:</dt>
+                    <dd className="m-0 font-semibold tabular-nums text-[var(--txt)]">{summary?.analysisCount ?? 0}</dd>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span className="text-neutral-400">Adaptaciones:</span>
-                    <span className="font-semibold text-white">{summary?.adaptationCount ?? 0}</span>
+                <div className="flex gap-1.5">
+                    <dt className="text-[var(--mut)]">Adaptaciones:</dt>
+                    <dd className="m-0 font-semibold tabular-nums text-[var(--txt)]">{summary?.adaptationCount ?? 0}</dd>
                 </div>
                 {summary?.avgMatchScore != null && (
-                    <div className="flex items-center gap-2 text-xs">
-                        <span className="w-2 h-2 rounded-full bg-amber-400" />
-                        <span className="text-neutral-400">Match prom.:</span>
-                        <span className="font-semibold text-white">{Math.round(summary.avgMatchScore)}%</span>
+                    <div className="flex gap-1.5">
+                        <dt className="text-[var(--mut)]">Coincidencia promedio:</dt>
+                        <dd className="m-0 font-semibold tabular-nums text-[var(--txt)]">{Math.round(summary.avgMatchScore)}%</dd>
                     </div>
                 )}
                 {hasActivity && summary?.latestAnalysisVacancy && (
-                    <span className="text-[11px] text-neutral-500 truncate max-w-[200px]">
-                        Última: {summary.latestAnalysisVacancy}
-                    </span>
+                    <div className="flex min-w-0 gap-1.5">
+                        <dt className="text-[var(--mut)]">Último:</dt>
+                        <dd className="m-0 max-w-[16rem] truncate text-[var(--txt)]">{summary.latestAnalysisVacancy}</dd>
+                    </div>
                 )}
-            </div>
+            </dl>
 
-            {/* CTA */}
-            <a
-                href="/admin/jobs/analysis"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-1 hover:text-accent-1/80 whitespace-nowrap"
-            >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Analizar vacante con este CV
+            <a href="/admin/jobs/analysis" className={`${ENLACE} min-h-11 whitespace-nowrap text-sm font-semibold sm:min-h-0`}>
+                <BarChart3 className="size-4" aria-hidden="true" />
+                Analizar una vacante con este CV
             </a>
-        </div>
+        </section>
     );
 }

@@ -121,6 +121,7 @@ REQUISITOS: ${requirements}
 Genera una cotización profesional para este proyecto.`;
 
         const response = await fetch(OPENROUTER_API_URL, {
+            signal: AbortSignal.timeout(60_000),
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { accesoFinanzas } from "../../_lib/acceso";
 import prisma from "@/lib/prisma";
-import { startOfMonth, endOfMonth, differenceInDays, subMonths } from "date-fns";
+import { differenceInDays, subMonths } from "date-fns";
+import { fechasDelPeriodo } from "../../_lib/presupuestos";
+import { hoyChile } from "@/modules/finance/fechas";
 
 const CATEGORY_ICONS: Record<string, string> = {
     "alimentacion": "🍔",
@@ -80,20 +82,17 @@ const GOAL_ICONS: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
     try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const acceso = await accesoFinanzas("finance.dashboard");
+        if (!acceso.ok) return acceso.respuesta;
 
-        const userId = session.user.id;
+        const userId = acceso.userId;
         const { searchParams } = new URL(request.url);
         const _currency = searchParams.get("currency") || "CLP";
 
         const now = new Date();
-        const monthStart = startOfMonth(now);
-        const monthEnd = endOfMonth(now);
-        const lastMonthStart = startOfMonth(subMonths(now, 1));
-        const lastMonthEnd = endOfMonth(subMonths(now, 1));
+        // El mes de Chile, en días guardados (medianoche UTC): antes el mes cambiaba a las 21:00 del último día.
+        const { start: monthStart, end: monthEnd } = fechasDelPeriodo("MONTHLY", now);
+        const { start: lastMonthStart, end: lastMonthEnd } = fechasDelPeriodo("MONTHLY", new Date(monthStart.getTime() - 12 * 3_600_000));
 
         // Check if user needs onboarding
         const transactionCount = await prisma.transaction.count({
@@ -191,7 +190,7 @@ export async function GET(request: NextRequest) {
         const totalBudget = budgets.reduce((sum, b) => sum + b.amount, 0) || thisMonthIncome;
 
         // Day progress
-        const dayOfMonth = now.getDate();
+        const dayOfMonth = Number(hoyChile(now).slice(8, 10));
         const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
         const expectedSpendingToDate = (totalBudget / daysInMonth) * dayOfMonth;
 
@@ -395,7 +394,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("Dashboard V2 Error:", error);
         return NextResponse.json(
-            { error: "Error loading dashboard" },
+            { error: "No se pudo cargar el resumen de finanzas" },
             { status: 500 }
         );
     }

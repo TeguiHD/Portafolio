@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
     Bell,
     ArrowRight,
@@ -24,15 +23,17 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
-    Clock,
-    Circle,
-    Inbox,
     Monitor,
-    Sparkles,
     Loader2,
 } from "lucide-react";
-import { Select } from "@/components/ui/Select";
-import { NotificationsPageSkeleton } from "@/components/ui/Skeleton";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import DialogoFormulario from "@/app/admin/gestion-comercial/dialogo-formulario";
+import { BLOQUE } from "@/modules/admin/armazon/EsqueletoSeccion";
+
+/*
+ * Centro de notificaciones. «Leída» es de cada persona: la API responde `isRead` según quien mira
+ * (tabla AdminNotificationRead), así que marcar aquí no cambia lo que ven los demás administradores.
+ */
 interface Notification {
     id: string;
     type: string;
@@ -45,11 +46,33 @@ interface Notification {
     actorName?: string;
 }
 
+/** Respuesta de GET /api/admin/notifications?page=N. */
+interface PaginaNotificaciones {
+    notifications: Notification[];
+    filteredCount: number;
+    totalPages: number;
+    totalCount: number;
+    unreadCount: number;
+    criticalUnread: number;
+    todayCount: number;
+}
+
 type PriorityFilter = "ALL" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type StatusFilter = "ALL" | "READ" | "UNREAD";
 type TypeFilter = "ALL" | "USER" | "SECURITY" | "QUOTATION" | "TOOL" | "SYSTEM";
 
 const ITEMS_PER_PAGE = 15;
+
+// Clases compartidas (tokens del tema: valen en claro y oscuro).
+const FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]";
+const BOTON = `inline-flex items-center justify-center gap-2 min-h-10 max-sm:min-h-11 px-4 rounded-lg text-sm font-semibold whitespace-nowrap transition-[color,background-color,opacity] duration-150 motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed ${FOCO}`;
+const PRINCIPAL = `${BOTON} bg-[var(--acento)] text-[var(--acento-tinta)] hover:opacity-90`;
+const SECUNDARIO = `${BOTON} border border-[var(--linea-2)] text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]`;
+const ICONO = `grid place-items-center size-10 max-sm:size-11 shrink-0 rounded-lg text-[var(--mut)] transition-colors duration-150 motion-reduce:transition-none hover:text-[var(--txt)] hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] disabled:opacity-40 disabled:cursor-not-allowed ${FOCO}`;
+// Las listas nativas siguen el tema (en oscuro, su menú desplegable también es oscuro).
+const ESQUEMA = "[color-scheme:dark] [:root[data-tema=claro]_&]:[color-scheme:light]";
+const CAMPO = `w-full min-h-10 max-sm:min-h-11 px-3 rounded-lg bg-[var(--fondo-2)] border border-[var(--linea-2)] text-[var(--txt)] text-sm placeholder:text-[var(--mut)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--acento)] ${ESQUEMA}`;
+const CASILLA = "size-4 cursor-pointer accent-[var(--acento)]";
 
 // Icon mapping
 const typeIcons: Record<string, typeof Bell> = {
@@ -71,33 +94,14 @@ const typeIcons: Record<string, typeof Bell> = {
     SYSTEM_MAINTENANCE: Server,
 };
 
-// Priority styles
-const priorityStyles: Record<string, { border: string; bg: string; badge: string; text: string }> = {
-    LOW: {
-        border: "border-l-neutral-500",
-        bg: "bg-neutral-500/5",
-        badge: "bg-neutral-500/20 text-neutral-400",
-        text: "Baja",
-    },
-    MEDIUM: {
-        border: "border-l-blue-500",
-        bg: "bg-blue-500/5",
-        badge: "bg-blue-500/20 text-blue-400",
-        text: "Media",
-    },
-    HIGH: {
-        border: "border-l-amber-500",
-        bg: "bg-amber-500/5",
-        badge: "bg-amber-500/20 text-amber-400",
-        text: "Alta",
-    },
-    CRITICAL: {
-        border: "border-l-red-500",
-        bg: "bg-red-500/5",
-        badge: "bg-red-500/20 text-red-400",
-        text: "Crítica",
-    },
+// Prioridad: insignia con texto (el color acompaña, no reemplaza a la palabra).
+const priorityStyles: Record<string, { badge: string; text: string }> = {
+    LOW: { badge: "bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] text-[var(--mut)]", text: "Baja" },
+    MEDIUM: { badge: "bg-sky-500/10 text-sky-400", text: "Media" },
+    HIGH: { badge: "bg-amber-500/10 text-amber-400", text: "Alta" },
+    CRITICAL: { badge: "bg-red-500/10 text-red-400", text: "Crítica" },
 };
+const prioridadDe = (n: Notification) => priorityStyles[n.priority] ?? priorityStyles.MEDIUM;
 
 // Type category mapping
 const typeCategories: Record<string, TypeFilter> = {
@@ -259,304 +263,195 @@ function NotificationDetailsModal({
     onNavigate: (href: string) => void;
 }) {
     const Icon = typeIcons[notification.type] || Bell;
-    const priority = priorityStyles[notification.priority];
+    const priority = prioridadDe(notification);
     const action = resolveNotificationAction(notification);
     const metadataEntries = Object.entries(notification.metadata || {}).filter(([, value]) => value !== null && value !== undefined);
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-            onClick={onClose}
-        >
-            <motion.div
-                initial={{ opacity: 0, y: 18, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 18, scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 260, damping: 24 }}
-                className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#0B1220]/95 shadow-2xl shadow-black/50"
-                onClick={(event) => event.stopPropagation()}
-            >
-                <div className="flex items-start justify-between gap-4 p-5 sm:p-6 border-b border-white/10">
-                    <div className="flex items-start gap-3 sm:gap-4 min-w-0">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${notification.isRead ? "bg-white/5" : "bg-white/10"}`}>
-                            <Icon className={`w-5 h-5 ${notification.isRead ? "text-neutral-500" : "text-accent-1"}`} />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h2 className="text-lg sm:text-xl font-semibold text-white">{notification.title}</h2>
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${priority.badge}`}>
-                                    {priority.text}
-                                </span>
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${notification.isRead ? "bg-white/10 text-neutral-400" : "bg-accent-1/15 text-accent-1"}`}>
-                                    {notification.isRead ? "Leída" : "Sin leer"}
-                                </span>
-                            </div>
-                            <p className="text-sm text-neutral-400 mt-1">{formatFullDate(notification.createdAt)}</p>
-                            {notification.actorName && (
-                                <p className="text-xs text-neutral-500 mt-1">Acción registrada por {notification.actorName}</p>
-                            )}
-                        </div>
+        <DialogoFormulario titulo={notification.title} descripcion={formatFullDate(notification.createdAt)} alCerrar={onClose} ancho="max-w-2xl">
+            {(cerrar) => (
+                <>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Icon size={16} aria-hidden="true" className={notification.isRead ? "text-[var(--mut)]" : "text-[var(--acento)]"} />
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${priority.badge}`}>
+                            Prioridad {priority.text.toLowerCase()}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${notification.isRead ? "bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] text-[var(--mut)]" : "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--txt)]"}`}>
+                            {notification.isRead ? <Check size={12} aria-hidden="true" /> : <span className="size-1.5 rounded-full bg-[var(--acento)]" aria-hidden="true" />}
+                            {notification.isRead ? "Leída" : "Sin leer"}
+                        </span>
                     </div>
+                    {notification.actorName && (
+                        <p className="mt-2 text-sm text-[var(--mut)]">Acción registrada por {notification.actorName}</p>
+                    )}
 
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-xl text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
-                        aria-label="Cerrar detalle"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-
-                <div className="p-5 sm:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-sm leading-6 text-neutral-200">{notification.message}</p>
-                    </div>
+                    <p className="mt-4 text-[15px] leading-relaxed text-[var(--txt)]">{notification.message}</p>
 
                     {metadataEntries.length > 0 && (
-                        <div className="space-y-3">
-                            <h3 className="text-sm font-semibold text-white">Contexto del evento</h3>
-                            <div className="grid gap-3 sm:grid-cols-2">
+                        <section className="mt-6" aria-labelledby="notif-contexto">
+                            <h3 id="notif-contexto" className="text-[15px] font-semibold text-[var(--mut)]">Contexto del evento</h3>
+                            <dl className="mt-2 grid border-t border-[var(--linea)] sm:grid-cols-2 sm:gap-x-6">
                                 {metadataEntries.map(([key, value]) => (
-                                    <div key={key} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                        <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 mb-1.5">
-                                            {humanizeMetadataKey(key)}
-                                        </p>
-                                        <p className="text-sm text-white break-words">{formatMetadataValue(key, value)}</p>
+                                    <div key={key} className="border-b border-[var(--linea)] py-3">
+                                        <dt className="text-[13px] text-[var(--mut)]">{humanizeMetadataKey(key)}</dt>
+                                        <dd className="mt-0.5 break-words text-sm text-[var(--txt)]">{formatMetadataValue(key, value)}</dd>
                                     </div>
                                 ))}
-                            </div>
-                        </div>
+                            </dl>
+                        </section>
                     )}
-                </div>
 
-                <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 p-5 sm:p-6 border-t border-white/10 bg-white/[0.02] rounded-b-3xl">
-                    <div className="flex items-center gap-2 text-xs text-neutral-500">
-                        <Shield size={13} className="text-accent-1" />
-                        Revisa este evento y responde según el riesgo asociado.
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onClick={cerrar} className={SECUNDARIO}>Cerrar</button>
                         {!notification.isRead && (
-                            <button
-                                onClick={() => onMarkRead(notification.id)}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-neutral-200 hover:bg-white/10 transition-colors text-sm"
-                            >
-                                <Check size={15} />
+                            <button type="button" onClick={() => void onMarkRead(notification.id)} className={SECUNDARIO}>
+                                <Check size={16} aria-hidden="true" />
                                 Marcar como leída
                             </button>
                         )}
-
                         {action && (
-                            <button
-                                onClick={() => onNavigate(action.href)}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-accent-1 text-black hover:bg-accent-1/90 transition-colors text-sm font-semibold"
-                            >
+                            <button type="button" onClick={() => onNavigate(action.href)} className={PRINCIPAL}>
                                 {action.label}
-                                <ArrowRight size={15} />
+                                <ArrowRight size={16} aria-hidden="true" />
                             </button>
                         )}
                     </div>
-                </div>
-            </motion.div>
-        </motion.div>
+                </>
+            )}
+        </DialogoFormulario>
     );
 }
 
-// Notification Card Component
-function NotificationCard({
+/** Una fila de la lista: casilla, punto de «sin leer», título (abre el detalle) y marcar como leída. */
+function NotificationRow({
     notification,
     isSelected,
     onSelect,
     onOpen,
     onMarkRead,
-    compact = false,
 }: {
     notification: Notification;
     isSelected: boolean;
     onSelect: (id: string) => void;
     onOpen: (notification: Notification) => void;
     onMarkRead: (id: string) => void;
-    compact?: boolean;
 }) {
     const Icon = typeIcons[notification.type] || Bell;
-    const priority = priorityStyles[notification.priority];
+    const priority = prioridadDe(notification);
+    const leida = notification.isRead;
 
-    if (compact) {
-        // Compact view for mobile
-        return (
-            <motion.div
-                layout
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                className={`
-                    relative p-3 rounded-xl border-l-3 transition-all active:scale-[0.98]
-                    ${priority.border}
-                    ${notification.isRead ? "bg-white/[0.01]" : priority.bg}
-                    ${isSelected ? "ring-1 ring-accent-1/50" : ""}
-                `}
-                    onClick={() => onOpen(notification)}
-            >
-                <div className="flex items-start gap-3">
-                    <div className={`
-                        w-9 h-9 rounded-lg flex items-center justify-center shrink-0
-                        ${notification.isRead ? "bg-white/5" : "bg-white/10"}
-                    `}>
-                        <Icon className={`w-4 h-4 ${notification.isRead ? "text-neutral-500" : "text-accent-1"}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                            <h3 className={`text-sm font-medium truncate ${notification.isRead ? "text-neutral-400" : "text-white"}`}>
-                                {notification.title}
-                            </h3>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                                {!notification.isRead && <span className="w-1.5 h-1.5 rounded-full bg-accent-1" />}
-                                <span className="text-[10px] text-neutral-500">{formatDate(notification.createdAt)}</span>
-                            </div>
-                        </div>
-                        <p className={`text-xs line-clamp-1 mt-0.5 ${notification.isRead ? "text-neutral-500" : "text-neutral-400"}`}>
-                            {notification.message}
-                        </p>
-                    </div>
-                </div>
-            </motion.div>
-        );
-    }
-
-    // Full card view for desktop
     return (
-        <motion.div
-            layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            className={`
-                relative p-4 rounded-xl border-l-4 transition-all cursor-pointer group
-                ${priority.border}
-                ${notification.isRead ? "bg-white/[0.02]" : priority.bg}
-                ${isSelected ? "ring-2 ring-accent-1/50 bg-accent-1/5" : "hover:bg-white/[0.04]"}
-            `}
-            onClick={() => onOpen(notification)}
+        <li
+            className={`relative flex items-start gap-2 border-b border-[var(--linea)] px-1 py-3 transition-colors duration-150 motion-reduce:transition-none hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] sm:gap-3 ${isSelected ? "bg-[color-mix(in_srgb,var(--acento)_7%,transparent)]" : ""}`}
         >
-            <div className="flex gap-3 sm:gap-4">
-                {/* Selection Checkbox - Hidden on mobile */}
-                <div className="hidden sm:flex items-start pt-1">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect(notification.id);
-                        }}
-                        className={`
-                            w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                            ${isSelected
-                                ? "bg-accent-1 border-accent-1"
-                                : "border-white/20 hover:border-white/40"
-                            }
-                        `}
-                    >
-                        {isSelected && <Check size={12} className="text-black" />}
-                    </button>
-                </div>
-
-                {/* Icon */}
-                <div className={`
-                    w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors
-                    ${notification.isRead ? "bg-white/5" : "bg-white/10"}
-                `}>
-                    <Icon className={`w-5 h-5 ${notification.isRead ? "text-neutral-500" : "text-accent-1"}`} />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 sm:gap-3">
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <h3 className={`text-sm sm:text-base font-semibold truncate ${notification.isRead ? "text-neutral-400" : "text-white"}`}>
-                                    {notification.title}
-                                </h3>
-                                {!notification.isRead && (
-                                    <span className="w-2 h-2 rounded-full bg-accent-1 shrink-0" />
-                                )}
-                            </div>
-                            <p className={`text-xs sm:text-sm line-clamp-2 ${notification.isRead ? "text-neutral-500" : "text-neutral-300"}`}>
-                                {notification.message}
-                            </p>
-                        </div>
-
-                        {/* Meta info - Stacked on mobile, inline on desktop */}
-                        <div className="flex flex-col items-end gap-1 sm:gap-1.5 shrink-0">
-                            <span className="text-[10px] sm:text-xs text-neutral-500">{formatDate(notification.createdAt)}</span>
-                            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium ${priority.badge}`}>
-                                {priority.text}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Footer info - Hidden on very small screens */}
-                    <div className="hidden xs:flex items-center gap-3 mt-2">
-                        {notification.actorName && (
-                            <span className="text-xs text-neutral-500 flex items-center gap-1">
-                                <User size={11} />
-                                {notification.actorName}
-                            </span>
-                        )}
-                        <span className="text-[10px] text-neutral-600 hidden sm:inline" title={formatFullDate(notification.createdAt)}>
-                            <Clock size={10} className="inline mr-1" />
-                            {formatFullDate(notification.createdAt)}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Quick Actions (on hover) - Desktop only */}
-                <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex gap-1">
-                    {!notification.isRead && (
+            {/* La casilla y el botón van sobre el área que abre el detalle (z-10). */}
+            <label className="relative z-10 -my-1 grid size-10 shrink-0 cursor-pointer place-items-center max-sm:size-11">
+                <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onSelect(notification.id)}
+                    aria-label={`Seleccionar «${notification.title}»`}
+                    className={CASILLA}
+                />
+            </label>
+            <Icon size={18} aria-hidden="true" className={`mt-1 shrink-0 ${leida ? "text-[var(--mut)]" : "text-[var(--acento)]"}`} />
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                    <h2 className="min-w-0 flex-1 text-[15px] leading-snug">
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onMarkRead(notification.id);
-                            }}
-                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-                            title="Marcar como leída"
+                            type="button"
+                            onClick={() => onOpen(notification)}
+                            className={`text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-[var(--acento)] ${leida ? "font-medium text-[var(--mut)]" : "font-semibold text-[var(--txt)]"}`}
                         >
-                            <Check size={14} />
+                            {!leida && <span className="mr-2 inline-block size-2 rounded-full bg-[var(--acento)] align-middle" aria-hidden="true" />}
+                            {!leida && <span className="sr-only">Sin leer: </span>}
+                            {notification.title}
                         </button>
+                    </h2>
+                    <time dateTime={notification.createdAt} title={formatFullDate(notification.createdAt)} className="whitespace-nowrap text-[13px] tabular-nums text-[var(--mut)]">
+                        {formatDate(notification.createdAt)}
+                    </time>
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-sm text-[var(--mut)]">{notification.message}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--mut)]">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${priority.badge}`}>
+                        Prioridad {priority.text.toLowerCase()}
+                    </span>
+                    {notification.actorName && (
+                        <span className="inline-flex min-w-0 items-center gap-1">
+                            <User size={14} aria-hidden="true" />
+                            <span className="truncate">{notification.actorName}</span>
+                        </span>
                     )}
                 </div>
             </div>
-        </motion.div>
+            {!leida && (
+                <button
+                    type="button"
+                    onClick={() => onMarkRead(notification.id)}
+                    aria-label={`Marcar «${notification.title}» como leída`}
+                    title="Marcar como leída"
+                    className={`relative z-10 -my-1 ${ICONO}`}
+                >
+                    <Check size={16} aria-hidden="true" />
+                </button>
+            )}
+        </li>
     );
 }
 
-// Stats Pill Component - Compact inline stats
-function StatsPill({ icon: Icon, value, label, color, active, onClick }: {
-    icon: typeof Bell;
-    value: number;
-    label: string;
-    color: string;
-    active?: boolean;
-    onClick?: () => void;
+/** Cifra de la franja de arriba; si trae `alternar`, es un botón que filtra la lista (aria-pressed). */
+function Cifra({ valor, etiqueta, tono, activo, alternar }: {
+    valor: number;
+    etiqueta: string;
+    tono?: string;
+    activo?: boolean;
+    alternar?: () => void;
+}) {
+    const contenido = (
+        <>
+            <span className={`block text-[28px] font-bold leading-tight tracking-tight tabular-nums ${tono ?? "text-[var(--txt)]"}`}>{valor}</span>
+            <span className="flex items-center gap-1 text-[13.5px] text-[var(--mut)]">
+                {etiqueta}
+                {activo && <Check size={14} aria-hidden="true" className="text-[var(--acento)]" />}
+            </span>
+        </>
+    );
+    const caja = "flex min-h-[84px] flex-col justify-center border-[var(--linea)] px-4 py-3 max-md:[&:nth-child(even)]:border-l max-md:[&:nth-child(n+3)]:border-t md:[&:not(:first-child)]:border-l";
+    if (!alternar) return <div className={caja}>{contenido}</div>;
+    return (
+        <button
+            type="button"
+            aria-pressed={activo}
+            onClick={alternar}
+            title={activo ? "Quitar este filtro" : "Ver solo estas"}
+            className={`${caja} text-left transition-colors duration-150 motion-reduce:transition-none hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] aria-pressed:bg-[color-mix(in_srgb,var(--acento)_9%,transparent)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]`}
+        >
+            {contenido}
+        </button>
+    );
+}
+
+/** Lista nativa con su etiqueta visible. */
+function Filtro<T extends string>({ id, etiqueta, valor, alCambiar, opciones }: {
+    id: string;
+    etiqueta: string;
+    valor: T;
+    alCambiar: (v: T) => void;
+    opciones: { value: T; label: string }[];
 }) {
     return (
-        <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={onClick}
-            className={`
-                flex items-center gap-2 px-3 py-2 rounded-xl transition-all
-                ${active
-                    ? "bg-accent-1/20 border-accent-1/30"
-                    : "bg-white/[0.03] hover:bg-white/[0.06] border-white/5"
-                }
-                border
-            `}
-        >
-            <Icon size={16} className={color} />
-            <span className="text-lg font-bold text-white">{value}</span>
-            <span className="text-xs text-neutral-400 hidden sm:inline">{label}</span>
-        </motion.button>
+        <div className="min-w-0">
+            <label htmlFor={id} className="mb-1 block text-[13px] text-[var(--mut)]">{etiqueta}</label>
+            <select
+                id={id}
+                value={valor}
+                onChange={(e) => alCambiar(e.target.value as T)}
+                className={`${CAMPO} cursor-pointer pr-8 md:min-w-[140px]`}
+            >
+                {opciones.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+        </div>
     );
 }
 
@@ -564,87 +459,71 @@ export default function NotificationsPageClient() {
     const router = useRouter();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
-    const [totalCount, setTotalCount] = useState(0);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+    // Cifras contadas en el servidor sobre todas las notificaciones visibles, no solo sobre la página cargada.
+    const [stats, setStats] = useState({ total: 0, unread: 0, critical: 0, today: 0 });
+    const [filteredCount, setFilteredCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const unreadCount = stats.unread;
 
     // Filters
     const [searchQuery, setSearchQuery] = useState("");
+    const [busqueda, setBusqueda] = useState("");
     const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("ALL");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
     const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
     const [currentPage, setCurrentPage] = useState(1);
+    const [recarga, setRecarga] = useState(0);
 
     // Selection
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isMarkingRead, setIsMarkingRead] = useState(false);
     const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
 
-    // Fetch notifications
-    const fetchNotifications = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetch("/api/admin/notifications?limit=50");
-            if (!res.ok) throw new Error("Failed to fetch");
-
-            const data = await res.json();
-            setNotifications(data.notifications);
-            setTotalCount(data.totalCount);
-            setUnreadCount(data.unreadCount);
-        } catch (error) {
-            console.error("Error fetching notifications:", error);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
+    // La búsqueda va al servidor 300 ms después de dejar de escribir.
     useEffect(() => {
-        fetchNotifications();
-    }, [fetchNotifications]);
-
-    // Filtered notifications
-    const filteredNotifications = useMemo(() => {
-        let result = notifications;
-
-        // Search filter
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(n =>
-                n.title.toLowerCase().includes(query) ||
-                n.message.toLowerCase().includes(query) ||
-                n.actorName?.toLowerCase().includes(query)
-            );
-        }
-
-        // Priority filter
-        if (priorityFilter !== "ALL") {
-            result = result.filter(n => n.priority === priorityFilter);
-        }
-
-        // Status filter
-        if (statusFilter !== "ALL") {
-            result = result.filter(n => statusFilter === "READ" ? n.isRead : !n.isRead);
-        }
-
-        // Type filter
-        if (typeFilter !== "ALL") {
-            result = result.filter(n => typeCategories[n.type] === typeFilter);
-        }
-
-        return result;
-    }, [notifications, searchQuery, priorityFilter, statusFilter, typeFilter]);
-
-    // Pagination
-    const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
-    const paginatedNotifications = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredNotifications.slice(start, start + ITEMS_PER_PAGE);
-    }, [filteredNotifications, currentPage]);
+        const t = setTimeout(() => setBusqueda(searchQuery.trim()), 300);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
 
     // Reset page when filters change
     useEffect(() => {
         setCurrentPage(1);
         setSelectedIds(new Set());
-    }, [searchQuery, priorityFilter, statusFilter, typeFilter]);
+    }, [busqueda, priorityFilter, statusFilter, typeFilter]);
+
+    // Una página filtrada en el servidor; si cambian los filtros a medio camino, la respuesta vieja se descarta.
+    useEffect(() => {
+        const control = new AbortController();
+        const params = new URLSearchParams({ page: String(currentPage), limit: String(ITEMS_PER_PAGE) });
+        if (busqueda) params.set("q", busqueda);
+        if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
+        if (statusFilter !== "ALL") params.set("status", statusFilter === "READ" ? "read" : "unread");
+        if (typeFilter !== "ALL") params.set("category", typeFilter);
+
+        setLoading(true);
+        setError(null);
+        fetch(`/api/admin/notifications?${params}`, { signal: control.signal, cache: "no-store" })
+            .then(async (res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data: PaginaNotificaciones = await res.json();
+                setNotifications(data.notifications);
+                setFilteredCount(data.filteredCount);
+                setTotalPages(data.totalPages);
+                setStats({ total: data.totalCount, unread: data.unreadCount, critical: data.criticalUnread, today: data.todayCount });
+                // Si la página quedó vacía (por ejemplo, tras marcar leídas con el filtro «Sin leer»), se vuelve a la última.
+                if (data.notifications.length === 0 && currentPage > data.totalPages) setCurrentPage(data.totalPages);
+                setLoading(false);
+            })
+            .catch((e: unknown) => {
+                if (e instanceof DOMException && e.name === "AbortError") return;
+                setError("No se pudieron cargar las notificaciones. Vuelve a intentarlo.");
+                setLoading(false);
+            });
+        return () => control.abort();
+    }, [currentPage, busqueda, priorityFilter, statusFilter, typeFilter, recarga]);
+
+    const paginatedNotifications = notifications;
 
     // Selection handlers
     const toggleSelect = (id: string) => {
@@ -667,32 +546,40 @@ export default function NotificationsPageClient() {
         }
     };
 
+    // Marca en pantalla sin volver a pedir la página.
+    const marcarEnPantalla = (ids: string[]) => {
+        const cambiadas = notifications.filter(n => ids.includes(n.id) && !n.isRead);
+        setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, isRead: true } : n));
+        setActiveNotification(prev => prev && ids.includes(prev.id) ? { ...prev, isRead: true } : prev);
+        setStats(prev => ({
+            ...prev,
+            unread: Math.max(0, prev.unread - cambiadas.length),
+            critical: Math.max(0, prev.critical - cambiadas.filter(n => n.priority === "CRITICAL").length),
+        }));
+    };
+
     // Mark as read handlers
     const markAsRead = async (notificationId: string) => {
         try {
-            await fetch("/api/admin/notifications", {
+            const res = await fetch("/api/admin/notifications", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ notificationId }),
             });
-
-            setNotifications(prev =>
-                prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
-            );
-            setActiveNotification(prev => prev && prev.id === notificationId ? { ...prev, isRead: true } : prev);
-            setUnreadCount(prev => Math.max(0, prev - 1));
-        } catch (error) {
-            console.error("Error marking as read:", error);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            marcarEnPantalla([notificationId]);
+        } catch {
+            setError("No se pudo marcar como leída.");
         }
     };
 
-    const openNotificationDetails = useCallback(async (notification: Notification) => {
+    const openNotificationDetails = (notification: Notification) => {
         setActiveNotification(notification);
 
         if (!notification.isRead) {
-            await markAsRead(notification.id);
+            void markAsRead(notification.id);
         }
-    }, []);
+    };
 
     const markSelectedAsRead = async () => {
         setIsMarkingRead(true);
@@ -700,46 +587,43 @@ export default function NotificationsPageClient() {
             const unreadSelected = Array.from(selectedIds).filter(id =>
                 notifications.find(n => n.id === id && !n.isRead)
             );
-
-            for (const id of unreadSelected) {
-                await markAsRead(id);
+            if (unreadSelected.length > 0) {
+                const res = await fetch("/api/admin/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notificationIds: unreadSelected }),
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                marcarEnPantalla(unreadSelected);
             }
             setSelectedIds(new Set());
+            if (statusFilter === "UNREAD") setRecarga(n => n + 1);
+        } catch {
+            setError("No se pudieron marcar las seleccionadas.");
         } finally {
             setIsMarkingRead(false);
         }
     };
 
     const markAllAsRead = async () => {
+        // «Leída» es de cada persona: esto solo cambia lo que ve quien lo hace.
+        if (!(await confirmar({ titulo: "¿Marcar todas como leídas?", detalle: "Solo cambia para ti: los demás administradores las siguen viendo como estaban.", accion: "Marcar todas" }))) return;
         try {
-            await fetch("/api/admin/notifications", {
+            const res = await fetch("/api/admin/notifications", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ markAllRead: true }),
             });
-
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-            setUnreadCount(0);
-        } catch (error) {
-            console.error("Error marking all as read:", error);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setRecarga(n => n + 1);
+        } catch {
+            setError("No se pudieron marcar todas como leídas.");
         }
     };
 
-    // Stats
-    const stats = useMemo(() => ({
-        total: totalCount,
-        unread: unreadCount,
-        critical: notifications.filter(n => n.priority === "CRITICAL" && !n.isRead).length,
-        today: notifications.filter(n => {
-            const date = new Date(n.createdAt);
-            const today = new Date();
-            return date.toDateString() === today.toDateString();
-        }).length,
-    }), [notifications, totalCount, unreadCount]);
-
     const hasActiveFilters = searchQuery || priorityFilter !== "ALL" || statusFilter !== "ALL" || typeFilter !== "ALL";
 
-    // Detect mobile view
+    // Detect mobile view (solo para cuántos números de página caben)
     const [isMobile, setIsMobile] = useState(false);
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -748,239 +632,244 @@ export default function NotificationsPageClient() {
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
 
+    const todasMarcadas = paginatedNotifications.length > 0 && selectedIds.size === paginatedNotifications.length;
+    const unreadSelectedCount = Array.from(selectedIds).filter(id =>
+        notifications.find(n => n.id === id && !n.isRead)
+    ).length;
+    const allSelectedRead = unreadSelectedCount === 0;
+
     return (
-        <div className="space-y-4 sm:space-y-6">
-            {/* Header with integrated stats */}
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-accent-1/10">
-                            <Bell className="w-5 h-5 text-accent-1" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-bold text-white">Notificaciones</h1>
-                            <p className="text-xs sm:text-sm text-neutral-500">Centro de actividad</p>
-                        </div>
-                    </div>
-
-                    {/* Action button */}
-                    {unreadCount > 0 && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            onClick={markAllAsRead}
-                            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-neutral-300 hover:text-white hover:bg-white/10 transition-all text-sm"
-                        >
-                            <CheckCheck size={16} />
-                            <span className="sm:hidden">Leer todas</span>
-                            <span className="hidden sm:inline">Marcar todas como leídas</span>
-                        </motion.button>
-                    )}
+        <div className="max-w-[1180px]">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--txt)] sm:text-[28px]">Notificaciones</h1>
+                    <p className="mt-1 max-w-[60ch] text-[15px] text-[var(--mut)]">
+                        Avisos de cuentas, seguridad, propuestas y herramientas. Lo que marcas como leído cambia solo para ti.
+                    </p>
                 </div>
+                {unreadCount > 0 && (
+                    <button type="button" onClick={markAllAsRead} className={`${SECUNDARIO} self-start sm:self-auto`}>
+                        <CheckCheck size={16} aria-hidden="true" />
+                        Marcar todas como leídas
+                    </button>
+                )}
+            </header>
 
-                {/* Stats Pills - Horizontal scrollable on mobile */}
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-                    <StatsPill
-                        icon={Inbox}
-                        value={stats.total}
-                        label="Total"
-                        color="text-neutral-400"
-                    />
-                    <StatsPill
-                        icon={Circle}
-                        value={stats.unread}
-                        label="Sin leer"
-                        color="text-accent-1"
-                        active={statusFilter === "UNREAD"}
-                        onClick={() => setStatusFilter(statusFilter === "UNREAD" ? "ALL" : "UNREAD")}
-                    />
-                    <StatsPill
-                        icon={AlertTriangle}
-                        value={stats.critical}
-                        label="Críticas"
-                        color="text-red-400"
-                        active={priorityFilter === "CRITICAL"}
-                        onClick={() => setPriorityFilter(priorityFilter === "CRITICAL" ? "ALL" : "CRITICAL")}
-                    />
-                    <StatsPill
-                        icon={Sparkles}
-                        value={stats.today}
-                        label="Hoy"
-                        color="text-blue-400"
-                    />
-                </div>
+            {/* Cifras: «Sin leer» y «Críticas sin leer» también sirven de filtro rápido. */}
+            <div role="group" aria-label="Cifras de notificaciones" className="mt-8 grid grid-cols-2 border-y border-[var(--linea)] md:grid-cols-4">
+                <Cifra valor={stats.total} etiqueta="En total" />
+                <Cifra
+                    valor={stats.unread}
+                    etiqueta="Sin leer"
+                    activo={statusFilter === "UNREAD"}
+                    alternar={() => setStatusFilter(statusFilter === "UNREAD" ? "ALL" : "UNREAD")}
+                />
+                <Cifra
+                    valor={stats.critical}
+                    etiqueta="Críticas sin leer"
+                    tono={stats.critical > 0 ? "text-red-400" : undefined}
+                    activo={priorityFilter === "CRITICAL"}
+                    alternar={() => setPriorityFilter(priorityFilter === "CRITICAL" ? "ALL" : "CRITICAL")}
+                />
+                <Cifra valor={stats.today} etiqueta="Hoy" />
             </div>
 
-            {/* Search and Filters - More compact */}
-            <div className="space-y-3">
-                {/* Search */}
-                <div className="relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-                    <input
-                        type="text"
-                        placeholder="Buscar..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm placeholder:text-neutral-500 focus:border-accent-1/50 focus:bg-white/[0.05] outline-none transition-all"
-                    />
-                    {searchQuery && (
-                        <button
-                            onClick={() => setSearchQuery("")}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
-                        >
-                            <X size={14} />
-                        </button>
-                    )}
+            {/* Búsqueda y filtros */}
+            <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-end">
+                <div className="min-w-0 flex-1">
+                    <label htmlFor="notif-buscar" className="mb-1 block text-[13px] text-[var(--mut)]">Buscar en título, mensaje o autor</label>
+                    <div className="relative">
+                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" />
+                        <input
+                            id="notif-buscar"
+                            type="search"
+                            placeholder="Buscar…"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={`${CAMPO} pl-9 pr-11 [&::-webkit-search-cancel-button]:hidden`}
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                aria-label="Borrar búsqueda"
+                                onClick={() => setSearchQuery("")}
+                                className={`absolute right-0.5 top-1/2 -translate-y-1/2 ${ICONO} max-sm:size-10`}
+                            >
+                                <X size={16} aria-hidden="true" />
+                            </button>
+                        )}
+                    </div>
                 </div>
-
-                {/* Filter chips - Horizontal scroll on mobile */}
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-                    <Select
-                        value={priorityFilter}
-                        onChange={(v) => setPriorityFilter(v as PriorityFilter)}
-                        options={[
-                            { value: "ALL", label: "Prioridad" },
-                            { value: "CRITICAL", label: "🔴 Crítica" },
-                            { value: "HIGH", label: "🟠 Alta" },
-                            { value: "MEDIUM", label: "🔵 Media" },
-                            { value: "LOW", label: "⚪ Baja" },
+                <div className="grid grid-cols-3 gap-2 md:flex">
+                    <Filtro
+                        id="notif-prioridad"
+                        etiqueta="Prioridad"
+                        valor={priorityFilter}
+                        alCambiar={setPriorityFilter}
+                        opciones={[
+                            { value: "ALL", label: "Todas" },
+                            { value: "CRITICAL", label: "Crítica" },
+                            { value: "HIGH", label: "Alta" },
+                            { value: "MEDIUM", label: "Media" },
+                            { value: "LOW", label: "Baja" },
                         ]}
-                        className="!py-2 !text-xs !min-w-[100px]"
                     />
-                    <Select
-                        value={statusFilter}
-                        onChange={(v) => setStatusFilter(v as StatusFilter)}
-                        options={[
-                            { value: "ALL", label: "Estado" },
+                    <Filtro
+                        id="notif-estado"
+                        etiqueta="Estado"
+                        valor={statusFilter}
+                        alCambiar={setStatusFilter}
+                        opciones={[
+                            { value: "ALL", label: "Todas" },
                             { value: "UNREAD", label: "Sin leer" },
                             { value: "READ", label: "Leídas" },
                         ]}
-                        className="!py-2 !text-xs !min-w-[90px]"
                     />
-                    <Select
-                        value={typeFilter}
-                        onChange={(v) => setTypeFilter(v as TypeFilter)}
-                        options={[
-                            { value: "ALL", label: "Tipo" },
-                            { value: "USER", label: "👤 Usuarios" },
-                            { value: "SECURITY", label: "🔒 Seguridad" },
-                            { value: "QUOTATION", label: "📄 Cotizaciones" },
-                            { value: "TOOL", label: "🔧 Herramientas" },
-                            { value: "SYSTEM", label: "⚙️ Sistema" },
+                    <Filtro
+                        id="notif-tipo"
+                        etiqueta="Tipo"
+                        valor={typeFilter}
+                        alCambiar={setTypeFilter}
+                        opciones={[
+                            { value: "ALL", label: "Todos" },
+                            { value: "USER", label: "Usuarios" },
+                            { value: "SECURITY", label: "Seguridad" },
+                            { value: "QUOTATION", label: "Propuestas" },
+                            { value: "TOOL", label: "Herramientas" },
+                            { value: "SYSTEM", label: "Sistema" },
                         ]}
-                        className="!py-2 !text-xs !min-w-[80px]"
                     />
-                    {hasActiveFilters && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            onClick={() => {
-                                setSearchQuery("");
-                                setPriorityFilter("ALL");
-                                setStatusFilter("ALL");
-                                setTypeFilter("ALL");
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors text-xs font-medium whitespace-nowrap"
-                        >
-                            <X size={12} />
-                            Limpiar
-                        </motion.button>
-                    )}
                 </div>
-            </div>
-
-            {/* Results Summary - Desktop only */}
-            <div className="hidden sm:flex items-center justify-between text-sm px-1">
-                <div className="flex items-center gap-4">
+                {hasActiveFilters && (
                     <button
-                        onClick={selectAll}
-                        className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
+                        type="button"
+                        onClick={() => {
+                            setSearchQuery("");
+                            setPriorityFilter("ALL");
+                            setStatusFilter("ALL");
+                            setTypeFilter("ALL");
+                        }}
+                        className={`${SECUNDARIO} self-start md:self-auto`}
                     >
-                        <div className={`
-                            w-4 h-4 rounded border-2 flex items-center justify-center transition-all
-                            ${selectedIds.size === paginatedNotifications.length && paginatedNotifications.length > 0
-                                ? "bg-accent-1 border-accent-1"
-                                : "border-white/20"
-                            }
-                        `}>
-                            {selectedIds.size === paginatedNotifications.length && paginatedNotifications.length > 0 && (
-                                <Check size={10} className="text-black" />
-                            )}
-                        </div>
-                        <span className="text-xs">Seleccionar todo</span>
+                        <X size={16} aria-hidden="true" />
+                        Limpiar filtros
                     </button>
-                    <span className="text-neutral-600">|</span>
-                    <span className="text-neutral-500 text-xs">
-                        <span className="text-white font-medium">{filteredNotifications.length}</span> notificaciones
-                    </span>
-                </div>
-            </div>
-
-            {/* Notifications List */}
-            <div className="space-y-2 sm:space-y-3">
-                {loading ? (
-                    <NotificationsPageSkeleton />
-                ) : paginatedNotifications.length === 0 ? (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex flex-col items-center justify-center py-12 sm:py-16 text-center px-4"
-                    >
-                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-white/5 flex items-center justify-center mb-3 sm:mb-4">
-                            {hasActiveFilters ? (
-                                <Search size={24} className="sm:w-8 sm:h-8 text-neutral-600" />
-                            ) : (
-                                <Bell size={24} className="sm:w-8 sm:h-8 text-neutral-600" />
-                            )}
-                        </div>
-                        <h3 className="text-base sm:text-lg font-semibold text-white mb-1 sm:mb-2">
-                            {hasActiveFilters ? "Sin resultados" : "No hay notificaciones"}
-                        </h3>
-                        <p className="text-neutral-400 text-xs sm:text-sm max-w-xs">
-                            {hasActiveFilters
-                                ? "Intenta ajustar los filtros de búsqueda"
-                                : "Las nuevas actividades aparecerán aquí"
-                            }
-                        </p>
-                    </motion.div>
-                ) : (
-                    <AnimatePresence mode="popLayout">
-                        {paginatedNotifications.map((notification, idx) => (
-                            <motion.div
-                                key={notification.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.02 }}
-                            >
-                                <NotificationCard
-                                    notification={notification}
-                                    isSelected={selectedIds.has(notification.id)}
-                                    onSelect={toggleSelect}
-                                    onOpen={openNotificationDetails}
-                                    onMarkRead={markAsRead}
-                                    compact={isMobile}
-                                />
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
                 )}
             </div>
 
-            {/* Pagination - Simplified for mobile */}
+            {/* Selección y acciones en lote */}
+            <div className="mt-6 flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 pb-2">
+                <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-sm text-[var(--txt)] max-sm:min-h-11">
+                    <input
+                        type="checkbox"
+                        checked={todasMarcadas}
+                        ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && !todasMarcadas; }}
+                        onChange={selectAll}
+                        disabled={paginatedNotifications.length === 0}
+                        className={CASILLA}
+                    />
+                    Seleccionar todo
+                </label>
+                <p className="text-sm text-[var(--mut)]" aria-live="polite">
+                    <span className="font-semibold tabular-nums text-[var(--txt)]">{filteredCount}</span> {filteredCount === 1 ? "notificación" : "notificaciones"}
+                </p>
+                {selectedIds.size > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                        <span className="text-sm text-[var(--txt)]">
+                            <span className="font-semibold tabular-nums">{selectedIds.size}</span> seleccionada{selectedIds.size !== 1 ? "s" : ""}
+                        </span>
+                        {allSelectedRead ? (
+                            <span className="inline-flex items-center gap-1.5 text-sm text-emerald-400">
+                                <CheckCheck size={16} aria-hidden="true" />
+                                Ya leída{selectedIds.size !== 1 ? "s" : ""}
+                            </span>
+                        ) : (
+                            <button type="button" onClick={markSelectedAsRead} disabled={isMarkingRead} className={PRINCIPAL}>
+                                {isMarkingRead ? (
+                                    <Loader2 size={16} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+                                ) : (
+                                    <CheckCircle size={16} aria-hidden="true" />
+                                )}
+                                Marcar como leída{unreadSelectedCount !== 1 ? "s" : ""}
+                            </button>
+                        )}
+                        <button type="button" aria-label="Quitar la selección" onClick={() => setSelectedIds(new Set())} className={ICONO}>
+                            <X size={16} aria-hidden="true" />
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {error && <p role="alert" className="mb-3 text-sm text-red-400">{error}</p>}
+
+            {/* Lista */}
+            <div aria-busy={loading}>
+                {loading ? (
+                    <div role="status">
+                        <span className="sr-only">Cargando notificaciones…</span>
+                        <ul aria-hidden="true" className="animate-pulse border-t border-[var(--linea)] motion-reduce:animate-none">
+                            {Array.from({ length: 6 }, (_, i) => (
+                                <li key={i} className="flex gap-3 border-b border-[var(--linea)] px-1 py-4">
+                                    <div className={`${BLOQUE} mt-1 size-4 shrink-0`} />
+                                    <div className="min-w-0 flex-1">
+                                        <div className={`${BLOQUE} h-4 ${i % 2 ? "w-1/3" : "w-2/5"}`} />
+                                        <div className={`${BLOQUE} mt-2 h-3 ${i % 3 ? "w-3/4" : "w-2/3"}`} />
+                                        <div className={`${BLOQUE} mt-2 h-3 w-20`} />
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : paginatedNotifications.length === 0 ? (
+                    <div className="flex flex-col items-center border-y border-[var(--linea)] px-4 py-14 text-center">
+                        {hasActiveFilters ? (
+                            <Search size={20} aria-hidden="true" className="text-[var(--mut)]" />
+                        ) : (
+                            <Bell size={20} aria-hidden="true" className="text-[var(--mut)]" />
+                        )}
+                        <h2 className="mt-3 text-base font-semibold text-[var(--txt)]">
+                            {hasActiveFilters ? "Sin resultados" : "No hay notificaciones"}
+                        </h2>
+                        <p className="mt-1 max-w-xs text-sm text-[var(--mut)]">
+                            {hasActiveFilters
+                                ? "Prueba con otra búsqueda o limpia los filtros."
+                                : "Lo nuevo aparecerá aquí."
+                            }
+                        </p>
+                    </div>
+                ) : (
+                    <ul className="border-t border-[var(--linea)]">
+                        {paginatedNotifications.map((notification) => (
+                            <NotificationRow
+                                key={notification.id}
+                                notification={notification}
+                                isSelected={selectedIds.has(notification.id)}
+                                onSelect={toggleSelect}
+                                onOpen={openNotificationDetails}
+                                onMarkRead={markAsRead}
+                            />
+                        ))}
+                    </ul>
+                )}
+            </div>
+
+            {/* Paginación */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-1 sm:gap-2 pt-2 sm:pt-4">
+                <nav aria-label="Páginas" className="mt-6 flex items-center justify-center gap-1">
                     <button
+                        type="button"
+                        aria-label="Página anterior"
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        className="p-1.5 sm:p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className={ICONO}
                     >
-                        <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
+                        <ChevronLeft size={18} aria-hidden="true" />
                     </button>
 
-                    <div className="flex items-center gap-0.5 sm:gap-1">
+                    <div className="flex items-center gap-1">
                         {Array.from({ length: totalPages }, (_, i) => i + 1)
                             .filter(page => {
-                                // On mobile, show fewer pages
+                                // En celular caben menos números.
                                 if (isMobile) {
                                     return Math.abs(page - currentPage) <= 1 || page === 1 || page === totalPages;
                                 }
@@ -993,13 +882,16 @@ export default function NotificationsPageClient() {
                                 return (
                                     <div key={page} className="flex items-center">
                                         {showEllipsis && (
-                                            <span className="text-neutral-600 px-1 sm:px-2 text-xs">...</span>
+                                            <span className="px-1 text-sm text-[var(--mut)]" aria-hidden="true">…</span>
                                         )}
                                         <button
+                                            type="button"
+                                            aria-label={`Página ${page}`}
+                                            aria-current={page === currentPage ? "page" : undefined}
                                             onClick={() => setCurrentPage(page)}
-                                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-xs sm:text-sm font-medium transition-colors ${page === currentPage
-                                                ? "bg-accent-1 text-black"
-                                                : "text-neutral-400 hover:text-white hover:bg-white/10"
+                                            className={`size-10 rounded-lg text-sm font-medium tabular-nums transition-colors duration-150 motion-reduce:transition-none max-sm:size-11 ${FOCO} ${page === currentPage
+                                                ? "bg-[var(--acento)] text-[var(--acento-tinta)]"
+                                                : "text-[var(--mut)] hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] hover:text-[var(--txt)]"
                                                 }`}
                                         >
                                             {page}
@@ -1011,108 +903,29 @@ export default function NotificationsPageClient() {
                     </div>
 
                     <button
+                        type="button"
+                        aria-label="Página siguiente"
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
-                        className="p-1.5 sm:p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className={ICONO}
                     >
-                        <ChevronRight size={18} className="sm:w-5 sm:h-5" />
+                        <ChevronRight size={18} aria-hidden="true" />
                     </button>
-                </div>
+                </nav>
             )}
 
-            {/* Floating Bulk Actions Bar */}
-            <AnimatePresence>
-                {selectedIds.size > 0 && (() => {
-                    // Count how many selected notifications are unread
-                    const unreadSelectedCount = Array.from(selectedIds).filter(id =>
-                        notifications.find(n => n.id === id && !n.isRead)
-                    ).length;
-                    const allSelectedRead = unreadSelectedCount === 0;
-
-                    return (
-                        <motion.div
-                            initial={{ y: 100, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: 100, opacity: 0 }}
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
-                        >
-                            <div className="flex items-center gap-2 sm:gap-4 px-4 sm:px-6 py-3 bg-neutral-900/95 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl shadow-black/50">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-accent-1/20 flex items-center justify-center">
-                                        <span className="text-accent-1 font-bold text-sm">{selectedIds.size}</span>
-                                    </div>
-                                    <span className="text-sm text-neutral-300 hidden sm:inline">
-                                        seleccionada{selectedIds.size !== 1 ? 's' : ''}
-                                    </span>
-                                </div>
-
-                                {!allSelectedRead && (
-                                    <>
-                                        <div className="w-px h-6 bg-white/10" />
-
-                                        <motion.button
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={markSelectedAsRead}
-                                            disabled={isMarkingRead}
-                                            className="flex items-center gap-2 px-4 py-2 bg-accent-1 text-black rounded-full text-sm font-medium hover:bg-accent-1/90 transition-colors disabled:opacity-50"
-                                        >
-                                            {isMarkingRead ? (
-                                                <motion.div
-                                                    animate={{ rotate: 360 }}
-                                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                                >
-                                                    <Loader2 size={14} />
-                                                </motion.div>
-                                            ) : (
-                                                <CheckCircle size={14} />
-                                            )}
-                                            <span className="hidden sm:inline">
-                                                Marcar como leída{unreadSelectedCount !== 1 ? 's' : ''}
-                                            </span>
-                                            <span className="sm:hidden">Leer</span>
-                                        </motion.button>
-                                    </>
-                                )}
-
-                                {allSelectedRead && (
-                                    <>
-                                        <div className="w-px h-6 bg-white/10" />
-                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 text-green-400 rounded-full text-sm">
-                                            <CheckCheck size={14} />
-                                            <span className="hidden sm:inline">Ya leída{selectedIds.size !== 1 ? 's' : ''}</span>
-                                        </div>
-                                    </>
-                                )}
-
-                                <motion.button
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={() => setSelectedIds(new Set())}
-                                    className="p-2 text-neutral-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
-                                >
-                                    <X size={16} />
-                                </motion.button>
-                            </div>
-                        </motion.div>
-                    );
-                })()}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {activeNotification && (
-                    <NotificationDetailsModal
-                        notification={activeNotification}
-                        onClose={() => setActiveNotification(null)}
-                        onMarkRead={markAsRead}
-                        onNavigate={(href) => {
-                            setActiveNotification(null);
-                            router.push(href);
-                        }}
-                    />
-                )}
-            </AnimatePresence>
+            {activeNotification && (
+                <NotificationDetailsModal
+                    key={activeNotification.id}
+                    notification={activeNotification}
+                    onClose={() => setActiveNotification(null)}
+                    onMarkRead={markAsRead}
+                    onNavigate={(href) => {
+                        setActiveNotification(null);
+                        router.push(href);
+                    }}
+                />
+            )}
         </div>
     );
 }

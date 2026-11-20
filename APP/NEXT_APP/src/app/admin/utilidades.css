@@ -1,0 +1,5 @@
+/* Hoja del panel: Tailwind con TODAS las clases de src (las del panel y las públicas), en su orden correcto.
+   Se carga después de globals.css y contiene todo lo de ella, así que en el panel su orden manda y no hay choques
+   entre las dos hojas (tampoco al volver del panel al sitio sin recargar). */
+@import "tailwindcss" source("../..");
+@import "../estilos-base.css";

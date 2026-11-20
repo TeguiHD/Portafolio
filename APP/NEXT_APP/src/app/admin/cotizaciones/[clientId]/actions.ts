@@ -4,18 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { hash } from "argon2";
-import { randomBytes } from "crypto";
 import { sanitizeQuotationHtml } from "@/lib/quotation-sanitizer";
+import { generateSecureAccessCode } from "@/lib/secure-token";
+import { MARCA_PORTAL, ARGON2_CODIGO } from "@/lib/quotation-signature";
 import { hasPermission } from "@/lib/permission-check";
 import type { Role } from '@/generated/prisma/client';
 
-// Generate readable secure code
+// Código legible con ~62 bits (palabra + 3 grupos de 4), generado con crypto.
 function generateSecureCode(): string {
-    const words = ["Sol", "Luna", "Mar", "Rio", "Nube", "Flor", "Arbol", "Monte", "Cielo", "Viento"];
-    const word = words[Math.floor(Math.random() * words.length)];
-    const year = new Date().getFullYear();
-    const random = randomBytes(2).toString("hex").toUpperCase();
-    return `${word}${year}${random}!`;
+    return generateSecureAccessCode();
 }
 
 // Create URL-friendly slug
@@ -58,7 +55,9 @@ export async function createQuotationAction(formData: FormData) {
     const clientId = formData.get("clientId") as string;
     const folio = formData.get("folio") as string;
     const projectName = formData.get("projectName") as string;
-    const total = parseFloat(formData.get("total") as string) || 0;
+    // Pesos sin decimales; vacío, negativo o no numérico queda en 0 (se puede escribir después al editar).
+    const totalLeido = Number(formData.get("total"));
+    const total = Number.isFinite(totalLeido) && totalLeido > 0 ? Math.min(Math.round(totalLeido), 1e12) : 0;
     const htmlContent = formData.get("htmlContent") as string;
     const accessMode = formData.get("accessMode") as "public" | "code" || "code";
     const codeDuration = formData.get("codeDuration") as string || "15d";
@@ -68,13 +67,36 @@ export async function createQuotationAction(formData: FormData) {
     }
 
     try {
-        // Get client
-        const client = await prisma.quotationClient.findUnique({
-            where: { id: clientId }
+        const isSuperAdmin = session.user.role === "SUPERADMIN";
+
+        // Resolve the client with ownership/sharing checks before creating data under it.
+        const client = await prisma.quotationClient.findFirst({
+            where: isSuperAdmin
+                ? { id: clientId }
+                : {
+                    id: clientId,
+                    OR: [
+                        { userId: session.user.id },
+                        {
+                            sharedWith: {
+                                some: {
+                                    sharedWithUserId: session.user.id,
+                                    permission: { in: ["EDIT", "FULL"] }
+                                }
+                            }
+                        }
+                    ]
+                },
+            include: {
+                sharedWith: {
+                    where: { sharedWithUserId: session.user.id },
+                    select: { permission: true }
+                }
+            }
         });
 
         if (!client) {
-            return { success: false, error: "Cliente no encontrado" };
+            return { success: false, error: "Cliente no encontrado o sin permisos para crear cotizaciones" };
         }
 
         // Sanitize HTML Content (OWASP Security Measure)
@@ -97,7 +119,7 @@ export async function createQuotationAction(formData: FormData) {
 
         if (accessMode === "code") {
             accessCodePlain = generateSecureCode();
-            accessCode = await hash(accessCodePlain);
+            accessCode = await hash(accessCodePlain, ARGON2_CODIGO);
             codeExpiresAt = calculateExpiration(codeDuration);
         }
 
@@ -114,7 +136,7 @@ export async function createQuotationAction(formData: FormData) {
                 htmlContent: cleanHtmlContent,
                 status: "PENDING",
                 validDays: 15,
-                userId: session.user.id,
+                userId: client.userId,
                 clientId,
                 accessMode,
                 accessCode,
@@ -122,6 +144,7 @@ export async function createQuotationAction(formData: FormData) {
             }
         });
 
+        revalidatePath("/admin/cotizaciones");
         revalidatePath(`/admin/cotizaciones/${clientId}`);
 
         const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -164,6 +187,23 @@ export async function updateQuotationAccessAction(
     if (!canEdit) {
         return { success: false, error: "Permiso denegado" };
     }
+    if (mode !== "public" && mode !== "code") {
+        return { success: false, error: "Modo de acceso inválido" };
+    }
+    if (duration !== undefined && !["7d", "15d", "30d", "indefinite"].includes(duration)) {
+        return { success: false, error: "Duración inválida" };
+    }
+
+    // Dueño del cliente o superadmin: sin esto, cualquier usuario del panel podía abrir o
+    // rotar el código de una cotización ajena y quedarse con el código en texto plano.
+    const propia = await prisma.quotation.findUnique({
+        where: { id: quotationId },
+        select: { clientId: true, client: { select: { userId: true } } },
+    });
+    if (!propia) return { success: false, error: "Cotización no encontrada" };
+    if (session.user.role !== "SUPERADMIN" && propia.client?.userId !== session.user.id) {
+        return { success: false, error: "No autorizado" };
+    }
 
     try {
         let accessCode: string | null = null;
@@ -172,7 +212,7 @@ export async function updateQuotationAccessAction(
 
         if (mode === "code") {
             accessCodePlain = generateSecureCode();
-            accessCode = await hash(accessCodePlain);
+            accessCode = await hash(accessCodePlain, ARGON2_CODIGO);
             codeExpiresAt = calculateExpiration(duration || "15d");
         }
 
@@ -182,10 +222,11 @@ export async function updateQuotationAccessAction(
                 accessMode: mode,
                 accessCode,
                 codeExpiresAt
-            }
+            },
+            select: { id: true },
         });
 
-        revalidatePath("/admin/cotizaciones");
+        if (propia.clientId) revalidatePath(`/admin/cotizaciones/${propia.clientId}`);
 
         return {
             success: true,
@@ -220,7 +261,7 @@ export async function toggleVisibilityAction(
         // Verify ownership (unless superadmin)
         const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
-            include: { client: true }
+            select: { id: true, clientId: true, client: { select: { userId: true } } }
         });
 
         if (!quotation) {
@@ -239,6 +280,7 @@ export async function toggleVisibilityAction(
         });
 
         revalidatePath("/admin/cotizaciones");
+        if (quotation.clientId) revalidatePath(`/admin/cotizaciones/${quotation.clientId}`);
 
         return { success: true };
     } catch (error) {
@@ -267,7 +309,7 @@ export async function deleteQuotationAction(quotationId: string) {
         // Verify ownership (unless superadmin)
         const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
-            include: { client: true }
+            select: { id: true, clientId: true, slug: true, folio: true, client: { select: { userId: true, slug: true } } }
         });
 
         if (!quotation) {
@@ -289,7 +331,15 @@ export async function deleteQuotationAction(quotationId: string) {
             }
         });
 
+        revalidatePath("/admin/clientes");
         revalidatePath("/admin/cotizaciones");
+        revalidatePath(`/admin/cotizaciones/${quotation.clientId}`);
+        if (quotation.clientId) {
+            revalidatePath(`/admin/clientes/${quotation.clientId}`);
+        }
+        if (quotation.client?.slug) {
+            revalidatePath(`/cotizacion/${quotation.client.slug}/${quotation.slug || quotation.folio}`);
+        }
 
         return { success: true };
     } catch (error) {
@@ -317,7 +367,7 @@ export async function getQuotationForEditAction(quotationId: string) {
     try {
         const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
-            include: { client: true }
+            select: { id: true, clientId: true, folio: true, projectName: true, htmlContent: true, total: true, status: true, notes: true, client: { select: { userId: true } } }
         });
 
         if (!quotation) {
@@ -376,7 +426,7 @@ export async function updateQuotationAction(
         // Verify ownership (unless superadmin)
         const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
-            include: { client: true }
+            select: { id: true, clientId: true, client: { select: { userId: true } } }
         });
 
         if (!quotation) {
@@ -393,7 +443,10 @@ export async function updateQuotationAction(
         const updateData: Record<string, unknown> = {};
         if (data.projectName) updateData.projectName = data.projectName.trim().slice(0, 200);
         if (data.htmlContent) updateData.htmlContent = sanitizeQuotationHtml(data.htmlContent);
-        if (data.total !== undefined) updateData.total = data.total;
+        if (data.total !== undefined) {
+            if (!Number.isFinite(data.total) || data.total < 0) return { success: false, error: "El total no es válido" };
+            updateData.total = Math.min(Math.round(data.total), 1e12);
+        }
         if (data.notes !== undefined) updateData.notes = data.notes?.trim().slice(0, 1000) || null;
 
         await prisma.quotation.update({
@@ -402,10 +455,128 @@ export async function updateQuotationAction(
         });
 
         revalidatePath("/admin/cotizaciones");
+        if (quotation.clientId) revalidatePath(`/admin/cotizaciones/${quotation.clientId}`);
 
         return { success: true };
     } catch (error) {
         console.error("Error updating quotation:", error);
         return { success: false, error: "Error al actualizar cotización" };
     }
+}
+
+/**
+ * Anula la firma vigente que el cliente hizo desde el portal (por ejemplo, si firmó la persona
+ * equivocada). La firma queda en el registro como REVOKED, la cotización vuelve a PENDING y el
+ * cliente puede firmar de nuevo.
+ */
+export async function anularFirmaAction(quotationId: string) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, error: "No autorizado" };
+    }
+    const canEdit = await hasPermission(session.user.id, session.user.role as Role, "quotations.edit");
+    if (!canEdit) {
+        return { success: false, error: "Permiso denegado" };
+    }
+
+    const quotation = await prisma.quotation.findUnique({
+        where: { id: quotationId },
+        select: { id: true, status: true, clientId: true, userId: true, client: { select: { userId: true } } },
+    });
+    if (!quotation) {
+        return { success: false, error: "Cotización no encontrada" };
+    }
+    const isSuperAdmin = session.user.role === "SUPERADMIN";
+    if (!isSuperAdmin && quotation.client?.userId !== session.user.id) {
+        return { success: false, error: "No autorizado" };
+    }
+
+    try {
+        const anuladas = await prisma.$transaction(async (tx) => {
+            const r = await tx.clientApproval.updateMany({
+                where: {
+                    quotationId,
+                    status: "SIGNED",
+                    type: "QUOTATION",
+                    fingerprint: MARCA_PORTAL,
+                    userId: quotation.userId,
+                },
+                data: { status: "REVOKED" },
+            });
+            if (r.count > 0 && quotation.status === "APPROVED") {
+                await tx.quotation.update({ where: { id: quotationId }, data: { status: "PENDING" } });
+                await tx.quotationStatusHistory.create({
+                    data: {
+                        quotationId,
+                        fromStatus: "APPROVED",
+                        toStatus: "PENDING",
+                        changedBy: session.user.id,
+                        reason: "Firma del cliente anulada desde el panel",
+                    },
+                });
+            }
+            return r.count;
+        });
+        if (anuladas === 0) {
+            return { success: false, error: "No hay una firma vigente que anular" };
+        }
+        revalidatePath("/admin/cotizaciones");
+        if (quotation.clientId) revalidatePath(`/admin/cotizaciones/${quotation.clientId}`);
+        return { success: true };
+    } catch (error) {
+        console.error("Error anulando firma:", error);
+        return { success: false, error: "Error al anular la firma" };
+    }
+}
+
+/** Dueño del cliente (o superadmin) con el permiso indicado; devuelve la sesión y el cliente. */
+async function autorizarCliente(clientId: string, permiso: "quotations.view" | "quotations.edit") {
+    const session = await auth();
+    if (!session?.user?.id) return { error: "No autorizado" as const };
+    const puede = await hasPermission(session.user.id, session.user.role as Role, permiso);
+    if (!puede) return { error: "Permiso denegado" as const };
+    const cliente = await prisma.quotationClient.findUnique({
+        where: { id: clientId },
+        select: { id: true, slug: true, name: true, userId: true, isActive: true },
+    });
+    if (!cliente) return { error: "Cliente no encontrado" as const };
+    if (session.user.role !== "SUPERADMIN" && cliente.userId !== session.user.id) return { error: "No autorizado" as const };
+    return { session, cliente };
+}
+
+/** Abre el portal del cliente tal como él lo ve, en modo solo lectura, y lo deja en la auditoría. */
+export async function verComoClienteAction(clientId: string) {
+    const r = await autorizarCliente(clientId, "quotations.view");
+    if ("error" in r) return { success: false as const, error: r.error };
+    const { abrirVistaCliente } = await import("@/lib/portal-cliente");
+    await abrirVistaCliente(r.cliente, r.session.user.id);
+    await prisma.auditLog.create({
+        data: {
+            action: "portal.view_as_client",
+            category: "clients",
+            userId: r.session.user.id,
+            targetId: r.cliente.id,
+            targetType: "QuotationClient",
+            metadata: { clientSlug: r.cliente.slug },
+        },
+    }).catch(() => null);
+    return { success: true as const, url: `/cotizacion/${r.cliente.slug}` };
+}
+
+/** Activa o suspende el acceso del cliente a su portal (cierra al instante sus sesiones). */
+export async function cambiarAccesoPortalAction(clientId: string, activo: boolean) {
+    const r = await autorizarCliente(clientId, "quotations.edit");
+    if ("error" in r) return { success: false as const, error: r.error };
+    await prisma.quotationClient.update({ where: { id: clientId }, data: { isActive: Boolean(activo) } });
+    await prisma.auditLog.create({
+        data: {
+            action: activo ? "portal.access_enabled" : "portal.access_disabled",
+            category: "clients",
+            userId: r.session.user.id,
+            targetId: clientId,
+            targetType: "QuotationClient",
+        },
+    }).catch(() => null);
+    revalidatePath(`/admin/cotizaciones/${clientId}`);
+    return { success: true as const };
 }

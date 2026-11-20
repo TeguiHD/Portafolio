@@ -341,6 +341,7 @@ export async function processReceiptOCR(imageBase64: string): Promise<OCRResult>
 
         // Call OpenRouter Vision API with enhanced prompt
         const response = await fetch(OPENROUTER_API_URL, {
+            signal: AbortSignal.timeout(60_000),
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

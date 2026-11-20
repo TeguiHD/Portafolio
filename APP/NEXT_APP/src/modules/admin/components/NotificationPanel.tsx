@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     Bell,
     X,
@@ -19,9 +20,12 @@ import {
     Server,
     ArrowRight,
 } from "lucide-react";
-import Link from "next/link";
 
-// Types
+/*
+ * Avisos de la barra del panel. Va en el armazón, así que se carga en todas las páginas: por eso no usa
+ * framer-motion (la entrada es la animación CSS `ad-entra` de armazon.css y se apaga con «menos movimiento»).
+ */
+
 interface Notification {
     id: string;
     type: string;
@@ -34,13 +38,6 @@ interface Notification {
     actorName?: string;
 }
 
-interface NotificationPanelProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onUnreadCountChange?: (count: number) => void;
-}
-
-// Icon mapping
 const typeIcons: Record<string, typeof Bell> = {
     USER_CREATED: UserPlus,
     USER_ROLE_CHANGED: UserCog,
@@ -60,43 +57,35 @@ const typeIcons: Record<string, typeof Bell> = {
     SESSION_REVOKED: Key,
 };
 
-// Priority colors
-const priorityColors: Record<string, string> = {
-    LOW: "border-l-neutral-500",
-    MEDIUM: "border-l-blue-500",
-    HIGH: "border-l-amber-500",
-    CRITICAL: "border-l-red-500",
+// La prioridad se ve en el color del ícono (y se lee en voz alta cuando es alta).
+const COLOR_PRIORIDAD: Record<Notification["priority"], string> = {
+    LOW: "text-[var(--mut)]",
+    MEDIUM: "text-[var(--acento)]",
+    HIGH: "text-amber-400",
+    CRITICAL: "text-red-400",
+};
+const VOZ_PRIORIDAD: Partial<Record<Notification["priority"], string>> = {
+    HIGH: "Prioridad alta. ",
+    CRITICAL: "Prioridad crítica. ",
 };
 
-const priorityBgColors: Record<string, string> = {
-    LOW: "bg-neutral-500/10",
-    MEDIUM: "bg-blue-500/10",
-    HIGH: "bg-amber-500/10",
-    CRITICAL: "bg-red-500/10",
-};
-
-// Time ago helper
 function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const minutes = Math.floor(diff / 60000);
 
-    if (minutes < 1) return "Ahora";
-    if (minutes < 60) return `hace ${minutes}m`;
+    if (minutes < 1) return "ahora";
+    if (minutes < 60) return `hace ${minutes} min`;
 
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `hace ${hours}h`;
+    if (hours < 24) return `hace ${hours} h`;
 
     const days = Math.floor(hours / 24);
     if (days === 1) return "ayer";
     if (days < 7) return `hace ${days} días`;
 
-    return new Date(dateStr).toLocaleDateString("es-CL", {
-        day: "numeric",
-        month: "short"
-    });
+    return new Date(dateStr).toLocaleDateString("es-CL", { day: "numeric", month: "short" });
 }
 
-// Type to action URL mapping
 const typeActionUrls: Record<string, string> = {
     CONCURRENT_SESSION_DETECTED: "/admin/profile?tab=sessions",
     SESSION_FROM_NEW_LOCATION: "/admin/profile?tab=sessions",
@@ -105,320 +94,250 @@ const typeActionUrls: Record<string, string> = {
     USER_ROLE_CHANGED: "/admin/profile?tab=permissions",
 };
 
-// Notification Item Component
-function NotificationItem({
-    notification,
-    onMarkRead,
-    onClose,
-}: {
-    notification: Notification;
-    onMarkRead: (id: string) => void;
-    onClose: () => void;
-}) {
-    const Icon = typeIcons[notification.type] || Bell;
-    const actionUrl = typeActionUrls[notification.type];
+function Aviso({ aviso, alLeer, alIr }: { aviso: Notification; alLeer: (id: string) => void; alIr: (href: string) => void }) {
+    const Icono = typeIcons[aviso.type] || Bell;
+    const destino = typeActionUrls[aviso.type];
 
-    const handleClick = () => {
-        if (!notification.isRead) onMarkRead(notification.id);
-        if (actionUrl) {
-            onClose();
-            window.location.href = actionUrl;
-        }
-    };
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className={`
-                relative flex gap-3 p-4 border-l-4 transition-all cursor-pointer
-                ${priorityColors[notification.priority]}
-                ${notification.isRead
-                    ? "bg-transparent opacity-60"
-                    : priorityBgColors[notification.priority]
-                }
-                hover:bg-white/5
-            `}
-            onClick={handleClick}
-        >
-            {/* Icon */}
-            <div className={`
-                w-10 h-10 rounded-xl flex items-center justify-center shrink-0
-                ${notification.isRead ? "bg-white/5" : "bg-white/10"}
-            `}>
-                <Icon className={`w-5 h-5 ${notification.isRead ? "text-neutral-500" : "text-accent-1"}`} />
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                    <h4 className={`text-sm font-medium truncate ${notification.isRead ? "text-neutral-400" : "text-white"}`}>
-                        {notification.title}
-                    </h4>
-                    <span className="text-xs text-neutral-500 shrink-0">
-                        {timeAgo(notification.createdAt)}
+    const contenido = (
+        <>
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] ${COLOR_PRIORIDAD[aviso.priority]}`}>
+                <Icono className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="block min-w-0 flex-1">
+                <span className="flex items-start justify-between gap-2">
+                    <span className={`block truncate text-sm font-medium ${aviso.isRead ? "text-[var(--mut)]" : "text-[var(--txt)]"}`}>
+                        <span className="sr-only">{VOZ_PRIORIDAD[aviso.priority] ?? ""}{aviso.isRead ? "" : "Sin leer. "}</span>
+                        {aviso.title}
                     </span>
-                </div>
-                <p className="text-xs text-neutral-400 mt-1 line-clamp-2">
-                    {notification.message}
-                </p>
-                {actionUrl && (
-                    <p className="text-xs text-accent-1 mt-1.5 flex items-center gap-1 font-medium">
-                        Ver en mi perfil
-                        <ArrowRight size={12} />
-                    </p>
-                )}
-                {notification.actorName && (
-                    <p className="text-xs text-neutral-500 mt-1">
-                        por {notification.actorName}
-                    </p>
-                )}
-            </div>
-
-            {/* Unread indicator */}
-            {!notification.isRead && (
-                <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-accent-1" />
-            )}
-        </motion.div>
+                    <span className="shrink-0 text-xs text-[var(--mut)]">{timeAgo(aviso.createdAt)}</span>
+                </span>
+                <span className="mt-1 line-clamp-2 block text-xs text-[var(--mut)]">{aviso.message}</span>
+                {destino ? (
+                    <span className="mt-1.5 flex items-center gap-1 text-xs font-medium text-[var(--acento)]">
+                        Ver en mi perfil <ArrowRight size={12} aria-hidden="true" />
+                    </span>
+                ) : null}
+                {aviso.actorName ? <span className="mt-1 block text-xs text-[var(--mut)]">por {aviso.actorName}</span> : null}
+            </span>
+            {!aviso.isRead ? <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-[var(--acento)]" aria-hidden="true" /> : null}
+        </>
     );
-}
 
-// Main Panel Component
-export function NotificationPanel({ isOpen, onClose, onUnreadCountChange }: NotificationPanelProps) {
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const panelRef = useRef<HTMLDivElement>(null);
+    const base = `relative flex w-full gap-3 p-4 text-left ${aviso.isRead ? "opacity-70" : "bg-[color-mix(in_srgb,var(--acento)_6%,transparent)]"}`;
 
-    // Fetch notifications
-    const fetchNotifications = useCallback(async () => {
-        try {
-            const res = await fetch("/api/admin/notifications?limit=20");
-            if (!res.ok) throw new Error("Failed to fetch");
-
-            const data = await res.json();
-            setNotifications(data.notifications);
-            setUnreadCount(data.unreadCount);
-            onUnreadCountChange?.(data.unreadCount);
-        } catch (error) {
-            console.error("Notification fetch error:", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [onUnreadCountChange]);
-
-    // Initial fetch and polling
-    useEffect(() => {
-        if (isOpen) {
-            fetchNotifications();
-        }
-    }, [isOpen, fetchNotifications]);
-
-    // Mark single notification as read
-    const handleMarkRead = async (notificationId: string) => {
-        try {
-            await fetch("/api/admin/notifications", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ notificationId }),
-            });
-
-            setNotifications(prev =>
-                prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
-            );
-            setUnreadCount(prev => Math.max(0, prev - 1));
-            onUnreadCountChange?.(Math.max(0, unreadCount - 1));
-        } catch (error) {
-            console.error("Error marking notification as read:", error);
-        }
-    };
-
-    // Mark all as read
-    const handleMarkAllRead = async () => {
-        try {
-            await fetch("/api/admin/notifications", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ markAllRead: true }),
-            });
-
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-            setUnreadCount(0);
-            onUnreadCountChange?.(0);
-        } catch (error) {
-            console.error("Error marking all as read:", error);
-        }
-    };
-
-    // Close on click outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-                onClose();
-            }
-        };
-
-        if (isOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isOpen, onClose]);
-
-    // Close on escape
-    useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
-        };
-
-        if (isOpen) {
-            document.addEventListener("keydown", handleEscape);
-        }
-
-        return () => document.removeEventListener("keydown", handleEscape);
-    }, [isOpen, onClose]);
+    // Leída y sin destino: no hay nada que hacer con ella, así que no es un botón.
+    if (aviso.isRead && !destino) return <li><div className={base}>{contenido}</div></li>;
 
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <motion.div
-                    ref={panelRef}
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="absolute top-full right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] bg-[#0F1724] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-white/10">
-                        <div className="flex items-center gap-2">
-                            <Bell className="w-5 h-5 text-accent-1" />
-                            <h3 className="font-semibold text-white">Notificaciones</h3>
-                            {unreadCount > 0 && (
-                                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-accent-1 text-black">
-                                    {unreadCount}
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                            {unreadCount > 0 && (
-                                <button
-                                    onClick={handleMarkAllRead}
-                                    className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
-                                    title="Marcar todas como leídas"
-                                >
-                                    <CheckCheck className="w-4 h-4" />
-                                </button>
-                            )}
-                            <button
-                                onClick={onClose}
-                                className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="max-h-96 overflow-y-auto">
-                        {loading ? (
-                            <div className="flex items-center justify-center p-8">
-                                <div className="w-6 h-6 border-2 border-accent-1/30 border-t-accent-1 rounded-full animate-spin" />
-                            </div>
-                        ) : notifications.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-8 text-center">
-                                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
-                                    <Bell className="w-6 h-6 text-neutral-500" />
-                                </div>
-                                <p className="text-neutral-400 text-sm">No hay notificaciones</p>
-                                <p className="text-neutral-500 text-xs mt-1">Las nuevas actividades aparecerán aquí</p>
-                            </div>
-                        ) : (
-                            <div className="divide-y divide-white/5">
-                                <AnimatePresence mode="popLayout">
-                                    {notifications.map(notification => (
-                                        <NotificationItem
-                                            key={notification.id}
-                                            notification={notification}
-                                            onMarkRead={handleMarkRead}
-                                            onClose={onClose}
-                                        />
-                                    ))}
-                                </AnimatePresence>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Footer */}
-                    {notifications.length > 0 && (
-                        <div className="p-3 border-t border-white/10">
-                            <Link
-                                href="/admin/notifications"
-                                onClick={onClose}
-                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-accent-1 hover:text-accent-2 transition-all text-sm font-medium group"
-                            >
-                                <span>Ver todas las notificaciones</span>
-                                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                            </Link>
-                        </div>
-                    )}
-                </motion.div>
-            )}
-        </AnimatePresence>
+        <li>
+            <button
+                type="button"
+                className={`${base} cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--txt)_5%,transparent)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]`}
+                onClick={() => {
+                    if (!aviso.isRead) alLeer(aviso.id);
+                    if (destino) alIr(destino);
+                }}
+            >
+                {contenido}
+            </button>
+        </li>
     );
 }
 
-// Notification Button with Badge
-export function NotificationButton() {
-    const [isOpen, setIsOpen] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
+/** El contenido del panel. Solo se monta mientras está abierto y en cada apertura pide los avisos frescos. */
+export function NotificationPanel({ onClose, onUnreadCountChange }: { onClose: () => void; onUnreadCountChange?: (count: number) => void }) {
+    const router = useRouter();
+    const [avisos, setAvisos] = useState<Notification[]>([]);
+    const [estado, setEstado] = useState<"cargando" | "listo" | "error">("cargando");
+    const [noLeidas, setNoLeidas] = useState(0);
+    const [falloMarcar, setFalloMarcar] = useState(false);
 
-    // Fetch unread count on mount and poll every 30s
+    // La campana muestra el mismo número que el panel, una vez que el panel ya sabe cuántas hay.
+    const informar = useRef(onUnreadCountChange);
+    useEffect(() => { informar.current = onUnreadCountChange; }, [onUnreadCountChange]);
+    useEffect(() => { if (estado === "listo") informar.current?.(noLeidas); }, [estado, noLeidas]);
+
     useEffect(() => {
-        const fetchCount = async () => {
+        const corte = new AbortController();
+        (async () => {
             try {
-                const res = await fetch("/api/admin/notifications?limit=1&unread=true");
-                if (res.ok) {
-                    const data = await res.json();
-                    setUnreadCount(data.unreadCount);
-                }
+                const res = await fetch("/api/admin/notifications?limit=20", { signal: corte.signal });
+                if (!res.ok) throw new Error(String(res.status));
+                const data = await res.json() as { notifications: Notification[]; unreadCount: number };
+                setAvisos(data.notifications);
+                setNoLeidas(data.unreadCount);
+                setEstado("listo");
             } catch {
-                // Silently fail
+                if (!corte.signal.aborted) setEstado("error");
             }
-        };
-
-        fetchCount();
-        const interval = setInterval(fetchCount, 30000);
-        return () => clearInterval(interval);
+        })();
+        return () => corte.abort();
     }, []);
 
-    return (
-        <div className="relative">
-            <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
-                aria-label="Notificaciones"
-            >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                    <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-accent-2 text-black"
-                    >
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                    </motion.span>
-                )}
-            </motion.button>
+    const marcar = async (cuerpo: { notificationId: string } | { markAllRead: true }) => {
+        setFalloMarcar(false);
+        try {
+            const res = await fetch("/api/admin/notifications", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(cuerpo),
+            });
+            if (!res.ok) throw new Error(String(res.status));
+            // Se avisa a la campana aquí mismo: si el aviso llevaba a otra página, el panel ya se cerró y su efecto no corre.
+            const quedan = "markAllRead" in cuerpo ? 0 : Math.max(0, noLeidas - 1);
+            setAvisos((prev) => prev.map((n) => ("markAllRead" in cuerpo || n.id === cuerpo.notificationId ? { ...n, isRead: true } : n)));
+            setNoLeidas(quedan);
+            informar.current?.(quedan);
+        } catch {
+            setFalloMarcar(true);
+        }
+    };
 
-            <NotificationPanel
-                isOpen={isOpen}
-                onClose={() => setIsOpen(false)}
-                onUnreadCountChange={setUnreadCount}
-            />
+    return (
+        <div
+            id="ad-notificaciones"
+            role="region"
+            aria-label="Notificaciones"
+            className="absolute right-0 top-full z-50 mt-2 w-96 overflow-hidden rounded-2xl border border-[var(--linea-2)] bg-[var(--sup)] text-[var(--txt)] shadow-[0_40px_90px_-40px_rgb(0_0_0/.6)] animate-[ad-entra_.2s_var(--curva)] motion-reduce:animate-none max-lg:fixed max-lg:inset-x-4 max-lg:top-[72px] max-lg:mt-0 max-lg:w-auto"
+        >
+            <div className="flex items-center justify-between gap-2 border-b border-[var(--linea)] px-4 py-3">
+                <h2 className="flex items-center gap-2 text-base font-semibold">
+                    Notificaciones
+                    {noLeidas > 0 ? (
+                        <span className="rounded-full bg-[var(--acento)] px-2 py-0.5 text-xs font-semibold text-[var(--acento-tinta)]">
+                            {noLeidas}<span className="sr-only"> sin leer</span>
+                        </span>
+                    ) : null}
+                </h2>
+                <div className="flex items-center gap-1">
+                    {noLeidas > 0 ? (
+                        <button type="button" onClick={() => void marcar({ markAllRead: true })} className="ad-icono" aria-label="Marcar todas como leídas" title="Marcar todas como leídas">
+                            <CheckCheck size={17} aria-hidden="true" />
+                        </button>
+                    ) : null}
+                    <button type="button" onClick={onClose} className="ad-icono" aria-label="Cerrar notificaciones">
+                        <X size={17} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+
+            {falloMarcar ? <p role="alert" className="border-b border-[var(--linea)] px-4 py-2 text-xs text-red-400">No se pudo marcar como leída. Inténtalo de nuevo.</p> : null}
+
+            <div className="max-h-[min(24rem,calc(100svh_-_17rem))] overflow-y-auto" aria-busy={estado === "cargando"}>
+                {estado === "cargando" ? (
+                    <div className="flex items-center justify-center gap-3 p-8 text-sm text-[var(--mut)]" role="status">
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-[color-mix(in_srgb,var(--acento)_30%,transparent)] border-t-[var(--acento)] motion-reduce:animate-none" aria-hidden="true" />
+                        Cargando…
+                    </div>
+                ) : estado === "error" ? (
+                    <p className="p-8 text-center text-sm text-[var(--mut)]" role="alert">No se pudieron cargar las notificaciones.</p>
+                ) : avisos.length === 0 ? (
+                    <div className="p-8 text-center">
+                        <Bell className="mx-auto mb-3 h-6 w-6 text-[var(--mut)]" aria-hidden="true" />
+                        <p className="text-sm text-[var(--mut)]">No hay notificaciones.</p>
+                        <p className="mt-1 text-xs text-[var(--mut)]">Lo nuevo aparecerá aquí.</p>
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-[var(--linea)]">
+                        {avisos.map((aviso) => (
+                            <Aviso
+                                key={aviso.id}
+                                aviso={aviso}
+                                alLeer={(id) => void marcar({ notificationId: id })}
+                                alIr={(href) => { onClose(); router.push(href); }}
+                            />
+                        ))}
+                    </ul>
+                )}
+            </div>
+
+            {avisos.length > 0 ? (
+                <div className="border-t border-[var(--linea)] p-3">
+                    <Link
+                        href="/admin/notifications"
+                        onClick={onClose}
+                        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-[var(--acento)] transition-colors hover:bg-[color-mix(in_srgb,var(--txt)_5%,transparent)] focus-visible:outline-2 focus-visible:outline-[var(--acento)]"
+                    >
+                        Ver todas las notificaciones <ArrowRight size={16} aria-hidden="true" />
+                    </Link>
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+/** Campana de la barra con el número de avisos sin leer; abre el panel debajo. */
+export function NotificationButton() {
+    const [abierto, setAbierto] = useState(false);
+    const [noLeidas, setNoLeidas] = useState(0);
+    const caja = useRef<HTMLDivElement>(null);
+    const boton = useRef<HTMLButtonElement>(null);
+
+    // Número de sin leer al cargar y cada 60 s, solo con la pestaña a la vista; al volver a ella se actualiza al instante.
+    useEffect(() => {
+        const contar = async () => {
+            try {
+                const res = await fetch("/api/admin/notifications?limit=1&unread=true&countOnly=1");
+                if (res.ok) {
+                    const data = await res.json() as { unreadCount: number };
+                    setNoLeidas(data.unreadCount);
+                }
+            } catch {
+                // Sin red: se queda el último número conocido.
+            }
+        };
+
+        void contar();
+        const intervalo = setInterval(() => {
+            if (document.visibilityState === "visible") void contar();
+        }, 60000);
+        const alVolver = () => { if (document.visibilityState === "visible") void contar(); };
+        document.addEventListener("visibilitychange", alVolver);
+        return () => {
+            clearInterval(intervalo);
+            document.removeEventListener("visibilitychange", alVolver);
+        };
+    }, []);
+
+    const cerrar = useCallback(() => setAbierto(false), []);
+
+    // Se cierra tocando fuera (la campana cuenta como dentro, para que vuelva a cerrarlo y no lo reabra) o con Escape.
+    useEffect(() => {
+        if (!abierto) return;
+        const fuera = (e: PointerEvent) => {
+            if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false);
+        };
+        const tecla = (e: KeyboardEvent) => {
+            if (e.key === "Escape") { setAbierto(false); boton.current?.focus(); }
+        };
+        document.addEventListener("pointerdown", fuera);
+        document.addEventListener("keydown", tecla);
+        return () => {
+            document.removeEventListener("pointerdown", fuera);
+            document.removeEventListener("keydown", tecla);
+        };
+    }, [abierto]);
+
+    return (
+        <div ref={caja} className="relative">
+            <button
+                ref={boton}
+                type="button"
+                onClick={() => setAbierto((v) => !v)}
+                className="ad-icono relative"
+                aria-label={noLeidas > 0 ? `Notificaciones, ${noLeidas} sin leer` : "Notificaciones"}
+                aria-expanded={abierto}
+                aria-controls={abierto ? "ad-notificaciones" : undefined}
+            >
+                <Bell size={18} aria-hidden="true" />
+                {noLeidas > 0 ? (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--acento)] px-1 text-[10px] font-semibold text-[var(--acento-tinta)]" aria-hidden="true">
+                        {noLeidas > 99 ? "99+" : noLeidas}
+                    </span>
+                ) : null}
+            </button>
+
+            {abierto ? <NotificationPanel onClose={cerrar} onUnreadCountChange={setNoLeidas} /> : null}
         </div>
     );
 }

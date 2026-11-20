@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Search, X, Filter, ChevronDown, ChevronLeft, ChevronRight, SortAsc, SortDesc } from "lucide-react";
 import ClientCard from "./ClientCard";
+import Ventana from "@/modules/quotations/components/Ventana";
+import { BOTON_ICONO, BOTON_SEC, CAMPO, FOCO, SOBRE } from "@/modules/quotations/estilos";
 
 interface Client {
     id: string;
@@ -42,17 +44,6 @@ export default function ClientsSearchModal({ clients, isSuperAdmin, isSpyMode, i
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, sortField, sortOrder, quotationFilter]);
-
-    // Handle escape key
-    useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && isOpen) {
-                onClose();
-            }
-        };
-        window.addEventListener("keydown", handleEscape);
-        return () => window.removeEventListener("keydown", handleEscape);
-    }, [isOpen, onClose]);
 
     // Filter and sort clients
     const filteredClients = useMemo(() => {
@@ -116,191 +107,184 @@ export default function ClientsSearchModal({ clients, isSuperAdmin, isSpyMode, i
 
     if (!isOpen) return null;
 
+    const ordenes: Record<SortField, string> = { name: "Nombre", quotations: "Propuestas", createdAt: "Fecha" };
+    const pastilla = (activa: boolean) =>
+        `inline-flex min-h-11 md:min-h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium transition-colors duration-150 ${FOCO} ${activa
+            ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--acento)]"
+            : `text-[var(--mut)] hover:text-[var(--txt)] ${SOBRE}`}`;
+
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-800 shrink-0">
-                    <div>
-                        <h2 className="text-xl font-bold text-white">Buscar Clientes</h2>
-                        <p className="text-sm text-slate-400">
-                            {filteredClients.length} cliente{filteredClients.length !== 1 ? "s" : ""} encontrado{filteredClients.length !== 1 ? "s" : ""}
-                        </p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
+        <Ventana
+            titulo="Buscar clientes"
+            descripcion={`${filteredClients.length} cliente${filteredClients.length !== 1 ? "s" : ""} encontrado${filteredClients.length !== 1 ? "s" : ""}`}
+            alCerrar={onClose}
+            ancho="max-w-6xl"
+            cuerpo="p-0 flex flex-col"
+        >
+            <div className="shrink-0 space-y-3 border-b border-[var(--linea)] p-4 sm:px-6">
+                <div className="relative">
+                    <label htmlFor="buscar-clientes-propuestas" className="sr-only">Buscar por nombre, correo, empresa o usuario del portal</label>
+                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" size={16} aria-hidden="true" />
+                    <input
+                        id="buscar-clientes-propuestas"
+                        type="search"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Nombre, correo, empresa o usuario"
+                        className={`${CAMPO} pl-9 pr-11`}
+                        data-autofocus
+                    />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchTerm("")}
+                            aria-label="Borrar la búsqueda"
+                            className={`${BOTON_ICONO} absolute right-0 top-1/2 -translate-y-1/2`}
+                        >
+                            <X size={16} aria-hidden="true" />
+                        </button>
+                    )}
                 </div>
 
-                {/* Search and Filters */}
-                <div className="p-4 md:p-6 border-b border-slate-800 space-y-4 shrink-0">
-                    {/* Search Bar */}
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Buscar por nombre, email, empresa o slug..."
-                            className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                            autoFocus
-                        />
-                        {searchTerm && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setShowFilters(!showFilters)}
+                        aria-expanded={showFilters}
+                        aria-controls="filtros-clientes-propuestas"
+                        className={BOTON_SEC}
+                    >
+                        <Filter size={16} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown size={14} aria-hidden="true" className={`transition-transform duration-150 motion-reduce:transition-none ${showFilters ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <div role="group" aria-label="Ordenar" className="ml-auto flex flex-wrap items-center gap-1">
+                        <span className="hidden text-xs text-[var(--mut)] sm:block">Ordenar:</span>
+                        {(["name", "quotations", "createdAt"] as SortField[]).map((field) => (
                             <button
-                                onClick={() => setSearchTerm("")}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                                type="button"
+                                key={field}
+                                onClick={() => toggleSort(field)}
+                                aria-pressed={sortField === field}
+                                className={pastilla(sortField === field)}
                             >
-                                <X size={16} />
+                                {ordenes[field]}
+                                {sortField === field && (
+                                    sortOrder === "asc"
+                                        ? <><SortAsc size={12} aria-hidden="true" /><span className="sr-only">, ascendente</span></>
+                                        : <><SortDesc size={12} aria-hidden="true" /><span className="sr-only">, descendente</span></>
+                                )}
                             </button>
-                        )}
+                        ))}
                     </div>
+                </div>
 
-                    {/* Filters Toggle */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${showFilters
-                                ? "bg-indigo-600 text-white"
-                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                }`}
-                        >
-                            <Filter size={16} />
-                            Filtros
-                            <ChevronDown size={14} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
-                        </button>
-
-                        {/* Quick Sort Buttons */}
-                        <div className="flex items-center gap-2 ml-auto">
-                            <span className="text-xs text-slate-500 hidden sm:block">Ordenar:</span>
-                            {(["name", "quotations", "createdAt"] as SortField[]).map((field) => (
+                {showFilters && (
+                    <div id="filtros-clientes-propuestas" role="group" aria-labelledby="filtro-minimo" className="border-t border-[var(--linea)] pt-3">
+                        <p id="filtro-minimo" className="mb-2 text-sm font-medium text-[var(--txt)]">Mínimo de propuestas</p>
+                        <div className="flex flex-wrap gap-1">
+                            {(["all", "1+", "5+", "10+"] as QuotationFilter[]).map((filter) => (
                                 <button
-                                    key={field}
-                                    onClick={() => toggleSort(field)}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortField === field
-                                        ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-                                        : "bg-slate-800 text-slate-400 hover:text-white"
-                                        }`}
+                                    type="button"
+                                    key={filter}
+                                    onClick={() => setQuotationFilter(filter)}
+                                    aria-pressed={quotationFilter === filter}
+                                    className={pastilla(quotationFilter === filter)}
                                 >
-                                    {field === "name" && "Nombre"}
-                                    {field === "quotations" && "Cotizaciones"}
-                                    {field === "createdAt" && "Fecha"}
-                                    {sortField === field && (
-                                        sortOrder === "asc" ? <SortAsc size={12} /> : <SortDesc size={12} />
-                                    )}
+                                    {filter === "all" ? "Todos" : filter}
                                 </button>
                             ))}
                         </div>
                     </div>
+                )}
+            </div>
 
-                    {/* Extended Filters */}
-                    {showFilters && (
-                        <div className="pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-200">
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-2 font-medium uppercase tracking-wider">
-                                    Mínimo de cotizaciones
-                                </label>
-                                <div className="flex gap-2">
-                                    {(["all", "1+", "5+", "10+"] as QuotationFilter[]).map((filter) => (
-                                        <button
-                                            key={filter}
-                                            onClick={() => setQuotationFilter(filter)}
-                                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${quotationFilter === filter
-                                                ? "bg-indigo-600 text-white"
-                                                : "bg-slate-800 text-slate-400 hover:text-white"
-                                                }`}
-                                        >
-                                            {filter === "all" ? "Todos" : filter}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Results Grid */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                    {paginatedClients.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                                <Search className="text-slate-600" size={24} />
-                            </div>
-                            <h3 className="text-lg font-semibold text-white mb-2">Sin resultados</h3>
-                            <p className="text-slate-400 max-w-md">
-                                No se encontraron clientes con los filtros seleccionados.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {paginatedClients.map((client) => (
+            <p aria-live="polite" className="sr-only">
+                {filteredClients.length} cliente{filteredClients.length !== 1 ? "s" : ""}
+            </p>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                {paginatedClients.length === 0 ? (
+                    <div className="py-14 text-center">
+                        <Search className="mx-auto mb-3 text-[var(--mut)]" size={24} aria-hidden="true" />
+                        <p className="font-semibold text-[var(--txt)]">Sin resultados</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm text-[var(--mut)]">
+                            Ningún cliente coincide con la búsqueda o los filtros.
+                        </p>
+                    </div>
+                ) : (
+                    <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {paginatedClients.map((client) => (
+                            <li key={client.id} className="flex">
                                 <ClientCard
-                                    key={client.id}
                                     client={client}
                                     isSuperAdmin={isSuperAdmin}
                                     isSpyMode={isSpyMode}
                                 />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-between p-4 md:p-6 border-t border-slate-800 shrink-0">
-                        <p className="text-sm text-slate-400">
-                            Página {currentPage} de {totalPages}
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                                className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-
-                            {/* Page numbers */}
-                            <div className="hidden sm:flex items-center gap-1">
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    let pageNum: number;
-                                    if (totalPages <= 5) {
-                                        pageNum = i + 1;
-                                    } else if (currentPage <= 3) {
-                                        pageNum = i + 1;
-                                    } else if (currentPage >= totalPages - 2) {
-                                        pageNum = totalPages - 4 + i;
-                                    } else {
-                                        pageNum = currentPage - 2 + i;
-                                    }
-                                    return (
-                                        <button
-                                            key={pageNum}
-                                            onClick={() => setCurrentPage(pageNum)}
-                                            className={`w-10 h-10 rounded-lg font-medium transition-colors ${currentPage === pageNum
-                                                ? "bg-indigo-600 text-white"
-                                                : "bg-slate-800 text-slate-400 hover:text-white"
-                                                }`}
-                                        >
-                                            {pageNum}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
-                                className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronRight size={20} />
-                            </button>
-                        </div>
-                    </div>
+                            </li>
+                        ))}
+                    </ul>
                 )}
             </div>
-        </div>
+
+            {totalPages > 1 && (
+                <nav aria-label="Páginas" className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--linea)] px-4 py-3 sm:px-6">
+                    <p className="text-sm text-[var(--mut)]">
+                        Página {currentPage} de {totalPages}
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            aria-label="Página anterior"
+                            className={BOTON_ICONO}
+                        >
+                            <ChevronLeft size={18} aria-hidden="true" />
+                        </button>
+
+                        <div className="hidden items-center gap-1 sm:flex">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageNum: number;
+                                if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                } else if (currentPage <= 3) {
+                                    pageNum = i + 1;
+                                } else if (currentPage >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                } else {
+                                    pageNum = currentPage - 2 + i;
+                                }
+                                return (
+                                    <button
+                                        type="button"
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        aria-current={currentPage === pageNum ? "page" : undefined}
+                                        aria-label={`Página ${pageNum}`}
+                                        className={`size-10 rounded-lg text-sm font-medium tabular-nums transition-colors duration-150 ${FOCO} ${currentPage === pageNum
+                                            ? "bg-[var(--acento)] text-[var(--acento-tinta)]"
+                                            : `text-[var(--mut)] hover:text-[var(--txt)] ${SOBRE}`
+                                            }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            aria-label="Página siguiente"
+                            className={BOTON_ICONO}
+                        >
+                            <ChevronRight size={18} aria-hidden="true" />
+                        </button>
+                    </div>
+                </nav>
+            )}
+        </Ventana>
     );
 }

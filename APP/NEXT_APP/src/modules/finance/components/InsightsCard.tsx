@@ -1,5 +1,8 @@
 "use client";
 
+import { AlertTriangle, CheckCircle2, Eye } from "lucide-react";
+import { LISTA, MARCA, SECCION, VACIO } from "./estilos";
+
 export interface Insight {
     type: string;
     icon: string;
@@ -12,76 +15,42 @@ interface InsightsCardProps {
     insights: Insight[];
 }
 
-const IMPACT_STYLES = {
-    high: {
-        bg: "bg-red-500/10",
-        border: "border-red-500/30",
-        badge: "bg-red-500/20 text-red-400",
-    },
-    medium: {
-        bg: "bg-yellow-500/10",
-        border: "border-yellow-500/30",
-        badge: "bg-yellow-500/20 text-yellow-400",
-    },
-    low: {
-        bg: "bg-green-500/10",
-        border: "border-green-500/30",
-        badge: "bg-green-500/20 text-green-400",
-    },
-};
-
-const IMPACT_LABELS = {
-    high: "Alta prioridad",
-    medium: "Revisar",
-    low: "Positivo",
+// El ícono y el color salen de la prioridad (siempre con su texto); el emoji que manda la API no se usa.
+const IMPACTO = {
+    high: { icono: AlertTriangle, color: "text-red-400", marca: "bg-red-500/10 text-red-400", texto: "Alta prioridad" },
+    medium: { icono: Eye, color: "text-amber-400", marca: "bg-amber-500/10 text-amber-400", texto: "Revisar" },
+    low: { icono: CheckCircle2, color: "text-emerald-400", marca: "bg-emerald-500/10 text-emerald-400", texto: "Positivo" },
 };
 
 export function InsightsCard({ insights }: InsightsCardProps) {
-    if (insights.length === 0) {
-        return (
-            <div className="p-6 bg-gray-800/30 rounded-2xl border border-gray-700/50 text-center">
-                <span className="text-4xl">🔍</span>
-                <p className="text-gray-400 mt-2">
-                    No hay insights relevantes este mes.
-                    <br />
-                    <span className="text-sm">Sigue registrando transacciones para obtener análisis.</span>
-                </p>
-            </div>
-        );
-    }
-
     return (
-        <div className="space-y-3">
-            <h3 className="font-medium text-white flex items-center gap-2">
-                <span className="text-xl">💡</span>
-                Insights del mes
-            </h3>
-
-            <div className="space-y-3">
-                {insights.map((insight, index) => {
-                    const styles = IMPACT_STYLES[insight.impact];
-
-                    return (
-                        <div
-                            key={index}
-                            className={`p-4 rounded-xl border ${styles.bg} ${styles.border} transition-all hover:scale-[1.01]`}
-                        >
-                            <div className="flex items-start gap-3">
-                                <span className="text-2xl flex-shrink-0">{insight.icon}</span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <h4 className="font-medium text-white">{insight.title}</h4>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${styles.badge}`}>
-                                            {IMPACT_LABELS[insight.impact]}
-                                        </span>
+        <section aria-labelledby="fin-observaciones">
+            <h2 id="fin-observaciones" className={`${SECCION} mb-3`}>Observaciones del mes</h2>
+            {insights.length === 0 ? (
+                <div className={VACIO}>
+                    <p className="m-0">No hay observaciones este mes.</p>
+                    <p className="m-0 mt-1 text-sm">Sigue registrando transacciones para obtener análisis.</p>
+                </div>
+            ) : (
+                <ul className={`${LISTA} m-0 list-none p-0`}>
+                    {insights.map((insight, index) => {
+                        const estilo = IMPACTO[insight.impact] ?? IMPACTO.medium;
+                        const Icono = estilo.icono;
+                        return (
+                            <li key={index} className="flex items-start gap-3 border-b border-[var(--linea)] px-1 py-3.5">
+                                <Icono aria-hidden="true" className={`mt-0.5 size-[18px] shrink-0 ${estilo.color}`} />
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="m-0 text-[15px] font-medium text-[var(--txt)]">{insight.title}</h3>
+                                        <span className={`${MARCA} ${estilo.marca}`}>{estilo.texto}</span>
                                     </div>
-                                    <p className="text-sm text-gray-400 mt-1">{insight.description}</p>
+                                    <p className="m-0 mt-1 text-sm text-[var(--mut)]">{insight.description}</p>
                                 </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </section>
     );
 }

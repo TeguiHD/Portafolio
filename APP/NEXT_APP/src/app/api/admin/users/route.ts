@@ -1,18 +1,42 @@
 import { NextResponse } from "next/server";
-import { verifyAdminForApi, verifySuperAdminForApi } from "@/lib/auth/dal";
+import { verifySessionForApi } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, encryptEmail, decryptEmail } from "@/lib/security.server";
 import { NotificationHelpers } from "@/lib/notificationService";
 import { createAuditLog, AuditActions } from "@/lib/audit";
 import { resetRateLimit } from "@/lib/redis";
-import { Prisma } from '@/generated/prisma/client';
+import { getUserEffectivePermissions } from "@/lib/permission-check";
+import { Prisma, type Role } from '@/generated/prisma/client';
+
+const ROLES: Role[] = ["SUPERADMIN", "ADMIN", "MODERATOR", "USER"];
+const RANGO: Record<Role, number> = { USER: 0, MODERATOR: 1, ADMIN: 2, SUPERADMIN: 3 };
+
+/**
+ * Quién pide y qué puede, leído de la base (no del token): activo, con verificación en dos pasos y sus permisos
+ * finos (rol + excepciones). Antes bastaba con ser ADMIN; ahora quitarle `users.edit` a un admin sí lo frena.
+ */
+async function actorConPermisos() {
+    const session = await verifySessionForApi();
+    if (!session?.user?.id) return null;
+    const actor = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, name: true, role: true, isActive: true, mfaEnabled: true },
+    });
+    if (!actor?.isActive || actor.mfaEnabled !== true) return null;
+    const permisos = await getUserEffectivePermissions(actor.id, actor.role);
+    return {
+        user: actor,
+        puede: (codigo: string) => actor.role === "SUPERADMIN" || permisos.has(codigo),
+        /** Fuera del superadmin, solo se actúa sobre (o se asigna) un rol por debajo del propio. */
+        manda: (rol: Role) => actor.role === "SUPERADMIN" || RANGO[rol] < RANGO[actor.role],
+    };
+}
+
+const sinPermiso = () => NextResponse.json({ error: "No tienes permiso para esta acción" }, { status: 403 });
 
 export async function GET() {
-    // DAL pattern: Verify admin access close to data access
-    const session = await verifyAdminForApi();
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const session = await actorConPermisos();
+    if (!session?.puede("users.view")) return sinPermiso();
 
     try {
         const users = await prisma.user.findMany({
@@ -50,22 +74,25 @@ export async function GET() {
         return NextResponse.json({ users: safeUsers });
     } catch (error) {
         console.error("Error fetching users:", error);
-        return NextResponse.json({ error: "Error loading users" }, { status: 500 });
+        return NextResponse.json({ error: "No se pudieron cargar los usuarios" }, { status: 500 });
     }
 }
 
 export async function POST(request: Request) {
-    // DAL pattern: Verify admin access
-    const session = await verifyAdminForApi();
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const session = await actorConPermisos();
+    if (!session?.puede("users.create")) return sinPermiso();
 
     try {
         const { name, email, password, role } = await request.json();
 
-        if (!email || !password) {
-            return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        if (typeof email !== "string" || !email.includes("@") || typeof password !== "string") {
+            return NextResponse.json({ error: "Faltan el correo o la clave" }, { status: 400 });
+        }
+        if (password.length < 12) {
+            return NextResponse.json({ error: "La clave debe tener al menos 12 caracteres" }, { status: 400 });
+        }
+        if (name !== undefined && name !== null && typeof name !== "string") {
+            return NextResponse.json({ error: "Nombre inválido" }, { status: 400 });
         }
 
         // Check if user exists (by email hash)
@@ -73,21 +100,19 @@ export async function POST(request: Request) {
         const existingUser = await prisma.user.findUnique({ where: { email: hash } });
 
         if (existingUser) {
-            return NextResponse.json({ error: "User already exists" }, { status: 400 });
+            return NextResponse.json({ error: "Ya existe un usuario con ese correo" }, { status: 400 });
+        }
+
+        const requestedRole: Role = role || "USER";
+        if (!ROLES.includes(requestedRole)) {
+            return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+        }
+        // Jerarquía: nadie crea a alguien de su mismo rango o superior (salvo el superadmin).
+        if (!session.manda(requestedRole)) {
+            return NextResponse.json({ error: "No puedes crear usuarios con ese rol" }, { status: 403 });
         }
 
         const hashedPassword = await hashPassword(password);
-
-        // Role hierarchy check: only SUPERADMIN can create high-privilege roles
-        const requestedRole = role || "USER";
-        const highPrivilegeRoles = ["SUPERADMIN", "ADMIN"];
-
-        if (highPrivilegeRoles.includes(requestedRole) && session.user.role !== "SUPERADMIN") {
-            return NextResponse.json(
-                { error: "Solo SUPERADMIN puede crear administradores" },
-                { status: 403 }
-            );
-        }
 
         const newUser = await prisma.user.create({
             data: {
@@ -95,6 +120,8 @@ export async function POST(request: Request) {
                 email: hash,
                 emailEncrypted: encrypted,
                 password: hashedPassword,
+                // La clave la eligió otra persona: que la cambie al entrar.
+                mustChangePassword: true,
                 role: requestedRole,
                 isActive: true,
                 mfaEnabled: false,
@@ -123,64 +150,68 @@ export async function POST(request: Request) {
 
     } catch (error) {
         console.error("Error creating user:", error);
-        return NextResponse.json({ error: "Error creating user" }, { status: 500 });
+        return NextResponse.json({ error: "No se pudo crear el usuario" }, { status: 500 });
     }
 }
 
 export async function PATCH(request: Request) {
-    // DAL pattern: Verify admin access
-    const session = await verifyAdminForApi();
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const session = await actorConPermisos();
+    if (!session) return sinPermiso();
 
     try {
         const { userId, role, isActive, password, unlockLoginBlock } = await request.json();
 
-        if (!userId) {
-            return NextResponse.json({ error: "Missing data" }, { status: 400 });
+        if (typeof userId !== "string" || !userId) {
+            return NextResponse.json({ error: "Falta el usuario" }, { status: 400 });
+        }
+
+        // Cada cambio pide su propio permiso fino.
+        if (role !== undefined && !session.puede("users.role.edit")) return sinPermiso();
+        if (typeof isActive === "boolean" && !session.puede("users.suspend")) return sinPermiso();
+        if (password !== undefined && !session.puede("users.edit")) return sinPermiso();
+        if (unlockLoginBlock && session.user.role !== "SUPERADMIN") {
+            return NextResponse.json({ error: "Solo el superadministrador puede quitar el bloqueo por intentos" }, { status: 403 });
+        }
+        if (role === undefined && typeof isActive !== "boolean" && password === undefined && !unlockLoginBlock) {
+            return NextResponse.json({ error: "No hay cambios que aplicar" }, { status: 400 });
         }
 
         // Prevent changing own role/status
         if (userId === session.user.id) {
-            return NextResponse.json({ error: "Cannot modify yourself" }, { status: 400 });
+            return NextResponse.json({ error: "No puedes modificar tu propia cuenta desde aquí" }, { status: 400 });
         }
 
         // Fetch target user to check their role
         const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-        if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+        if (!targetUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
         // SUPERADMIN is immutable by others
         if (targetUser.role === "SUPERADMIN") {
-            return NextResponse.json({ error: "Cannot modify a Super Admin" }, { status: 403 });
+            return NextResponse.json({ error: "No se puede modificar a un superadministrador" }, { status: 403 });
         }
-
-        // ... (existing imports)
-
-        // ...
+        // Nadie cambia la clave, el rol ni el estado de alguien de su mismo rango o superior (toma de cuenta).
+        if (!session.manda(targetUser.role)) {
+            return NextResponse.json({ error: "No puedes modificar a un usuario de tu mismo rango o superior" }, { status: 403 });
+        }
+        if (role !== undefined && !ROLES.includes(role)) {
+            return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+        }
+        if (password !== undefined && (typeof password !== "string" || password.length < 12)) {
+            return NextResponse.json({ error: "La clave debe tener al menos 12 caracteres" }, { status: 400 });
+        }
 
         const data: Prisma.UserUpdateInput = {};
 
         if (unlockLoginBlock) {
-            if (session.user.role !== "SUPERADMIN") {
-                return NextResponse.json(
-                    { error: "Solo SUPERADMIN puede desbloquear cuentas por limite de intentos" },
-                    { status: 403 }
-                );
-            }
-
             data.failedLoginAttempts = 0;
             data.lockedUntil = null;
         }
 
-        // Role hierarchy check for role changes
+        // Jerarquía también para el rol nuevo: solo roles por debajo del propio (el superadmin, cualquiera).
         if (role) {
-            const highPrivilegeRoles = ["SUPERADMIN", "ADMIN"];
-
-            // Only SUPERADMIN can promote to high-privilege roles
-            if (highPrivilegeRoles.includes(role) && session.user.role !== "SUPERADMIN") {
+            if (!session.manda(role)) {
                 return NextResponse.json(
-                    { error: "Solo SUPERADMIN puede asignar roles de administrador" },
+                    { error: "No puedes asignar un rol igual o superior al tuyo" },
                     { status: 403 }
                 );
             }
@@ -198,6 +229,9 @@ export async function PATCH(request: Request) {
         }
         if (password) {
             data.password = await hashPassword(password);
+            // La clave la eligió otra persona: que la cambie al entrar.
+            data.mustChangePassword = true;
+            data.passwordChangedAt = new Date();
         }
 
         const updatedUser = await prisma.user.update({
@@ -205,6 +239,14 @@ export async function PATCH(request: Request) {
             data,
             select: { id: true, name: true, role: true, isActive: true }
         });
+
+        // Clave, rol o suspensión nuevos: las sesiones abiertas de esa persona dejan de valer.
+        if (password || (role && role !== targetUser.role) || isActive === false) {
+            await prisma.userSession.updateMany({
+                where: { userId, isActive: true },
+                data: { isActive: false, revokedAt: new Date(), revokeReason: "cambio_por_admin" },
+            });
+        }
 
         // Create notifications for different changes
         const actor = { id: session.user.id, name: session.user.name };
@@ -279,46 +321,57 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ user: updatedUser });
     } catch (error) {
         console.error("Error updating user:", error);
-        return NextResponse.json({ error: "Error updating user" }, { status: 500 });
+        return NextResponse.json({ error: "No se pudo actualizar el usuario" }, { status: 500 });
     }
 }
 
 export async function DELETE(request: Request) {
-    // DAL pattern: Only SUPERADMIN can delete users
-    const session = await verifySuperAdminForApi();
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    // users.delete viene solo con SUPERADMIN; si se le concede a otro rol, igual respeta la jerarquía.
+    const session = await actorConPermisos();
+    if (!session?.puede("users.delete")) return sinPermiso();
 
     try {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get("id");
 
         if (!userId) {
-            return NextResponse.json({ error: "User ID required" }, { status: 400 });
+            return NextResponse.json({ error: "Falta el usuario" }, { status: 400 });
         }
 
         // Prevent self-deletion
         if (userId === session.user.id) {
-            return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
+            return NextResponse.json({ error: "No puedes eliminar tu propia cuenta" }, { status: 400 });
         }
 
         // Fetch target user to check their role
         const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-        if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+        if (!targetUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
         // SUPERADMIN is immutable
         if (targetUser.role === "SUPERADMIN") {
-            return NextResponse.json({ error: "Cannot delete a Super Admin" }, { status: 403 });
+            return NextResponse.json({ error: "No se puede eliminar a un superadministrador" }, { status: 403 });
+        }
+        if (!session.manda(targetUser.role)) {
+            return NextResponse.json({ error: "No puedes eliminar a un usuario de tu mismo rango o superior" }, { status: 403 });
         }
 
-        // Create notification before deletion
+        // Primero se borra y después se avisa: si el borrado falla, la auditoría no dice que se eliminó.
+        try {
+            await prisma.user.delete({ where: { id: userId } });
+        } catch (error) {
+            if ((error as { code?: string })?.code === "P2003") {
+                return NextResponse.json({
+                    error: "Tiene datos a su nombre (propuestas, clientes, movimientos…). Suspéndelo, transfiere sus datos o usa «Ciclo de vida de la cuenta».",
+                }, { status: 409 });
+            }
+            throw error;
+        }
+
         await NotificationHelpers.userDeleted(
             { id: targetUser.id, name: targetUser.name },
             { id: session.user.id, name: session.user.name }
         );
 
-        // Audit log before deletion
         await createAuditLog({
             action: AuditActions.USER_DELETED,
             category: "users",
@@ -328,11 +381,9 @@ export async function DELETE(request: Request) {
             metadata: { deletedUserName: targetUser.name, deletedUserRole: targetUser.role },
         });
 
-        await prisma.user.delete({ where: { id: userId } });
-
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Error deleting user:", error);
-        return NextResponse.json({ error: "Error deleting user" }, { status: 500 });
+        return NextResponse.json({ error: "No se pudo eliminar el usuario" }, { status: 500 });
     }
 }

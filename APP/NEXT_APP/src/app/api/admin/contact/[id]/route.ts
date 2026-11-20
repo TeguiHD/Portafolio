@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permission-check";
-import { sanitizeInput } from "@/lib/security";
 import { createAuditLog } from "@/lib/audit";
 import type { Role } from '@/generated/prisma/client';
+import { mensajeLegible, textoContacto } from "@/modules/admin/texto-contacto";
 
 const REQUIRED_PERMISSION = "contact.manage";
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             });
         }
 
-        return NextResponse.json(message);
+        return NextResponse.json(mensajeLegible(message));
 
     } catch (error) {
         console.error("[Admin Contact] Get error:", error);
@@ -102,11 +102,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             updateData.isSpam = isSpam;
             if (isSpam) {
                 updateData.status = "SPAM";
+            } else if (existing.status === "SPAM") {
+                // «No es spam»: vuelve a la bandeja como leído (antes quedaba con estado Spam para siempre).
+                updateData.status = "READ";
             }
         }
 
         if (response !== undefined) {
-            updateData.response = response ? sanitizeInput(response.trim()) : null;
+            if (response !== null && typeof response !== "string") {
+                return NextResponse.json({ error: "Respuesta no válida" }, { status: 400 });
+            }
+            // Texto tal cual (React escapa al mostrar); antes se guardaba escapado y se veía «&#x2F;» en la respuesta.
+            updateData.response = response ? response.trim().slice(0, 5000) : null;
             if (response) {
                 updateData.status = "RESPONDED";
                 updateData.respondedBy = session.user.id;
@@ -129,11 +136,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             targetType: "contact",
             metadata: {
                 changes: Object.keys(updateData),
-                email: existing.email,
+                email: textoContacto(existing.email),
             },
         });
 
-        return NextResponse.json(updated);
+        return NextResponse.json(mensajeLegible(updated));
 
     } catch (error) {
         console.error("[Admin Contact] Update error:", error);
@@ -181,7 +188,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             userId: session.user.id,
             targetId: id,
             targetType: "contact",
-            metadata: { email: message.email },
+            metadata: { email: textoContacto(message.email) },
         });
 
         return NextResponse.json({ success: true });

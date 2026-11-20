@@ -12,7 +12,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
         // Only SUPERADMIN can view other users' permissions
@@ -24,7 +24,7 @@ export async function GET(
         );
 
         if (targetUserId !== session.user.id && !canManageOthers) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
         }
 
         // Get target user
@@ -34,7 +34,7 @@ export async function GET(
         });
 
         if (!targetUser) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
+            return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
         }
 
         // Get permissions with status
@@ -49,7 +49,7 @@ export async function GET(
     } catch (error) {
         console.error("[Permissions API] GET error:", error);
         return NextResponse.json(
-            { error: "Failed to fetch permissions" },
+            { error: "No se pudieron cargar los permisos" },
             { status: 500 }
         );
     }
@@ -63,7 +63,7 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
         const { id: targetUserId } = await params;
@@ -75,7 +75,7 @@ export async function PATCH(
         });
 
         if (!targetUser) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
+            return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
         }
 
         // SUPERADMIN permissions CANNOT be modified by anyone
@@ -86,9 +86,19 @@ export async function PATCH(
             );
         }
 
-        // Check if current user can edit permissions
-        const isSuperAdmin = session.user.role === "SUPERADMIN";
-        const isAdmin = session.user.role === "ADMIN";
+        // El rol se lee de la base: el del JWT no se refresca y puede ser de antes de una degradación.
+        const actor = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { role: true, isActive: true },
+        });
+        if (!actor?.isActive) {
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+        }
+        const isSuperAdmin = actor.role === "SUPERADMIN";
+        const isAdmin = actor.role === "ADMIN";
+        if (!(await hasPermission(session.user.id, actor.role, "users.permissions.edit"))) {
+            return NextResponse.json({ error: "No tienes permiso para modificar permisos" }, { status: 403 });
+        }
 
         // SUPERADMIN can edit anyone (except other SUPERADMIN)
         // ADMIN can only edit MODERATOR and USER
@@ -110,15 +120,20 @@ export async function PATCH(
 
         if (!permissionCode || !action) {
             return NextResponse.json(
-                { error: "permissionCode and action are required" },
+                { error: "Faltan permissionCode y action" },
                 { status: 400 }
             );
+        }
+
+        // Nadie concede lo que no tiene: un ADMIN no puede repartir permisos reservados al SUPERADMIN.
+        if (action === "grant" && !isSuperAdmin && !(await hasPermission(session.user.id, actor.role, permissionCode))) {
+            return NextResponse.json({ error: "No puedes conceder un permiso que no tienes" }, { status: 403 });
         }
 
         // Prevent modifying own critical permissions
         if (targetUserId === session.user.id && permissionCode === "users.permissions.edit") {
             return NextResponse.json(
-                { error: "Cannot modify your own permission management access" },
+                { error: "No puedes cambiar tu propio permiso de gestionar permisos" },
                 { status: 400 }
             );
         }
@@ -160,7 +175,7 @@ export async function PATCH(
                 break;
             default:
                 return NextResponse.json(
-                    { error: "Invalid action. Use 'grant', 'revoke', or 'reset'" },
+                    { error: "Acción inválida: usa grant, revoke o reset" },
                     { status: 400 }
                 );
         }
@@ -175,7 +190,7 @@ export async function PATCH(
     } catch (error) {
         console.error("[Permissions API] PATCH error:", error);
         return NextResponse.json(
-            { error: "Failed to update permission" },
+            { error: "No se pudo actualizar el permiso" },
             { status: 500 }
         );
     }

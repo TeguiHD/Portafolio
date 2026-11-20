@@ -3,7 +3,9 @@ import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permission-check";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { Role, BudgetPeriod } from '@/generated/prisma/client';
+import type { Role } from '@/generated/prisma/client';
+import { categoriaUsable } from "../_lib/acceso";
+import { fechasDelPeriodo } from "../_lib/presupuestos";
 
 export const dynamic = "force-dynamic";
 
@@ -16,42 +18,6 @@ const createBudgetSchema = z.object({
     alertAt90: z.boolean().default(true),
     alertAt100: z.boolean().default(true),
 });
-
-// Helper: Calculate period dates
-function getPeriodDates(period: BudgetPeriod): { start: Date; end: Date } {
-    const now = new Date();
-    let start: Date;
-    let end: Date;
-
-    switch (period) {
-        case "WEEKLY": {
-            const dayOfWeek = now.getDay();
-            start = new Date(now);
-            start.setDate(now.getDate() - dayOfWeek);
-            start.setHours(0, 0, 0, 0);
-            end = new Date(start);
-            end.setDate(start.getDate() + 6);
-            end.setHours(23, 59, 59, 999);
-            break;
-        }
-        case "MONTHLY":
-            start = new Date(now.getFullYear(), now.getMonth(), 1);
-            end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-            break;
-        case "QUARTERLY": {
-            const quarter = Math.floor(now.getMonth() / 3);
-            start = new Date(now.getFullYear(), quarter * 3, 1);
-            end = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59, 999);
-            break;
-        }
-        case "YEARLY":
-            start = new Date(now.getFullYear(), 0, 1);
-            end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-            break;
-    }
-
-    return { start, end };
-}
 
 // GET - List user budgets with current spending
 export async function GET(request: Request) {
@@ -66,8 +32,9 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
         }
 
+        // Por defecto solo activos; con includeInactive=true (o active=false) también los pausados, para poder reactivarlos.
         const { searchParams } = new URL(request.url);
-        const activeOnly = searchParams.get("active") !== "false";
+        const activeOnly = searchParams.get("includeInactive") !== "true" && searchParams.get("active") !== "false";
 
         const budgets = await prisma.budget.findMany({
             where: {
@@ -88,7 +55,7 @@ export async function GET(request: Request) {
         // Calculate current spending for each budget
         const budgetsWithSpending = await Promise.all(
             budgets.map(async (budget) => {
-                const { start, end } = getPeriodDates(budget.period);
+                const { start, end } = fechasDelPeriodo(budget.period);
 
                 const whereClause: {
                     userId: string;
@@ -154,27 +121,37 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
         }
 
-        const body = await request.json();
-        const data = createBudgetSchema.parse(body);
+        const data = createBudgetSchema.parse(await request.json().catch(() => null));
 
-        // Check for existing budget with same category and period
+        if (data.categoryId) {
+            const categoria = await categoriaUsable(session.user.id, data.categoryId);
+            if (!categoria || categoria.type !== "EXPENSE") {
+                return NextResponse.json({ error: "La categoría no es válida" }, { status: 400 });
+            }
+        }
+
+        // La base no admite dos presupuestos con la misma categoría y período, aunque uno esté pausado.
         const existing = await prisma.budget.findFirst({
             where: {
                 userId: session.user.id,
                 categoryId: data.categoryId || null,
                 period: data.period,
-                isActive: true,
             },
+            select: { isActive: true },
         });
 
         if (existing) {
             return NextResponse.json(
-                { error: "Ya existe un presupuesto activo para esta categoría y período" },
+                {
+                    error: existing.isActive
+                        ? "Ya existe un presupuesto activo para esta categoría y período"
+                        : "Ya tienes un presupuesto pausado para esta categoría y período: reactívalo en «Pausados»",
+                },
                 { status: 400 }
             );
         }
 
-        const { start, end } = getPeriodDates(data.period);
+        const { start, end } = fechasDelPeriodo(data.period);
 
         const budget = await prisma.budget.create({
             data: {

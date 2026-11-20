@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useId, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { Award, BadgeCheck, Plus, Trophy } from "lucide-react";
+import { BOTON, CAMPO, ETIQUETA, INTERRUPTOR } from "./estilos";
+import { ElementoPlegable, SeccionEditor, Vacio } from "./piezas";
+
+const TIPOS = [
+    { value: "certification" as const, label: "Certificación", icono: BadgeCheck },
+    { value: "award" as const, label: "Premio", icono: Trophy },
+    { value: "honor" as const, label: "Reconocimiento", icono: Award },
+];
 import type { Certification } from "../utils/latex-templates-enhanced";
 
 interface CertificationsSectionProps {
@@ -12,6 +20,7 @@ interface CertificationsSectionProps {
 
 export function CertificationsSection({ certifications, onChange }: CertificationsSectionProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const base = useId();
 
     const addCertification = () => {
         const newCert: Certification = {
@@ -36,203 +45,118 @@ export function CertificationsSection({ certifications, onChange }: Certificatio
     };
 
     return (
-        <div className="glass-panel rounded-2xl border border-accent-1/20 p-6">
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h3 className="font-semibold text-white">Certificaciones</h3>
-                    <p className="text-sm text-neutral-400 mt-1">
-                        Cursos, certificaciones y credenciales profesionales
-                    </p>
-                </div>
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={addCertification}
-                    className="px-4 py-2 rounded-xl bg-amber-500/20 text-amber-400 text-sm font-medium flex items-center gap-2 hover:bg-amber-500/30 transition-colors"
-                >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Agregar Certificación
-                </motion.button>
-            </div>
-
+        <SeccionEditor
+            titulo="Certificaciones"
+            descripcion="Cursos, certificaciones, premios y reconocimientos."
+            acciones={
+                <button type="button" onClick={addCertification} className={BOTON}>
+                    <Plus className="size-4" aria-hidden="true" />
+                    Agregar certificación
+                </button>
+            }
+        >
             {certifications.length === 0 ? (
-                <div className="text-center py-12 text-neutral-400">
-                    <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                    </svg>
-                    <p>No hay certificaciones agregadas</p>
-                    <p className="text-sm mt-1">Agrega tus certificaciones profesionales</p>
-                </div>
+                <Vacio titulo="Aún no hay certificaciones." detalle="Agrega tus certificaciones profesionales." />
             ) : (
-                <div className="space-y-4">
-                    <AnimatePresence>
-                        {certifications.map((cert, index) => (
-                            <motion.div
+                <ul className="border-t border-[var(--linea)]">
+                    {certifications.map((cert, index) => {
+                        const fid = `${base}-${cert.id}`;
+                        const tipo = TIPOS.find((t) => t.value === (cert.type || "certification")) ?? TIPOS[0];
+                        const IconoTipo = tipo.icono;
+                        return (
+                            <ElementoPlegable
                                 key={cert.id}
-                                layout
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="border border-amber-500/20 rounded-xl bg-white/5 overflow-hidden"
+                                numero={index + 1}
+                                marca={
+                                    cert.type === "award" || cert.type === "honor" ? (
+                                        <IconoTipo className="size-4 text-amber-400" aria-hidden="true" />
+                                    ) : undefined
+                                }
+                                titulo={cert.name || "Certificación sin nombre"}
+                                subtitulo={`${tipo.label} · ${cert.issuer || "Emisor"} · ${cert.date || "Sin fecha"}`}
+                                abierto={expandedId === cert.id}
+                                alAlternar={() => setExpandedId(expandedId === cert.id ? null : cert.id)}
+                                alEliminar={() => removeCertification(cert.id)}
+                                etiquetaEliminar={`Eliminar certificación ${index + 1}`}
                             >
-                                {/* Header */}
-                                <div
-                                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
-                                    onClick={() => setExpandedId(expandedId === cert.id ? null : cert.id)}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${cert.type === "award" ? "bg-yellow-500/20 text-yellow-400" :
-                                                cert.type === "honor" ? "bg-blue-500/20 text-blue-400" :
-                                                    "bg-amber-500/20 text-amber-400"
-                                            }`}>
-                                            {cert.type === "award" ? "🏆" : cert.type === "honor" ? "⭐" : (index + 1)}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-white">
-                                                {cert.name || "Nueva certificación"}
-                                            </p>
-                                            <p className="text-sm text-neutral-400">
-                                                {cert.issuer || "Emisor"} • {cert.date || "Fecha"}
-                                                {cert.type && cert.type !== "certification" && (
-                                                    <span className={`ml-2 px-1.5 py-0.5 rounded text-xs ${cert.type === "award" ? "bg-yellow-500/20 text-yellow-400" : "bg-blue-500/20 text-blue-400"
-                                                        }`}>
-                                                        {cert.type === "award" ? "Premio" : "Reconocimiento"}
-                                                    </span>
-                                                )}
-                                            </p>
-                                        </div>
+                                <fieldset className="m-0 border-0 p-0">
+                                    <legend className={ETIQUETA}>Tipo</legend>
+                                    <div className="flex flex-wrap gap-2">
+                                        {TIPOS.map(({ value, label, icono: Icono }) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                aria-pressed={(cert.type || "certification") === value}
+                                                onClick={() => updateCertification(cert.id, { type: value })}
+                                                className={INTERRUPTOR}
+                                            >
+                                                <Icono className="size-4" aria-hidden="true" />
+                                                {label}
+                                            </button>
+                                        ))}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                removeCertification(cert.id);
-                                            }}
-                                            className="p-2 rounded-lg text-red-400 hover:bg-red-400/20 transition-colors"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                        <svg
-                                            className={`w-5 h-5 text-neutral-400 transition-transform ${expandedId === cert.id ? "rotate-180" : ""}`}
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
+                                </fieldset>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label htmlFor={`${fid}-nombre`} className={ETIQUETA}>Nombre</label>
+                                        <input
+                                            id={`${fid}-nombre`}
+                                            type="text"
+                                            value={cert.name || ""}
+                                            onChange={(e) => updateCertification(cert.id, { name: e.target.value })}
+                                            placeholder="AWS Solutions Architect"
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${fid}-emisor`} className={ETIQUETA}>Organización emisora</label>
+                                        <input
+                                            id={`${fid}-emisor`}
+                                            type="text"
+                                            value={cert.issuer || ""}
+                                            onChange={(e) => updateCertification(cert.id, { issuer: e.target.value })}
+                                            placeholder="Amazon Web Services"
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${fid}-fecha`} className={ETIQUETA}>Fecha de obtención</label>
+                                        <input
+                                            id={`${fid}-fecha`}
+                                            type="month"
+                                            value={cert.date || ""}
+                                            onChange={(e) => updateCertification(cert.id, { date: e.target.value })}
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${fid}-credencial`} className={ETIQUETA}>ID de credencial (opcional)</label>
+                                        <input
+                                            id={`${fid}-credencial`}
+                                            type="text"
+                                            value={cert.credentialId || ""}
+                                            onChange={(e) => updateCertification(cert.id, { credentialId: e.target.value })}
+                                            placeholder="ABC123XYZ"
+                                            className={CAMPO}
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label htmlFor={`${fid}-url`} className={ETIQUETA}>URL de verificación (opcional)</label>
+                                        <input
+                                            id={`${fid}-url`}
+                                            type="url"
+                                            value={cert.url || ""}
+                                            onChange={(e) => updateCertification(cert.id, { url: e.target.value })}
+                                            placeholder="https://www.credly.com/badges/…"
+                                            className={CAMPO}
+                                        />
                                     </div>
                                 </div>
-
-                                {/* Expanded content */}
-                                <AnimatePresence>
-                                    {expandedId === cert.id && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: "auto", opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="p-4 pt-0 space-y-4 border-t border-white/10">
-                                                {/* Type selector */}
-                                                <div className="pt-4">
-                                                    <label className="block text-sm text-neutral-400 mb-2">
-                                                        Tipo
-                                                    </label>
-                                                    <div className="flex gap-2">
-                                                        {([
-                                                            { value: "certification" as const, label: "Certificación", color: "amber" },
-                                                            { value: "award" as const, label: "Premio", color: "yellow" },
-                                                            { value: "honor" as const, label: "Reconocimiento", color: "blue" },
-                                                        ]).map(({ value, label, color }) => (
-                                                            <button
-                                                                key={value}
-                                                                type="button"
-                                                                onClick={() => updateCertification(cert.id, { type: value })}
-                                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${(cert.type || "certification") === value
-                                                                    ? `bg-${color}-500/20 text-${color}-400 border border-${color}-500/40`
-                                                                    : "bg-white/5 text-neutral-400 border border-white/10 hover:text-white"
-                                                                    }`}
-                                                            >
-                                                                {value === "award" && "🏆 "}{value === "honor" && "⭐ "}{value === "certification" && "📜 "}
-                                                                {label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="block text-sm text-neutral-400 mb-2">
-                                                            Nombre de la certificación
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={cert.name || ""}
-                                                            onChange={(e) => updateCertification(cert.id, { name: e.target.value })}
-                                                            placeholder="AWS Solutions Architect"
-                                                            className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm text-neutral-400 mb-2">
-                                                            Organización emisora
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={cert.issuer || ""}
-                                                            onChange={(e) => updateCertification(cert.id, { issuer: e.target.value })}
-                                                            placeholder="Amazon Web Services"
-                                                            className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm text-neutral-400 mb-2">
-                                                            Fecha de obtención
-                                                        </label>
-                                                        <input
-                                                            type="month"
-                                                            value={cert.date || ""}
-                                                            onChange={(e) => updateCertification(cert.id, { date: e.target.value })}
-                                                            className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm text-neutral-400 mb-2">
-                                                            ID de credencial (opcional)
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={cert.credentialId || ""}
-                                                            onChange={(e) => updateCertification(cert.id, { credentialId: e.target.value })}
-                                                            placeholder="ABC123XYZ"
-                                                            className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className="block text-sm text-neutral-400 mb-2">
-                                                            URL de verificación (opcional)
-                                                        </label>
-                                                        <input
-                                                            type="url"
-                                                            value={cert.url || ""}
-                                                            onChange={(e) => updateCertification(cert.id, { url: e.target.value })}
-                                                            placeholder="https://www.credly.com/badges/..."
-                                                            className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500/50"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                </div>
+                            </ElementoPlegable>
+                        );
+                    })}
+                </ul>
             )}
-        </div>
+        </SeccionEditor>
     );
 }

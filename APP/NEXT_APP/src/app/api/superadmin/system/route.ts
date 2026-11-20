@@ -39,12 +39,32 @@ async function safeRun(commandId: CommandId, fallbackStdout = ''): Promise<SSHCo
     }
 }
 
+// Cada muestra son 14 comandos por SSH al VPS (top, ps, lscpu…): en un servidor de 1 GB eso pesa.
+// La última muestra vale 20 s (en la memoria de este proceso) y las pestañas abiertas, «Hoy» y «Servidor» comparten
+// la misma; si llegan varias peticiones mientras se toma una, todas esperan esa misma muestra.
+const VIGENCIA_MUESTRA_MS = 20_000
+let ultimaMuestra: { en: number; cuerpo: object } | null = null
+let muestraEnCurso: Promise<object | null> | null = null
+
 export async function GET() {
+    const session = await verifySuperAdminForApi()
+    if (!session?.user) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+    if (ultimaMuestra && Date.now() - ultimaMuestra.en < VIGENCIA_MUESTRA_MS) {
+        return NextResponse.json(ultimaMuestra.cuerpo, { headers: { 'Cache-Control': 'private, no-store' } })
+    }
+    muestraEnCurso ??= tomarMuestra().finally(() => { muestraEnCurso = null })
+    const cuerpo = await muestraEnCurso
+    // Cada petición arma su propia respuesta: un Response compartido solo se puede leer una vez.
+    if (!cuerpo) {
+        return NextResponse.json({ error: 'Error al obtener métricas del sistema' }, { status: 500 })
+    }
+    return NextResponse.json(cuerpo, { headers: { 'Cache-Control': 'private, no-store' } })
+}
+
+async function tomarMuestra(): Promise<object | null> {
     try {
-        const session = await verifySuperAdminForApi()
-        if (!session?.user) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-        }
 
         const sampledAt = new Date().toISOString()
         const sshDiagnostics = getVpsConnectionDiagnostics()
@@ -150,7 +170,7 @@ export async function GET() {
 
         const statusWarnings = [...criticalWarnings, ...warnings]
 
-        return NextResponse.json({
+        const cuerpo = {
             success: true,
             data: {
                 hostname,
@@ -182,12 +202,11 @@ export async function GET() {
                 },
             },
             timestamp: sampledAt,
-        })
+        }
+        ultimaMuestra = { en: Date.now(), cuerpo }
+        return cuerpo
     } catch (error) {
         console.error('[SuperAdmin API] System error:', error)
-        return NextResponse.json(
-            { error: 'Error al obtener métricas del sistema' },
-            { status: 500 }
-        )
+        return null
     }
 }

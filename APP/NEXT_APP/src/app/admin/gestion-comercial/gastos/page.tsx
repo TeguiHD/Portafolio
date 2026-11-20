@@ -10,7 +10,10 @@ export default async function GastosPage() {
     const [expenses, clients, contracts] = await Promise.all([
         prisma.clientExpense.findMany({
             where: { userId: session.user.id, isDeleted: false },
-            include: {
+            // Solo lo que la lista y el formulario usan.
+            select: {
+                id: true, category: true, description: true, amount: true, isRecurring: true, frequency: true,
+                expenseDate: true, notes: true, receiptUrl: true,
                 client: { select: { id: true, name: true } },
                 contract: { select: { id: true, title: true, contractNumber: true } },
             },

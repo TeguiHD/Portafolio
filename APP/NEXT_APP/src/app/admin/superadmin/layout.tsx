@@ -1,8 +1,8 @@
 import { verifySuperAdmin } from '@/lib/auth/dal'
 
 export const metadata = {
-    title: 'SuperAdmin | VPS Management',
-    description: 'Panel de administración exclusivo del servidor VPS',
+    title: 'Servidor',
+    description: 'Estado, registros y cortafuegos del servidor. Solo superadministrador.',
 }
 
 export default async function SuperAdminLayout({

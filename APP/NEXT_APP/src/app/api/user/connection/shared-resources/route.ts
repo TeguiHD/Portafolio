@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("Shared resources fetch error:", error);
         return NextResponse.json(
-            { error: "Failed to fetch shared resources" },
+            { error: "No se pudieron cargar los recursos compartidos" },
             { status: 500 }
         );
     }

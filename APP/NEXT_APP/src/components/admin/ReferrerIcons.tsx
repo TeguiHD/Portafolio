@@ -5,7 +5,7 @@ import React from "react";
 // Map referrer domains to icons
 const referrerIconMap: Record<string, React.ReactNode> = {
     google: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="currentColor">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -13,27 +13,27 @@ const referrerIconMap: Record<string, React.ReactNode> = {
         </svg>
     ),
     linkedin: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#0A66C2">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="#0A66C2">
             <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
         </svg>
     ),
     facebook: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#1877F2">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="#1877F2">
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
         </svg>
     ),
     twitter: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="currentColor">
             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
         </svg>
     ),
     github: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
         </svg>
     ),
     instagram: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="url(#instagram-gradient)">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="url(#instagram-gradient)">
             <defs>
                 <radialGradient id="instagram-gradient" r="150%" cx="30%" cy="107%">
                     <stop stopColor="#fdf497" offset="0" />
@@ -47,22 +47,22 @@ const referrerIconMap: Record<string, React.ReactNode> = {
         </svg>
     ),
     youtube: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#FF0000">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="#FF0000">
             <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
         </svg>
     ),
     direct: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
     ),
     internal: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
     ),
     default: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg className="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <line x1="2" y1="12" x2="22" y2="12" />
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -104,8 +104,9 @@ const internalPathNames: Record<string, string> = {
     "/herramientas/base64-converter": "Base64",
     "/herramientas/unidades": "Unidades",
     "/herramientas/regex": "Regex",
-    "/admin": "Dashboard",
-    "/login": "Login",
+    "/admin": "Panel",
+    "/acceso": "Acceso",
+    "/login": "Acceso",
 };
 
 function getInternalDisplayName(url: string): string {
@@ -118,14 +119,14 @@ function getInternalDisplayName(url: string): string {
         return `Desde: ${toolName.charAt(0).toUpperCase() + toolName.slice(1)}`;
     }
     if (path.startsWith("/admin/")) {
-        return `Desde: Admin`;
+        return `Desde: Panel`;
     }
     return `Navegación interna`;
 }
 
 // Get clean display name for referrer
 export function getReferrerDisplayName(url: string): string {
-    if (!url || url === "Directo") return "Tráfico Directo";
+    if (!url || url === "Directo") return "Tráfico directo";
 
     try {
         const urlObj = new URL(url);
@@ -177,15 +178,17 @@ interface ReferrerIconProps {
     className?: string;
 }
 
+// Sin caja propia: el logo va suelto junto al nombre de la fuente, que es lo que se lee (por eso aria-hidden).
+// Los logos sin color de marca (X, GitHub, directo, interno) toman el gris del tema.
 export function ReferrerIcon({ source, className = "" }: ReferrerIconProps) {
     const domain = extractDomain(source || "Directo");
     const referrerKey = matchReferrer(domain);
     const icon = referrerIconMap[referrerKey];
 
     return (
-        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-white ${className}`}>
+        <span aria-hidden="true" className={`inline-flex size-8 shrink-0 items-center justify-center text-[var(--mut)] ${className}`}>
             {icon}
-        </div>
+        </span>
     );
 }
 

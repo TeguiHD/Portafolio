@@ -1,21 +1,10 @@
 import Link from "next/link";
 import { requireAnyPermission } from "@/lib/page-security";
 import { prisma } from "@/lib/prisma";
-import {
-    Briefcase,
-    Clock,
-    Target,
-    TrendingUp,
-    Search,
-    GitCompareArrows,
-    Kanban,
-    ArrowRight,
-    Sparkles,
-    Activity,
-    BarChart3,
-} from "lucide-react";
-import { SOURCE_LABELS } from "./types";
+import { Search, GitCompareArrows, ListChecks, ArrowRight } from "lucide-react";
+import { SOURCE_LABELS, STATUS_LABELS } from "./types";
 import { timeAgo, scoreColor } from "./utils";
+import { FILA_HOVER, TITULO } from "./estilos";
 
 export const dynamic = "force-dynamic";
 
@@ -37,31 +26,26 @@ export default async function JobsDashboardPage() {
     const userId = session.user.id;
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
+    // Un groupBy por tabla en vez de un count por estado: 7 consultas en total y no 14 contra un pool de 5 conexiones.
     const [
-        activeVacancies,
-        inactiveVacancies,
-        pendingApps,
-        cvAdaptedApps,
-        cvSentApps,
-        interviewApps,
-        acceptedApps,
-        rejectedApps,
-        closedApps,
+        vacanciesByActive,
+        appsByStatus,
         avgMatchAgg,
         recentAnalyses,
         recentEvents,
         sourceCounts,
         recentAdaptationsCount,
     ] = await Promise.all([
-        prisma.jobVacancy.count({ where: { userId, isActive: true } }),
-        prisma.jobVacancy.count({ where: { userId, isActive: false } }),
-        prisma.jobApplication.count({ where: { userId, status: "PENDING" } }),
-        prisma.jobApplication.count({ where: { userId, status: "CV_ADAPTED" } }),
-        prisma.jobApplication.count({ where: { userId, status: "CV_SENT" } }),
-        prisma.jobApplication.count({ where: { userId, status: "INTERVIEW" } }),
-        prisma.jobApplication.count({ where: { userId, status: "ACCEPTED" } }),
-        prisma.jobApplication.count({ where: { userId, status: "REJECTED" } }),
-        prisma.jobApplication.count({ where: { userId, status: "CLOSED" } }),
+        prisma.jobVacancy.groupBy({
+            by: ["isActive"],
+            where: { userId },
+            _count: { _all: true },
+        }),
+        prisma.jobApplication.groupBy({
+            by: ["status"],
+            where: { userId },
+            _count: { _all: true },
+        }),
         prisma.vacancyAnalysis.aggregate({
             where: { userId },
             _avg: { matchScore: true },
@@ -106,6 +90,17 @@ export default async function JobsDashboardPage() {
         }),
     ]);
 
+    const activeVacancies = vacanciesByActive.find((r) => r.isActive)?._count._all ?? 0;
+    const inactiveVacancies = vacanciesByActive.find((r) => !r.isActive)?._count._all ?? 0;
+    const porEstado = (status: (typeof appsByStatus)[number]["status"]) => appsByStatus.find((r) => r.status === status)?._count._all ?? 0;
+    const pendingApps = porEstado("PENDING");
+    const cvAdaptedApps = porEstado("CV_ADAPTED");
+    const cvSentApps = porEstado("CV_SENT");
+    const interviewApps = porEstado("INTERVIEW");
+    const acceptedApps = porEstado("ACCEPTED");
+    const rejectedApps = porEstado("REJECTED");
+    const closedApps = porEstado("CLOSED");
+
     const totalApps = pendingApps + cvAdaptedApps + cvSentApps + interviewApps + acceptedApps + rejectedApps + closedApps;
     const interviewOrHigher = interviewApps + acceptedApps;
     const interviewRate = totalApps > 0 ? Math.round((interviewOrHigher / totalApps) * 100) : 0;
@@ -118,7 +113,7 @@ export default async function JobsDashboardPage() {
             kind: "analysis" as const,
             id: a.id,
             createdAt: a.createdAt,
-            title: `Análisis — ${a.vacancy.title}`,
+            title: `Análisis: ${a.vacancy.title}`,
             subtitle: a.vacancy.company,
             badge: {
                 label: `${a.matchScore}%`,
@@ -130,218 +125,149 @@ export default async function JobsDashboardPage() {
             id: e.id,
             createdAt: e.createdAt,
             title: e.application.vacancy.title,
-            subtitle: `${e.application.vacancy.company} · ${e.fromStatus || "—"} → ${e.toStatus}`,
+            subtitle: `${e.application.vacancy.company} · ${e.fromStatus ? STATUS_LABELS[e.fromStatus] : "—"} → ${STATUS_LABELS[e.toStatus]}`,
             badge: null,
         })),
     ]
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(0, 8);
 
+    const cifras: Array<{ label: string; value: string | number; hint: string }> = [
+        { label: "Vacantes activas", value: activeVacancies, hint: `${inactiveVacancies} archivadas` },
+        { label: "Postulaciones", value: totalApps, hint: `${pendingApps} pendientes` },
+        { label: "Llegan a entrevista", value: `${interviewRate}%`, hint: `${interviewApps} en entrevista` },
+        { label: "Coincidencia promedio", value: `${avgMatch}%`, hint: `Ajuste ${avgStyle.label.toLowerCase()}` },
+    ];
+
+    const fuentes = [...sourceCounts].sort((a, b) => b._count._all - a._count._all);
+
     return (
-        <div className="space-y-6">
-            {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KpiCard
-                    icon={<Briefcase className="w-4 h-4" />}
-                    label="Vacantes activas"
-                    value={activeVacancies}
-                    hint={`${inactiveVacancies} archivadas`}
-                    accent="cyan"
-                />
-                <KpiCard
-                    icon={<Clock className="w-4 h-4" />}
-                    label="En pipeline"
-                    value={totalApps}
-                    hint={`${pendingApps} pendientes`}
-                    accent="blue"
-                />
-                <KpiCard
-                    icon={<TrendingUp className="w-4 h-4" />}
-                    label="Tasa entrevista"
-                    value={`${interviewRate}%`}
-                    hint={`${interviewApps} en entrevista`}
-                    accent="amber"
-                />
-                <KpiCard
-                    icon={<Target className="w-4 h-4" />}
-                    label="Match promedio"
-                    value={`${avgMatch}%`}
-                    hint={avgStyle.label}
-                    accent="emerald"
-                />
-            </div>
-
-            {/* Quick actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <QuickAction
-                    href="/admin/jobs/search"
-                    icon={<Search className="w-5 h-5" />}
-                    title="Buscar vacantes"
-                    description="Importa desde LinkedIn, Computrabajo, Laborum y más"
-                />
-                <QuickAction
-                    href="/admin/jobs/analysis"
-                    icon={<GitCompareArrows className="w-5 h-5" />}
-                    title="Análisis & adaptación"
-                    description="Compara vacante vs CV y adapta con IA"
-                />
-                <QuickAction
-                    href="/admin/jobs/pipeline"
-                    icon={<Kanban className="w-5 h-5" />}
-                    title="Pipeline"
-                    description="Gestiona el avance de tus postulaciones"
-                />
-            </div>
-
-            {/* Funnel + activity feed */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Conversion funnel — 2/3 */}
-                <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-5">
-                    <div className="flex items-center gap-2 mb-5">
-                        <BarChart3 className="w-4 h-4 text-accent-1" />
-                        <h3 className="text-sm font-bold text-white">Embudo de postulaciones</h3>
+        <div className="space-y-12">
+            <dl aria-label="Resumen de postulaciones" className="grid grid-cols-2 border-y border-[var(--linea)] md:grid-cols-4">
+                {cifras.map((c, i) => (
+                    <div
+                        key={c.label}
+                        className={`flex flex-col gap-1 border-[var(--linea)] py-4 ${i % 2 === 1 ? "border-l pl-4" : "pl-0.5 pr-4"} ${i >= 2 ? "border-t md:border-t-0" : ""} ${i === 2 ? "md:border-l md:pl-4" : ""}`}
+                    >
+                        <dt className="order-2 text-sm text-[var(--mut)]">{c.label}</dt>
+                        <dd className="order-1 m-0 text-[30px] font-bold leading-tight tracking-[-0.03em] tabular-nums text-[var(--txt)]">
+                            {c.value}
+                        </dd>
+                        <dd className="order-3 m-0 font-mono text-xs text-[var(--mut)]">{c.hint}</dd>
                     </div>
+                ))}
+            </dl>
 
-                    {totalApps === 0 ? (
-                        <p className="text-xs text-neutral-500 italic py-4">
-                            Sin postulaciones aún. Analiza una vacante para crear tu primera.
-                        </p>
-                    ) : (
-                        <div className="space-y-3">
-                            <FunnelBar
-                                label="CV Adaptados"
-                                count={cvAdaptedApps}
-                                max={maxFunnel}
-                                colorClass="bg-slate-500"
-                            />
-                            <FunnelBar
-                                label="Enviados"
-                                count={cvSentApps}
-                                max={maxFunnel}
-                                colorClass="bg-blue-500"
-                            />
-                            <FunnelBar
-                                label="En Entrevista"
-                                count={interviewApps}
-                                max={maxFunnel}
-                                colorClass="bg-cyan-400"
-                            />
-                            <FunnelBar
-                                label="Aceptados"
-                                count={acceptedApps}
-                                max={maxFunnel}
-                                colorClass="bg-emerald-500"
-                            />
-                            <div className="pt-3 mt-3 border-t border-white/5">
-                                <FunnelBar
-                                    label="Rechazados / Cerrados"
-                                    count={rejectedApps + closedApps}
-                                    max={maxFunnel}
-                                    colorClass="bg-red-500/60"
-                                    warning
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Activity feed + source distribution stacked — 1/3 */}
-                <div className="space-y-4">
-                    {/* Activity */}
-                    <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-accent-1" />
-                                <h3 className="text-sm font-bold text-white">Actividad reciente</h3>
-                            </div>
-                            <span className="text-[10px] font-mono text-neutral-500">
-                                {recentAdaptationsCount} adapt. (7d)
-                            </span>
-                        </div>
-                        {activity.length === 0 ? (
-                            <p className="text-xs text-neutral-500 italic py-2">
-                                Sin actividad reciente.
+            <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,1fr)] lg:gap-14">
+                <div className="space-y-12">
+                    <section aria-labelledby="embudo-titulo">
+                        <h2 id="embudo-titulo" className={`${TITULO} mb-3`}>Embudo de postulaciones</h2>
+                        {totalApps === 0 ? (
+                            <p className="border-t border-[var(--linea)] py-4 text-[var(--mut)]">
+                                Aún no hay postulaciones. Analiza una vacante para crear la primera.
                             </p>
                         ) : (
-                            <ul className="space-y-1.5">
+                            <dl className="grid gap-3.5 border-t border-[var(--linea)] pt-4">
+                                <FunnelBar label="CV adaptados" count={cvAdaptedApps} max={maxFunnel} />
+                                <FunnelBar label="Enviados" count={cvSentApps} max={maxFunnel} />
+                                <FunnelBar label="En entrevista" count={interviewApps} max={maxFunnel} />
+                                <FunnelBar label="Aceptados" count={acceptedApps} max={maxFunnel} />
+                                <FunnelBar label="Rechazados o cerrados" count={rejectedApps + closedApps} max={maxFunnel} warning />
+                            </dl>
+                        )}
+                    </section>
+
+                    <section aria-labelledby="atajos-titulo">
+                        <h2 id="atajos-titulo" className={`${TITULO} mb-2`}>Siguiente paso</h2>
+                        <ul className="border-t border-[var(--linea)]">
+                            <QuickAction
+                                href="/admin/jobs/search"
+                                icon={<Search className="size-[18px]" aria-hidden="true" />}
+                                title="Buscar vacantes"
+                                description="Importa desde LinkedIn, Computrabajo, Laborum y otros portales."
+                            />
+                            <QuickAction
+                                href="/admin/jobs/analysis"
+                                icon={<GitCompareArrows className="size-[18px]" aria-hidden="true" />}
+                                title="Análisis y adaptación"
+                                description="Compara una vacante con tu CV y adáptalo con IA."
+                            />
+                            <QuickAction
+                                href="/admin/jobs/pipeline"
+                                icon={<ListChecks className="size-[18px]" aria-hidden="true" />}
+                                title="Seguimiento"
+                                description="Avanza el estado de cada postulación."
+                            />
+                        </ul>
+                    </section>
+                </div>
+
+                <div className="space-y-12">
+                    <section aria-labelledby="actividad-titulo">
+                        <h2 id="actividad-titulo" className={`${TITULO} mb-2 flex flex-wrap items-baseline justify-between gap-x-3`}>
+                            Actividad reciente
+                            <small className="font-mono text-xs font-medium">
+                                {recentAdaptationsCount} {recentAdaptationsCount === 1 ? "adaptación" : "adaptaciones"} en 7 días
+                            </small>
+                        </h2>
+                        {activity.length === 0 ? (
+                            <p className="border-t border-[var(--linea)] py-4 text-[var(--mut)]">Sin actividad reciente.</p>
+                        ) : (
+                            <ul className="border-t border-[var(--linea)]">
                                 {activity.map((item) => (
                                     <li
                                         key={`${item.kind}-${item.id}`}
-                                        className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
+                                        className="grid grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-b border-[var(--linea)] px-0.5 py-3"
                                     >
                                         <span
-                                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                                item.kind === "analysis"
-                                                    ? "bg-cyan-400"
-                                                    : "bg-emerald-400"
-                                            }`}
+                                            aria-hidden="true"
+                                            className={`row-span-2 size-2 rounded-full ${item.kind === "analysis" ? "bg-[var(--acento)]" : "bg-[var(--mut)]"}`}
                                         />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-semibold text-white truncate">
-                                                {item.title}
-                                            </p>
-                                            <p className="text-[10px] text-neutral-500 truncate">
-                                                {item.subtitle}
-                                            </p>
-                                        </div>
-                                        {item.badge && (
-                                            <span
-                                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${item.badge.className}`}
-                                            >
-                                                {item.badge.label}
-                                            </span>
-                                        )}
-                                        <span className="text-[10px] text-neutral-500 font-mono shrink-0">
-                                            {timeAgo(item.createdAt.toISOString())}
+                                        <p className="m-0 truncate text-sm font-semibold text-[var(--txt)]">
+                                            {item.kind === "event" && <span className="sr-only">Cambio de estado: </span>}
+                                            {item.title}
+                                        </p>
+                                        <span className="row-span-2 flex flex-col items-end gap-1">
+                                            {item.badge && (
+                                                <span className={`rounded-md border px-1.5 py-0.5 font-mono text-xs ${item.badge.className}`}>
+                                                    {item.badge.label}
+                                                </span>
+                                            )}
+                                            <time dateTime={item.createdAt.toISOString()} className="whitespace-nowrap font-mono text-xs text-[var(--mut)]">
+                                                {timeAgo(item.createdAt.toISOString())}
+                                            </time>
                                         </span>
+                                        <p className="col-start-2 m-0 truncate text-xs text-[var(--mut)]">{item.subtitle}</p>
                                     </li>
                                 ))}
                             </ul>
                         )}
-                    </div>
+                    </section>
 
-                    {/* Source distribution */}
-                    <div className="rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-5">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Sparkles className="w-4 h-4 text-accent-1" />
-                            <h3 className="text-sm font-bold text-white">Fuentes activas</h3>
-                        </div>
-                        {sourceCounts.length === 0 ? (
-                            <p className="text-xs text-neutral-500 italic">Sin vacantes activas.</p>
+                    <section aria-labelledby="fuentes-titulo">
+                        <h2 id="fuentes-titulo" className={`${TITULO} mb-3`}>Fuentes de las vacantes activas</h2>
+                        {fuentes.length === 0 ? (
+                            <p className="border-t border-[var(--linea)] py-4 text-[var(--mut)]">Sin vacantes activas.</p>
                         ) : (
-                            <ul className="space-y-2">
-                                {sourceCounts
-                                    .sort((a, b) => b._count._all - a._count._all)
-                                    .map((row) => {
-                                        const label = SOURCE_LABELS[row.source] || row.source;
-                                        const pct =
-                                            activeVacancies > 0
-                                                ? Math.round(
-                                                      (row._count._all / activeVacancies) * 100
-                                                  )
-                                                : 0;
-                                        return (
-                                            <li key={row.source} className="space-y-1">
-                                                <div className="flex items-center justify-between text-[11px]">
-                                                    <span className="text-neutral-300 font-medium truncate">
-                                                        {label}
-                                                    </span>
-                                                    <span className="text-neutral-500 font-mono ml-2 shrink-0">
-                                                        {row._count._all} · {pct}%
-                                                    </span>
-                                                </div>
-                                                <div className="h-1 rounded-full bg-white/5 overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-accent-1/70 rounded-full"
-                                                        style={{ width: `${pct}%` }}
-                                                    />
-                                                </div>
-                                            </li>
-                                        );
-                                    })}
-                            </ul>
+                            <dl className="grid gap-3 border-t border-[var(--linea)] pt-4">
+                                {fuentes.map((row) => {
+                                    const label = SOURCE_LABELS[row.source] || row.source;
+                                    const pct = activeVacancies > 0 ? Math.round((row._count._all / activeVacancies) * 100) : 0;
+                                    return (
+                                        <div key={row.source} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-sm">
+                                            <dt className="truncate text-[var(--txt)]">{label}</dt>
+                                            <dd className="m-0 font-mono text-xs tabular-nums text-[var(--mut)]">
+                                                {row._count._all} · {pct}%
+                                            </dd>
+                                            <dd aria-hidden="true" className="col-span-2 m-0 h-1.5 overflow-hidden rounded-full bg-[var(--linea-2)]">
+                                                <span className="block h-full rounded-full bg-[var(--acento)]" style={{ width: `${pct}%` }} />
+                                            </dd>
+                                        </div>
+                                    );
+                                })}
+                            </dl>
                         )}
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>
@@ -352,73 +278,26 @@ function FunnelBar({
     label,
     count,
     max,
-    colorClass,
     warning = false,
 }: {
     label: string;
     count: number;
     max: number;
-    colorClass: string;
     warning?: boolean;
 }) {
     const pct = max > 0 ? Math.max((count / max) * 100, count > 0 ? 3 : 0) : 0;
     return (
-        <div className="flex items-center gap-3">
-            <div className="w-36 text-xs font-medium text-neutral-300 truncate shrink-0">{label}</div>
-            <div className="flex-1 h-5 bg-[#05080f] rounded-full overflow-hidden border border-white/5">
-                <div
-                    className={`h-full ${colorClass} transition-all duration-700 ease-out rounded-full`}
+        <div className="grid grid-cols-[minmax(7rem,9rem)_minmax(0,1fr)_2.5rem] items-center gap-3 text-sm">
+            <dt className="truncate text-[var(--mut)]">{label}</dt>
+            <dd aria-hidden="true" className="m-0 h-1.5 overflow-hidden rounded-full bg-[var(--linea-2)]">
+                <span
+                    className={`block h-full rounded-full ${warning ? "bg-red-400" : "bg-[var(--acento)]"}`}
                     style={{ width: `${pct}%` }}
                 />
-            </div>
-            <div
-                className={`w-6 text-right text-xs font-bold tabular-nums shrink-0 ${
-                    warning ? "text-red-400" : "text-white"
-                }`}
-            >
+            </dd>
+            <dd className={`m-0 text-right font-mono text-[13px] font-semibold tabular-nums ${warning ? "text-red-400" : "text-[var(--txt)]"}`}>
                 {count}
-            </div>
-        </div>
-    );
-}
-
-function KpiCard({
-    icon,
-    label,
-    value,
-    hint,
-    accent,
-}: {
-    icon: React.ReactNode;
-    label: string;
-    value: React.ReactNode;
-    hint?: string;
-    accent: "cyan" | "blue" | "amber" | "emerald";
-}) {
-    const borderStyle = {
-        cyan: "border-cyan-500/20 from-cyan-500/5",
-        blue: "border-blue-500/20 from-blue-500/5",
-        amber: "border-amber-500/20 from-amber-500/5",
-        emerald: "border-emerald-500/20 from-emerald-500/5",
-    }[accent];
-
-    const iconColor = {
-        cyan: "text-cyan-300",
-        blue: "text-blue-300",
-        amber: "text-amber-300",
-        emerald: "text-emerald-300",
-    }[accent];
-
-    return (
-        <div
-            className={`relative overflow-hidden rounded-2xl border ${borderStyle} bg-gradient-to-br to-transparent backdrop-blur-xl p-4`}
-        >
-            <div className={`flex items-center gap-2 mb-2 ${iconColor}`}>
-                {icon}
-                <span className="text-[10px] uppercase tracking-wider font-semibold">{label}</span>
-            </div>
-            <p className="text-3xl font-extrabold text-white tracking-tight">{value}</p>
-            {hint && <p className="text-[10px] text-neutral-500 mt-1">{hint}</p>}
+            </dd>
         </div>
     );
 }
@@ -435,18 +314,16 @@ function QuickAction({
     description: string;
 }) {
     return (
-        <Link
-            href={href}
-            className="group rounded-2xl border border-white/10 bg-[#0a0f1c]/60 backdrop-blur-xl p-5 hover:border-accent-1/40 hover:bg-[#0a0f1c]/80 transition-all"
-        >
-            <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-accent-1/10 text-accent-1 flex items-center justify-center group-hover:bg-accent-1/20 transition-colors">
-                    {icon}
-                </div>
-                <ArrowRight className="w-4 h-4 text-neutral-600 group-hover:text-accent-1 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <h3 className="text-sm font-bold text-white mb-1">{title}</h3>
-            <p className="text-xs text-neutral-500">{description}</p>
-        </Link>
+        <li>
+            <Link
+                href={href}
+                className={`group grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 border-b border-[var(--linea)] px-1 py-4 text-[var(--txt)] ${FILA_HOVER} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]`}
+            >
+                <span className="row-span-2 text-[var(--mut)]">{icon}</span>
+                <span className="font-semibold">{title}</span>
+                <ArrowRight className="row-span-2 size-4 text-[var(--mut)] transition-colors duration-150 group-hover:text-[var(--acento)]" aria-hidden="true" />
+                <span className="col-start-2 text-sm text-[var(--mut)]">{description}</span>
+            </Link>
+        </li>
     );
 }

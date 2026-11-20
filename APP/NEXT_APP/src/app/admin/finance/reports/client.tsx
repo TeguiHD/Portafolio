@@ -6,7 +6,11 @@ import { CategoryBreakdown, CategoryData } from "@/modules/finance/components/Ca
 import { DailyChart, DailyData } from "@/modules/finance/components/DailyChart";
 import { InsightsCard, Insight } from "@/modules/finance/components/InsightsCard";
 import { TrendsChart, TrendData } from "@/modules/finance/components/TrendsChart";
+import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import { CabeceraFinanzas, CargandoFinanzas } from "@/modules/finance/components/Piezas";
+import { BOTON_SEC, CIFRA, CAMPO, ERROR, ICONO, LISTA, OPCION, OPCION_NO, OPCION_SI, SECCION, VACIO } from "@/modules/finance/components/estilos";
+import { fechaDia } from "@/modules/finance/fechas";
 
 type Tab = "monthly" | "trends";
 
@@ -130,101 +134,75 @@ export default function ReportsPageClient() {
         setYear(newYear);
     };
 
+    const esMesActual = year === new Date().getFullYear() && month === new Date().getMonth() + 1;
+    const vistas: { id: Tab; nombre: string }[] = [
+        { id: "monthly", nombre: "Mensual" },
+        { id: "trends", nombre: "Tendencias" },
+    ];
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Reportes y Análisis</h1>
-                    <p className="text-gray-400">Visualiza tus finanzas en detalle</p>
+        <div className="max-w-[1180px] space-y-8 pb-8">
+            <CabeceraFinanzas titulo="Reportes y análisis" bajada="Tus ingresos y gastos en detalle, mes a mes.">
+                <div role="group" aria-label="Vista" className="flex gap-1">
+                    {vistas.map((v) => (
+                        <button
+                            key={v.id}
+                            type="button"
+                            aria-pressed={activeTab === v.id}
+                            onClick={() => setActiveTab(v.id)}
+                            className={`${OPCION} ${activeTab === v.id ? OPCION_SI : OPCION_NO}`}
+                        >
+                            {v.nombre}
+                        </button>
+                    ))}
                 </div>
+            </CabeceraFinanzas>
 
-                {/* Tab Switcher */}
-                <div className="flex bg-gray-800/50 rounded-xl p-1">
-                    <button
-                        onClick={() => setActiveTab("monthly")}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "monthly"
-                            ? "bg-blue-600 text-white"
-                            : "text-gray-400 hover:text-white"
-                            }`}
-                    >
-                        Mensual
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("trends")}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "trends"
-                            ? "bg-blue-600 text-white"
-                            : "text-gray-400 hover:text-white"
-                            }`}
-                    >
-                        Tendencias
-                    </button>
-                </div>
-            </div>
-
-            {/* Period Selector */}
+            {/* Periodo */}
             {activeTab === "monthly" ? (
-                <div className="flex items-center justify-center gap-4">
-                    <button
-                        onClick={() => navigateMonth(-1)}
-                        className="p-2 bg-gray-800 text-gray-400 rounded-lg hover:text-white transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
+                <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => navigateMonth(-1)} aria-label="Mes anterior" className={ICONO}>
+                        <ChevronLeft aria-hidden="true" className="size-[18px]" />
                     </button>
-                    <div className="text-center">
-                        <h2 className="text-xl font-semibold text-white">
-                            {monthNames[month - 1]} {year}
-                        </h2>
-                    </div>
-                    <button
-                        onClick={() => navigateMonth(1)}
-                        disabled={year === new Date().getFullYear() && month === new Date().getMonth() + 1}
-                        className="p-2 bg-gray-800 text-gray-400 rounded-lg hover:text-white transition-colors
-                                 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                    <h2 aria-live="polite" className="m-0 min-w-[10ch] text-center text-lg font-semibold text-[var(--txt)]">
+                        {monthNames[month - 1]} {year}
+                    </h2>
+                    <button type="button" onClick={() => navigateMonth(1)} disabled={esMesActual} aria-label="Mes siguiente" className={`${ICONO} disabled:cursor-not-allowed`}>
+                        <ChevronRight aria-hidden="true" className="size-[18px]" />
                     </button>
                 </div>
             ) : (
-                <div className="flex items-center justify-center gap-2">
-                    <span className="text-gray-400">Últimos</span>
+                <div className="flex items-center gap-3">
+                    <label htmlFor="fin-reportes-meses" className="text-sm font-medium text-[var(--txt)]">Periodo</label>
                     <select
+                        id="fin-reportes-meses"
                         value={trendsMonths}
                         onChange={(e) => setTrendsMonths(parseInt(e.target.value))}
-                        className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                        className={CAMPO.replace("w-full", "w-auto")}
                     >
-                        <option value={6}>6 meses</option>
-                        <option value={12}>12 meses</option>
-                        <option value={24}>24 meses</option>
+                        <option value={6}>Últimos 6 meses</option>
+                        <option value={12}>Últimos 12 meses</option>
+                        <option value={24}>Últimos 24 meses</option>
                     </select>
                 </div>
             )}
 
             {/* Loading */}
-            {loading && (
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                        <p className="text-gray-400">Generando reporte...</p>
-                    </div>
-                </div>
-            )}
+            {loading && <CargandoFinanzas texto="Generando reporte…" />}
 
             {/* Error */}
             {error && !loading && (
-                <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
-                    <p className="text-red-400">{error}</p>
+                <div role="alert" className={`${ERROR} flex flex-wrap items-center justify-between gap-3`}>
+                    <span>{error}</span>
+                    <button type="button" onClick={() => void (activeTab === "monthly" ? fetchMonthlyReport() : fetchTrends())} className={BOTON_SEC}>
+                        Reintentar
+                    </button>
                 </div>
             )}
 
             {/* Monthly Report Content */}
             {!loading && !error && activeTab === "monthly" && reportData && (
-                <div className="space-y-6">
-                    {/* Summary Cards */}
+                <div className="space-y-12">
                     <SummaryCards
                         income={reportData.summary.income}
                         expenses={reportData.summary.expenses}
@@ -234,135 +212,114 @@ export default function ReportsPageClient() {
                         transactionCount={reportData.summary.transactionCount}
                     />
 
-                    <div className="grid lg:grid-cols-2 gap-6">
-                        {/* Category Breakdown */}
-                        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                                <span className="text-xl">📊</span>
-                                Gastos por categoría
-                            </h3>
+                    <div className="grid items-start gap-12 lg:grid-cols-2">
+                        <section aria-labelledby="fin-categorias">
+                            <h2 id="fin-categorias" className={`${SECCION} mb-3`}>Gastos por categoría</h2>
                             <CategoryBreakdown
                                 categories={reportData.categoryBreakdown}
                                 totalExpenses={reportData.summary.expenses}
                             />
-                        </div>
+                        </section>
 
-                        {/* Insights */}
-                        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                            <InsightsCard insights={reportData.insights} />
-                        </div>
+                        <InsightsCard insights={reportData.insights} />
                     </div>
 
-                    {/* Daily Chart */}
-                    <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                        <DailyChart data={reportData.dailyData} month={month} year={year} />
-                    </div>
+                    <DailyChart data={reportData.dailyData} month={month} year={year} />
 
-                    {/* Top Merchants & Largest Expenses */}
-                    <div className="grid lg:grid-cols-2 gap-6">
-                        {/* Top Merchants */}
-                        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                                <span className="text-xl">🏪</span>
-                                Top comercios
-                            </h3>
+                    <div className="grid items-start gap-12 lg:grid-cols-2">
+                        <section aria-labelledby="fin-comercios">
+                            <h2 id="fin-comercios" className={`${SECCION} mb-3`}>Comercios con más gasto</h2>
                             {reportData.topMerchants.length > 0 ? (
-                                <div className="space-y-3">
+                                <ol className={`${LISTA} m-0 list-none p-0`}>
                                     {reportData.topMerchants.slice(0, 5).map((m, i: number) => (
-                                        <div key={i} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="w-6 h-6 bg-gray-800 rounded-full flex items-center justify-center text-xs text-gray-400">
-                                                    {i + 1}
-                                                </span>
-                                                <span className="text-white">{m.name}</span>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="text-white font-medium">{formatCurrency(m.amount)}</span>
-                                                <span className="text-xs text-gray-500 ml-2">({m.count}x)</span>
-                                            </div>
-                                        </div>
+                                        <li key={i} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                            <span className={`grid size-7 shrink-0 place-items-center rounded-full bg-[var(--fondo-2)] text-xs font-semibold text-[var(--mut)] ${CIFRA}`}>
+                                                {i + 1}
+                                            </span>
+                                            <span className="min-w-0 flex-1 truncate text-[var(--txt)]">{m.name}</span>
+                                            <span className={`shrink-0 text-right ${CIFRA}`}>
+                                                <span className="font-semibold text-[var(--txt)]">{formatCurrency(m.amount)}</span>
+                                                <span className="ml-2 text-xs text-[var(--mut)]">{m.count} {m.count === 1 ? "vez" : "veces"}</span>
+                                            </span>
+                                        </li>
                                     ))}
-                                </div>
+                                </ol>
                             ) : (
-                                <p className="text-gray-500 text-center py-4">Sin datos de comercios</p>
+                                <p className={VACIO}>Sin datos de comercios.</p>
                             )}
-                        </div>
+                        </section>
 
-                        {/* Largest Expenses */}
-                        <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                                <span className="text-xl">💸</span>
-                                Mayores gastos
-                            </h3>
+                        <section aria-labelledby="fin-mayores">
+                            <h2 id="fin-mayores" className={`${SECCION} mb-3`}>Mayores gastos</h2>
                             {reportData.largestExpenses.length > 0 ? (
-                                <div className="space-y-3">
-                                    {reportData.largestExpenses.map((t, _i: number) => (
-                                        <div key={t.id} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-lg">{t.category?.icon || "💰"}</span>
-                                                <div>
-                                                    <p className="text-white text-sm">
-                                                        {t.merchant || t.description || t.category?.name || "Gasto"}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {new Date(t.date).toLocaleDateString("es-CL")}
-                                                    </p>
-                                                </div>
+                                <ul className={`${LISTA} m-0 list-none p-0`}>
+                                    {reportData.largestExpenses.map((t) => (
+                                        <li key={t.id} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3">
+                                            <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--fondo-2)] text-base">
+                                                {t.category?.icon || <i className="block size-2 rounded-full bg-[var(--mut)]" />}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="m-0 truncate text-sm text-[var(--txt)]">
+                                                    {t.merchant || t.description || t.category?.name || "Gasto"}
+                                                </p>
+                                                <p className="m-0 text-xs text-[var(--mut)]">
+                                                    {fechaDia(t.date, { day: "numeric", month: "short", year: "numeric" })}
+                                                </p>
                                             </div>
-                                            <span className="text-red-400 font-medium">{formatCurrency(t.amount)}</span>
-                                        </div>
+                                            <span className={`shrink-0 font-semibold text-[var(--baja)] ${CIFRA}`}>{formatCurrency(t.amount)}</span>
+                                        </li>
                                     ))}
-                                </div>
+                                </ul>
                             ) : (
-                                <p className="text-gray-500 text-center py-4">Sin gastos registrados</p>
+                                <p className={VACIO}>Sin gastos registrados.</p>
                             )}
-                        </div>
+                        </section>
                     </div>
                 </div>
             )}
 
             {/* Trends Content */}
             {!loading && !error && activeTab === "trends" && trendsData && (
-                <div className="space-y-6">
-                    {/* Highlights */}
+                <div className="space-y-10">
                     {(trendsData.highlights.bestMonth || trendsData.highlights.worstMonth) && (
-                        <div className="grid sm:grid-cols-2 gap-4">
+                        <ul className={`${LISTA} m-0 grid list-none p-0 sm:grid-cols-2 sm:gap-x-12`}>
                             {trendsData.highlights.bestMonth && (
-                                <div className="p-4 bg-green-500/10 rounded-xl border border-green-500/20">
-                                    <p className="text-sm text-green-400 mb-1">🏆 Mejor mes</p>
-                                    <p className="text-lg font-semibold text-white">
-                                        {trendsData.highlights.bestMonth.label}
-                                    </p>
-                                    <p className="text-green-400">
-                                        Balance: {formatCurrency(trendsData.highlights.bestMonth.balance)}
-                                    </p>
-                                </div>
+                                <li className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5">
+                                    <TrendingUp aria-hidden="true" className="size-[18px] shrink-0 text-emerald-400" />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm text-[var(--mut)]">Mejor mes</span>
+                                        <span className="block font-semibold text-[var(--txt)]">{trendsData.highlights.bestMonth.label}</span>
+                                    </span>
+                                    <span className={`shrink-0 text-right text-sm ${CIFRA}`}>
+                                        <span className="block text-[var(--mut)]">Balance</span>
+                                        <span className="block font-semibold text-[var(--txt)]">{formatCurrency(trendsData.highlights.bestMonth.balance)}</span>
+                                    </span>
+                                </li>
                             )}
                             {trendsData.highlights.worstMonth && (
-                                <div className="p-4 bg-red-500/10 rounded-xl border border-red-500/20">
-                                    <p className="text-sm text-red-400 mb-1">⚠️ Mes más difícil</p>
-                                    <p className="text-lg font-semibold text-white">
-                                        {trendsData.highlights.worstMonth.label}
-                                    </p>
-                                    <p className="text-red-400">
-                                        Balance: {formatCurrency(trendsData.highlights.worstMonth.balance)}
-                                    </p>
-                                </div>
+                                <li className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5">
+                                    <TrendingDown aria-hidden="true" className="size-[18px] shrink-0 text-red-400" />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm text-[var(--mut)]">Mes más difícil</span>
+                                        <span className="block font-semibold text-[var(--txt)]">{trendsData.highlights.worstMonth.label}</span>
+                                    </span>
+                                    <span className={`shrink-0 text-right text-sm ${CIFRA}`}>
+                                        <span className="block text-[var(--mut)]">Balance</span>
+                                        <span className={`block font-semibold ${trendsData.highlights.worstMonth.balance < 0 ? "text-[var(--baja)]" : "text-[var(--txt)]"}`}>
+                                            {formatCurrency(trendsData.highlights.worstMonth.balance)}
+                                        </span>
+                                    </span>
+                                </li>
                             )}
-                        </div>
+                        </ul>
                     )}
 
-                    {/* Trends Chart */}
-                    <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
-                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                            <span className="text-xl">📈</span>
-                            Evolución de ingresos y gastos
-                        </h3>
+                    <section aria-labelledby="fin-evolucion">
+                        <h2 id="fin-evolucion" className={`${SECCION} mb-3`}>Evolución de ingresos y gastos</h2>
                         <TrendsChart data={trendsData.trendData} summary={trendsData.summary} />
-                    </div>
+                    </section>
                 </div>
             )}
         </div>
     );
 }
-

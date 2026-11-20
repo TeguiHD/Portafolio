@@ -1,5 +1,5 @@
-// Notifications has its own skeleton in NotificationsPageSkeleton
-// This prevents the admin loading.tsx from showing DashboardPageSkeleton
+import { EsqueletoSeccion } from "@/modules/admin/armazon/EsqueletoSeccion";
+
 export default function Loading() {
-    return <div />;
+    return <EsqueletoSeccion nombre="notificaciones" cifras={4} barra filas={8} />;
 }

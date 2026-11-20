@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
         const session = await auth();
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
         // Check permission
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         );
 
         if (!canView) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
         }
 
         const { searchParams } = new URL(request.url);
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("Error fetching security incidents:", error);
         return NextResponse.json(
-            { error: "Error fetching incidents" },
+            { error: "No se pudieron cargar los incidentes" },
             { status: 500 }
         );
     }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         const internalSecret = process.env.INTERNAL_API_SECRET;
 
         if (!hasValidInternalSecret(authHeader, internalSecret)) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
         const body = await request.json();
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         // Validate required fields
         if (!type || !ipHash) {
             return NextResponse.json(
-                { error: "Missing required fields: type, ipHash" },
+                { error: "Faltan el tipo y la IP del incidente" },
                 { status: 400 }
             );
         }
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error("Error creating security incident:", error);
         return NextResponse.json(
-            { error: "Error creating incident" },
+            { error: "No se pudo registrar el incidente" },
             { status: 500 }
         );
     }

@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Users, FileText, Plus, Search, Eye, Grid, List, Key } from "lucide-react";
-import UnifiedQuotationCreation from "./components/UnifiedQuotationCreation";
+import { Users, Plus, Search, Eye, LayoutGrid, List, Key, ChevronRight } from "lucide-react";
+import dynamic from "next/dynamic";
+import { BOTON, BOTON_SEC, BOTON_SUAVE, CHIP_NEUTRO, FOCO, H1, INICIALES, SOBRE } from "@/modules/quotations/estilos";
+import Cifras from "@/modules/quotations/components/Cifras";
+
+// El asistente (editor, LaTeX, plantillas, chat IA) pesa ~200 KB: se descarga al abrirlo, no con la lista.
+const UnifiedQuotationCreation = dynamic(() => import("./components/UnifiedQuotationCreation"), { ssr: false });
 import RedeemCodeModal from "./components/RedeemCodeModal";
 import ClientCard from "./components/ClientCard";
 import ClientsSearchModal from "./components/ClientsSearchModal";
@@ -39,7 +44,9 @@ export default function QuotationsView({ clients, isSuperAdmin, currentUserId }:
     const [showSearchModal, setShowSearchModal] = useState(false);
     const [showRedeemModal, setShowRedeemModal] = useState(false);
     const [showSpyModal, setShowSpyModal] = useState(false);
-    const [spyUserId, setSpyUserId] = useState<string | null>(null);
+    // El modo espía vive en la URL (?spyUserId=): al recargar o volver atrás, el aviso sigue a la vista.
+    const espiado = useSearchParams().get("spyUserId");
+    const spyUserId = isSuperAdmin ? espiado : null;
     const [spyUserName, setSpyUserName] = useState<string>("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -49,238 +56,167 @@ export default function QuotationsView({ clients, isSuperAdmin, currentUserId }:
         return {
             totalClients: clients.length,
             totalQuotations,
-            avgPerClient: clients.length > 0 ? (totalQuotations / clients.length).toFixed(1) : 0,
+            avgPerClient: clients.length > 0 ? (totalQuotations / clients.length).toFixed(1).replace(".", ",") : "0",
         };
     }, [clients]);
 
     const handleSpyUserSelect = (userId: string, userName: string) => {
-        setSpyUserId(userId || null);
         setSpyUserName(userName);
         router.push(userId ? `/admin/cotizaciones?spyUserId=${userId}` : "/admin/cotizaciones");
     };
 
+    const vista = (modo: "grid" | "list") =>
+        `inline-grid size-11 md:size-10 place-items-center rounded-md transition-colors duration-150 ${FOCO} ${viewMode === modo
+            ? "bg-[color-mix(in_srgb,var(--txt)_8%,transparent)] text-[var(--txt)]"
+            : "text-[var(--mut)] hover:text-[var(--txt)]"}`;
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="space-y-8">
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <div className="p-2 bg-indigo-500/10 rounded-xl">
-                            <FileText className="text-indigo-400" size={24} />
-                        </div>
-                        Cotizaciones
-                    </h1>
-                    <p className="text-slate-400 mt-1">
-                        {isSuperAdmin
-                            ? "Vista de administrador - todos los clientes"
-                            : "Gestiona cotizaciones por cliente"
-                        }
+                    <h1 className={H1}>Propuestas</h1>
+                    <p className="mt-1 text-[var(--mut)]">
+                        {isSuperAdmin ? "Vista de administrador: todos los clientes." : "Tus clientes y las propuestas de cada uno."}
                     </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Spy Mode Button - Subtle, only for superadmins */}
+                <div className="flex flex-wrap items-center gap-2">
                     {isSuperAdmin && (
                         <button
+                            type="button"
                             onClick={() => setShowSpyModal(true)}
-                            className="flex items-center gap-2 text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/10 px-3 py-2 rounded-lg text-sm transition-colors"
-                            title="Modo Espía - Ver clientes de otros usuarios"
+                            className={BOTON_SUAVE}
+                            title="Ver los clientes de otro usuario"
                         >
-                            <Eye size={16} />
-                            <span className="hidden md:inline">Espiar</span>
+                            <Eye size={16} aria-hidden="true" />
+                            <span className="sr-only md:not-sr-only">Modo espía</span>
                         </button>
                     )}
 
-                    {/* Search Button */}
-                    <button
-                        onClick={() => setShowSearchModal(true)}
-                        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                        <Search size={18} />
-                        <span className="hidden sm:inline">Buscar</span>
+                    <button type="button" onClick={() => setShowSearchModal(true)} className={BOTON_SEC}>
+                        <Search size={16} aria-hidden="true" />
+                        <span className="sr-only sm:not-sr-only">Buscar</span>
                     </button>
 
-                    {/* View Toggle */}
-                    <div className="hidden sm:flex items-center bg-slate-800 rounded-lg p-1">
-                        <button
-                            onClick={() => setViewMode("grid")}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === "grid" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}
-                        >
-                            <Grid size={16} />
+                    <div role="group" aria-label="Forma de la lista" className="hidden items-center rounded-lg border border-[var(--linea-2)] p-0.5 sm:flex">
+                        <button type="button" onClick={() => setViewMode("grid")} aria-pressed={viewMode === "grid"} aria-label="Ver como tarjetas" className={vista("grid")}>
+                            <LayoutGrid size={16} aria-hidden="true" />
                         </button>
-                        <button
-                            onClick={() => setViewMode("list")}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === "list" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}
-                        >
-                            <List size={16} />
+                        <button type="button" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"} aria-label="Ver como tabla" className={vista("list")}>
+                            <List size={16} aria-hidden="true" />
                         </button>
                     </div>
 
-                    {/* Clients Link */}
-                    <Link
-                        href="/admin/clientes"
-                        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                        <Users size={18} />
-                        <span className="hidden sm:inline">Clientes</span>
+                    <Link href="/admin/clientes" className={BOTON_SEC}>
+                        <Users size={16} aria-hidden="true" />
+                        <span className="sr-only sm:not-sr-only">Clientes</span>
                     </Link>
 
-                    {/* New Quotation */}
                     <button
-                        onClick={() => setShowWizard(true)}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-900/20"
+                        type="button"
+                        onClick={() => setShowRedeemModal(true)}
+                        className={BOTON_SEC}
+                        title="Vincular un cliente que te compartieron con un código"
                     >
-                        <Plus size={18} />
-                        <span className="hidden sm:inline">Nueva Cotización</span>
+                        <Key size={16} aria-hidden="true" />
+                        <span className="sr-only xl:not-sr-only">Vincular cliente</span>
                     </button>
 
-                    {/* Redeem Code */}
-                    <button
-                        onClick={() => setShowRedeemModal(true)}
-                        className="flex items-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-4 py-2 rounded-lg font-medium transition-colors"
-                        title="Vincular cliente mediante código"
-                    >
-                        <Key size={18} />
-                        <span className="hidden xl:inline">Vincular Cliente</span>
+                    <button type="button" onClick={() => setShowWizard(true)} className={BOTON}>
+                        <Plus size={16} aria-hidden="true" />
+                        <span className="sr-only sm:not-sr-only">Nueva propuesta</span>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            {/* Spy Mode Active Banner */}
             {spyUserId && (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top duration-300">
-                    <div className="flex items-center gap-3">
-                        <Eye className="text-amber-400" size={20} />
-                        <div>
-                            <p className="text-sm font-medium text-amber-400">
-                                Modo Espía Activo
-                            </p>
-                            <p className="text-xs text-amber-400/70">
-                                Viendo clientes de: {spyUserName}
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => handleSpyUserSelect("", "")}
-                        className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 px-3 py-1.5 rounded-lg transition-colors"
-                    >
+                <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-500/10 px-4 py-3">
+                    <p className="flex items-center gap-2 text-sm text-amber-400">
+                        <Eye size={16} aria-hidden="true" />
+                        <span>
+                            <span className="font-semibold">Modo espía.</span> Ves los clientes de {spyUserName || "otro usuario"}.
+                        </span>
+                    </p>
+                    <button type="button" onClick={() => handleSpyUserSelect("", "")} className={BOTON_SEC}>
                         Salir
                     </button>
                 </div>
             )}
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-500/10 rounded-lg">
-                            <Users className="text-indigo-400" size={20} />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{stats.totalClients}</p>
-                            <p className="text-xs text-slate-400">Clientes</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-teal-500/10 rounded-lg">
-                            <FileText className="text-teal-400" size={20} />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{stats.totalQuotations}</p>
-                            <p className="text-xs text-slate-400">Cotizaciones</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-500/10 rounded-lg">
-                            <FileText className="text-purple-400" size={20} />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{stats.avgPerClient}</p>
-                            <p className="text-xs text-slate-400">Promedio/Cliente</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <Cifras
+                columnas="grid-cols-3"
+                cifras={[
+                    { nombre: "Clientes", valor: stats.totalClients },
+                    { nombre: "Propuestas", valor: stats.totalQuotations },
+                    { nombre: "Promedio por cliente", valor: stats.avgPerClient },
+                ]}
+            />
 
-            {/* Client Grid */}
             {clients.length === 0 ? (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-12 text-center">
-                    <Users className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-white mb-2">Sin clientes</h3>
-                    <p className="text-slate-400 mb-6">Crea un cliente o una nueva cotización para comenzar.</p>
-                    <div className="flex justify-center gap-3">
-                        <Link
-                            href="/admin/clientes"
-                            className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                        >
-                            <Users size={18} />
-                            Crear Cliente
+                <div className="border-y border-[var(--linea)] py-12 text-center">
+                    <Users className="mx-auto mb-3 text-[var(--mut)]" size={28} aria-hidden="true" />
+                    <h2 className="text-lg font-semibold text-[var(--txt)]">Sin clientes</h2>
+                    <p className="mx-auto mt-1 max-w-md text-[var(--mut)]">Crea un cliente o una propuesta nueva para empezar.</p>
+                    <div className="mt-6 flex flex-wrap justify-center gap-2">
+                        <Link href="/admin/clientes" className={BOTON_SEC}>
+                            <Users size={16} aria-hidden="true" />
+                            Crear cliente
                         </Link>
-                        <button
-                            onClick={() => setShowWizard(true)}
-                            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                        >
-                            <Plus size={18} />
-                            Nueva Cotización
+                        <button type="button" onClick={() => setShowWizard(true)} className={BOTON}>
+                            <Plus size={16} aria-hidden="true" />
+                            Nueva propuesta
                         </button>
                     </div>
                 </div>
             ) : viewMode === "grid" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {clients.map((client) => (
-                        <ClientCard
-                            key={client.id}
-                            client={client}
-                            isSuperAdmin={isSuperAdmin}
-                            isSpyMode={!!spyUserId}
-                            currentUserId={currentUserId}
-                        />
+                        <li key={client.id} className="flex">
+                            <ClientCard
+                                client={client}
+                                isSuperAdmin={isSuperAdmin}
+                                isSpyMode={!!spyUserId}
+                                currentUserId={currentUserId}
+                            />
+                        </li>
                     ))}
-                </div>
+                </ul>
             ) : (
-                // List View
-                <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
-                    <table className="w-full">
+                <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Clientes">
+                    <table className="w-full min-w-[560px] text-sm">
                         <thead>
-                            <tr className="border-b border-slate-800">
-                                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-4">Cliente</th>
-                                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-4 hidden md:table-cell">Email</th>
-                                <th className="text-center text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-4">Cotizaciones</th>
-                                <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-4">Acciones</th>
+                            <tr className="border-b border-[var(--linea)]">
+                                <th scope="col" className="py-3 pr-4 text-left text-sm font-medium text-[var(--mut)]">Cliente</th>
+                                <th scope="col" className="hidden py-3 pr-4 text-left text-sm font-medium text-[var(--mut)] md:table-cell">Correo</th>
+                                <th scope="col" className="py-3 pr-4 text-right text-sm font-medium text-[var(--mut)]">Propuestas</th>
+                                <th scope="col" className="py-3 text-right text-sm font-medium text-[var(--mut)]"><span className="sr-only">Abrir</span></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody>
                             {clients.map((client) => (
-                                <tr key={client.id} className="hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-6 py-4">
+                                <tr key={client.id} className={`border-b border-[var(--linea)] transition-colors duration-150 ${SOBRE}`}>
+                                    <td className="py-3 pr-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold text-sm">
+                                            <span aria-hidden="true" className={`${INICIALES} size-9 text-xs`}>
                                                 {client.name.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-white">{client.name}</p>
-                                                <p className="text-xs text-slate-500">/{client.slug}</p>
+                                            </span>
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-[var(--txt)]">{client.name}</p>
+                                                <p className="font-mono text-xs text-[var(--mut)]">/{client.slug}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 hidden md:table-cell">
-                                        <span className="text-slate-400">{client.email || "-"}</span>
+                                    <td className="hidden py-3 pr-4 text-[var(--mut)] md:table-cell">{client.email || "—"}</td>
+                                    <td className="py-3 pr-4 text-right">
+                                        <span className={`${CHIP_NEUTRO} tabular-nums`}>{client._count.quotations}</span>
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-sm font-medium">
-                                            {client._count.quotations}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="py-3 text-right">
                                         <Link
                                             href={`/admin/cotizaciones/${client.id}`}
-                                            className="text-indigo-400 hover:text-indigo-300 text-sm font-medium"
+                                            className={`inline-flex min-h-11 items-center gap-1 rounded-md px-2 font-medium text-[var(--acento)] md:min-h-10 ${FOCO}`}
+                                            aria-label={`Propuestas de ${client.name}`}
                                         >
-                                            Ver →
+                                            Ver <ChevronRight size={16} aria-hidden="true" />
                                         </Link>
                                     </td>
                                 </tr>
@@ -290,11 +226,12 @@ export default function QuotationsView({ clients, isSuperAdmin, currentUserId }:
                 </div>
             )}
 
-            {/* Modals */}
             {showWizard && (
                 <UnifiedQuotationCreation
                     clients={clients}
                     onClose={() => setShowWizard(false)}
+                    // Los conteos de la lista se ponen al día; el asistente sigue abierto con el enlace y el código.
+                    onSuccess={() => router.refresh()}
                 />
             )}
 

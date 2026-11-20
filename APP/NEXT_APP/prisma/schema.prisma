@@ -244,6 +244,9 @@ model PageView {
   ip        String?
   country   String?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([createdAt, path])
 }
 
 model CtaClick {
@@ -254,6 +257,8 @@ model CtaClick {
   referrer  String?
   userAgent String?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Quotation {
@@ -349,6 +354,7 @@ model QuotationClient {
   approvals       ClientApproval[]
   portals         ProjectPortal[]
   paymentPlans    PaymentPlan[]
+  portalAccesos   PortalAcceso[]
 
   @@index([slug])
   @@index([userId])
@@ -711,10 +717,23 @@ model AdminNotification {
   readBy       String?
   createdAt    DateTime             @default(now())
   expiresAt    DateTime?
+  /// Lectura por persona. isRead/readAt/readBy son de la versión global: ya no se escriben (isRead solo cuenta al limpiar leídas viejas).
+  reads        AdminNotificationRead[]
 
   @@index([targetRole, isRead, createdAt])
   @@index([targetUserId, isRead])
   @@index([createdAt])
+}
+
+/// Quién leyó cada aviso y cuándo: «leída» es de cada persona, no de la notificación.
+model AdminNotificationRead {
+  notificationId String
+  userId         String
+  readAt         DateTime          @default(now())
+  notification   AdminNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, userId])
+  @@index([userId])
 }
 
 model Currency {
@@ -1309,6 +1328,7 @@ model QuotationPayment {
   @@index([quotationId])
   @@index([paidAt])
   @@index([status])
+  @@index([createdAt])
 }
 
 // Status change history for audit trail
@@ -1686,6 +1706,7 @@ model ClientApproval {
   signatureMethod     SignatureMethod?
   clientComments      String?
   rejectionReason     String?
+  respuestas          Json?           // Lo que el cliente completó o marcó al firmar (src/lib/formulario-firma.ts)
   
   // Verification / Audit trail (NIST SP 800-53 AU-3)
   ipAddress           String?
@@ -1749,4 +1770,25 @@ model ThreatPendingAction {
   expiresAt   DateTime
 
   @@index([status, createdAt])
+}
+
+/// Ingresos al portal de clientes (/cotizacion): éxitos y contraseñas fallidas.
+/// La IP va cifrada (encryptData) y el historial se recorta a 12 meses (Ley 21.719).
+model PortalAcceso {
+  id          String          @id @default(cuid())
+  clientId    String
+  exito       Boolean
+  motivo      String          // "ok" | "clave" | "inactivo"
+  ipCifrada   String?
+  pais        String?
+  ciudad      String?
+  sistema     String?
+  navegador   String?
+  dispositivo String?
+  createdAt   DateTime        @default(now())
+
+  client      QuotationClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@index([createdAt])
 }

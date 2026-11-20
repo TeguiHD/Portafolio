@@ -38,7 +38,11 @@ async function getClients(
     return prisma.quotationClient.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        include: {
+        // Sin accessCode (hash de la contraseña del portal) ni notas internas: esto llega al navegador.
+        select: {
+            id: true, name: true, slug: true, email: true, isActive: true, createdAt: true, updatedAt: true,
+            userId: true, company: true, rut: true, address: true, contactName: true, contactEmail: true,
+            contactPhone: true, contactRole: true, workType: true,
             _count: { select: { quotations: { where: { isDeleted: false } } } },
             user: {
                 select: { id: true, name: true, email: true }

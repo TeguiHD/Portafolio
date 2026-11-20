@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
         const session = await auth();
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
         const canView = await hasPermission(
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         );
 
         if (!canView) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
         }
 
         const { searchParams } = new URL(request.url);
@@ -201,7 +201,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("Error fetching security stats:", error);
         return NextResponse.json(
-            { error: "Error fetching stats" },
+            { error: "No se pudieron cargar las cifras de seguridad" },
             { status: 500 }
         );
     }

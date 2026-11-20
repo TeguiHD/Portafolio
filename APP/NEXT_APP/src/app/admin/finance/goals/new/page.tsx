@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { GoalForm, type GoalData } from "@/modules/finance/components/GoalForm";
+import { FinanceBreadcrumbs } from "@/modules/finance/components/FinanceBreadcrumbs";
+import { CabeceraFinanzas } from "@/modules/finance/components/Piezas";
+import { ERROR, TARJETA } from "@/modules/finance/components/estilos";
 
 export default function NewGoalPage() {
     const router = useRouter();
@@ -27,31 +29,21 @@ export default function NewGoalPage() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto">
-            {/* Header */}
-            <div className="mb-8">
-                <Link
-                    href="/admin/finance/goals"
-                    className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Volver a metas
-                </Link>
-                <h1 className="text-2xl font-bold text-white">Nueva meta de ahorro</h1>
-                <p className="text-gray-400">Define un objetivo financiero y empieza a ahorrar</p>
-            </div>
+        <div className="max-w-2xl pb-8">
+            <FinanceBreadcrumbs />
 
-            {/* Error */}
+            <CabeceraFinanzas
+                titulo="Nueva meta de ahorro"
+                bajada="Define un objetivo financiero y empieza a ahorrar"
+            />
+
             {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+                <p role="alert" className={`${ERROR} mt-6`}>
                     {error}
-                </div>
+                </p>
             )}
 
-            {/* Form */}
-            <div className="bg-gray-900/50 rounded-2xl border border-gray-800/50 p-6">
+            <div className={`${TARJETA} mt-6 p-4 sm:p-6`}>
                 <GoalForm onSubmit={handleSubmit} onCancel={() => router.push("/admin/finance/goals")} />
             </div>
         </div>

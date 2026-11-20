@@ -3,33 +3,33 @@
 import {
     Building2,
     Send,
-    Calendar,
-    CheckCircle2,
-    XCircle,
+    CalendarClock,
+    CircleCheck,
+    CircleX,
     Sparkles,
     ExternalLink,
     Eye,
     Trash2,
-    Clock,
     Check,
-    BrainCircuit,
     FileText,
 } from "lucide-react";
 import { ScoreBadge } from "../../components/ScoreBadge";
 import { SourceBadge } from "../../components/SourceBadge";
 import { timeAgo } from "../../utils";
+import { STATUS_LABELS } from "../../types";
 import type { ApplicationItem, ApplicationStatus } from "../../types";
+import { BOTON_ICONO, BOTON_PELIGRO, BOTON_SEC, CHIP } from "../../estilos";
 
 type StepperStage = { id: ApplicationStatus; label: string };
 
 const STEPPER: StepperStage[] = [
-    { id: "CV_ADAPTED", label: "CV Adaptado" },
+    { id: "CV_ADAPTED", label: "CV adaptado" },
     { id: "CV_SENT", label: "Enviado" },
     { id: "INTERVIEW", label: "Entrevista" },
     { id: "ACCEPTED", label: "Aceptado" },
 ];
 
-// Which index in the stepper each status maps to (-1 = before first step, -2 = terminal failure)
+// Paso del avance que corresponde a cada estado (-1 = antes del primero, -2 = cerrada sin éxito)
 const STATUS_IDX: Record<ApplicationStatus, number> = {
     PENDING: -1,
     CV_ADAPTED: 0,
@@ -40,39 +40,16 @@ const STATUS_IDX: Record<ApplicationStatus, number> = {
     CLOSED: -2,
 };
 
-type NextAction = {
-    label: string;
-    icon: React.ReactNode;
-    colorClass: string;
-};
+type NextAction = { label: string; icon: React.ReactNode };
 
 const NEXT_ACTIONS: Partial<Record<ApplicationStatus, NextAction>> = {
-    PENDING: {
-        label: "Marcar Adaptado",
-        icon: <Sparkles className="w-3 h-3" />,
-        colorClass:
-            "bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/30",
-    },
-    CV_ADAPTED: {
-        label: "CV Enviado",
-        icon: <Send className="w-3 h-3" />,
-        colorClass:
-            "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border-blue-500/30",
-    },
-    CV_SENT: {
-        label: "En Entrevista",
-        icon: <Calendar className="w-3 h-3" />,
-        colorClass:
-            "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/30",
-    },
-    INTERVIEW: {
-        label: "¡Oferta Aceptada!",
-        icon: <CheckCircle2 className="w-3 h-3" />,
-        colorClass:
-            "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/30",
-    },
+    PENDING: { label: "Marcar CV adaptado", icon: <Sparkles className="size-4" aria-hidden="true" /> },
+    CV_ADAPTED: { label: "Marcar CV enviado", icon: <Send className="size-4" aria-hidden="true" /> },
+    CV_SENT: { label: "Pasar a entrevista", icon: <CalendarClock className="size-4" aria-hidden="true" /> },
+    INTERVIEW: { label: "Marcar oferta aceptada", icon: <CircleCheck className="size-4" aria-hidden="true" /> },
 };
 
+/** Una postulación como fila: datos, avance por pasos y acciones. */
 export function ApplicationCard({
     application,
     onMoveNext,
@@ -94,176 +71,129 @@ export function ApplicationCard({
     const isAccepted = status === "ACCEPTED";
     const isTerminal = isRejected || isAccepted;
     const nextAction = NEXT_ACTIONS[status];
+    const titulo = application.roleTitle || application.vacancy.title;
 
     return (
-        <div
-            className={`border rounded-xl p-5 backdrop-blur-md transition-all duration-300
-                ${isRejected ? "opacity-60 grayscale bg-white/[0.02] border-white/5" : ""}
-                ${isAccepted ? "border-emerald-500/20 bg-emerald-950/10" : ""}
-                ${!isRejected && !isAccepted ? "bg-white/5 hover:bg-white/[0.08] border-white/10 hover:border-white/20" : ""}
-                ${pending ? "opacity-50 pointer-events-none" : ""}
-            `}
+        <li
+            aria-busy={pending || undefined}
+            className={`grid grid-cols-1 gap-5 border-b border-[var(--linea)] px-0.5 py-5 transition-opacity duration-150 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)_auto] md:items-center ${
+                pending ? "pointer-events-none opacity-50" : ""
+            }`}
         >
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
-
-                {/* Left — job info */}
-                <div className="md:w-56 shrink-0 space-y-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <SourceBadge source={application.vacancy.source} />
-                        {application.adaptation && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border bg-purple-500/10 text-purple-300 border-purple-500/30">
-                                <BrainCircuit className="w-3 h-3" />
-                                IA
-                            </span>
-                        )}
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-white leading-tight line-clamp-2">
-                            {application.roleTitle || application.vacancy.title}
-                        </h3>
-                        <p className="text-xs text-neutral-400 font-medium mt-0.5 flex items-center gap-1.5">
-                            <Building2 className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate">
-                                {application.company || application.vacancy.company}
-                            </span>
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {application.analysis && (
-                            <ScoreBadge score={application.analysis.matchScore} size="xs" />
-                        )}
-                        <span className="text-[10px] text-neutral-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {timeAgo(application.lastStatusAt)}
-                        </span>
-                    </div>
+            <div className="min-w-0 space-y-1.5">
+                <h4 className="m-0 text-base font-semibold leading-snug text-[var(--txt)]">{titulo}</h4>
+                <p className="flex items-center gap-1.5 text-sm text-[var(--mut)]">
+                    <Building2 className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{application.company || application.vacancy.company}</span>
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <SourceBadge source={application.vacancy.source} />
+                    {application.adaptation && <span className={CHIP}>Adaptado con IA</span>}
+                    {application.analysis && <ScoreBadge score={application.analysis.matchScore} size="xs" />}
+                </div>
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--mut)]">
+                    <time dateTime={application.lastStatusAt} className="font-mono">
+                        {timeAgo(application.lastStatusAt)}
+                    </time>
                     {application.cvVersion && (
-                        <p className="text-[10px] text-neutral-600 flex items-center gap-1 truncate">
-                            <FileText className="w-3 h-3 shrink-0" />
-                            {application.cvVersion.name}
-                        </p>
+                        <span className="inline-flex min-w-0 items-center gap-1">
+                            <FileText className="size-3.5 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{application.cvVersion.name}</span>
+                        </span>
                     )}
-                </div>
-
-                {/* Center — visual stepper */}
-                <div className="flex-1 w-full min-w-0 py-3">
-                    <div className="relative flex items-center justify-between px-3">
-                        {/* Background line */}
-                        <div className="absolute left-7 right-7 top-4 h-0.5 bg-white/10 z-0" />
-                        {/* Active progress line */}
-                        {!isRejected && stepIdx > 0 && (
-                            <div
-                                className="absolute left-7 top-4 h-0.5 bg-cyan-500/70 z-0 transition-all duration-700"
-                                style={{
-                                    width: `calc(${(stepIdx / (STEPPER.length - 1)) * 100}% - 3.5rem)`,
-                                }}
-                            />
-                        )}
-
-                        {STEPPER.map((stage, idx) => {
-                            const isCompleted = !isRejected && idx <= stepIdx;
-                            const isCurrent = !isRejected && idx === stepIdx;
-                            const isLastNode = idx === STEPPER.length - 1;
-
-                            let circleClass =
-                                "w-8 h-8 rounded-full border-2 flex items-center justify-center z-10 relative transition-all duration-300 bg-[#0a0f1c] shrink-0";
-                            let stageIcon: React.ReactNode = (
-                                <div className="w-2 h-2 rounded-full bg-slate-700" />
-                            );
-                            let labelClass =
-                                "absolute top-10 text-[9px] font-bold uppercase tracking-wide text-center left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none";
-
-                            if (isRejected && isLastNode) {
-                                circleClass += " border-red-500 text-red-400 bg-red-500/10";
-                                stageIcon = <XCircle className="w-3.5 h-3.5" />;
-                                labelClass += " text-red-400";
-                            } else if (isAccepted && isLastNode) {
-                                circleClass +=
-                                    " border-emerald-500 text-emerald-400 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.4)]";
-                                stageIcon = <CheckCircle2 className="w-3.5 h-3.5" />;
-                                labelClass += " text-emerald-400";
-                            } else if (isCompleted) {
-                                circleClass += " border-cyan-500 text-cyan-400";
-                                if (isCurrent) {
-                                    circleClass +=
-                                        " shadow-[0_0_12px_rgba(34,211,238,0.35)]";
-                                }
-                                stageIcon = <Check className="w-3.5 h-3.5" />;
-                                labelClass += " text-cyan-400";
-                            } else {
-                                circleClass += " border-white/15 text-slate-600";
-                                labelClass += " text-slate-600";
-                            }
-
-                            return (
-                                <div
-                                    key={stage.id}
-                                    className="relative flex flex-col items-center"
-                                    style={{ minWidth: "2rem" }}
-                                >
-                                    <div className={circleClass}>{stageIcon}</div>
-                                    <span className={labelClass}>
-                                        {isRejected && isLastNode
-                                            ? "Rechazado"
-                                            : stage.label}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Right — actions */}
-                <div className="md:w-40 shrink-0 flex flex-col gap-1.5">
-                    {!isTerminal && nextAction && (
-                        <button
-                            onClick={() => onMoveNext(application)}
-                            disabled={pending}
-                            className={`w-full py-2 rounded-lg text-xs font-bold border transition-colors flex justify-center items-center gap-1.5 ${nextAction.colorClass}`}
-                        >
-                            {nextAction.icon}
-                            {nextAction.label}
-                        </button>
-                    )}
-                    <div className="flex gap-1.5">
-                        <button
-                            onClick={() => onOpenDetail(application)}
-                            className="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
-                        >
-                            <Eye className="w-3 h-3" /> Detalle
-                        </button>
-                        {application.vacancy.sourceUrl && (
-                            <a
-                                href={application.vacancy.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 border border-white/10 transition-colors"
-                                title="Ver oferta original"
-                            >
-                                <ExternalLink className="w-3 h-3" />
-                            </a>
-                        )}
-                    </div>
-                    {!isRejected && (
-                        <button
-                            onClick={() => onReject(application)}
-                            disabled={pending}
-                            className="w-full py-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 border border-transparent hover:border-red-500/20 transition-colors"
-                        >
-                            <XCircle className="w-3 h-3" /> Marcar Rechazado
-                        </button>
-                    )}
-                    {isTerminal && (
-                        <button
-                            onClick={() => onDelete(application)}
-                            disabled={pending}
-                            className="w-full py-1.5 text-neutral-600 hover:text-red-300 hover:bg-red-500/5 rounded-lg text-[11px] flex items-center justify-center gap-1 border border-transparent hover:border-red-500/10 transition-colors"
-                        >
-                            <Trash2 className="w-3 h-3" /> Eliminar
-                        </button>
-                    )}
-                </div>
+                </p>
             </div>
-        </div>
+
+            <div className="min-w-0">
+                <p className="sr-only">Estado: {STATUS_LABELS[status]}</p>
+                <ol aria-hidden="true" className="grid grid-cols-4">
+                    {STEPPER.map((stage, idx) => {
+                        const isLastNode = idx === STEPPER.length - 1;
+                        const failed = isRejected && isLastNode;
+                        const done = !isRejected && idx <= stepIdx;
+                        const lineDone = !isRejected && idx < stepIdx;
+
+                        let circulo = "border-[var(--linea-2)] text-[var(--mut)]";
+                        let etiqueta = "text-[var(--mut)]";
+                        let icono: React.ReactNode = <span className="size-1.5 rounded-full bg-[var(--linea-2)]" />;
+                        if (failed) {
+                            circulo = "border-red-400 text-red-400";
+                            etiqueta = "text-red-400";
+                            icono = <CircleX className="size-3.5" />;
+                        } else if (isAccepted && isLastNode) {
+                            circulo = "border-emerald-400 text-emerald-400";
+                            etiqueta = "text-emerald-400";
+                            icono = <CircleCheck className="size-3.5" />;
+                        } else if (done) {
+                            circulo = "border-[var(--acento)] text-[var(--acento)]";
+                            etiqueta = "text-[var(--txt)]";
+                            icono = <Check className="size-3.5" />;
+                        }
+
+                        return (
+                            <li key={stage.id} className="relative flex flex-col items-center gap-1.5 text-center">
+                                {!isLastNode && (
+                                    <span
+                                        className={`absolute left-1/2 top-3.5 h-px w-full ${lineDone ? "bg-[var(--acento)]" : "bg-[var(--linea-2)]"}`}
+                                    />
+                                )}
+                                <span className={`relative z-[1] flex size-7 items-center justify-center rounded-full border-2 bg-[var(--fondo)] ${circulo}`}>
+                                    {icono}
+                                </span>
+                                <span className={`px-1 text-xs leading-tight ${etiqueta}`}>
+                                    {failed ? STATUS_LABELS[status] : stage.label}
+                                </span>
+                            </li>
+                        );
+                    })}
+                </ol>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 md:w-52 md:flex-col md:items-stretch">
+                {!isTerminal && nextAction && (
+                    <button
+                        type="button"
+                        onClick={() => onMoveNext(application)}
+                        disabled={pending}
+                        className={`${BOTON_SEC} flex-1 md:flex-none`}
+                    >
+                        {nextAction.icon}
+                        {nextAction.label}
+                    </button>
+                )}
+                <div className="flex flex-1 gap-2 md:flex-none">
+                    <button type="button" onClick={() => onOpenDetail(application)} className={`${BOTON_SEC} flex-1`}>
+                        <Eye className="size-4" aria-hidden="true" />
+                        Detalle
+                        <span className="sr-only">: {titulo}</span>
+                    </button>
+                    {application.vacancy.sourceUrl && (
+                        <a
+                            href={application.vacancy.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Ver la oferta original de ${titulo} (se abre en otra pestaña)`}
+                            className={BOTON_ICONO}
+                        >
+                            <ExternalLink className="size-4" aria-hidden="true" />
+                        </a>
+                    )}
+                </div>
+                {/* Una aceptada ya no puede pasar a rechazada (el servidor no lo permite): el botón solo va en curso. */}
+                {!isTerminal && (
+                    <button type="button" onClick={() => onReject(application)} disabled={pending} className={BOTON_PELIGRO}>
+                        <CircleX className="size-4" aria-hidden="true" />
+                        Marcar rechazada
+                    </button>
+                )}
+                {isTerminal && (
+                    <button type="button" onClick={() => onDelete(application)} disabled={pending} className={BOTON_PELIGRO}>
+                        <Trash2 className="size-4" aria-hidden="true" />
+                        Eliminar
+                        <span className="sr-only">: {titulo}</span>
+                    </button>
+                )}
+            </div>
+        </li>
     );
 }

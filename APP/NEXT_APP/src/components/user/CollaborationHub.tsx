@@ -1,14 +1,14 @@
-
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-// import { motion, AnimatePresence } from "framer-motion"; // Unused currently
+import { useState, useEffect, useCallback, useId } from "react";
+import Link from "next/link";
 import {
-    Users, Share2, ArrowRightLeft, Shield, RefreshCw, Copy,
-    Check, X, Link as LinkIcon, Activity, ExternalLink
+    Users, Share2, ArrowRightLeft, RefreshCw, Copy,
+    Check, X, ArrowRight, FileText, type LucideIcon
 } from "lucide-react";
 import { toast } from "sonner";
-// import { useRouter } from "next/navigation";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
+import { copiarTexto } from "@/lib/tools/copiar";
 
 // Types
 interface Connection {
@@ -46,7 +46,43 @@ interface SharedQuotationData {
     total: number;
 }
 
+/* Clases del tema (tokens de src/app/tokens.css): valen en claro y oscuro sin tema-panel.css. */
+const FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]";
+const SOBRE = "hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]";
+const TITULO = "text-[15px] font-semibold text-[var(--mut)]";
+const VACIO = "border-t border-[var(--linea)] px-1 py-5 text-[var(--mut)]";
+const LISTA = "border-t border-[var(--linea)]";
+const FILA = "flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--linea)] px-1 py-4";
+const ESPERA = "h-14 rounded-lg bg-[color-mix(in_srgb,var(--txt)_5%,transparent)] motion-safe:animate-pulse";
+const INICIAL = "grid size-10 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] font-mono text-sm font-semibold text-[var(--acento)]";
+const CHIP = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium";
+const CHIP_NEUTRO = `${CHIP} bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] text-[var(--mut)]`;
+const BASE_BOTON = `inline-flex min-h-11 md:min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${FOCO}`;
+const BOTON = `${BASE_BOTON} bg-[var(--acento)] font-semibold text-[var(--acento-tinta)] hover:bg-[color-mix(in_srgb,var(--acento)_86%,var(--txt))]`;
+const BOTON_SEC = `${BASE_BOTON} border border-[var(--linea-2)] text-[var(--txt)] ${SOBRE}`;
+const BOTON_ICONO = `inline-grid size-11 md:size-10 shrink-0 place-items-center rounded-lg text-[var(--mut)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)] hover:text-[var(--txt)] ${FOCO}`;
+const CAMPO = "w-full min-h-11 md:min-h-10 rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] px-3 py-2 text-sm text-[var(--txt)] placeholder:text-[var(--mut)] transition-colors duration-150 focus:border-[var(--acento)] focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--acento)]";
+const ENLACE = `inline-flex items-center gap-1.5 rounded-sm border-b border-[var(--linea-2)] pb-0.5 text-sm font-semibold text-[var(--txt)] transition-colors duration-150 hover:border-[var(--acento)] ${FOCO}`;
 
+// Mismos nombres y tonos que QuotationStatusBadge (Propuestas).
+const ESTADO_PROPUESTA: Partial<Record<string, { nombre: string; tono: string }>> = {
+    DRAFT: { nombre: "Borrador", tono: "bg-[color-mix(in_srgb,var(--txt)_7%,transparent)] text-[var(--mut)]" },
+    PENDING: { nombre: "Pendiente", tono: "bg-amber-500/10 text-amber-400" },
+    REVISION: { nombre: "En revisión", tono: "bg-blue-500/10 text-blue-400" },
+    APPROVED: { nombre: "Aprobada", tono: "bg-emerald-500/10 text-emerald-400" },
+    REJECTED: { nombre: "Rechazada", tono: "bg-red-500/10 text-red-400" },
+    COMPLETED: { nombre: "Completada", tono: "bg-emerald-500/10 text-emerald-400" },
+};
+
+const PERMISO: Partial<Record<string, { nombre: string; tono: string }>> = {
+    VIEW: { nombre: "Solo ver", tono: "bg-blue-500/10 text-blue-400" },
+    COMMENT: { nombre: "Comentar", tono: "bg-blue-500/10 text-blue-400" },
+    EDIT: { nombre: "Editar", tono: "bg-amber-500/10 text-amber-400" },
+    FULL: { nombre: "Acceso total", tono: "bg-emerald-500/10 text-emerald-400" },
+};
+
+
+const pesos = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 });
 
 export default function CollaborationHub({
     initialSharingCode,
@@ -84,78 +120,48 @@ export default function CollaborationHub({
     }, [fetchConnections]);
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Top Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatsCard
-                    label="Conexiones Activas"
-                    value={stats.active}
-                    icon={Users}
-                    color="text-emerald-400"
-                    bg="bg-emerald-500/10"
-                />
-                <StatsCard
-                    label="Solicitudes Pendientes"
-                    value={stats.pending}
-                    icon={ArrowRightLeft}
-                    color="text-amber-400"
-                    bg="bg-amber-500/10"
-                />
-                <StatsCard
-                    label="Recursos Compartidos"
-                    value="--"
-                    icon={Share2}
-                    color="text-indigo-400"
-                    bg="bg-indigo-500/10"
-                />
-            </div>
+        <div className="space-y-10">
+            <dl className="grid grid-cols-1 divide-y divide-[var(--linea)] border-y border-[var(--linea)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <StatsCard label="Conexiones activas" value={stats.active} icon={Users} color="text-emerald-400" />
+                <StatsCard label="Solicitudes pendientes" value={stats.pending} icon={ArrowRightLeft} color="text-amber-400" />
+                <StatsCard label="Recursos compartidos" value="—" icon={Share2} color="text-[var(--mut)]" />
+            </dl>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Content: Connection Grid */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Activity size={20} className="text-indigo-400" />
-                            Red de Colaboración
-                        </h2>
-                        {/* New Connection Input could go here or in sidebar */}
-                    </div>
+            <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,1fr)] lg:gap-14">
+                <div className="min-w-0 space-y-10">
+                    <section aria-labelledby="conexiones-red">
+                        <h2 id="conexiones-red" className={`${TITULO} mb-2`}>Red de colaboración</h2>
 
-                    {loading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {[1, 2, 3].map(i => <div key={i} className="h-32 bg-slate-900/50 rounded-xl animate-pulse" />)}
-                        </div>
-                    ) : connections.length === 0 ? (
-                        <div className="text-center py-12 bg-slate-900/30 border border-slate-800/50 rounded-2xl">
-                            <Users size={48} className="mx-auto text-slate-700 mb-4" />
-                            <p className="text-slate-400">No tienes conexiones activas aún.</p>
-                            <p className="text-sm text-slate-500">Comparte tu código para empezar.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {connections.map(conn => (
-                                <ConnectionCard
-                                    key={conn.id}
-                                    connection={conn}
-                                    currentUserId={currentUserId}
-                                    onUpdate={fetchConnections}
-                                />
-                            ))}
-                        </div>
-                    )}
+                        {loading ? (
+                            <div className={`${LISTA} space-y-2 pt-3`} aria-busy="true">
+                                <span className="sr-only">Cargando conexiones…</span>
+                                {[1, 2, 3].map(i => <div key={i} aria-hidden="true" className={ESPERA} />)}
+                            </div>
+                        ) : connections.length === 0 ? (
+                            <p className={VACIO}>
+                                No tienes conexiones aún. Comparte tu código para empezar.
+                            </p>
+                        ) : (
+                            <ul className={LISTA}>
+                                {connections.map(conn => (
+                                    <ConnectionCard
+                                        key={conn.id}
+                                        connection={conn}
+                                        currentUserId={currentUserId}
+                                        onUpdate={fetchConnections}
+                                    />
+                                ))}
+                            </ul>
+                        )}
+                    </section>
 
-                    {/* Shared Resources Browser */}
-                    <div className="pt-8 border-t border-slate-800">
-                        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                            <Share2 size={20} className="text-indigo-400" />
-                            Recursos Compartidos Contigo
-                        </h2>
+                    <section aria-labelledby="conexiones-recursos">
+                        <h2 id="conexiones-recursos" className={`${TITULO} mb-3`}>Recursos compartidos contigo</h2>
                         <SharedResourceBrowser currentUserId={currentUserId} />
-                    </div>
+                    </section>
                 </div>
 
-                {/* Sidebar: Your Code & Actions */}
-                <div className="space-y-6">
+                <div className="grid min-w-0 content-start gap-10">
                     <SecurityPanel
                         code={sharingCode}
                         setCode={setSharingCode}
@@ -196,127 +202,110 @@ function SharedResourceBrowser({ currentUserId: _currentUserId }: { currentUserI
         load();
     }, []);
 
+    const pestana = (activa: boolean) =>
+        `inline-flex min-h-11 md:min-h-10 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors duration-150 ${FOCO} ${activa
+            ? "bg-[color-mix(in_srgb,var(--acento)_13%,transparent)] text-[var(--txt)]"
+            : `text-[var(--mut)] hover:text-[var(--txt)] ${SOBRE}`}`;
+    const cuenta = "rounded-full bg-[color-mix(in_srgb,var(--txt)_8%,transparent)] px-1.5 text-xs tabular-nums";
+
     return (
-        <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-6">
-            <div className="flex gap-4 mb-6">
+        <div>
+            <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Qué mostrar">
                 <button
+                    type="button"
+                    aria-pressed={activeTab === "clients"}
                     onClick={() => setActiveTab("clients")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "clients" ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
-                        }`}
+                    className={pestana(activeTab === "clients")}
                 >
-                    Clientes Compartidos
+                    Clientes compartidos
                     {sharedClients.length > 0 && (
-                        <span className="ml-2 text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{sharedClients.length}</span>
+                        <span className={cuenta}>{sharedClients.length}</span>
                     )}
                 </button>
                 <button
+                    type="button"
+                    aria-pressed={activeTab === "quotations"}
                     onClick={() => setActiveTab("quotations")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "quotations" ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
-                        }`}
+                    className={pestana(activeTab === "quotations")}
                 >
                     Cotizaciones
                     {sharedQuotations.length > 0 && (
-                        <span className="ml-2 text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{sharedQuotations.length}</span>
+                        <span className={cuenta}>{sharedQuotations.length}</span>
                     )}
                 </button>
             </div>
 
             {loading ? (
-                <div className="grid gap-3">
-                    {[1, 2].map(i => <div key={i} className="h-16 bg-slate-900/50 rounded-xl animate-pulse" />)}
+                <div className={`${LISTA} space-y-2 pt-3`} aria-busy="true">
+                    <span className="sr-only">Cargando recursos compartidos…</span>
+                    {[1, 2].map(i => <div key={i} aria-hidden="true" className={ESPERA} />)}
                 </div>
             ) : activeTab === "clients" ? (
                 sharedClients.length === 0 ? (
-                    <div className="text-center py-8">
-                        <Users className="mx-auto text-slate-700 mb-4" size={32} />
-                        <p className="text-slate-400 mb-2">No tienes clientes compartidos aún.</p>
-                        <p className="text-sm text-slate-500">
-                            Cuando un contacto comparta clientes contigo, aparecerán aquí.
-                        </p>
-                        <a
-                            href="/admin/clientes"
-                            className="inline-flex items-center gap-2 mt-4 text-indigo-400 hover:text-indigo-300 transition-colors"
-                        >
-                            Ir a Clientes <ExternalLink size={14} />
-                        </a>
+                    <div className={VACIO}>
+                        <p className="text-[var(--txt)]">No tienes clientes compartidos aún.</p>
+                        <p className="mt-1 text-sm">Cuando un contacto comparta clientes contigo, aparecerán aquí.</p>
+                        <Link href="/admin/clientes" className={`${ENLACE} mt-4`}>
+                            Ir a clientes <ArrowRight size={14} aria-hidden="true" />
+                        </Link>
                     </div>
                 ) : (
-                    <div className="grid gap-3">
-                        {sharedClients.map((client) => (
-                            <div
-                                key={client.id}
-                                className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800/50 rounded-xl hover:border-slate-700 transition-all"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
-                                        <span className="text-sm font-bold text-white">{client.name.charAt(0)}</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-white">{client.name}</p>
-                                        <p className="text-xs text-slate-500">
+                    <ul className={LISTA}>
+                        {sharedClients.map((client) => {
+                            const permiso = PERMISO[client.permission];
+                            return (
+                                <li key={client.id} className={FILA}>
+                                    <span aria-hidden="true" className={INICIAL}>{client.name.charAt(0)}</span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium text-[var(--txt)]">{client.name}</p>
+                                        <p className="truncate text-sm text-[var(--mut)]">
                                             {client.company || "Independiente"} · {client.quotationCount} cotización{client.quotationCount !== 1 ? "es" : ""}
                                         </p>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] uppercase font-bold tracking-wide px-2 py-1 rounded-full ${
-                                        client.permission === "VIEW" ? "bg-blue-500/10 text-blue-400" :
-                                        client.permission === "EDIT" ? "bg-amber-500/10 text-amber-400" :
-                                        "bg-emerald-500/10 text-emerald-400"
-                                    }`}>
-                                        {client.permission === "VIEW" ? "Solo ver" : client.permission === "EDIT" ? "Editar" : client.permission}
-                                    </span>
-                                    <span className="text-[10px] text-slate-600">
-                                        por {client.sharedByName}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`${CHIP} ${permiso?.tono ?? "bg-emerald-500/10 text-emerald-400"}`}>
+                                            {permiso?.nombre ?? client.permission}
+                                        </span>
+                                        <span className="text-xs text-[var(--mut)]">
+                                            por {client.sharedByName}
+                                        </span>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 )
             ) : (
                 sharedQuotations.length === 0 ? (
-                    <div className="text-center py-8">
-                        <Share2 className="mx-auto text-slate-700 mb-4" size={32} />
-                        <p className="text-slate-400 mb-2">No tienes cotizaciones compartidas.</p>
-                        <p className="text-sm text-slate-500">
-                            Las cotizaciones de los clientes compartidos contigo aparecerán aquí.
-                        </p>
+                    <div className={VACIO}>
+                        <p className="text-[var(--txt)]">No tienes cotizaciones compartidas.</p>
+                        <p className="mt-1 text-sm">Las cotizaciones de los clientes compartidos contigo aparecerán aquí.</p>
                     </div>
                 ) : (
-                    <div className="grid gap-3">
-                        {sharedQuotations.map((q) => (
-                            <div
-                                key={q.id}
-                                className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800/50 rounded-xl hover:border-slate-700 transition-all"
-                            >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 rounded-xl bg-accent-1/10 flex items-center justify-center shrink-0">
-                                        <span className="text-sm">📄</span>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-medium text-white truncate">{q.projectName}</p>
-                                        <p className="text-xs text-slate-500">
+                    <ul className={LISTA}>
+                        {sharedQuotations.map((q) => {
+                            const estado = ESTADO_PROPUESTA[q.status];
+                            return (
+                                <li key={q.id} className={FILA}>
+                                    <FileText size={18} aria-hidden="true" className="shrink-0 text-[var(--mut)]" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium text-[var(--txt)]">{q.projectName}</p>
+                                        <p className="truncate text-sm text-[var(--mut)]">
                                             {q.clientName} · {q.folio}
                                         </p>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-3 shrink-0">
-                                    <span className={`text-[10px] uppercase font-bold tracking-wide px-2 py-1 rounded-full ${
-                                        q.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-400" :
-                                        q.status === "SENT" ? "bg-blue-500/10 text-blue-400" :
-                                        q.status === "DRAFT" ? "bg-neutral-500/10 text-neutral-400" :
-                                        "bg-amber-500/10 text-amber-400"
-                                    }`}>
-                                        {q.status}
-                                    </span>
-                                    <span className="text-sm font-bold text-emerald-400">
-                                        {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(q.total)}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                                    <div className="flex shrink-0 items-center gap-3">
+                                        <span className={`${CHIP} ${estado?.tono ?? "bg-amber-500/10 text-amber-400"}`}>
+                                            {estado?.nombre ?? q.status}
+                                        </span>
+                                        <span className="text-sm font-semibold tabular-nums text-[var(--txt)]">
+                                            {pesos.format(q.total)}
+                                        </span>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 )
             )}
         </div>
@@ -326,84 +315,79 @@ function SharedResourceBrowser({ currentUserId: _currentUserId }: { currentUserI
 interface StatsCardProps {
     label: string;
     value: number | string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    icon: any;
+    icon: LucideIcon;
     color: string;
-    bg: string;
 }
 
-function StatsCard({ label, value, icon: Icon, color, bg }: StatsCardProps) {
+function StatsCard({ label, value, icon: Icon, color }: StatsCardProps) {
     return (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex items-center gap-4">
-            <div className={`p-3 rounded-lg ${bg}`}>
-                <Icon size={24} className={color} />
-            </div>
-            <div>
-                <p className="text-2xl font-bold text-white">{value}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">{label}</p>
-            </div>
+        <div className="flex flex-col-reverse gap-0.5 px-1 py-4 sm:px-5 sm:first:pl-1">
+            <dt className="flex items-center gap-1.5 text-[13.5px] text-[var(--mut)]">
+                <Icon size={16} aria-hidden="true" className={color} />
+                {label}
+            </dt>
+            <dd className="text-3xl font-bold tracking-tight tabular-nums text-[var(--txt)]">{value}</dd>
         </div>
     );
 }
 
 function SecurityPanel({ code, setCode }: { code: string, setCode: (c: string) => void }) {
     const handleRotate = async () => {
-        if (!confirm("¿Estás seguro? El código anterior dejará de funcionar.")) return;
+        if (!(await confirmar({ titulo: "¿Generar un código nuevo?", detalle: "El código anterior dejará de funcionar.", accion: "Generar", peligro: true }))) return;
         try {
             const res = await fetch("/api/user/connection/rotate", { method: "POST" });
             const data = await res.json();
             if (data.success) {
                 setCode(data.newCode);
-                toast.success("Código rotado exitosamente");
+                toast.success("Código nuevo listo");
+            } else {
+                toast.error("No se pudo generar un código nuevo");
             }
         } catch {
-            toast.error("Error al rotar código");
+            toast.error("No se pudo generar un código nuevo");
         }
     };
 
     return (
-        <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-indigo-500/5">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Shield size={18} className="text-emerald-400" />
-                Tu Credencial
-            </h3>
+        <section aria-labelledby="conexiones-codigo">
+            <h2 id="conexiones-codigo" className={`${TITULO} mb-3`}>Tu código</h2>
 
-            <div className="bg-black/30 rounded-xl p-4 border border-white/5 mb-4">
-                <p className="text-xs text-slate-500 mb-1">CÓDIGO DE ACCESO SEGURO</p>
-                <div className="flex items-center justify-between gap-2">
-                    <code className="text-xl font-mono text-indigo-400 tracking-wider">
-                        {code || "••••••••"}
-                    </code>
-                    <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(code);
-                            toast.success("Copiado al portapapeles");
-                        }}
-                        className="text-slate-400 hover:text-white transition-colors"
-                        title="Copiar"
-                    >
-                        <Copy size={18} />
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Expira: Nunca</span>
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-1.5 pl-4 pr-1.5">
+                <code className="min-w-0 truncate font-mono text-lg font-semibold tracking-[0.06em] text-[var(--txt)]">
+                    {code || "••••••••"}
+                </code>
                 <button
-                    onClick={handleRotate}
-                    className="flex items-center gap-1 text-slate-400 hover:text-amber-400 transition-colors"
+                    type="button"
+                    onClick={async () => {
+                        if (await copiarTexto(code)) toast.success("Código copiado");
+                        else toast.error("No se pudo copiar");
+                    }}
+                    className={BOTON_ICONO}
+                    title="Copiar"
+                    aria-label="Copiar el código de acceso"
                 >
-                    <RefreshCw size={12} />
-                    Rotar Código
+                    <Copy size={18} aria-hidden="true" />
                 </button>
             </div>
-        </div>
+
+            <p className="mt-2 text-sm text-[var(--mut)]">No vence. Si generas uno nuevo, el anterior deja de servir.</p>
+
+            <button
+                type="button"
+                onClick={handleRotate}
+                className={`${BOTON_SEC} mt-3`}
+            >
+                <RefreshCw size={16} aria-hidden="true" />
+                Generar código nuevo
+            </button>
+        </section>
     );
 }
 
 function ConnectRequestPanel({ onSent }: { onSent: () => void }) {
     const [code, setCode] = useState("");
     const [loading, setLoading] = useState(false);
+    const campoId = useId();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -420,7 +404,7 @@ function ConnectRequestPanel({ onSent }: { onSent: () => void }) {
                 setCode("");
                 onSent();
             } else {
-                toast.error(data.error);
+                toast.error(typeof data.error === "string" && data.error ? data.error : "No se pudo enviar la solicitud");
             }
         } catch {
             toast.error("Error de conexión");
@@ -430,28 +414,38 @@ function ConnectRequestPanel({ onSent }: { onSent: () => void }) {
     };
 
     return (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <LinkIcon size={18} className="text-indigo-400" />
-                Conectar
-            </h3>
+        <section aria-labelledby="conexiones-conectar">
+            <h2 id="conexiones-conectar" className={`${TITULO} mb-3`}>Conectar</h2>
             <form onSubmit={handleSubmit} className="space-y-3">
-                <input
-                    type="text"
-                    placeholder="Pegar código de usuario..."
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all"
-                />
+                <div>
+                    <label htmlFor={campoId} className="mb-1.5 block text-sm font-medium text-[var(--txt)]">
+                        Código de la otra persona
+                    </label>
+                    <input
+                        id={campoId}
+                        type="text"
+                        placeholder="Pega su código"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        className={CAMPO}
+                    />
+                </div>
                 <button
                     type="submit"
                     disabled={loading || !code}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className={`${BOTON} w-full`}
                 >
-                    {loading ? <RefreshCw className="animate-spin" size={16} /> : "Enviar Solicitud"}
+                    {loading ? (
+                        <>
+                            <RefreshCw className="motion-safe:animate-spin" size={16} aria-hidden="true" />
+                            Enviando…
+                        </>
+                    ) : "Enviar solicitud"}
                 </button>
             </form>
-        </div>
+        </section>
     );
 }
 
@@ -462,64 +456,61 @@ function ConnectionCard({ connection, currentUserId, onUpdate }: { connection: C
 
     const handleAction = async (status: string) => {
         try {
-            await fetch(`/api/user/connection?id=${connection.id}`, {
+            const res = await fetch(`/api/user/connection?id=${connection.id}`, {
                 method: "PUT",
                 body: JSON.stringify({ status })
             });
+            // Antes avisaba «Conectado» aunque la API respondiera con error.
+            if (!res.ok) throw new Error();
             onUpdate();
             toast.success(status === "ACCEPTED" ? "Conectado" : "Actualizado");
         } catch {
-            toast.error("Error");
+            toast.error("No se pudo responder la solicitud");
         }
     };
 
     return (
-        <div className={`p-5 rounded-2xl border transition-all ${isPending && isIncoming
-            ? "bg-indigo-500/5 border-indigo-500/30"
-            : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
-            }`}>
-            <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-white">
-                        {otherUser.name?.[0] || otherUser.email?.[0] || "?"}
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white">{otherUser.name || "Usuario"}</h4>
-                        <p className="text-xs text-slate-400 truncate max-w-[150px]">{otherUser.email}</p>
+        <li className={`${FILA} ${isPending && isIncoming ? "bg-[color-mix(in_srgb,var(--acento)_6%,transparent)]" : ""}`}>
+            <span aria-hidden="true" className={INICIAL}>
+                {otherUser.name?.[0] || otherUser.email?.[0] || "?"}
+            </span>
+            <div className="min-w-0 flex-1">
+                <h3 className="truncate text-base font-semibold text-[var(--txt)]">{otherUser.name || "Usuario"}</h3>
+                <p className="truncate text-sm text-[var(--mut)]">{otherUser.email}</p>
 
-                        {isPending && (
-                            <span className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${isIncoming ? "bg-indigo-500/20 text-indigo-300" : "bg-slate-800 text-slate-400"
-                                }`}>
-                                {isIncoming ? "Solicita conectar" : "Enviada"}
-                            </span>
-                        )}
-                        {!isPending && (
-                            <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-medium">
-                                Conectado
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {isPending && isIncoming && (
-                    <div className="flex flex-col gap-2">
-                        <button
-                            onClick={() => handleAction("ACCEPTED")}
-                            className="p-2 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500 transition-colors"
-                            title="Aceptar"
-                        >
-                            <Check size={16} />
-                        </button>
-                        <button
-                            onClick={() => handleAction("REJECTED")}
-                            className="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
-                            title="Ignorar"
-                        >
-                            <X size={16} />
-                        </button>
-                    </div>
+                {isPending && (
+                    <span className={`mt-1.5 ${isIncoming ? `${CHIP} bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--acento)]` : CHIP_NEUTRO}`}>
+                        {isIncoming ? "Solicita conectar" : "Enviada"}
+                    </span>
+                )}
+                {!isPending && (
+                    <span className={`mt-1.5 ${CHIP} bg-emerald-500/10 text-emerald-400`}>
+                        <Check size={12} aria-hidden="true" />
+                        Conectado
+                    </span>
                 )}
             </div>
-        </div>
+
+            {isPending && isIncoming && (
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={() => handleAction("ACCEPTED")}
+                        className={BOTON}
+                    >
+                        <Check size={16} aria-hidden="true" />
+                        Aceptar
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleAction("REJECTED")}
+                        className={BOTON_SEC}
+                    >
+                        <X size={16} aria-hidden="true" />
+                        Ignorar
+                    </button>
+                </div>
+            )}
+        </li>
     );
 }

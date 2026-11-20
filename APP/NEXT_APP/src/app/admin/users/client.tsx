@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useId } from "react";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, X, ShieldCheck, Ban, CheckCircle, Key, AlertTriangle, Search, ChevronLeft, ChevronRight, Filter, Shield, Eye, EyeOff, UserCog, ArrowRightLeft } from "lucide-react";
+import { UserPlus, X, ShieldCheck, Ban, CheckCircle, Key, Search, ChevronLeft, ChevronRight, Shield, Eye, EyeOff, UserCog, ArrowRightLeft } from "lucide-react";
 import { UserPermissionsModal } from "@/modules/admin/components/UserPermissionsModal";
+import { confirmar } from "@/modules/admin/confirmar/confirmar";
 import { UserLifecycleModal } from "./user-lifecycle-modal";
 import { UserTransferModal } from "./user-transfer-modal";
-import { Select } from "@/components/ui/Select";
+import { Dialogo, cls } from "./dialogo";
 import { useRouter } from "next/navigation";
-import { UsersPageSkeleton } from "@/components/ui/Skeleton";
 
 type User = {
     id: string;
@@ -31,41 +30,86 @@ type StatusFilter = "ALL" | "ACTIVE" | "SUSPENDED" | "DELETED";
 
 const USERS_PER_PAGE = 10;
 
-const roleColors = {
-    SUPERADMIN: "from-purple-500 to-pink-500",
-    ADMIN: "from-blue-500 to-cyan-500",
-    MODERATOR: "from-green-500 to-emerald-500",
-    USER: "from-gray-500 to-gray-600",
-};
-
 const roleLabels = {
-    SUPERADMIN: "Super Admin",
+    SUPERADMIN: "Superadmin",
     ADMIN: "Administrador",
     MODERATOR: "Moderador",
     USER: "Usuario",
 };
 
-export default function UsersPageClient({ currentUserRole }: { currentUserRole: User["role"] }) {
+const ROLES: { value: User["role"]; label: string }[] = [
+    { value: "USER", label: "Usuario" },
+    { value: "MODERATOR", label: "Moderador" },
+    { value: "ADMIN", label: "Administrador" },
+    { value: "SUPERADMIN", label: "Superadmin" },
+];
+
+/** La misma jerarquía que aplica la API: fuera del superadmin, solo se asignan y gestionan rangos inferiores al propio. */
+const RANGO: Record<User["role"], number> = { USER: 0, MODERATOR: 1, ADMIN: 2, SUPERADMIN: 3 };
+const manda = (actor: User["role"], rol: User["role"]) => actor === "SUPERADMIN" || RANGO[rol] < RANGO[actor];
+
+export interface PermisosUsuarios {
+    crear: boolean;
+    rol: boolean;
+    clave: boolean;
+    suspender: boolean;
+    borrar: boolean;
+    permisos: boolean;
+}
+
+/** El mensaje que manda la API (ya en español), o el de respaldo si no trae uno. */
+async function errorDe(res: Response, respaldo: string): Promise<string> {
+    try {
+        const data = await res.json();
+        return typeof data?.error === "string" ? data.error : respaldo;
+    } catch {
+        return respaldo;
+    }
+}
+
+/** Mientras carga: la forma de la página, con los colores del tema. */
+function Esqueleto() {
+    const barra = "rounded-md bg-[var(--fondo-2)] animate-pulse motion-reduce:animate-none";
+    return (
+        <div className="space-y-6" aria-busy="true" aria-label="Cargando usuarios">
+            <div className="space-y-2">
+                <div className={`${barra} h-8 w-40`} />
+                <div className={`${barra} h-4 w-64`} />
+            </div>
+            <div className={`${barra} h-10 w-full`} />
+            <ul className="border-t border-[var(--linea)]">
+                {Array.from({ length: 5 }, (_, i) => (
+                    <li key={i} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-4">
+                        <div className={`${barra} size-10 rounded-full`} />
+                        <div className="flex-1 space-y-2">
+                            <div className={`${barra} h-4 w-48`} />
+                            <div className={`${barra} h-3 w-64 max-w-full`} />
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+export default function UsersPageClient({ currentUserRole, currentUserId, permisos }: { currentUserRole: User["role"]; currentUserId: string; permisos: PermisosUsuarios }) {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    // Lo que se hizo bien se dice también en la página (además del aviso), para lectores de pantalla.
+    const [hecho, setHecho] = useState("");
+    // Mientras se crea un usuario o se cambia una clave: un doble toque no manda dos veces.
+    const [enviando, setEnviando] = useState(false);
+    const rolesAsignables = ROLES.filter((r) => manda(currentUserRole, r.value));
     const [editingUser, setEditingUser] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const id = useId();
 
     // Search and Filter States
     const [searchQuery, setSearchQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState<RoleFilter>("ALL");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
     const [currentPage, setCurrentPage] = useState(1);
-
-    // Confirmation Modal State
-    const [confirmModal, setConfirmModal] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        action: () => Promise<void>;
-        type: "danger" | "warning" | "info";
-    }>({ isOpen: false, title: "", message: "", action: async () => { }, type: "info" });
 
     // Password Change Modal State
     const [passwordModal, setPasswordModal] = useState<{
@@ -163,696 +207,610 @@ export default function UsersPageClient({ currentUserRole }: { currentUserRole: 
         }
     };
 
-    const handleUpdateRole = (userId: string, role: string, userName: string) => {
-        setConfirmModal({
-            isOpen: true,
-            title: "Cambiar Rol",
-            message: `¿Estás seguro de cambiar el rol de ${userName} a ${roleLabels[role as keyof typeof roleLabels]}?`,
-            type: "warning",
-            action: async () => {
-                try {
-                    const res = await fetch("/api/admin/users", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ userId, role }),
-                    });
-                    if (!res.ok) throw new Error();
-                    await fetchUsers();
-                    setEditingUser(null);
-                } catch {
-                    setError("Error al actualizar rol");
-                }
-            }
-        });
+    const handleUpdateRole = async (userId: string, role: string, userName: string) => {
+        setError(""); setHecho("");
+        if (!(await confirmar({
+            titulo: `¿Cambiar el rol de ${userName}?`,
+            detalle: `Pasará a ser ${roleLabels[role as keyof typeof roleLabels]}.`,
+            accion: "Cambiar rol",
+        }))) return;
+        try {
+            const res = await fetch("/api/admin/users", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId, role }),
+            });
+            if (!res.ok) { setError(await errorDe(res, "Error al actualizar rol")); return; }
+            await fetchUsers();
+            setEditingUser(null);
+            toast.success(`${userName} ahora es ${roleLabels[role as keyof typeof roleLabels]}`);
+        } catch {
+            setError("Error al actualizar rol");
+        }
     };
 
-    const handleToggleStatus = (userId: string, currentStatus: boolean, userName: string) => {
-        const action = currentStatus ? "suspender" : "activar";
-        setConfirmModal({
-            isOpen: true,
-            title: `${currentStatus ? "Suspender" : "Activar"} Usuario`,
-            message: `¿Estás seguro de que deseas ${action} a ${userName}? ${currentStatus ? "El usuario no podrá acceder al sistema." : "El usuario recuperará el acceso."}`,
-            type: currentStatus ? "danger" : "info",
-            action: async () => {
-                try {
-                    const res = await fetch("/api/admin/users", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ userId, isActive: !currentStatus }),
-                    });
-                    if (!res.ok) throw new Error();
-                    await fetchUsers();
-                } catch {
-                    setError("Error al cambiar estado");
-                }
-            }
-        });
+    const handleToggleStatus = async (userId: string, currentStatus: boolean, userName: string) => {
+        setError(""); setHecho("");
+        if (!(await confirmar({
+            titulo: currentStatus ? `¿Suspender a ${userName}?` : `¿Activar a ${userName}?`,
+            detalle: currentStatus ? "No podrá entrar al sistema hasta que lo actives." : "Recuperará el acceso.",
+            accion: currentStatus ? "Suspender" : "Activar",
+            peligro: currentStatus,
+        }))) return;
+        try {
+            const res = await fetch("/api/admin/users", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId, isActive: !currentStatus }),
+            });
+            if (!res.ok) { setError(await errorDe(res, "Error al cambiar estado")); return; }
+            await fetchUsers();
+            toast.success(currentStatus ? `${userName} quedó suspendido` : `${userName} puede entrar de nuevo`);
+        } catch {
+            setError("Error al cambiar estado");
+        }
     };
 
-    const handleDeleteUser = (userId: string, userName: string) => {
-        setConfirmModal({
-            isOpen: true,
-            title: "Eliminar Usuario",
-            message: `¿Estás seguro de eliminar a ${userName}? Esta acción es irreversible y se perderán todos sus datos.`,
-            type: "danger",
-            action: async () => {
-                try {
-                    const res = await fetch(`/api/admin/users?id=${userId}`, { method: "DELETE" });
-                    if (!res.ok) throw new Error();
-                    await fetchUsers();
-                } catch {
-                    setError("Error al eliminar usuario");
-                }
-            }
-        });
+    const handleDeleteUser = async (userId: string, userName: string) => {
+        setError(""); setHecho("");
+        if (!(await confirmar({
+            titulo: `¿Eliminar a ${userName}?`,
+            detalle: "No se puede deshacer: se pierden todos sus datos.",
+            accion: "Eliminar",
+            peligro: true,
+        }))) return;
+        try {
+            const res = await fetch(`/api/admin/users?id=${encodeURIComponent(userId)}`, { method: "DELETE" });
+            if (!res.ok) { setError(await errorDe(res, "Error al eliminar usuario")); return; }
+            await fetchUsers();
+            toast.success(`${userName} fue eliminado`);
+        } catch {
+            setError("Error al eliminar usuario");
+        }
     };
 
-    const handleUnlockLoginBlock = (userId: string, userName: string) => {
-        setConfirmModal({
-            isOpen: true,
-            title: "Desbloquear acceso",
-            message: `¿Quitar el bloqueo por demasiados intentos de login a ${userName}? Esto limpiará el contador y el tiempo de espera.`,
-            type: "info",
-            action: async () => {
-                try {
-                    const res = await fetch("/api/admin/users", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ userId, unlockLoginBlock: true }),
-                    });
-                    if (!res.ok) throw new Error();
-                    await fetchUsers();
-                    toast.success("Bloqueo de login removido");
-                } catch {
-                    setError("Error al desbloquear usuario");
-                }
-            }
-        });
+    const handleUnlockLoginBlock = async (userId: string, userName: string) => {
+        setError(""); setHecho("");
+        if (!(await confirmar({
+            titulo: `¿Quitar el bloqueo de ${userName}?`,
+            detalle: "Se borran el contador de intentos fallidos y el tiempo de espera.",
+            accion: "Quitar bloqueo",
+        }))) return;
+        try {
+            const res = await fetch("/api/admin/users", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId, unlockLoginBlock: true }),
+            });
+            if (!res.ok) { setError(await errorDe(res, "Error al desbloquear usuario")); return; }
+            await fetchUsers();
+            toast.success("Bloqueo de login removido");
+            setHecho(`Se quitó el bloqueo de ${userName}.`);
+        } catch {
+            setError("Error al desbloquear usuario");
+        }
     };
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!passwordModal.userId || !newPassword) return;
+        if (!passwordModal.userId || !newPassword || enviando) return;
+        setError(""); setHecho("");
+        if (newPassword.length < 12) { setError("La clave debe tener al menos 12 caracteres"); return; }
 
+        setEnviando(true);
         try {
             const res = await fetch("/api/admin/users", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId: passwordModal.userId, password: newPassword }),
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) { setError(await errorDe(res, "Error al actualizar contraseña")); return; }
+            setHecho(`Clave temporal de ${passwordModal.userName} guardada: al entrar tendrá que cambiarla.`);
             setPasswordModal({ isOpen: false, userId: null, userName: "" });
             setNewPassword("");
-            toast.success("Contraseña actualizada correctamente");
+            toast.success("Clave temporal guardada");
         } catch {
             setError("Error al actualizar contraseña");
+        } finally {
+            setEnviando(false);
         }
     };
 
     const createUser = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (enviando) return;
+        setError(""); setHecho("");
+        setEnviando(true);
         try {
             const res = await fetch("/api/admin/users", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newUser),
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) { setError(await errorDe(res, "Error al crear usuario")); return; }
             setShowCreateModal(false);
+            setHecho(`${newUser.name || newUser.email} fue creado. Al entrar por primera vez tendrá que cambiar la clave y activar la verificación en dos pasos.`);
+            toast.success("Usuario creado");
             setNewUser({ name: "", email: "", password: "", role: "USER" });
             await fetchUsers();
         } catch {
             setError("Error al crear usuario");
+        } finally {
+            setEnviando(false);
         }
     };
 
     if (loading) {
-        return <UsersPageSkeleton />;
+        return <Esqueleto />;
     }
+
+    const hayFiltros = Boolean(searchQuery || roleFilter !== "ALL" || statusFilter !== "ALL");
+    /** El error de la página también se ve dentro de la ventana abierta (el fondo queda tapado). */
+    const errorEnVentana = error ? <p role="alert" className="text-sm text-red-400">{error}</p> : null;
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Usuarios</h1>
-                    <p className="text-sm text-neutral-400">Gestión de usuarios y roles</p>
+            {/* Encabezado */}
+            <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--txt)] sm:text-[28px]">Usuarios</h1>
+                    <p className="mt-1 text-[15px] text-[var(--mut)]">
+                        Cuentas, roles y permisos · <span className="tabular-nums">{users.length}</span> {users.length === 1 ? "usuario" : "usuarios"}
+                    </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10">
-                        <span className="text-sm text-neutral-400">{users.length} usuarios</span>
-                    </div>
+                {permisos.crear && (
                     <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-1 text-white hover:bg-accent-1/90 transition-colors"
+                        type="button"
+                        onClick={() => { setError(""); setHecho(""); setShowCreateModal(true); }}
+                        aria-label="Nuevo usuario"
+                        className={cls.principal}
                     >
-                        <UserPlus size={18} />
-                        <span className="hidden sm:inline">Nuevo Usuario</span>
+                        <UserPlus size={18} aria-hidden="true" />
+                        <span className="hidden sm:inline">Nuevo usuario</span>
                     </button>
-                </div>
-            </div>
-
-            {/* Search and Filters */}
-            <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-sm"
-            >
-                <div className="flex flex-col gap-4">
-                    {/* Search Bar */}
-                    <div className="relative">
-                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500" />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre o email..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-11 pr-10 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-neutral-500 focus:border-accent-1/50 focus:bg-white/[0.08] outline-none transition-all"
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery("")}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Filters Row */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        {/* Role Filter */}
-                        <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-                            <div className="p-2 rounded-lg bg-white/5">
-                                <Filter size={16} className="text-neutral-400" />
-                            </div>
-                            <Select
-                                value={roleFilter}
-                                onChange={(value) => setRoleFilter(value as RoleFilter)}
-                                options={[
-                                    { value: "ALL", label: "Todos los roles" },
-                                    { value: "SUPERADMIN", label: "Super Admin" },
-                                    { value: "ADMIN", label: "Administrador" },
-                                    { value: "MODERATOR", label: "Moderador" },
-                                    { value: "USER", label: "Usuario" },
-                                ]}
-                            />
-                        </div>
-
-                        {/* Status Filter */}
-                        <div className="flex-1 sm:flex-initial">
-                            <Select
-                                value={statusFilter}
-                                onChange={(value) => setStatusFilter(value as StatusFilter)}
-                                options={[
-                                    { value: "ALL", label: "Todos los estados" },
-                                    { value: "ACTIVE", label: "Activos" },
-                                    { value: "SUSPENDED", label: "Suspendidos" },
-                                    { value: "DELETED", label: "Eliminados" },
-                                ]}
-                            />
-                        </div>
-
-                        {/* Clear Filters Button */}
-                        <AnimatePresence>
-                            {(searchQuery || roleFilter !== "ALL" || statusFilter !== "ALL") && (
-                                <motion.button
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.9 }}
-                                    onClick={() => {
-                                        setSearchQuery("");
-                                        setRoleFilter("ALL");
-                                        setStatusFilter("ALL");
-                                    }}
-                                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium"
-                                >
-                                    <X size={16} />
-                                    <span>Limpiar</span>
-                                </motion.button>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* Results Summary */}
-            <div className="flex items-center justify-between text-sm px-1">
-                <span className="text-neutral-400">
-                    <span className="text-white font-medium">{paginatedUsers.length}</span> de <span className="text-white font-medium">{filteredUsers.length}</span> usuarios
-                    {filteredUsers.length !== users.length && (
-                        <span className="text-neutral-500"> (filtrado de {users.length} total)</span>
-                    )}
-                </span>
-                {filteredUsers.length === 0 && searchQuery && (
-                    <span className="text-amber-400/80 text-xs">Sin resultados para &quot;{searchQuery}&quot;</span>
                 )}
             </div>
 
-            {error && (
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                    {error}
-                </div>
-            )}
-
-            {/* Users List */}
-            <div className="grid gap-4">
-                {paginatedUsers.length === 0 ? (
-                    <div className="p-8 text-center rounded-2xl border border-white/10 bg-white/5">
-                        <Search size={48} className="mx-auto mb-4 text-neutral-600" />
-                        <p className="text-neutral-400 mb-2">No se encontraron usuarios</p>
-                        <p className="text-neutral-500 text-sm">Prueba ajustando los filtros de búsqueda</p>
+            {/* Búsqueda y filtros */}
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end">
+                <div>
+                    <label htmlFor={`${id}-q`} className="sr-only">Buscar usuarios</label>
+                    <div className="relative">
+                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mut)]" />
+                        <input
+                            id={`${id}-q`}
+                            type="search"
+                            placeholder="Buscar por nombre o correo"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={`${cls.campo} pl-9`}
+                        />
                     </div>
-                ) : (
-                    paginatedUsers.map((user, idx) => {
+                </div>
+                <div>
+                    <label htmlFor={`${id}-rol`} className="mb-1.5 block text-sm text-[var(--mut)]">Rol</label>
+                    <select id={`${id}-rol`} value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as RoleFilter)} className={cls.campo}>
+                        <option value="ALL">Todos los roles</option>
+                        <option value="SUPERADMIN">Superadmin</option>
+                        <option value="ADMIN">Administrador</option>
+                        <option value="MODERATOR">Moderador</option>
+                        <option value="USER">Usuario</option>
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor={`${id}-estado`} className="mb-1.5 block text-sm text-[var(--mut)]">Estado</label>
+                    <select id={`${id}-estado`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} className={cls.campo}>
+                        <option value="ALL">Todos los estados</option>
+                        <option value="ACTIVE">Activos</option>
+                        <option value="SUSPENDED">Suspendidos</option>
+                        <option value="DELETED">Eliminados</option>
+                    </select>
+                </div>
+                {hayFiltros && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSearchQuery("");
+                            setRoleFilter("ALL");
+                            setStatusFilter("ALL");
+                        }}
+                        className={cls.secundario}
+                    >
+                        <X size={16} aria-hidden="true" />
+                        Limpiar filtros
+                    </button>
+                )}
+            </div>
+
+            {/* Resumen de resultados */}
+            <p className="text-sm text-[var(--mut)]" aria-live="polite">
+                <span className="font-medium tabular-nums text-[var(--txt)]">{paginatedUsers.length}</span> de{" "}
+                <span className="font-medium tabular-nums text-[var(--txt)]">{filteredUsers.length}</span> usuarios
+                {filteredUsers.length !== users.length && <> (filtrado de <span className="tabular-nums">{users.length}</span>)</>}
+                {filteredUsers.length === 0 && searchQuery && <> · sin resultados para «{searchQuery}»</>}
+            </p>
+
+            {error && (
+                <p role="alert" className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {error}
+                </p>
+            )}
+            <p role="status" className={hecho ? "flex items-center gap-2 text-sm text-emerald-400" : "sr-only"}>
+                {hecho ? <><CheckCircle size={16} aria-hidden="true" /> {hecho}</> : null}
+            </p>
+
+            {/* Lista */}
+            {paginatedUsers.length === 0 ? (
+                <div className="border-y border-[var(--linea)] px-1 py-10 text-center">
+                    <p className="font-medium text-[var(--txt)]">No se encontraron usuarios</p>
+                    <p className="mt-1 text-sm text-[var(--mut)]">Prueba con otros filtros.</p>
+                </div>
+            ) : (
+                <ul className="border-t border-[var(--linea)]">
+                    {paginatedUsers.map((user) => {
                         const isSuperAdmin = user.role === "SUPERADMIN";
+                        // Ni la propia cuenta ni alguien del mismo rango o superior: la API lo rechazaría.
+                        const gestionable = user.id !== currentUserId && !isSuperAdmin && manda(currentUserRole, user.role);
+                        const puedeCambiarRol = permisos.rol && gestionable;
                         const isLoginLocked = Boolean(user.lockedUntil && new Date(user.lockedUntil) > new Date());
                         const hasLoginPenalty = isLoginLocked || user.failedLoginAttempts > 0;
                         const canUnlockLoginBlock = currentUserRole === "SUPERADMIN" && !isSuperAdmin && hasLoginPenalty;
+                        const nombre = user.name || user.email;
 
                         return (
-                            <motion.div
+                            <li
                                 key={user.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.03 }}
-                                className={`p-5 rounded-2xl border transition-all ${user.isActive
-                                    ? "border-white/10 bg-white/5 hover:bg-white/[0.08]"
-                                    : "border-red-500/20 bg-red-500/5"
-                                    }`}
+                                className={`border-b border-[var(--linea)] transition-colors duration-150 motion-reduce:transition-none ${user.isActive ? "hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)]" : "bg-red-500/5"}`}
                             >
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                    {/* Avatar */}
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-1/20 to-accent-2/20 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                                        {user.avatar ? (
-                                            <img src={user.avatar} alt={user.name || ""} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span className="text-lg font-bold text-accent-1">{(user.name || user.email)[0].toUpperCase()}</span>
-                                        )}
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0 w-full">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-white truncate">{user.name || "Sin nombre"}</h3>
-                                            {!user.isActive && (
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/20">
-                                                    SUSPENDIDO
-                                                </span>
-                                            )}
-                                            {isSuperAdmin && (
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/20 flex items-center gap-1">
-                                                    <ShieldCheck size={10} /> PROTEGIDO
-                                                </span>
-                                            )}
-                                            {isLoginLocked && (
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/20">
-                                                    BLOQUEADO
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-neutral-400 truncate">{user.email}</p>
-                                        {hasLoginPenalty && (
-                                            <p className="text-xs text-amber-300/80 mt-1">
-                                                {isLoginLocked
-                                                    ? `Bloqueado hasta ${new Date(user.lockedUntil!).toLocaleString("es-CL")}`
-                                                    : `Intentos fallidos acumulados: ${user.failedLoginAttempts}`}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Controls Container */}
-                                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                                        {/* Role Selector */}
-                                        <div className="relative">
-                                            {editingUser === user.id && !isSuperAdmin ? (
-                                                <Select
-                                                    value={user.role}
-                                                    onChange={(value) => {
-                                                        handleUpdateRole(user.id, value, user.name || user.email);
-                                                    }}
-                                                    options={[
-                                                        { value: "USER", label: "Usuario" },
-                                                        { value: "MODERATOR", label: "Moderador" },
-                                                        { value: "ADMIN", label: "Administrador" },
-                                                        { value: "SUPERADMIN", label: "Super Admin" },
-                                                    ]}
-                                                    className="min-w-[140px]"
-                                                />
+                                <div className="flex flex-col gap-3 px-1 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-2">
+                                    {/* Avatar e identidad */}
+                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                        <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--acento)_15%,transparent)] font-mono text-[13px] font-semibold text-[var(--acento)]">
+                                            {user.avatar ? (
+                                                <img src={user.avatar} alt="" className="size-full object-cover" />
                                             ) : (
-                                                <button
-                                                    onClick={() => !isSuperAdmin && setEditingUser(user.id)}
-                                                    disabled={isSuperAdmin}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r ${roleColors[user.role]} ${!isSuperAdmin && "hover:opacity-80"} transition-opacity whitespace-nowrap ${isSuperAdmin ? "cursor-not-allowed opacity-80" : ""}`}
-                                                >
-                                                    {roleLabels[user.role]}
-                                                </button>
+                                                <span aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</span>
                                             )}
                                         </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <h2 className="min-w-0 max-w-full truncate text-[15px] font-semibold text-[var(--txt)]">{user.name || "Sin nombre"}</h2>
+                                                {!user.isActive && (
+                                                    <span className={`${cls.insignia} bg-red-500/10 text-red-400`}>
+                                                        <Ban size={12} aria-hidden="true" /> Suspendido
+                                                    </span>
+                                                )}
+                                                {isSuperAdmin && (
+                                                    <span className={`${cls.insignia} bg-violet-500/10 text-violet-400`}>
+                                                        <ShieldCheck size={12} aria-hidden="true" /> Protegido
+                                                    </span>
+                                                )}
+                                                {isLoginLocked && (
+                                                    <span className={`${cls.insignia} bg-amber-500/10 text-amber-400`}>
+                                                        <Key size={12} aria-hidden="true" /> Bloqueado
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="truncate text-sm text-[var(--mut)]">{user.email}</p>
+                                            {hasLoginPenalty && (
+                                                <p className="mt-1 text-xs text-amber-400">
+                                                    {isLoginLocked
+                                                        ? `Bloqueado hasta ${new Date(user.lockedUntil!).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" })}`
+                                                        : `Intentos fallidos acumulados: ${user.failedLoginAttempts}`}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
 
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-1 ml-auto sm:ml-0">
-                                            {/* Spy Mode Button (Super Admin) */}
-                                            {isSuperAdmin && (
-                                                <button
-                                                    onClick={() => router.push(`/admin/cotizaciones?spyUserId=${user.id}`)}
-                                                    className="p-2 rounded-lg text-neutral-400 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
-                                                    title="Modo Espía: Ver cotizaciones como este usuario"
+                                    {/* Rol y acciones */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {editingUser === user.id && puedeCambiarRol ? (
+                                            <div>
+                                                <label htmlFor={`${id}-rol-${user.id}`} className="sr-only">Rol de {nombre}</label>
+                                                <select
+                                                    id={`${id}-rol-${user.id}`}
+                                                    value={user.role}
+                                                    onChange={(e) => handleUpdateRole(user.id, e.target.value, nombre)}
+                                                    // Salir sin elegir deja el rol como estaba (antes el selector quedaba abierto).
+                                                    onBlur={() => setEditingUser(null)}
+                                                    onKeyDown={(e) => { if (e.key === "Escape") setEditingUser(null); }}
+                                                    className={`${cls.campo} min-w-[150px]`}
+                                                    autoFocus
                                                 >
-                                                    <Eye size={18} />
+                                                    {rolesAsignables.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                                </select>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => puedeCambiarRol && setEditingUser(user.id)}
+                                                disabled={!puedeCambiarRol}
+                                                aria-label={puedeCambiarRol ? `Cambiar el rol (${roleLabels[user.role]})` : `Rol: ${roleLabels[user.role]}`}
+                                                className={`inline-flex min-h-10 items-center whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)] motion-reduce:transition-none ${isSuperAdmin
+                                                    ? "border-transparent bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--acento)]"
+                                                    : "border-[var(--linea-2)] text-[var(--txt)]"} ${puedeCambiarRol ? "hover:bg-[color-mix(in_srgb,var(--txt)_6%,transparent)]" : "cursor-default"}`}
+                                            >
+                                                {roleLabels[user.role]}
+                                            </button>
+                                        )}
+
+                                        <div className="flex flex-wrap items-center gap-0.5">
+                                            {/* Ver las propuestas de este usuario (modo espía: solo el superadmin, sobre otros) */}
+                                            {currentUserRole === "SUPERADMIN" && user.id !== currentUserId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => router.push(`/admin/cotizaciones?spyUserId=${user.id}`)}
+                                                    aria-label="Ver cotizaciones como este usuario"
+                                                    title="Ver cotizaciones como este usuario"
+                                                    className={cls.icono}
+                                                >
+                                                    <Eye size={18} aria-hidden="true" />
                                                 </button>
                                             )}
 
-                                            {!isSuperAdmin && (
+                                            {gestionable && (
                                                 <>
-                                                    <button
+                                                    {permisos.permisos && <button
+                                                        type="button"
+                                                        aria-label="Gestionar permisos"
                                                         onClick={() => setPermissionsModal({
                                                             isOpen: true,
                                                             userId: user.id,
                                                             userName: user.name,
                                                             userRole: user.role,
                                                         })}
-                                                        className="p-2 rounded-lg text-neutral-400 hover:text-accent-1 hover:bg-accent-1/10 transition-all"
+                                                        className={cls.icono}
                                                         title="Gestionar permisos"
                                                     >
-                                                        <Shield size={18} />
-                                                    </button>
+                                                        <Shield size={18} aria-hidden="true" />
+                                                    </button>}
 
                                                     <button
+                                                        type="button"
                                                         onClick={() => setLifecycleModal({ isOpen: true, user })}
-                                                        className="p-2 rounded-lg text-neutral-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all"
-                                                        title="Gestión del ciclo de vida (GDPR)"
+                                                        aria-label="Ciclo de vida de la cuenta"
+                                                        title="Ciclo de vida de la cuenta"
+                                                        className={cls.icono}
                                                     >
-                                                        <UserCog size={18} />
+                                                        <UserCog size={18} aria-hidden="true" />
                                                     </button>
 
-                                                    <button
-                                                        onClick={() => setPasswordModal({ isOpen: true, userId: user.id, userName: user.name || user.email })}
-                                                        className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-all"
+                                                    {permisos.clave && <button
+                                                        type="button"
+                                                        aria-label="Cambiar contraseña"
+                                                        onClick={() => { setError(""); setHecho(""); setPasswordModal({ isOpen: true, userId: user.id, userName: nombre }); }}
+                                                        className={cls.icono}
                                                         title="Cambiar contraseña"
                                                     >
-                                                        <Key size={18} />
-                                                    </button>
+                                                        <Key size={18} aria-hidden="true" />
+                                                    </button>}
 
                                                     {canUnlockLoginBlock && (
                                                         <button
-                                                            onClick={() => handleUnlockLoginBlock(user.id, user.name || user.email)}
-                                                            className="p-2 rounded-lg text-neutral-400 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
+                                                            type="button"
+                                                            onClick={() => handleUnlockLoginBlock(user.id, nombre)}
+                                                            aria-label="Quitar bloqueo por demasiados intentos"
                                                             title="Quitar bloqueo por demasiados intentos"
+                                                            className={cls.icono}
                                                         >
-                                                            <ShieldCheck size={18} />
+                                                            <ShieldCheck size={18} aria-hidden="true" />
                                                         </button>
                                                     )}
 
-                                                    {/* Status Toggle / Restore */}
-                                                    <button
-                                                        onClick={() => handleToggleStatus(user.id, user.isActive, user.name || user.email)}
-                                                        className={`p-2 rounded-lg transition-all ${user.isActive
-                                                            ? "text-neutral-400 hover:text-red-400 hover:bg-red-500/10"
-                                                            : "text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                                                            }`}
-                                                        title={user.isActive ? "Suspender usuario" : "Activar/Restaurar usuario"}
+                                                    {permisos.suspender && <button
+                                                        type="button"
+                                                        aria-label={user.isActive ? "Suspender usuario" : "Activar o restaurar usuario"}
+                                                        onClick={() => handleToggleStatus(user.id, user.isActive, nombre)}
+                                                        className={`${cls.icono} ${user.isActive ? "hover:text-red-400" : "text-emerald-400 hover:text-emerald-400"}`}
+                                                        title={user.isActive ? "Suspender usuario" : "Activar o restaurar usuario"}
                                                     >
-                                                        {user.isActive ? <Ban size={18} /> : <CheckCircle size={18} />}
-                                                    </button>
+                                                        {user.isActive ? <Ban size={18} aria-hidden="true" /> : <CheckCircle size={18} aria-hidden="true" />}
+                                                    </button>}
 
-                                                    {/* Data Transfer Button */}
-                                                    <button
+                                                    {/* Transferir datos: la API solo lo permite al superadmin */}
+                                                    {currentUserRole === "SUPERADMIN" && <button
+                                                        type="button"
+                                                        aria-label="Transferir datos a otro usuario"
                                                         onClick={() => setTransferModal({ isOpen: true, sourceUser: user })}
-                                                        className="p-2 rounded-lg text-neutral-400 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+                                                        className={cls.icono}
                                                         title="Transferir datos a otro usuario"
                                                     >
-                                                        <ArrowRightLeft size={18} />
-                                                    </button>
+                                                        <ArrowRightLeft size={18} aria-hidden="true" />
+                                                    </button>}
 
-                                                    <button
-                                                        onClick={() => handleDeleteUser(user.id, user.name || user.email)}
-                                                        className="p-2 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                                    {permisos.borrar && <button
+                                                        type="button"
+                                                        aria-label="Eliminar usuario"
+                                                        onClick={() => handleDeleteUser(user.id, nombre)}
+                                                        className={`${cls.icono} hover:text-red-400`}
                                                         title="Eliminar usuario"
                                                     >
-                                                        <X size={18} />
-                                                    </button>
+                                                        <X size={18} aria-hidden="true" />
+                                                    </button>}
                                                 </>
                                             )}
                                         </div>
                                     </div>
                                 </div>
-                            </motion.div>
-                        )
-                    })
-                )}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-4">
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                        {/* First page */}
-                        {currentPage > 3 && (
-                            <>
-                                <button
-                                    onClick={() => setCurrentPage(1)}
-                                    className="w-10 h-10 rounded-lg text-sm font-medium text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
-                                >
-                                    1
-                                </button>
-                                {currentPage > 4 && <span className="text-neutral-500 px-1">...</span>}
-                            </>
-                        )}
-
-                        {/* Page numbers around current */}
-                        {Array.from({ length: totalPages }, (_, i) => i + 1)
-                            .filter(page => Math.abs(page - currentPage) <= 2)
-                            .map(page => (
-                                <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${page === currentPage
-                                        ? "bg-accent-1 text-white"
-                                        : "text-neutral-400 hover:text-white hover:bg-white/10"
-                                        }`}
-                                >
-                                    {page}
-                                </button>
-                            ))
-                        }
-
-                        {/* Last page */}
-                        {currentPage < totalPages - 2 && (
-                            <>
-                                {currentPage < totalPages - 3 && <span className="text-neutral-500 px-1">...</span>}
-                                <button
-                                    onClick={() => setCurrentPage(totalPages)}
-                                    className="w-10 h-10 rounded-lg text-sm font-medium text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
-                                >
-                                    {totalPages}
-                                </button>
-                            </>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                        <ChevronRight size={20} />
-                    </button>
-                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
             )}
 
-            {/* Confirmation Modal */}
-            <AnimatePresence>
-                {confirmModal.isOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="w-full max-w-md bg-[#0F1724] border border-white/10 rounded-2xl p-6 shadow-xl"
-                        >
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className={`p-3 rounded-full ${confirmModal.type === "danger" ? "bg-red-500/20 text-red-400" :
-                                    confirmModal.type === "warning" ? "bg-yellow-500/20 text-yellow-400" :
-                                        "bg-blue-500/20 text-blue-400"
-                                    }`}>
-                                    <AlertTriangle size={24} />
-                                </div>
-                                <h2 className="text-xl font-bold text-white">{confirmModal.title}</h2>
-                            </div>
+            {/* Paginación */}
+            {totalPages > 1 && (
+                <nav aria-label="Páginas de usuarios" className="flex flex-wrap items-center justify-center gap-1 pt-2">
+                    <button
+                        type="button"
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        aria-label="Página anterior"
+                        className={cls.icono}
+                    >
+                        <ChevronLeft size={18} aria-hidden="true" />
+                    </button>
 
-                            <p className="text-neutral-300 mb-6">{confirmModal.message}</p>
+                    {currentPage > 3 && (
+                        <>
+                            <button type="button" onClick={() => setCurrentPage(1)} aria-label="Página 1" className={`${cls.icono} text-sm font-medium tabular-nums`}>
+                                1
+                            </button>
+                            {currentPage > 4 && <span className="px-1 text-[var(--mut)]" aria-hidden="true">…</span>}
+                        </>
+                    )}
 
-                            <div className="flex gap-3 justify-end">
-                                <button
-                                    onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                                    className="px-4 py-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        await confirmModal.action();
-                                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                                    }}
-                                    className={`px-4 py-2 rounded-xl text-white font-semibold transition-colors ${confirmModal.type === "danger" ? "bg-red-500 hover:bg-red-600" :
-                                        confirmModal.type === "warning" ? "bg-yellow-600 hover:bg-yellow-700" :
-                                            "bg-accent-1 hover:bg-accent-1/90"
-                                        }`}
-                                >
-                                    Confirmar
-                                </button>
-                            </div>
-                        </motion.div>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => Math.abs(page - currentPage) <= 2)
+                        .map(page => (
+                            <button
+                                key={page}
+                                type="button"
+                                onClick={() => setCurrentPage(page)}
+                                aria-label={`Página ${page}`}
+                                aria-current={page === currentPage ? "page" : undefined}
+                                className={page === currentPage
+                                    ? "grid size-10 place-items-center rounded-lg bg-[var(--acento)] text-sm font-semibold tabular-nums text-[var(--acento-tinta)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)] max-sm:size-11"
+                                    : `${cls.icono} text-sm font-medium tabular-nums`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+
+                    {currentPage < totalPages - 2 && (
+                        <>
+                            {currentPage < totalPages - 3 && <span className="px-1 text-[var(--mut)]" aria-hidden="true">…</span>}
+                            <button type="button" onClick={() => setCurrentPage(totalPages)} aria-label={`Página ${totalPages}`} className={`${cls.icono} text-sm font-medium tabular-nums`}>
+                                {totalPages}
+                            </button>
+                        </>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        aria-label="Página siguiente"
+                        className={cls.icono}
+                    >
+                        <ChevronRight size={18} aria-hidden="true" />
+                    </button>
+                </nav>
+            )}
+
+            {/* Cambiar contraseña */}
+            <Dialogo
+                abierto={passwordModal.isOpen}
+                alCerrar={() => setPasswordModal({ isOpen: false, userId: null, userName: "" })}
+                titulo="Cambiar contraseña"
+                subtitulo={passwordModal.userName ? `Nueva contraseña para ${passwordModal.userName}` : undefined}
+            >
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                    <div>
+                        <label htmlFor={`${id}-clave`} className={cls.etiqueta}>Nueva contraseña</label>
+                        <div className="relative">
+                            <input
+                                id={`${id}-clave`}
+                                type={showPasswordModal ? "text" : "password"}
+                                required
+                                minLength={12}
+                                aria-describedby={`${id}-clave-d`}
+                                autoComplete="new-password"
+                                value={newPassword}
+                                onChange={e => setNewPassword(e.target.value)}
+                                className={`${cls.campo} pr-12`}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPasswordModal(!showPasswordModal)}
+                                aria-label={showPasswordModal ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                className={`${cls.icono} absolute right-0 top-1/2 -translate-y-1/2`}
+                            >
+                                {showPasswordModal ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                            </button>
+                        </div>
                     </div>
-                )}
-            </AnimatePresence>
+                    <p id={`${id}-clave-d`} className="text-xs text-[var(--mut)]">
+                        Al menos 12 caracteres. Es temporal: al entrar, la persona tendrá que elegir una nueva, y se cierran sus sesiones abiertas.
+                    </p>
+                    {errorEnVentana}
+                    <button type="submit" disabled={enviando} aria-busy={enviando} className={`${cls.principal} w-full`}>
+                        {enviando ? "Guardando…" : "Guardar clave temporal"}
+                    </button>
+                </form>
+            </Dialogo>
 
-            {/* Password Change Modal */}
-            <AnimatePresence>
-                {passwordModal.isOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="w-full max-w-md bg-[#0F1724] border border-white/10 rounded-2xl p-6 shadow-xl"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold text-white">Cambiar Contraseña</h2>
-                                <button onClick={() => setPasswordModal({ isOpen: false, userId: null, userName: "" })} className="text-neutral-400 hover:text-white">
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <p className="text-sm text-neutral-400 mb-4">
-                                Ingresa la nueva contraseña para <strong>{passwordModal.userName}</strong>.
-                            </p>
-
-                            <form onSubmit={handleChangePassword} className="space-y-4">
-                                <div className="relative">
-                                    <input
-                                        type={showPasswordModal ? "text" : "password"}
-                                        required
-                                        placeholder="Nueva contraseña"
-                                        value={newPassword}
-                                        onChange={e => setNewPassword(e.target.value)}
-                                        className="w-full px-4 py-2 pr-12 rounded-xl bg-white/5 border border-white/10 text-white focus:border-accent-1 outline-none"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPasswordModal(!showPasswordModal)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
-                                    >
-                                        {showPasswordModal ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    className="w-full py-3 rounded-xl bg-accent-1 text-white font-semibold hover:bg-accent-1/90 transition-colors mt-4"
-                                >
-                                    Actualizar Contraseña
-                                </button>
-                            </form>
-                        </motion.div>
+            {/* Nuevo usuario */}
+            <Dialogo abierto={showCreateModal} alCerrar={() => setShowCreateModal(false)} titulo="Nuevo usuario">
+                <form onSubmit={createUser} className="space-y-4">
+                    <div>
+                        <label htmlFor={`${id}-nombre`} className={cls.etiqueta}>Nombre</label>
+                        <input
+                            id={`${id}-nombre`}
+                            type="text"
+                            required
+                            autoComplete="off"
+                            value={newUser.name}
+                            onChange={e => setNewUser({ ...newUser, name: e.target.value })}
+                            className={cls.campo}
+                        />
                     </div>
-                )}
-            </AnimatePresence>
-
-            {/* Create User Modal */}
-            <AnimatePresence>
-                {showCreateModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="w-full max-w-md bg-[#0F1724] border border-white/10 rounded-2xl p-4 sm:p-6 shadow-xl my-auto"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-lg sm:text-xl font-bold text-white">Nuevo Usuario</h2>
-                                <button onClick={() => setShowCreateModal(false)} className="text-neutral-400 hover:text-white p-1">
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <form onSubmit={createUser} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm text-neutral-400 mb-1">Nombre</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={newUser.name}
-                                        onChange={e => setNewUser({ ...newUser, name: e.target.value })}
-                                        className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:border-accent-1 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-neutral-400 mb-1">Email</label>
-                                    <input
-                                        type="email"
-                                        required
-                                        value={newUser.email}
-                                        onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                                        className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:border-accent-1 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-neutral-400 mb-1">Contraseña</label>
-                                    <div className="relative">
-                                        <input
-                                            type={showNewUserPassword ? "text" : "password"}
-                                            required
-                                            value={newUser.password}
-                                            onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-                                            className="w-full px-4 py-2 pr-12 rounded-xl bg-white/5 border border-white/10 text-white focus:border-accent-1 outline-none"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowNewUserPassword(!showNewUserPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
-                                        >
-                                            {showNewUserPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-neutral-400 mb-1">Rol</label>
-                                    <Select
-                                        value={newUser.role}
-                                        onChange={(value) => setNewUser({ ...newUser, role: value })}
-                                        options={[
-                                            { value: "USER", label: "Usuario" },
-                                            { value: "MODERATOR", label: "Moderador" },
-                                            { value: "ADMIN", label: "Administrador" },
-                                            { value: "SUPERADMIN", label: "Super Admin" },
-                                        ]}
-                                        className="w-full"
-                                    />
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    className="w-full py-3 rounded-xl bg-accent-1 text-white font-semibold hover:bg-accent-1/90 transition-colors mt-4"
-                                >
-                                    Crear Usuario
-                                </button>
-                            </form>
-                        </motion.div>
+                    <div>
+                        <label htmlFor={`${id}-correo`} className={cls.etiqueta}>Correo</label>
+                        <input
+                            id={`${id}-correo`}
+                            type="email"
+                            required
+                            autoComplete="off"
+                            value={newUser.email}
+                            onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+                            className={cls.campo}
+                        />
                     </div>
-                )}
-            </AnimatePresence>
+                    <div>
+                        <label htmlFor={`${id}-nueva`} className={cls.etiqueta}>Contraseña</label>
+                        <div className="relative">
+                            <input
+                                id={`${id}-nueva`}
+                                type={showNewUserPassword ? "text" : "password"}
+                                required
+                                minLength={12}
+                                autoComplete="new-password"
+                                aria-describedby={`${id}-nueva-d`}
+                                value={newUser.password}
+                                onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                className={`${cls.campo} pr-12`}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                                aria-label={showNewUserPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                className={`${cls.icono} absolute right-0 top-1/2 -translate-y-1/2`}
+                            >
+                                {showNewUserPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                            </button>
+                        </div>
+                        <p id={`${id}-nueva-d`} className="mt-1.5 text-xs text-[var(--mut)]">Al menos 12 caracteres. Es temporal: al entrar por primera vez tendrá que cambiarla.</p>
+                    </div>
+                    <div>
+                        <label htmlFor={`${id}-nuevo-rol`} className={cls.etiqueta}>Rol</label>
+                        <select
+                            id={`${id}-nuevo-rol`}
+                            value={newUser.role}
+                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                            className={cls.campo}
+                        >
+                            {rolesAsignables.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                        </select>
+                    </div>
+                    {errorEnVentana}
+                    <button type="submit" disabled={enviando} aria-busy={enviando} className={`${cls.principal} w-full`}>
+                        {enviando ? "Creando…" : "Crear usuario"}
+                    </button>
+                </form>
+            </Dialogo>
 
-            {/* Permissions Modal */}
+            {/* Permisos */}
             <UserPermissionsModal
                 isOpen={permissionsModal.isOpen}
                 onClose={() => setPermissionsModal({ isOpen: false, userId: "", userName: null, userRole: "" })}
@@ -861,7 +819,7 @@ export default function UsersPageClient({ currentUserRole }: { currentUserRole: 
                 userRole={permissionsModal.userRole}
             />
 
-            {/* Lifecycle Modal */}
+            {/* Ciclo de vida */}
             <UserLifecycleModal
                 isOpen={lifecycleModal.isOpen}
                 onClose={() => setLifecycleModal({ isOpen: false, user: null })}
@@ -869,7 +827,7 @@ export default function UsersPageClient({ currentUserRole }: { currentUserRole: 
                 onUserUpdated={fetchUsers}
             />
 
-            {/* Transfer Modal */}
+            {/* Transferencia */}
             <UserTransferModal
                 isOpen={transferModal.isOpen}
                 onClose={() => setTransferModal({ isOpen: false, sourceUser: null })}

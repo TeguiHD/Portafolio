@@ -13,7 +13,7 @@ export async function PATCH(
         const session = await auth();
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
         // Check permission
@@ -24,21 +24,33 @@ export async function PATCH(
         );
 
         if (!canResolve) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
         }
 
         const { id } = await params;
-        const body = await request.json();
-        const { resolved, resolution } = body;
+        const body = await request.json().catch(() => null);
+        const { resolved, resolution } = (body ?? {}) as { resolved?: unknown; resolution?: unknown };
+        if (resolved !== undefined && typeof resolved !== "boolean") {
+            return NextResponse.json({ error: "Estado no válido" }, { status: 400 });
+        }
+        if (resolution !== undefined && resolution !== null && typeof resolution !== "string") {
+            return NextResponse.json({ error: "Notas no válidas" }, { status: 400 });
+        }
+        // Sin «resolved» se marca resuelto (antes la fecha quedaba vacía en ese caso aunque el incidente quedara resuelto).
+        const resuelto = resolved ?? true;
 
-        // Update incident
+        const existe = await prisma.securityIncident.findUnique({ where: { id }, select: { id: true } });
+        if (!existe) {
+            return NextResponse.json({ error: "Incidente no encontrado" }, { status: 404 });
+        }
+
         const incident = await prisma.securityIncident.update({
             where: { id },
             data: {
-                resolved: resolved ?? true,
-                resolvedAt: resolved ? new Date() : null,
-                resolvedBy: session.user.id,
-                resolution,
+                resolved: resuelto,
+                resolvedAt: resuelto ? new Date() : null,
+                resolvedBy: resuelto ? session.user.id : null,
+                resolution: typeof resolution === "string" ? resolution.trim().slice(0, 2000) || null : null,
             },
         });
 
@@ -46,7 +58,7 @@ export async function PATCH(
     } catch (error) {
         console.error("Error updating security incident:", error);
         return NextResponse.json(
-            { error: "Error updating incident" },
+            { error: "No se pudo actualizar el incidente" },
             { status: 500 }
         );
     }
@@ -61,7 +73,7 @@ export async function DELETE(
         const session = await auth();
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
         // Check permission - only users with security.incidents.delete can delete
@@ -72,7 +84,7 @@ export async function DELETE(
         );
 
         if (!canDelete) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
         }
 
         const { id } = await params;
@@ -85,7 +97,7 @@ export async function DELETE(
     } catch (error) {
         console.error("Error deleting security incident:", error);
         return NextResponse.json(
-            { error: "Error deleting incident" },
+            { error: "No se pudo eliminar el incidente" },
             { status: 500 }
         );
     }

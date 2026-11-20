@@ -66,7 +66,7 @@ export function scoreColor(score: number): {
 } {
     if (score >= 70) {
         return {
-            text: "text-emerald-300",
+            text: "text-emerald-400",
             bg: "bg-emerald-500/10",
             border: "border-emerald-500/30",
             label: "Alto",
@@ -74,14 +74,14 @@ export function scoreColor(score: number): {
     }
     if (score >= 40) {
         return {
-            text: "text-amber-300",
+            text: "text-amber-400",
             bg: "bg-amber-500/10",
             border: "border-amber-500/30",
             label: "Medio",
         };
     }
     return {
-        text: "text-red-300",
+        text: "text-red-400",
         bg: "bg-red-500/10",
         border: "border-red-500/30",
         label: "Bajo",

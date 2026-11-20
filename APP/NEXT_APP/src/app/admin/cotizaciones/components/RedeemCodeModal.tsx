@@ -1,11 +1,11 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Key, ArrowRight, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Key, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import Ventana from "@/modules/quotations/components/Ventana";
+import { AYUDA, BOTON, CAMPO, ETIQUETA } from "@/modules/quotations/estilos";
 
 interface RedeemCodeModalProps {
     isOpen: boolean;
@@ -13,42 +13,21 @@ interface RedeemCodeModalProps {
 }
 
 export default function RedeemCodeModal({ isOpen, onClose }: RedeemCodeModalProps) {
-    const [mounted, setMounted] = useState(false);
+    if (!isOpen) return null;
+    // Se monta al abrir: el código y el error parten vacíos cada vez.
+    return <Formulario onClose={onClose} />;
+}
+
+function Formulario({ onClose }: { onClose: () => void }) {
     const [code, setCode] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
-
-    useEffect(() => {
-        setMounted(true);
-        return () => setMounted(false);
-    }, []);
-
-    useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-            // Auto-focus input on open
-            setTimeout(() => {
-                document.getElementById('redeem-code-input')?.focus();
-            }, 100);
-        } else {
-            document.body.style.overflow = 'unset';
-            setCode("");
-        }
-
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
-        };
-        window.addEventListener("keydown", handleEsc);
-
-        return () => {
-            document.body.style.overflow = 'unset';
-            window.removeEventListener("keydown", handleEsc);
-        };
-    }, [isOpen, onClose]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!code.trim()) return;
+        setError(null);
 
         try {
             setIsSubmitting(true);
@@ -66,93 +45,72 @@ export default function RedeemCodeModal({ isOpen, onClose }: RedeemCodeModalProp
                 throw new Error(errorMessage);
             }
 
-            toast.success("¡Cliente vinculado con éxito!", {
-                description: "Ahora tienes acceso al cliente compartido."
+            toast.success("Cliente vinculado", {
+                description: "Ya tienes acceso al cliente compartido."
             });
 
             onClose();
             router.refresh(); // Refresh to show new client
         } catch (error) {
             console.error("Redeem error:", error);
-            const msg = error instanceof Error ? error.message : "Error al vincular cliente";
-            toast.error(msg);
+            setError(error instanceof Error ? error.message : "No se pudo vincular el cliente");
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (!mounted || !isOpen) return null;
-
-    return createPortal(
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={onClose}
+    return (
+        <Ventana
+            titulo="Vincular un cliente compartido"
+            descripcion="Escribe el código que te compartieron para acceder al cliente."
+            icono={<Key size={18} />}
+            alCerrar={onClose}
+            ancho="max-w-md"
         >
-            <div
-                className="bg-[#111] border border-stone-800 rounded-2xl w-full max-w-md shadow-2xl p-6 relative"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-t-2xl" />
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label htmlFor="redeem-code-input" className={ETIQUETA}>
+                        Código de vinculación
+                    </label>
+                    <input
+                        id="redeem-code-input"
+                        type="text"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="Ej.: WEB-2024-X9Y2"
+                        className={`${CAMPO} text-center font-mono`}
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error ? "redeem-code-error" : undefined}
+                        data-autofocus
+                    />
+                    {error && <p id="redeem-code-error" role="alert" className="mt-2 text-sm text-red-400">{error}</p>}
+                </div>
 
                 <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-stone-500 hover:text-white transition-colors"
+                    type="submit"
+                    disabled={isSubmitting || !code.trim()}
+                    className={`${BOTON} w-full`}
                 >
-                    <X size={20} />
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="animate-spin motion-reduce:animate-none" size={16} aria-hidden="true" />
+                            Verificando…
+                        </>
+                    ) : (
+                        <>
+                            Vincular cliente
+                            <ArrowRight size={16} aria-hidden="true" />
+                        </>
+                    )}
                 </button>
 
-                <div className="mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4">
-                        <Key size={24} />
-                    </div>
-                    <h2 className="text-xl font-bold text-white">Vincular Cliente Compartido</h2>
-                    <p className="text-stone-400 mt-1 text-sm">
-                        Ingresa el código que te compartieron para acceder al cliente.
-                    </p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="redeem-code-input" className="block text-xs font-medium text-stone-400 mb-1.5 uppercase tracking-wider">
-                            Código de Vinculación
-                        </label>
-                        <input
-                            id="redeem-code-input"
-                            type="text"
-                            value={code}
-                            onChange={(e) => setCode(e.target.value)}
-                            placeholder="Ej: WEB-2024-X9Y2"
-                            className="w-full bg-stone-900/50 border border-stone-800 rounded-xl p-3 text-white placeholder-stone-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono text-center text-lg tracking-widest uppercase"
-                            autoComplete="off"
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={isSubmitting || !code.trim()}
-                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <Loader2 className="animate-spin" size={18} />
-                                Verificando...
-                            </>
-                        ) : (
-                            <>
-                                <span>Vincular Cliente</span>
-                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                            </>
-                        )}
-                    </button>
-                </form>
-
-                <div className="mt-6 pt-6 border-t border-stone-800/50 text-center">
-                    <p className="text-xs text-stone-500">
-                        ¿Tienes problemas? Contacta al administrador del proyecto.
-                    </p>
-                </div>
-            </div>
-        </div>,
-        document.body
+                <p className={`${AYUDA} text-center`}>
+                    ¿No funciona? Pide un código nuevo a quien te lo compartió.
+                </p>
+            </form>
+        </Ventana>
     );
 }
