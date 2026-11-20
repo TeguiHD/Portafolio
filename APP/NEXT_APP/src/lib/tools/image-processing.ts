@@ -14,7 +14,7 @@ interface DrawImageOptions {
 }
 
 export function sanitizeFileBaseName(fileName: string): string {
-    return fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim() || "imagen";
+    return fileName.normalize("NFC").replace(/\.[^.]+$/, "").replace(/[^\p{L}\p{N}_\-\s]/gu, "").trim().slice(0, 80) || "imagen";
 }
 
 export function triggerDownload(url: string, fileName: string) {
@@ -152,7 +152,7 @@ export function drawImageToCanvas(
  * Decodifica la imagen UNA sola vez como ImageBitmap (decodificación nativa,
  * fuera del hilo de layout) para reutilizarla en varios tamaños o formatos.
  * Prefiere el File original; si no está, reconstruye el Blob desde el data URL
- * sin pasar por fetch (la CSP no permite connect-src data:).
+ * sin pasar por fetch (la CSP no permite connect-src data:). Una URL blob: se abre como imagen.
  */
 export async function imageBitmapFromSource(
     file: File | Blob | null | undefined,
@@ -160,6 +160,7 @@ export async function imageBitmapFromSource(
 ): Promise<ImageBitmap> {
     if (file) return createImageBitmap(file);
     if (!dataUrl) throw new Error("No hay imagen que decodificar");
+    if (!dataUrl.startsWith("data:")) return createImageBitmap(await loadImageSource(dataUrl));
     const comma = dataUrl.indexOf(",");
     const meta = dataUrl.slice(0, comma);
     const payload = dataUrl.slice(comma + 1);

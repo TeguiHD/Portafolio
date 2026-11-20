@@ -24,13 +24,35 @@ export function calculateCapacity(width: number, height: number): number {
     return Math.floor(calculateCapacityBytes(width, height) / 2);
 }
 
-function readByte(data: Uint8ClampedArray, bitIndex: number): number {
+/**
+ * Recorre los canales R, G y B de los píxeles opacos y entrega su posición en `data` (-1 al final).
+ * Un píxel con transparencia pierde sus bits bajos al pasar por el lienzo, que guarda el color premultiplicado por el
+ * alfa: si el mensaje cae ahí, se borra al exportar. En una imagen sin transparencia el orden es el mismo de siempre.
+ */
+function recorrido(data: Uint8ClampedArray): () => number {
+    let pixel = 0;
+    let canal = 0;
+    return () => {
+        while (pixel * 4 < data.length) {
+            if (canal < 3 && data[pixel * 4 + 3] === 255) return pixel * 4 + canal++;
+            pixel += 1;
+            canal = 0;
+        }
+        return -1;
+    };
+}
+
+function contarOpacos(data: Uint8ClampedArray): number {
+    let opacos = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] === 255) opacos += 1;
+    return opacos;
+}
+
+function readByte(data: Uint8ClampedArray, siguiente: () => number): number {
     let byte = 0;
     for (let bit = 7; bit >= 0; bit--) {
-        const pixelIndex = Math.floor(bitIndex / 3);
-        const channelOffset = bitIndex % 3;
-        byte |= (data[pixelIndex * 4 + channelOffset] & 1) << bit;
-        bitIndex++;
+        const indice = siguiente();
+        byte |= (indice < 0 ? 0 : data[indice] & 1) << bit;
     }
     return byte;
 }
@@ -48,24 +70,24 @@ export function encodeMessage(image: RgbaBuffer, message: string): Uint8ClampedA
     payload.set(messageBytes, lengthOffset + 4);
 
     const totalBitsNeeded = payload.length * 8;
-    const totalBitsAvailable = image.width * image.height * 3;
-    if (totalBitsNeeded > totalBitsAvailable) {
+    const pixeles = image.width * image.height;
+    const opacos = contarOpacos(image.data);
+    if (totalBitsNeeded > opacos * 3) {
+        const necesarios = Math.ceil(totalBitsNeeded / 3).toLocaleString("es-CL");
         return {
-            error:
-                `La imagen es muy pequeña. Necesitas al menos ${Math.ceil(totalBitsNeeded / 3)} píxeles. ` +
-                `Esta imagen tiene ${image.width * image.height} píxeles.`,
+            error: opacos < pixeles
+                ? `El mensaje no cabe: las zonas transparentes no pueden guardar datos. Necesitas al menos ${necesarios} píxeles opacos y esta imagen tiene ${opacos.toLocaleString("es-CL")}.`
+                : `La imagen es muy pequeña. Necesitas al menos ${necesarios} píxeles. Esta imagen tiene ${pixeles.toLocaleString("es-CL")} píxeles.`,
         };
     }
 
     const data = new Uint8ClampedArray(image.data.length);
     data.set(image.data);
-    let bitIndex = 0;
+    const siguiente = recorrido(data);
     for (let byteIdx = 0; byteIdx < payload.length; byteIdx++) {
         for (let bit = 7; bit >= 0; bit--) {
-            const pixelIndex = Math.floor(bitIndex / 3);
-            const dataIndex = pixelIndex * 4 + (bitIndex % 3);
+            const dataIndex = siguiente();
             data[dataIndex] = (data[dataIndex] & 0xfe) | ((payload[byteIdx] >> bit) & 1);
-            bitIndex++;
         }
     }
     return data;
@@ -73,20 +95,18 @@ export function encodeMessage(image: RgbaBuffer, message: string): Uint8ClampedA
 
 export function decodeMessage(image: RgbaBuffer): { message: string; messageBytes: number } | { error: string } {
     const { data } = image;
-    const totalBitsAvailable = image.width * image.height * 3;
-    let bitIndex = 0;
+    const totalBitsAvailable = contarOpacos(data) * 3;
+    const siguiente = recorrido(data);
 
     for (let i = 0; i < MAGIC_HEADER.length; i++) {
-        if (readByte(data, bitIndex) !== MAGIC_HEADER[i]) {
+        if (readByte(data, siguiente) !== MAGIC_HEADER[i]) {
             return { error: "No se encontró ningún mensaje oculto en esta imagen." };
         }
-        bitIndex += 8;
     }
 
     let messageLength = 0;
     for (let i = 0; i < 4; i++) {
-        messageLength = (messageLength << 8) | readByte(data, bitIndex);
-        bitIndex += 8;
+        messageLength = (messageLength << 8) | readByte(data, siguiente);
     }
     messageLength >>>= 0;
 
@@ -100,8 +120,7 @@ export function decodeMessage(image: RgbaBuffer): { message: string; messageByte
 
     const messageBytes = new Uint8Array(messageLength);
     for (let i = 0; i < messageLength; i++) {
-        messageBytes[i] = readByte(data, bitIndex);
-        bitIndex += 8;
+        messageBytes[i] = readByte(data, siguiente);
     }
     return { message: new TextDecoder("utf-8", { fatal: false }).decode(messageBytes), messageBytes: messageLength };
 }

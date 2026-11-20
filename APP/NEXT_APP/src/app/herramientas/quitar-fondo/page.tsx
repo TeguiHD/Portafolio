@@ -5,7 +5,7 @@ import { Check, ChevronDown, CircleHelp, ImagePlus, LoaderCircle, RotateCcw, Shi
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
-import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { ImageDropzone, useSinAbrirArchivoSoltado } from "@/components/tools/ImageDropzone";
 import { BackgroundIllustration } from "@/components/tools/BackgroundIllustration";
 import { BackgroundProcessor } from "@/components/tools/BackgroundProcessor";
 import { composeSubject, createSubjectMask, MaskHistory, paintMaskStroke, readMaskAlpha, writeMaskAlpha, type MaskBackground, type MaskBrushMode, type MaskPoint } from "@/components/tools/MaskEngine";
@@ -44,6 +44,7 @@ function backgroundFill(id: string, custom: string): MaskBackground {
 
 export default function BackgroundRemoverPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("quitar-fondo");
+    useSinAbrirArchivoSoltado();
     const [source, setSource] = useState<{ file: File; url: string } | null>(null);
     const [status, setStatus] = useState<Status>("idle");
     const [progress, setProgress] = useState<Progress>(INITIAL_PROGRESS);
@@ -92,6 +93,7 @@ export default function BackgroundRemoverPage() {
             if (copiaTimer.current) clearTimeout(copiaTimer.current);
             for (const [url, timer] of downloadUrls) { clearTimeout(timer); URL.revokeObjectURL(url); }
             downloadUrls.clear();
+            if (sourceRef.current) URL.revokeObjectURL(sourceRef.current.url);
         };
     }, []);
 
@@ -135,6 +137,8 @@ export default function BackgroundRemoverPage() {
     const reset = useCallback(() => {
         requestRef.current += 1;
         processorRef.current?.cancel();
+        // La URL blob: de la imagen es de esta página: el recuadro de carga ya se desmontó.
+        if (sourceRef.current) URL.revokeObjectURL(sourceRef.current.url);
         sourceRef.current = null;
         originalRef.current = null;
         maskRef.current = null;
@@ -170,6 +174,7 @@ export default function BackgroundRemoverPage() {
     const processImage = useCallback(async (file: File, url: string) => {
         const request = ++requestRef.current;
         // Reuse a successfully initialized worker; replace a running job when the file changes.
+        if (sourceRef.current && sourceRef.current.url !== url) URL.revokeObjectURL(sourceRef.current.url);
         sourceRef.current = { file, url };
         setSource({ file, url });
         setStatus("processing");
@@ -391,8 +396,9 @@ export default function BackgroundRemoverPage() {
         if (!canvas) return;
         try {
             if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) throw new Error("sin portapapeles");
-            const blob = await canvasToBlob(canvas, "image/png");
-            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+            // La promesa va directo a ClipboardItem: Safari rechaza la escritura si antes se espera a que termine el PNG.
+            await navigator.clipboard.write([new ClipboardItem({ "image/png": canvasToBlob(canvas, "image/png") })]);
+            setError(null);
             setCopiado(true);
             if (copiaTimer.current) clearTimeout(copiaTimer.current);
             copiaTimer.current = setTimeout(() => setCopiado(false), 1600);

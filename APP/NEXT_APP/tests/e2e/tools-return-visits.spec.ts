@@ -64,10 +64,12 @@ test("datos locales dañados no rompen el catálogo", async ({ page }) => {
 test("los proyectos están en el HTML inicial con destinos reales y sin métricas sin fuente", async ({ page }) => {
     const response = await page.goto("/");
     const html = await response!.text();
-    expect(html).toContain('id="projects-title"');
-    const projects = page.locator("#casos");
-    await expect(projects.getByRole("heading", { name: "FloresDyD", exact: true })).toBeVisible();
+    expect(html).toContain('id="pr-titulo"');
+    for (const nombre of ["FloresDyD", "Intranet OTEC", "Herramientas"]) expect(html).toContain(`>${nombre}</button>`);
+    const projects = page.locator("#proyectos");
+    await expect(projects.getByRole("tab", { name: "FloresDyD", exact: true })).toBeVisible();
+    await expect(projects.locator("#pr-ir")).toHaveAttribute("href", "https://floresdyd.cl");
     await expect(projects).not.toContainText(/200%|92%|850\+|Auditado/);
     await expect(page.locator('a[href="/projects"]')).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Usar herramientas", exact: true })).toHaveAttribute("href", "/herramientas");
+    await expect(page.getByRole("link", { name: /Ver las 29/ })).toHaveAttribute("href", "/herramientas");
 });

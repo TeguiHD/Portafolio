@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { generateRegexWithAI, generateExamplesForRegex, generateCodeForRegex } from "@/services/gemini";
 import { prisma } from "@/lib/prisma";
 import { createHash, randomBytes } from "crypto";
@@ -18,9 +19,7 @@ function hash(input: string): string {
 
 // Extract client IP
 function getClientIP(request: NextRequest): string {
-    return request.headers.get("x-forwarded-for")?.split(",")[0].trim()
-        || request.headers.get("x-real-ip")
-        || "unknown";
+    return ipCliente(request.headers);
 }
 
 // Generate browser fingerprint from headers

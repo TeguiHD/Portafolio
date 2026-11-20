@@ -2,12 +2,13 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { descargarBlob, nombreArchivo } from "@/lib/tools/descargar";
 
 const ACCENT = "#F59E0B";
 
@@ -114,6 +115,8 @@ function parseExif(buffer: ArrayBuffer): { exif: ExifData; gps: GpsCoordinates |
 
     while (offset < maxOffset - 4) {
         const marker = view.getUint16(offset);
+        // Desde SOS empiezan los datos de la imagen: ya no hay más metadatos que leer.
+        if (marker === 0xFFDA) break;
 
         if (marker === 0xFFE1) {
             // APP1 marker - EXIF data
@@ -121,23 +124,29 @@ function parseExif(buffer: ArrayBuffer): { exif: ExifData; gps: GpsCoordinates |
             const segmentEnd = offset + 2 + segmentLength;
 
             // Check for "Exif\0\0" header
-            if (offset + 10 < view.byteLength) {
-                const exifHeader = String.fromCharCode(
-                    view.getUint8(offset + 4),
-                    view.getUint8(offset + 5),
-                    view.getUint8(offset + 6),
-                    view.getUint8(offset + 7)
-                );
+            const exifHeader = offset + 10 < view.byteLength ? String.fromCharCode(
+                view.getUint8(offset + 4),
+                view.getUint8(offset + 5),
+                view.getUint8(offset + 6),
+                view.getUint8(offset + 7)
+            ) : "";
 
-                if (exifHeader === "Exif") {
-                    const tiffOffset = offset + 10; // Start of TIFF header
-                    parseIFD(view, tiffOffset, tiffOffset, exif, gps, segmentEnd);
-
-                    // Parse GPS data
-                    gps = extractGPS(view, tiffOffset, segmentEnd);
+            if (exifHeader === "Exif") {
+                const tiffOffset = offset + 10; // Start of TIFF header
+                // El IFD0 no empieza en la cabecera TIFF: su posición va 4 bytes después del orden de bytes («II»/«MM»).
+                // Antes se leía la cabecera como si fuera el IFD y nunca aparecían cámara ni fecha.
+                if (tiffOffset + 8 <= segmentEnd && tiffOffset + 8 <= view.byteLength) {
+                    const little = view.getUint16(tiffOffset) === 0x4949;
+                    const ifd0 = tiffOffset + view.getUint32(tiffOffset + 4, little);
+                    parseIFD(view, tiffOffset, ifd0, exif, gps, segmentEnd, new Set());
                 }
+
+                // Parse GPS data
+                gps = extractGPS(view, tiffOffset, segmentEnd);
+                break;
             }
-            break;
+            // Otro APP1 (por ejemplo XMP) puede ir antes del EXIF: se salta y se sigue buscando.
+            offset = segmentEnd;
         } else if ((marker & 0xFF00) === 0xFF00) {
             // Skip other markers
             if (offset + 3 < view.byteLength) {
@@ -159,10 +168,14 @@ function parseIFD(
     ifdOffset: number,
     exif: ExifData,
     _gps: GpsCoordinates | null,
-    maxOffset: number
+    maxOffset: number,
+    visitados: Set<number>
 ): void {
     // SECURITY: Bounds check
     if (ifdOffset + 2 > view.byteLength || ifdOffset + 2 > maxOffset) return;
+    // SECURITY(CWE-835): un archivo armado puede apuntar un IFD a sí mismo; cada IFD se lee una sola vez.
+    if (visitados.has(ifdOffset)) return;
+    visitados.add(ifdOffset);
 
     // Determine byte order
     const byteOrder = view.getUint16(tiffBase);
@@ -189,14 +202,16 @@ function parseIFD(
             if (tag === 0x8769) {
                 const subIFDOffset = tiffBase + getUint32(valueOffset);
                 if (subIFDOffset < maxOffset) {
-                    parseIFD(view, tiffBase, subIFDOffset, exif, _gps, maxOffset);
+                    parseIFD(view, tiffBase, subIFDOffset, exif, _gps, maxOffset, visitados);
                 }
             }
             continue;
         }
 
         try {
-            const value = readTagValue(view, type, count, valueOffset, tiffBase, isLittleEndian, maxOffset);
+            const value = tag === 0x829A && type === 5
+                ? leerExposicion(view, tiffBase + getUint32(valueOffset), isLittleEndian, maxOffset)
+                : readTagValue(view, type, count, valueOffset, tiffBase, isLittleEndian, maxOffset);
             if (value !== null) {
                 exif[tagInfo.label] = value;
             }
@@ -204,6 +219,32 @@ function parseIFD(
             // SECURITY: Skip malformed tags silently
         }
     }
+}
+
+/** Exposición como la escribe una cámara: «1/250 s» (al redondear a dos decimales salía «0»). */
+function leerExposicion(view: DataView, dataOffset: number, isLittleEndian: boolean, maxOffset: number): string | null {
+    if (dataOffset + 8 > view.byteLength || dataOffset + 8 > maxOffset) return null;
+    const num = view.getUint32(dataOffset, isLittleEndian);
+    const den = view.getUint32(dataOffset + 4, isLittleEndian);
+    if (!num || !den) return null;
+    const segundos = num / den;
+    return segundos >= 1 ? `${Math.round(segundos * 10) / 10} s` : `1/${Math.round(den / num)} s`;
+}
+
+const ORIENTACIONES: Record<number, string> = {
+    1: "Normal",
+    2: "Espejada",
+    3: "Girada 180°",
+    4: "Espejada en vertical",
+    5: "Espejada y girada 90°",
+    6: "Girada 90° a la derecha",
+    7: "Espejada y girada 90°",
+    8: "Girada 90° a la izquierda",
+};
+
+function formatearValor(clave: string, valor: ExifData[string]): string {
+    if (clave === "Orientación" && typeof valor === "number") return ORIENTACIONES[valor] ?? String(valor);
+    return String(valor);
 }
 
 function readTagValue(
@@ -354,18 +395,37 @@ function extractGPS(view: DataView, tiffBase: number, maxOffset: number): GpsCoo
         return {
             latitude: lat * latSign,
             longitude: lon * lonSign,
-            altitude: typeof gpsData.GPSAltitude === "number" ? gpsData.GPSAltitude : undefined,
+            altitude: typeof gpsData.GPSAltitude === "number" ? gpsData.GPSAltitude * (gpsData.GPSAltitudeRef === 1 ? -1 : 1) : undefined,
         };
     }
 
     return null;
 }
 
+/** APP1 mínimo con una sola etiqueta EXIF, la orientación (TIFF «MM», IFD0 de una entrada SHORT). */
+function segmentoOrientacion(orientacion: number): Uint8Array<ArrayBuffer> {
+    const bytes = new Uint8Array(36);
+    const vista = new DataView(bytes.buffer);
+    vista.setUint16(0, 0xFFE1);
+    vista.setUint16(2, 34);
+    bytes.set([0x45, 0x78, 0x69, 0x66, 0, 0], 4); // «Exif\0\0»
+    bytes.set([0x4D, 0x4D, 0x00, 0x2A], 10);
+    vista.setUint32(14, 8);
+    vista.setUint16(18, 1);
+    vista.setUint16(20, 0x0112);
+    vista.setUint16(22, 3);
+    vista.setUint32(24, 1);
+    vista.setUint16(28, orientacion);
+    vista.setUint32(32, 0);
+    return bytes;
+}
+
 /**
  * Strip all EXIF data from a JPEG by rebuilding without APP1 segments.
  * SECURITY: Creates a clean copy, preserving only image data.
+ * La orientación se vuelve a escribir sola: sin ella, una foto vertical del celular se ve acostada.
  */
-function stripExif(buffer: ArrayBuffer): ArrayBuffer {
+function stripExif(buffer: ArrayBuffer, orientacion = 1): ArrayBuffer {
     const view = new DataView(buffer);
     if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) {
         return buffer; // Not a JPEG, return as-is
@@ -391,8 +451,8 @@ function stripExif(buffer: ArrayBuffer): ArrayBuffer {
         const segmentLength = view.getUint16(offset + 2);
         const segmentEnd = offset + 2 + segmentLength;
 
-        // Skip APP1 (EXIF) and APP13 (IPTC) segments — strip metadata
-        if (marker === 0xFFE1 || marker === 0xFFED) {
+        // Skip APP1 (EXIF, XMP), APP13 (IPTC) and COM (comments) segments — strip metadata
+        if (marker === 0xFFE1 || marker === 0xFFED || marker === 0xFFFE) {
             offset = segmentEnd;
             continue;
         }
@@ -400,6 +460,13 @@ function stripExif(buffer: ArrayBuffer): ArrayBuffer {
         // Keep all other segments
         chunks.push(buffer.slice(offset, segmentEnd));
         offset = segmentEnd;
+    }
+
+    if (orientacion >= 2 && orientacion <= 8) {
+        // Tras SOI, o tras el APP0 (JFIF) si lo hay, que debe ir primero.
+        const primero = new Uint8Array(chunks[1] ?? new ArrayBuffer(0));
+        const tras = primero[0] === 0xFF && primero[1] === 0xE0 ? 2 : 1;
+        chunks.splice(tras, 0, segmentoOrientacion(orientacion).buffer);
     }
 
     // Combine chunks
@@ -431,7 +498,8 @@ function stripPngMetadata(buffer: ArrayBuffer): ArrayBuffer {
     chunks.push(buffer.slice(0, 8)); // PNG signature
 
     let offset = 8;
-    const metadataChunks = new Set(["tEXt", "iTXt", "zTXt", "eXIf", "iCCP", "pHYs"]);
+    // iCCP se queda: es el perfil de color y sin él una captura en Display P3 se ve con otros colores.
+    const metadataChunks = new Set(["tEXt", "iTXt", "zTXt", "eXIf", "tIME", "pHYs"]);
 
     while (offset < view.byteLength - 4) {
         if (offset + 8 > view.byteLength) break;
@@ -466,6 +534,47 @@ function stripPngMetadata(buffer: ArrayBuffer): ArrayBuffer {
     }
 
     return result.buffer;
+}
+
+/**
+ * WebP: quita los bloques EXIF y XMP del contenedor RIFF sin tocar la imagen (antes se recomprimía con el lienzo).
+ */
+function stripWebpMetadata(buffer: ArrayBuffer): ArrayBuffer {
+    const bytes = new Uint8Array(buffer);
+    const view = new DataView(buffer);
+    const fourcc = (o: number) => String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+    if (bytes.length < 12 || fourcc(0) !== "RIFF" || fourcc(8) !== "WEBP") return buffer;
+    const fin = Math.min(bytes.length, 8 + view.getUint32(4, true));
+    const partes: Uint8Array[] = [];
+    let offset = 12;
+    while (offset + 8 <= fin) {
+        const tipo = fourcc(offset);
+        const tamano = view.getUint32(offset + 4, true);
+        const siguiente = offset + 8 + tamano + (tamano % 2);
+        if (siguiente > fin + 1) return buffer;
+        if (tipo !== "EXIF" && tipo !== "XMP ") {
+            const parte = bytes.slice(offset, Math.min(siguiente, fin));
+            // VP8X anuncia qué bloques trae: se apagan las banderas de EXIF (0x08) y XMP (0x04).
+            if (tipo === "VP8X" && parte.length > 8) parte[8] &= ~(0x08 | 0x04);
+            partes.push(parte);
+        }
+        offset = siguiente;
+    }
+    const total = 12 + partes.reduce((suma, parte) => suma + parte.length, 0);
+    const salida = new Uint8Array(total);
+    salida.set(bytes.subarray(0, 12));
+    new DataView(salida.buffer).setUint32(4, total - 8, true);
+    let pos = 12;
+    for (const parte of partes) { salida.set(parte, pos); pos += parte.length; }
+    return salida.buffer;
+}
+
+const EXTENSIONES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+function resumenLimpieza(tipo: string, conservaOrientacion: boolean): string {
+    if (tipo === "image/png") return "Se quitaron los textos, EXIF, XMP y la fecha de modificación del PNG. Los píxeles no cambian.";
+    if (tipo === "image/webp") return "Se quitaron los bloques EXIF y XMP del WebP. Los píxeles no cambian.";
+    return `Se quitaron EXIF (con el GPS), XMP, IPTC y comentarios, sin recomprimir.${conservaOrientacion ? " Solo se conserva la orientación, para que la foto no salga girada." : ""}`;
 }
 
 // Risk level assessment for metadata fields
@@ -509,29 +618,47 @@ export default function MetadataPage() {
     const [exifData, setExifData] = useState<ExifData | null>(null);
     const [gpsData, setGpsData] = useState<GpsCoordinates | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [cleanUrl, setCleanUrl] = useState<string | null>(null);
+    const [limpiando, setLimpiando] = useState(false);
+    const [limpia, setLimpia] = useState<{ blob: Blob; resumen: string } | null>(null);
+    // «nota» informa (formato sin detalle EXIF, foto sin metadatos); «error» es un fallo real.
+    const [nota, setNota] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [riskScore, setRiskScore] = useState<number>(0);
+    // null = no hay EXIF que evaluar; antes quedaba el puntaje de la foto anterior.
+    const [riskScore, setRiskScore] = useState<number | null>(null);
     const fileRef = useRef<ArrayBuffer | null>(null);
+    const versionRef = useRef(0);
+    // El recuadro libera la URL blob: de la vista previa al cambiarla o quitarla; al salir de la página, aquí.
+    const vistaRef = useRef<string | null>(null);
+    useEffect(() => () => {
+        versionRef.current += 1;
+        if (vistaRef.current) URL.revokeObjectURL(vistaRef.current);
+    }, []);
 
-    const handleImageLoad = useCallback(async (file: File, dataUrl: string) => {
-        setImagePreview(dataUrl);
+    const handleImageLoad = useCallback(async (file: File, url: string) => {
+        const version = ++versionRef.current;
+        vistaRef.current = url;
+        fileRef.current = null;
+        setImagePreview(url);
         setImageFile(file);
         setExifData(null);
         setGpsData(null);
-        setCleanUrl(null);
+        setRiskScore(null);
+        setLimpia(null);
+        setNota(null);
         setError(null);
         setIsAnalyzing(true);
 
         try {
             const buffer = await file.arrayBuffer();
+            if (version !== versionRef.current) return;
             fileRef.current = buffer;
 
-            if (file.type === "image/jpeg" || file.name.toLowerCase().endsWith(".jpg") || file.name.toLowerCase().endsWith(".jpeg")) {
+            // El recuadro ya puso en file.type el formato real, leído de los bytes.
+            if (file.type === "image/jpeg") {
                 const { exif, gps } = parseExif(buffer);
 
                 if (Object.keys(exif).length === 0 && !gps) {
-                    setError("No se encontraron metadatos EXIF en esta imagen. Puede que ya estén eliminados o el formato no los soporte.");
+                    setNota("Esta foto no trae metadatos EXIF. Puede que ya se hayan quitado.");
                 } else {
                     setExifData(exif);
                     setGpsData(gps);
@@ -548,91 +675,64 @@ export default function MetadataPage() {
                     setRiskScore(Math.min(100, risk));
                 }
             } else {
-                // For non-JPEG formats, show basic info
-                setExifData({
-                    "Formato": file.type,
-                    "Tamaño": `${(file.size / 1024).toFixed(1)} KB`,
-                    "Nombre": file.name.replace(/[^a-zA-Z0-9._\-\s]/g, ""),
-                });
-                setError("Los metadatos EXIF detallados solo están disponibles en formato JPEG. Para PNG se pueden limpiar metadatos de texto.");
+                setNota(file.type === "image/png"
+                    ? "El detalle de los metadatos solo se muestra en JPEG. Al limpiar este PNG se quitan sus textos, EXIF y XMP, sin tocar los píxeles."
+                    : "El detalle de los metadatos solo se muestra en JPEG. Al limpiar este WebP se quitan sus bloques EXIF y XMP, sin tocar los píxeles.");
             }
         } catch {
-            setError("Error al analizar los metadatos de la imagen.");
+            if (version === versionRef.current) setError("No se pudieron leer los metadatos de la imagen.");
         } finally {
-            setIsAnalyzing(false);
+            if (version === versionRef.current) setIsAnalyzing(false);
         }
     }, []);
 
-    const handleClean = useCallback(async () => {
-        if (!fileRef.current || !imageFile) return;
-        setIsAnalyzing(true);
-
+    const handleClean = useCallback(() => {
+        const buffer = fileRef.current;
+        if (!buffer || !imageFile || limpiando) return;
+        setLimpiando(true);
+        setError(null);
         try {
-            let cleanBuffer: ArrayBuffer;
-
-            if (imageFile.type === "image/jpeg" || imageFile.name.toLowerCase().match(/\.jpe?g$/)) {
-                cleanBuffer = stripExif(fileRef.current);
-            } else if (imageFile.type === "image/png" || imageFile.name.toLowerCase().endsWith(".png")) {
-                cleanBuffer = stripPngMetadata(fileRef.current);
+            let limpio: ArrayBuffer;
+            let conservaOrientacion = false;
+            if (imageFile.type === "image/png") {
+                limpio = stripPngMetadata(buffer);
+            } else if (imageFile.type === "image/webp") {
+                limpio = stripWebpMetadata(buffer);
+            } else if (imageFile.type === "image/jpeg") {
+                const orientacion = Number(parseExif(buffer).exif["Orientación"]) || 1;
+                conservaOrientacion = orientacion >= 2 && orientacion <= 8;
+                limpio = stripExif(buffer, orientacion);
             } else {
-                // For other formats, use canvas re-encoding (strips all metadata)
-                const img = new Image();
-                const dataUrl = await new Promise<string>((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.readAsDataURL(imageFile);
-                });
-
-                await new Promise<void>((resolve) => {
-                    img.onload = () => resolve();
-                    img.src = dataUrl;
-                });
-
-                const canvas = document.createElement("canvas");
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext("2d");
-                if (!ctx) throw new Error("No canvas context");
-                ctx.drawImage(img, 0, 0);
-
-                const blob = await new Promise<Blob | null>(resolve =>
-                    canvas.toBlob(resolve, imageFile.type || "image/png")
-                );
-                if (!blob) throw new Error("Failed to create blob");
-                cleanBuffer = await blob.arrayBuffer();
+                throw new Error("Formato sin limpieza");
             }
-
-            if (cleanUrl) URL.revokeObjectURL(cleanUrl);
-            const blob = new Blob([cleanBuffer], { type: imageFile.type || "image/jpeg" });
-            setCleanUrl(URL.createObjectURL(blob));
+            setLimpia({ blob: new Blob([limpio], { type: imageFile.type }), resumen: resumenLimpieza(imageFile.type, conservaOrientacion) });
         } catch {
-            setError("Error al limpiar la imagen.");
+            setError("No se pudo limpiar la imagen.");
         } finally {
-            setIsAnalyzing(false);
+            setLimpiando(false);
         }
-    }, [imageFile, cleanUrl]);
+    }, [imageFile, limpiando]);
 
     const handleDownloadClean = useCallback(() => {
-        if (!cleanUrl || !imageFile) return;
-        const baseName = imageFile.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_\-\s]/g, "");
-        const ext = imageFile.name.split(".").pop() || "jpg";
-        const link = document.createElement("a");
-        link.href = cleanUrl;
-        link.download = `${baseName}_limpia.${ext}`;
-        link.click();
-    }, [cleanUrl, imageFile]);
+        if (!limpia || !imageFile) return;
+        // Nombre con tildes y ñ, y la extensión del formato real (antes «ñandú.jpg» bajaba como «and_limpia.jpg»).
+        descargarBlob(limpia.blob, `${nombreArchivo(imageFile.name, "imagen")}_limpia.${EXTENSIONES[limpia.blob.type] ?? "jpg"}`);
+    }, [limpia, imageFile]);
 
     const handleClear = useCallback(() => {
+        versionRef.current += 1;
+        vistaRef.current = null;
+        fileRef.current = null;
         setImageFile(null);
         setImagePreview(null);
         setExifData(null);
         setGpsData(null);
-        setRiskScore(0);
+        setRiskScore(null);
+        setNota(null);
         setError(null);
-        if (cleanUrl) URL.revokeObjectURL(cleanUrl);
-        setCleanUrl(null);
-        fileRef.current = null;
-    }, [cleanUrl]);
+        setLimpia(null);
+        setIsAnalyzing(false);
+    }, []);
 
     if (isLoading) {
         return (
@@ -673,13 +773,19 @@ export default function MetadataPage() {
                 )}
 
                 {error && (
-                    <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
+                    <div role="alert" className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
                         ⚠️ {error}
                     </div>
                 )}
 
+                {nota && !isAnalyzing && (
+                    <p role="status" className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
+                        {nota}
+                    </p>
+                )}
+
                 {/* Risk Score */}
-                {exifData && Object.keys(exifData).length > 0 && (
+                {riskScore !== null && (
                     <div className="mb-6 bg-white/5 rounded-xl p-4 border border-white/10">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-semibold text-white">Exposición de privacidad</h3>
@@ -699,12 +805,6 @@ export default function MetadataPage() {
                                 <strong>Atención:</strong> esta imagen incluye coordenadas GPS precisas.
                             </p>
                         )}
-                    </div>
-                )}
-
-                {imageFile && !isAnalyzing && !error && !gpsData && (!exifData || Object.keys(exifData).length === 0) && (
-                    <div className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
-                        No se detectaron metadatos EXIF legibles en la imagen cargada.
                     </div>
                 )}
 
@@ -756,7 +856,7 @@ export default function MetadataPage() {
                                         {getRiskBadge(key)}
                                     </div>
                                     <span className="text-sm text-white font-mono truncate max-w-[50%] text-right">
-                                        {String(value)}
+                                        {formatearValor(key, value)}
                                     </span>
                                 </div>
                             ))}
@@ -767,27 +867,29 @@ export default function MetadataPage() {
                 {/* Clean Image Button */}
                 {imageFile && (
                     <div className="space-y-3">
-                        {!cleanUrl ? (
+                        {!limpia ? (
                             <button
+                                type="button"
                                 onClick={handleClean}
-                                disabled={isAnalyzing}
+                                disabled={isAnalyzing || limpiando}
                                 className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
                                 style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
                             >
-                                {isAnalyzing ? "Limpiando..." : "Limpiar imagen y eliminar metadatos"}
+                                {limpiando ? "Limpiando..." : "Limpiar imagen y eliminar metadatos"}
                             </button>
                         ) : (
                             <div className="bg-green-500/10 rounded-xl p-4 border border-green-500/30">
-                                <div className="flex items-center justify-between">
-                                    <div>
+                                <div className="flex items-center justify-between gap-3">
+                                    <div role="status">
                                         <p className="text-sm font-medium text-green-300">Imagen limpia lista</p>
                                         <p className="text-xs text-neutral-400 mt-1">
-                                            Se eliminaron los metadatos EXIF, GPS e IPTC disponibles
+                                            {limpia.resumen}
                                         </p>
                                     </div>
                                     <button
+                                        type="button"
                                         onClick={handleDownloadClean}
-                                        className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                                        className="min-h-11 shrink-0 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
                                         style={{ background: `${ACCENT}40` }}
                                     >
                                         Descargar

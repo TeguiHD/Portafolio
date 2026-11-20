@@ -1,0 +1,64 @@
+/* Tema claro para el interior de las herramientas (etapa 3b).
+   Los 29 interiores se escribieron con clases de Tailwind fijas para fondo oscuro (unas 1500: text-white, bg-white/5,
+   border-white/10, bg-[#0F1724]…). En vez de reescribirlas una a una, esta capa las traduce a los colores del tema
+   cuando el tema es claro, solo dentro de .tools-workspace. Va sin capa (@layer): gana a las utilidades de Tailwind.
+   Una clase que no esté aquí se ve como en oscuro: si aparece una, se agrega a su grupo. */
+
+:root[data-tema="claro"] .tools-workspace { color-scheme: light; --studio-accent: #0d9488; }
+
+/* ---- Texto ---- */
+:root[data-tema="claro"] .tools-workspace :is(.text-white, .hover\:text-white:hover, .group:hover .group-hover\:text-white) { color: var(--txt); }
+:root[data-tema="claro"] .tools-workspace :is(.text-neutral-200, .text-neutral-300, .text-slate-200, .text-slate-300, .text-gray-300) { color: color-mix(in srgb, var(--txt) 82%, var(--mut)); }
+:root[data-tema="claro"] .tools-workspace :is(.text-neutral-400, .text-neutral-500, .text-neutral-600, .text-slate-400, .text-slate-500, .text-slate-600, .text-gray-400, .text-gray-500) { color: var(--mut); }
+:root[data-tema="claro"] .tools-workspace :is(.placeholder-neutral-500, .placeholder-neutral-600, .placeholder\:text-neutral-500, .placeholder\:text-neutral-600, .placeholder\:text-slate-500)::placeholder { color: var(--mut); }
+/* El texto blanco sobre un botón de color se queda blanco (los primarios de acento usan texto oscuro y no cambian). */
+:root[data-tema="claro"] .tools-workspace :is([class*="bg-gradient-to"], [class*="bg-teal-5"], [class*="bg-teal-6"], [class*="bg-emerald-5"], [class*="bg-emerald-6"], [class*="bg-red-5"], [class*="bg-red-6"], [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-indigo-5"], [class*="bg-violet-5"], [class*="bg-orange-5"], [class*="bg-\[\#FF8A00\]"]).text-white { color: #fff; }
+
+/* ---- Fondos: los velos blancos pasan a ser velos de tinta, y las superficies oscuras, superficies del tema ---- */
+:root[data-tema="claro"] .tools-workspace :is(.bg-white\/5, .bg-white\/\[0\.02\], .bg-white\/\[0\.03\], .hover\:bg-white\/5:hover) { background-color: color-mix(in srgb, var(--txt) 4%, transparent); }
+:root[data-tema="claro"] .tools-workspace :is(.bg-white\/8, .bg-white\/10, .hover\:bg-white\/10:hover) { background-color: color-mix(in srgb, var(--txt) 7%, transparent); }
+:root[data-tema="claro"] .tools-workspace :is(.bg-white\/15, .bg-white\/20, .hover\:bg-white\/20:hover) { background-color: color-mix(in srgb, var(--txt) 11%, transparent); }
+:root[data-tema="claro"] .tools-workspace :is(.bg-black\/20, .bg-black\/30, .bg-black\/40) { background-color: var(--fondo-2); }
+:root[data-tema="claro"] .tools-workspace :is(.bg-\[\#0F1724\], .bg-\[\#0F1724\]\/80, .bg-\[\#111923\], .bg-\[\#0a0e17\], .bg-\[\#0b111a\], .bg-\[\#080e17\], .bg-\[\#08111f\], .bg-\[\#0b1017\], .bg-\[\#0d131d\]) { background-color: var(--sup); }
+:root[data-tema="claro"] .tools-workspace :is(.bg-slate-900, .bg-slate-900\/50, .bg-slate-800, .bg-neutral-900, .bg-neutral-800, .bg-gray-900) { background-color: var(--fondo-2); }
+
+/* ---- Bordes ---- */
+:root[data-tema="claro"] .tools-workspace :is(.border-white\/5, .border-white\/\[0\.06\], .border-white\/\[0\.07\], .border-white\/\[0\.08\]) { border-color: var(--linea); }
+:root[data-tema="claro"] .tools-workspace :is(.border-white\/10, .border-white\/15, .hover\:border-white\/10:hover) { border-color: var(--linea-2); }
+:root[data-tema="claro"] .tools-workspace :is(.border-white\/20, .border-white\/30, .border-white\/40, .hover\:border-white\/20:hover, .hover\:border-white\/30:hover) { border-color: color-mix(in srgb, var(--txt) 24%, transparent); }
+:root[data-tema="claro"] .tools-workspace :is(.divide-white\/5, .divide-white\/10) > * + * { border-color: var(--linea); }
+
+/* ---- Piezas comunes (tools.css) ---- */
+:root[data-tema="claro"] .tools-workspace .studio-icon-button { color: var(--mut); }
+:root[data-tema="claro"] .tools-workspace .studio-icon-button:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:root[data-tema="claro"] .tools-workspace .studio-panel { border-color: var(--linea-2); background: var(--sup); box-shadow: 0 1px 2px rgb(13 40 60 / .05), 0 24px 50px -36px rgb(13 40 60 / .35); }
+:root[data-tema="claro"] .tools-workspace .studio-panel-heading { border-color: var(--linea); }
+:root[data-tema="claro"] .tools-workspace .studio-eyebrow, :root[data-tema="claro"] .tools-workspace .studio-field small { color: var(--mut); }
+:root[data-tema="claro"] .tools-workspace .studio-field { color: var(--txt); }
+:root[data-tema="claro"] .tools-workspace :is(.studio-field input, .studio-field textarea, .studio-field select) { border-color: var(--linea-2); background: var(--fondo); color: var(--txt); }
+:root[data-tema="claro"] .tools-workspace .studio-button { border-color: var(--linea-2); color: var(--txt); background: var(--sup); }
+:root[data-tema="claro"] .tools-workspace .studio-button:hover { background: color-mix(in srgb, var(--txt) 5%, var(--sup)); border-color: color-mix(in srgb, var(--txt) 26%, transparent); }
+:root[data-tema="claro"] .tools-workspace .studio-button-primary { background: #0d9488; color: #fff; border-color: transparent; }
+:root[data-tema="claro"] .tools-workspace .studio-button-primary:hover { background: #0f766e; }
+:root[data-tema="claro"] .tools-workspace .studio-segment { color: var(--mut); }
+:root[data-tema="claro"] .tools-workspace .studio-segment:hover { color: var(--txt); }
+:root[data-tema="claro"] .tools-workspace .studio-segment[aria-pressed="true"] { background: var(--sup); color: var(--txt); box-shadow: inset 0 0 0 1px var(--linea-2); }
+:root[data-tema="claro"] .tools-workspace ::selection { color: #fff; background: #0d9488; }
+
+/* ---- Mesa de trabajo (familia de imágenes): el escenario y su tablero de transparencia ---- */
+:root[data-tema="claro"] .tools-workspace .mesa-escenario { background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, #0d9488 9%, transparent), transparent 65%), var(--fondo-2); }
+:root[data-tema="claro"] .tools-workspace .mesa-escenario[data-fondo="transparent"] .mesa-lienzo { background: repeating-conic-gradient(#e5e7eb 0 25%, #f8fafc 0 50%) 0 0 / 20px 20px; }
+:root[data-tema="claro"] .tools-workspace .mesa { --mesa-acento: #0d9488; --mesa-linea: var(--linea); --mesa-linea2: var(--linea-2); --mesa-panel: var(--sup); --mesa-mut: var(--mut); --mesa-txt: var(--txt); }
+
+/* ---- Entradas de formulario sueltas con fondo oscuro fijo ---- */
+:root[data-tema="claro"] .tools-workspace :is(input, textarea, select):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]) { color-scheme: light; }
+
+/* ---- Guía y relacionadas (ToolSeoContent) ---- */
+:root[data-tema="claro"] .tools-workspace .tool-guide { color: var(--txt); }
+
+/* ---- DNS trae su propio fondo radial oscuro de página completa ---- */
+:root[data-tema="claro"] .tools-workspace [class*="bg-[radial-gradient(circle_at_top,#17345c"] { background: transparent; }
+
+/* ---- Zona para soltar imágenes (ImageDropzone): fondo y borde vienen como estilo en línea, por eso el !important ---- */
+:root[data-tema="claro"] .tools-workspace .image-dropzone-empty:not(.is-dragging) { background-color: var(--fondo-2) !important; border-color: color-mix(in srgb, var(--txt) 22%, transparent) !important; }
+:root[data-tema="claro"] .tools-workspace .image-dropzone-empty::before, :root[data-tema="claro"] .tools-workspace .image-dropzone-empty::after { border-color: var(--linea-2); }

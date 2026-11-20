@@ -3,31 +3,21 @@ import { DEFAULT_TOOL_REGISTRY } from "../../src/lib/tool-registry";
 
 test.setTimeout(120_000);
 
-test("el panel móvil contiene el foco y restaura la página al cerrarse", async ({ page }) => {
+test("la búsqueda de herramientas es un diálogo modal que devuelve el foco al cerrarse", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 850 });
     await page.goto("/herramientas/qr");
-    const toggle = page.getByRole("button", { name: "Abrir navegación de herramientas" });
-    await toggle.click();
-    const dialog = page.getByRole("dialog", { name: "Navegación de herramientas" });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("textbox")).toBeFocused();
-    expect(await page.evaluate(() => [document.documentElement, document.body].every(element => getComputedStyle(element).overflowY === "hidden"))).toBe(true);
-    await expect(page.locator("#tools-content")).toHaveAttribute("inert", "");
-    const close = dialog.getByRole("button", { name: "Cerrar navegación de herramientas" });
-    await close.focus();
-    await page.keyboard.press("Shift+Tab");
-    await expect(dialog.getByRole("link").last()).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(close).toBeFocused();
+    const abrir = page.getByRole("button", { name: "Abrir navegación de herramientas" });
+    await abrir.click();
+    const dialogo = page.getByRole("dialog", { name: "Navegación de herramientas" });
+    await expect(dialogo).toBeVisible();
+    await expect(dialogo.getByRole("searchbox", { name: "Buscar en la navegación" })).toBeFocused();
+    // Modal de verdad (showModal): lo de atrás queda inerte sin trucos a mano.
+    expect(await page.evaluate(() => document.querySelector("dialog.hc-dialogo")!.matches(":modal"))).toBe(true);
+    await expect(dialogo.getByRole("link", { name: "Generador de QR" })).toHaveAttribute("aria-current", "page");
     await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    await expect(toggle).toBeFocused();
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).not.toBe("hidden");
-    await toggle.click();
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(page.locator("#tools-sidebar")).toBeVisible();
-    await expect(page.locator("#tools-content")).not.toHaveAttribute("inert");
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).not.toBe("hidden");
+    await expect(dialogo).toBeHidden();
+    await expect(abrir).toBeFocused();
+    expect(await page.locator("dialog.hc-dialogo").evaluate((d: HTMLDialogElement) => d.open)).toBe(false);
 });
 
 test("la vista AR incrustada se puede desmontar y volver a abrir", async ({ page }) => {

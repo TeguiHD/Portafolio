@@ -2,12 +2,14 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { StudioCard, StudioChip, StudioMetric } from "@/components/tools/ImageStudio";
 import { DNS_RECORD_TYPES, DNS_RESOLVER_NODES, type DnsRecordType } from "@/lib/tools/dns-resolvers";
+import { ipConInversaPublica, limpiarEntradaDns, nombreReservado } from "@/lib/tools/dns-consulta";
+import type { NivelObservacion, Observacion, ResultadoDmarc, ResultadoSpf } from "@/lib/tools/dns-correo";
 
 const ACCENT = "#3B82F6";
 
@@ -19,20 +21,20 @@ interface DnsNodeRecord {
 interface DnsNodeResult {
     id: string;
     name: string;
-    location: string;
-    region: string;
     ip: string;
     description: string;
-    x: number;
-    y: number;
     status: "pending" | "success" | "error";
     records: DnsNodeRecord[];
     durationMs?: number;
     error?: string;
+    /** El resolvedor contestó NXDOMAIN: ese nombre no existe. */
+    noExiste?: boolean;
 }
 
 interface DnsResponse {
     domain: string;
+    /** IP original cuando la consulta fue inversa (domain es entonces el nombre .arpa). */
+    reverseOf: string | null;
     type: DnsRecordType;
     generatedAt: string;
     totalDurationMs: number;
@@ -45,18 +47,146 @@ interface DnsResponse {
     nodes: DnsNodeResult[];
 }
 
-function isValidDomain(domain: string): boolean {
-    const cleaned = domain.replace(/^https?:\/\//, "").split("/")[0].split(":")[0].trim().toLowerCase();
-    const blocklist = ["localhost", "127.0.0.1", "0.0.0.0", "::1", ".local", ".internal"];
-
-    if (blocklist.some(token => cleaned.includes(token))) return false;
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(cleaned)) return false;
-
-    return /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(cleaned);
+interface CorreoResponse {
+    domain: string;
+    resolvers: string;
+    spf: ResultadoSpf;
+    dmarc: ResultadoDmarc;
 }
 
-function cleanDomain(input: string) {
-    return input.replace(/^https?:\/\//, "").split("/")[0].split(":")[0].trim().toLowerCase();
+const ERROR_DOMINIO = "Dominio inválido. Usa un FQDN público como ejemplo.com, o una IP para la consulta inversa.";
+
+function nombreValido(nombre: string): boolean {
+    if (!nombre || nombre.length > 253 || nombreReservado(nombre)) return false;
+    // Igual que en el servidor: etiquetas con «_» (_dmarc, _sip._tcp) y TLD en punycode.
+    return /^([a-z0-9_]([a-z0-9_-]{0,61}[a-z0-9])?\.)+([a-z]{2,63}|xn--[a-z0-9-]{2,59})$/i.test(nombre);
+}
+
+/** Lo escrito → valor para la API. Los nombres con ñ o tildes pasan a punycode con el propio parser de URL. */
+function prepararEntrada(texto: string): { ok: true; valor: string; esIp: boolean } | { ok: false; error: string } {
+    const entrada = limpiarEntradaDns(texto);
+    if (entrada.tipo === "ip") {
+        return ipConInversaPublica(entrada)
+            ? { ok: true, valor: entrada.ip, esIp: true }
+            : { ok: false, error: "Esa IP es privada, de documentación o reservada: su nombre inverso no se publica en el DNS público." };
+    }
+    let nombre = entrada.nombre;
+    if (/[^ -~]/.test(nombre)) {
+        try { nombre = new URL(`http://${nombre}`).hostname; } catch { return { ok: false, error: ERROR_DOMINIO }; }
+    }
+    return nombreValido(nombre) ? { ok: true, valor: nombre, esIp: false } : { ok: false, error: ERROR_DOMINIO };
+}
+
+/** Lee la respuesta de /api/tools/dns. Si llega HTML (un 502 del proxy, por ejemplo) se dice en español y no «Unexpected token <». */
+async function leerRespuesta<T>(respuesta: Response, respaldo: string): Promise<T> {
+    let data: (T & { error?: string }) | null = null;
+    try { data = await respuesta.json(); } catch { /* sin JSON: se usa el mensaje de respaldo */ }
+    if (!respuesta.ok || !data) throw new Error(data?.error || (respuesta.status === 429 ? "Demasiadas consultas seguidas. Prueba de nuevo en un minuto." : respaldo));
+    return data;
+}
+
+/** fetch falla con TypeError («Failed to fetch») cuando no hay red: eso se dice en español. */
+function mensajeDeError(error: unknown, respaldo: string): string {
+    if (error instanceof TypeError) return "No hubo conexión con el servidor. Revisa tu red e intenta de nuevo.";
+    return error instanceof Error ? error.message : respaldo;
+}
+
+const NIVEL: Record<NivelObservacion, { punto: string; etiqueta: string }> = {
+    bien: { punto: "bg-emerald-400", etiqueta: "Bien" },
+    info: { punto: "bg-sky-400", etiqueta: "Nota" },
+    atencion: { punto: "bg-amber-400", etiqueta: "Atención" },
+    error: { punto: "bg-red-400", etiqueta: "Error" },
+};
+
+function ListaObservaciones({ items }: { items: Observacion[] }) {
+    if (items.length === 0) return null;
+    return (
+        <ul className="mt-3 divide-y divide-white/5">
+            {items.map((item, indice) => (
+                <li key={`${indice}-${item.texto}`} className="flex gap-3 py-2">
+                    <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${NIVEL[item.nivel].punto}`} />
+                    <p className="text-sm leading-6 text-neutral-300">
+                        <span className="sr-only">{NIVEL[item.nivel].etiqueta}: </span>
+                        {item.texto}
+                    </p>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function RegistroCrudo({ registros, vacio }: { registros: string[]; vacio: string }) {
+    if (registros.length === 0) return <p className="mt-3 text-sm text-neutral-400">{vacio}</p>;
+    return (
+        <div className="mt-3 space-y-2">
+            {registros.map((registro, indice) => (
+                <p key={`${indice}-${registro}`} className="break-all rounded-2xl border border-white/10 bg-[#08111f] p-3 font-mono text-sm text-white">{registro}</p>
+            ))}
+        </div>
+    );
+}
+
+function RevisionCorreo({ data }: { data: CorreoResponse }) {
+    const { spf, dmarc } = data;
+    return (
+        <div className="grid gap-6 lg:grid-cols-2">
+            <section aria-labelledby="dns-spf-titulo" className="min-w-0">
+                <h3 id="dns-spf-titulo" className="text-sm font-semibold text-white">SPF</h3>
+                <p className="mt-1 text-xs text-neutral-500">TXT que empieza con v=spf1 en {data.domain}</p>
+                <RegistroCrudo registros={spf.registros} vacio={spf.estado === "error-consulta" ? "No se pudo leer." : "Sin registro SPF."} />
+                {spf.estado === "ok" && (
+                    <p className="mt-3 text-sm text-neutral-300">
+                        Consultas DNS: <strong className="font-semibold text-white">{spf.consultas.total}</strong> de 10{" "}
+                        {spf.consultas.completo ? "(aproximado)" : "(al menos; no se pudo seguir todo)"}
+                    </p>
+                )}
+                <ListaObservaciones items={spf.observaciones} />
+                {spf.terminos.length > 0 && (
+                    <dl className="mt-4 divide-y divide-white/5 border-t border-white/5">
+                        {spf.terminos.map((termino, indice) => {
+                            const incluido = termino.valor ? spf.consultas.incluidos.find(item => item.dominio === termino.valor?.toLowerCase().replace(/\.$/, "")) : undefined;
+                            const extra = incluido?.consultas ? ` + ${incluido.consultas}` : "";
+                            return (
+                                <div key={`${indice}-${termino.texto}`} className="grid gap-1 py-2 sm:grid-cols-[minmax(0,13rem)_1fr_auto] sm:gap-3">
+                                    <dt className="break-all font-mono text-xs text-blue-200">{termino.texto}</dt>
+                                    <dd className="text-xs leading-5 text-neutral-400">
+                                        {termino.explicacion}
+                                        {incluido?.nota ? ` (${incluido.nota})` : ""}
+                                    </dd>
+                                    <dd className="text-xs tabular-nums text-neutral-500">
+                                        {termino.consultas > 0 ? `${termino.consultas}${extra} ${termino.consultas === 1 && !extra ? "consulta" : "consultas"}` : ""}
+                                    </dd>
+                                </div>
+                            );
+                        })}
+                    </dl>
+                )}
+            </section>
+
+            <section aria-labelledby="dns-dmarc-titulo" className="min-w-0">
+                <h3 id="dns-dmarc-titulo" className="text-sm font-semibold text-white">DMARC</h3>
+                <p className="mt-1 text-xs text-neutral-500">TXT en {dmarc.nombre}</p>
+                <RegistroCrudo registros={dmarc.registros} vacio={dmarc.estado === "error-consulta" ? "No se pudo leer." : "Sin registro DMARC."} />
+                <ListaObservaciones items={dmarc.observaciones} />
+                {dmarc.filas.length > 0 && (
+                    <dl className="mt-4 divide-y divide-white/5 border-t border-white/5">
+                        {dmarc.filas.map(fila => (
+                            <div key={fila.termino} className="grid gap-1 py-2 sm:grid-cols-[minmax(0,13rem)_1fr] sm:gap-3">
+                                <dt className="break-all font-mono text-xs text-blue-200">{fila.termino}</dt>
+                                <dd className="text-xs leading-5 text-neutral-400">{fila.explicacion}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                )}
+            </section>
+
+            <div className="space-y-1 text-xs leading-5 text-neutral-500 lg:col-span-2">
+                <p>El conteo de SPF es aproximado: suma include, a, mx, ptr, exists y redirect, y sigue cada include; no expande macros ni cuenta las búsquedas internas de mx.</p>
+                <p>DMARC también aprueba un correo con DKIM alineado. DKIM no se revisa aquí porque hace falta el selector: consulta el TXT de selector._domainkey.{data.domain}.</p>
+                <p>Leído desde {data.resolvers}.</p>
+            </div>
+        </div>
+    );
 }
 
 function getStatusStyles(status: DnsNodeResult["status"]) {
@@ -77,7 +207,7 @@ function getStatusStyles(status: DnsNodeResult["status"]) {
     }
 
     return {
-        dot: "bg-blue-300 animate-pulse shadow-[0_0_18px_rgba(96,165,250,0.35)]",
+        dot: "bg-blue-300 animate-pulse motion-reduce:animate-none shadow-[0_0_18px_rgba(96,165,250,0.35)]",
         ring: "border-blue-400/50 bg-blue-500/10",
         label: "text-blue-200",
     };
@@ -91,16 +221,24 @@ export default function DnsCheckerPage() {
     const [response, setResponse] = useState<DnsResponse | null>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [correo, setCorreo] = useState<CorreoResponse | null>(null);
+    const [revisandoCorreo, setRevisandoCorreo] = useState(false);
+    const [errorCorreo, setErrorCorreo] = useState<string | null>(null);
+    // Con una IP el tipo pasa solo a PTR; si después se escribe un dominio, vuelve al que estaba (un PTR de un dominio sale vacío).
+    const tipoAntesDePtr = useRef<DnsRecordType | null>(null);
 
     const handleCheck = useCallback(async () => {
-        const cleaned = cleanDomain(domain);
-
-        if (!cleaned) return;
-
-        if (!isValidDomain(cleaned)) {
-            setError("Dominio inválido. Usa un FQDN público como ejemplo.com.");
+        if (!domain.trim()) return;
+        const entrada = prepararEntrada(domain);
+        if (!entrada.ok) {
+            setError(entrada.error);
             return;
         }
+        // Con una IP solo tiene sentido la consulta inversa.
+        let tipo: DnsRecordType = recordType;
+        if (entrada.esIp && recordType !== "PTR") { tipoAntesDePtr.current = recordType; tipo = "PTR"; }
+        else if (!entrada.esIp && recordType === "PTR" && tipoAntesDePtr.current) { tipo = tipoAntesDePtr.current; tipoAntesDePtr.current = null; }
+        if (tipo !== recordType) setRecordType(tipo);
 
         setError(null);
         setIsChecking(true);
@@ -108,19 +246,15 @@ export default function DnsCheckerPage() {
         setResults(DNS_RESOLVER_NODES.map(node => ({ ...node, status: "pending", records: [] })));
 
         try {
-            const dnsResponse = await fetch(`/api/tools/dns?domain=${encodeURIComponent(cleaned)}&type=${recordType}`, {
+            const dnsResponse = await fetch(`/api/tools/dns?domain=${encodeURIComponent(entrada.valor)}&type=${tipo}`, {
                 cache: "no-store",
             });
-            const data = await dnsResponse.json();
-
-            if (!dnsResponse.ok) {
-                throw new Error(data.error || "No se pudo consultar la propagación DNS");
-            }
+            const data = await leerRespuesta<DnsResponse>(dnsResponse, "No se pudo consultar la propagación DNS");
 
             setResponse(data);
             setResults(data.nodes);
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : "No se pudo consultar la propagación DNS");
+            setError(mensajeDeError(requestError, "No se pudo consultar la propagación DNS"));
             setResults(DNS_RESOLVER_NODES.map(node => ({
                 ...node,
                 status: "error",
@@ -131,6 +265,29 @@ export default function DnsCheckerPage() {
             setIsChecking(false);
         }
     }, [domain, recordType]);
+
+    const handleCorreo = useCallback(async () => {
+        if (!domain.trim()) return;
+        const entrada = prepararEntrada(domain);
+        if (!entrada.ok || entrada.esIp) {
+            setErrorCorreo(entrada.ok ? "La revisión de correo necesita un dominio, no una IP." : entrada.error);
+            return;
+        }
+        setErrorCorreo(null);
+        setRevisandoCorreo(true);
+        setCorreo(null);
+        try {
+            const respuesta = await fetch(`/api/tools/dns?domain=${encodeURIComponent(entrada.valor)}&modo=correo`, { cache: "no-store" });
+            setCorreo(await leerRespuesta<CorreoResponse>(respuesta, "No se pudo revisar el correo del dominio"));
+        } catch (requestError) {
+            setErrorCorreo(mensajeDeError(requestError, "No se pudo revisar el correo del dominio"));
+        } finally {
+            setRevisandoCorreo(false);
+        }
+    }, [domain]);
+
+    const tipoElegido = DNS_RECORD_TYPES.find(record => record.id === recordType);
+    const tipoRespondido = DNS_RECORD_TYPES.find(record => record.id === (response?.type ?? recordType));
 
     if (isLoading) {
         return (
@@ -147,53 +304,87 @@ export default function DnsCheckerPage() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,#17345c_0%,#0F1724_35%,#08111f_100%)]">
             <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <ToolPageHeader slug="dns" title={<>Verificar DNS por resolvedor</>} description={<>Consulta varios resolvedores públicos desde backend, compara respuestas y detecta propagación parcial con datos reales.</>} />
+                <ToolPageHeader slug="dns" title={<>Verificar DNS por resolvedor</>} description={<>Consulta seis resolvedores públicos desde el servidor, compara sus respuestas y revisa el SPF y el DMARC de un dominio.</>} />
 
                 <StudioCard
                     title="Consulta DNS"
                     description="El backend consulta cada resolvedor por su IP pública para comparar respuestas reales."
-                    eyebrow="Consulta"
                     accentColor={ACCENT}
                 >
                     <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-                        <div className="space-y-3">
+                        <form
+                            className="space-y-3"
+                            noValidate
+                            onSubmit={(event) => { event.preventDefault(); void handleCheck(); }}
+                        >
+                            <div>
+                                <label htmlFor="dns-nombre" className="block text-sm font-medium text-neutral-200">Dominio o IP</label>
+                                <p id="dns-nombre-ayuda" className="mt-1 text-xs text-neutral-500">
+                                    Acepta subdominios como _dmarc.ejemplo.com, una URL o un correo (se usa su dominio). Con una IP se consulta su nombre inverso (PTR).
+                                </p>
+                            </div>
                             <div className="flex flex-col gap-3 sm:flex-row">
                                 <input
+                                    id="dns-nombre"
+                                    name="dominio"
                                     type="text"
                                     value={domain}
-                                    onChange={(event) => setDomain(event.target.value)}
-                                    onKeyDown={(event) => event.key === "Enter" && handleCheck()}
+                                    onChange={(event) => { setDomain(event.target.value); setError(null); setErrorCorreo(null); }}
                                     placeholder="ejemplo.com"
+                                    aria-describedby="dns-nombre-ayuda"
+                                    aria-invalid={error ? true : undefined}
+                                    autoComplete="off"
+                                    autoCapitalize="none"
+                                    enterKeyHint="search"
                                     className="flex-1 rounded-2xl border border-white/10 bg-[#08111f] px-4 py-3 text-white outline-none transition-all placeholder:text-neutral-600 focus:border-blue-400/40 focus:ring-2 focus:ring-blue-400/20"
                                     spellCheck={false}
                                     maxLength={253}
                                 />
                                 <button
-                                    onClick={handleCheck}
+                                    type="submit"
                                     disabled={isChecking || !domain.trim()}
-                                    className="rounded-2xl px-6 py-3 text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-2xl px-6 py-3 text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:scale-100"
                                     style={{ background: `linear-gradient(135deg, ${ACCENT}, #60A5FA)` }}
                                 >
                                     {isChecking ? "Consultando..." : "Verificar propagación"}
                                 </button>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                {DNS_RECORD_TYPES.map(record => (
-                                    <button
-                                        key={record.id}
-                                        onClick={() => setRecordType(record.id)}
-                                        className="rounded-full px-3 py-2 text-xs font-semibold transition-all"
-                                        style={recordType === record.id
-                                            ? { backgroundColor: `${ACCENT}24`, color: "white", boxShadow: `0 0 0 1px ${ACCENT}` }
-                                            : { backgroundColor: "rgba(255,255,255,0.05)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }}
-                                        title={record.desc}
-                                    >
-                                        {record.name}
-                                    </button>
-                                ))}
+                            <div role="group" aria-labelledby="dns-tipo-titulo">
+                                <p id="dns-tipo-titulo" className="mb-2 text-xs text-neutral-400">Tipo de registro</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {DNS_RECORD_TYPES.map(record => (
+                                        <button
+                                            key={record.id}
+                                            type="button"
+                                            aria-pressed={recordType === record.id}
+                                            onClick={() => setRecordType(record.id)}
+                                            className="min-h-11 min-w-11 rounded-full px-3 py-2 text-xs font-semibold transition-all sm:min-h-0"
+                                            style={recordType === record.id
+                                                ? { backgroundColor: `${ACCENT}24`, color: "white", boxShadow: `0 0 0 1px ${ACCENT}` }
+                                                : { backgroundColor: "rgba(255,255,255,0.05)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }}
+                                            title={record.desc}
+                                        >
+                                            {record.name}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                                    {tipoElegido?.desc}.{tipoElegido?.formato ? ` ${tipoElegido.formato}` : ""}
+                                </p>
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-2 border-t border-white/5 pt-3 sm:flex-row sm:items-center sm:gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => void handleCorreo()}
+                                    disabled={revisandoCorreo || !domain.trim()}
+                                    className="min-h-11 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-neutral-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {revisandoCorreo ? "Revisando..." : "Revisar SPF y DMARC"}
+                                </button>
+                                <p className="text-xs text-neutral-500">Revisa la seguridad del correo del dominio escrito.</p>
+                            </div>
+                        </form>
+                        <div className="grid grid-cols-2 gap-3 self-start">
                             <StudioMetric label="Resolvedores" value={`${DNS_RESOLVER_NODES.length} nodos`} accentColor={ACCENT} />
                             <StudioMetric label="Modo" value="Consultas directas" accentColor={ACCENT} />
                             <StudioMetric label="Origen" value="Backend Node DNS" accentColor={ACCENT} />
@@ -203,68 +394,46 @@ export default function DnsCheckerPage() {
                 </StudioCard>
 
                 {error && (
-                    <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                    <div role="alert" className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                         {error}
                     </div>
                 )}
 
+                <p aria-live="polite" className="sr-only">
+                    {revisandoCorreo ? "Revisando SPF y DMARC" : correo ? `Revisión de correo de ${correo.domain} lista` : ""}
+                </p>
+                {errorCorreo && (
+                    <div role="alert" className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                        {errorCorreo}
+                    </div>
+                )}
+                {revisandoCorreo && <p className="mt-4 text-sm text-blue-200">Revisando SPF y DMARC…</p>}
+                {correo && (
+                    <StudioCard
+                        title={`Seguridad del correo de ${correo.domain}`}
+                        description="Qué dicen el SPF y el DMARC del dominio, con lo que conviene revisar."
+                        accentColor={ACCENT}
+                        className="mt-6"
+                    >
+                        <RevisionCorreo data={correo} />
+                    </StudioCard>
+                )}
+
+                {/* Siempre montado: un aria-live que aparece junto con su texto no siempre se anuncia. */}
+                <p aria-live="polite" className={isChecking || response ? "mt-6 text-sm text-neutral-400" : "sr-only"}>
+                    {isChecking
+                        ? "Consultando los resolvedores…"
+                        : response?.reverseOf
+                            ? <>Consulta inversa (PTR) de <span className="font-mono text-neutral-200">{response.reverseOf}</span>: <span className="break-all font-mono text-neutral-300">{response.domain}</span></>
+                            : response && <>Registros {response.type} de <span className="break-all font-mono text-neutral-200">{response.domain}</span></>}
+                </p>
+
                 {results.length > 0 && (
-                    <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                        <StudioCard
-                            title="Mapa de resolvedores"
-                            description="Cada punto representa un resolvedor consultado con su estado y tiempo de respuesta."
-                            eyebrow="Vista"
-                            accentColor={ACCENT}
-                        >
-                            <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-[#07101d] p-4">
-                                <div
-                                    className="relative h-[320px] rounded-[20px] border border-white/5"
-                                    style={{
-                                        backgroundImage: "radial-gradient(circle at 18% 35%, rgba(255,255,255,0.09) 0, rgba(255,255,255,0.02) 9%, transparent 10%), radial-gradient(circle at 30% 62%, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.015) 8%, transparent 9%), radial-gradient(circle at 52% 36%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.02) 11%, transparent 12%), radial-gradient(circle at 56% 58%, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.015) 7%, transparent 8%), radial-gradient(circle at 74% 44%, rgba(255,255,255,0.07) 0, rgba(255,255,255,0.018) 10%, transparent 11%), linear-gradient(180deg, rgba(59,130,246,0.12), rgba(8,17,31,0.92))",
-                                    }}
-                                >
-                                    <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                                    <div className="absolute inset-y-0 left-1/2 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-                                    {results.map(result => {
-                                        const styles = getStatusStyles(result.status);
-
-                                        return (
-                                            <div
-                                                key={result.id}
-                                                className="absolute -translate-x-1/2 -translate-y-1/2"
-                                                style={{ left: `${result.x}%`, top: `${result.y}%` }}
-                                            >
-                                                <div className={`rounded-full border p-1 ${styles.ring}`}>
-                                                    <div className={`h-3 w-3 rounded-full ${styles.dot}`} />
-                                                </div>
-                                                <div className="mt-2 min-w-[110px] rounded-xl border border-white/10 bg-black/55 px-2.5 py-2 shadow-lg backdrop-blur">
-                                                    <p className={`text-[11px] font-semibold ${styles.label}`}>{result.name}</p>
-                                                    <p className="mt-0.5 text-[10px] text-neutral-500">{result.location}</p>
-                                                    <p className="mt-1 text-[10px] text-neutral-400">
-                                                        {result.status === "pending"
-                                                            ? "consultando"
-                                                            : result.status === "success"
-                                                                ? `${result.durationMs || 0} ms`
-                                                                : result.error || "fallo"}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                <StudioChip accentColor={ACCENT} active>Consulta directa</StudioChip>
-                                <StudioChip accentColor={ACCENT}>Nodos públicos</StudioChip>
-                                <StudioChip accentColor={ACCENT}>Comparación de respuestas</StudioChip>
-                            </div>
-                        </StudioCard>
-
+                    <div className="mt-6 grid gap-6">
                         <div className="space-y-6">
                             <StudioCard
                                 title="Resumen de propagación"
                                 description="Si las respuestas no coinciden, la propagación todavía no es uniforme entre resolvedores."
-                                eyebrow="Resumen"
                                 accentColor={ACCENT}
                             >
                                 <div className="grid grid-cols-2 gap-3">
@@ -294,7 +463,6 @@ export default function DnsCheckerPage() {
                             <StudioCard
                                 title="Cómo interpretar el resultado"
                                 description="Pistas rápidas para saber si la propagación ya se completó o sigue en curso."
-                                eyebrow="Ayuda"
                                 accentColor={ACCENT}
                             >
                                 <div className="space-y-3 text-sm text-neutral-400">
@@ -311,7 +479,6 @@ export default function DnsCheckerPage() {
                     <StudioCard
                         title="Resultados por resolvedor"
                         description="Latencia, estado y registros devueltos por cada nodo consultado."
-                        eyebrow="Detalle"
                         accentColor={ACCENT}
                         className="mt-6"
                     >
@@ -327,7 +494,6 @@ export default function DnsCheckerPage() {
                                                     <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} />
                                                     <p className="text-sm font-semibold text-white">{result.name}</p>
                                                 </div>
-                                                <p className="mt-1 text-xs text-neutral-500">{result.location} · {result.region}</p>
                                                 <p className="mt-1 text-[11px] font-mono text-neutral-600">{result.ip}</p>
                                             </div>
                                             <StudioChip accentColor={ACCENT} active={result.status === "success"}>
@@ -348,12 +514,12 @@ export default function DnsCheckerPage() {
                                                 <p className="text-sm text-red-300">{result.error || "Consulta fallida"}</p>
                                             )}
                                             {result.status === "success" && result.records.length === 0 && (
-                                                <p className="text-sm text-neutral-400">Sin respuestas para este tipo de registro.</p>
+                                                <p className="text-sm text-neutral-400">{result.noExiste ? "Ese nombre no existe para este resolvedor (NXDOMAIN). Revisa que esté bien escrito." : tipoRespondido?.vacio ?? "Sin respuestas para este tipo de registro."}</p>
                                             )}
                                             {result.status === "success" && result.records.length > 0 && (
                                                 <div className="space-y-2">
-                                                    {result.records.map(record => (
-                                                        <div key={`${result.id}-${record.value}`} className="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+                                                    {result.records.map((record, indice) => (
+                                                        <div key={`${result.id}-${indice}-${record.value}`} className="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
                                                             <p className="break-all font-mono text-sm text-white">{record.value}</p>
                                                             {record.ttl !== null && (
                                                                 <p className="mt-1 text-[11px] text-neutral-500">TTL {record.ttl}s</p>

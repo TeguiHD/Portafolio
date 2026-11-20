@@ -1,23 +1,19 @@
-import type { Metadata } from "next";
-import { ToolsWorkspace } from "@/components/tools/ToolsWorkspace";
-import { ToolsFooter } from "@/components/tools/ToolsFooter";
+import { CarcasaHerramientas } from "@/components/tools/CarcasaHerramientas";
 import { getPublicTools } from "@/lib/public-tools.server";
-import { ConfigMovimiento } from "@/components/motion/ConfigMovimiento";
+import { Esqueleto } from "@/modules/esqueleto/Esqueleto";
 import "./tools.css";
 import "@/components/tools/mesa/mesa.css";
+import "./tema-claro.css";
 
-export const metadata: Metadata = {
-    icons: {
-        icon: [{ url: "/herramientas/icon.svg", type: "image/svg+xml" }],
-        shortcut: "/herramientas/icon.svg",
-    },
-};
-
+/**
+ * /herramientas dentro del esqueleto del sitio (barra, pie y materia), como el resto de las páginas públicas.
+ * Tema claro y oscuro: el interior de las herramientas usa clases oscuras fijas que tema-claro.css traduce a los colores del tema.
+ */
 export default async function ToolsLayout({ children }: { children: React.ReactNode }) {
     const tools = await getPublicTools();
     return (
-        <ConfigMovimiento>
-            <ToolsWorkspace tools={tools}>{children}<ToolsFooter /></ToolsWorkspace>
-        </ConfigMovimiento>
+        <Esqueleto>
+            <CarcasaHerramientas tools={tools}>{children}</CarcasaHerramientas>
+        </Esqueleto>
     );
 }

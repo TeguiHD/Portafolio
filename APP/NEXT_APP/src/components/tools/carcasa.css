@@ -1,0 +1,82 @@
+/* Armazón de /herramientas (prefijo hc-): una fila con la ruta y las acciones sobre cada herramienta, y la búsqueda
+   en un <dialog>. Va dentro del esqueleto del sitio (barra flotante arriba, pie con suelo abajo). */
+/* Relleno entero: con vh daba fracciones (93,5 px) y el contenedor redondeado del QR recortaba medio píxel de su lienzo. */
+.hc { padding-top: 80px; min-height: 100svh; }
+.hc-marco { position: relative; display: block; }
+/* Las acciones van sobre la línea de las migas, alineadas a su derecha (mismo ancho que el contenido de la herramienta). */
+.hc-riel { position: absolute; z-index: 5; top: 8px; left: 0; right: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px;
+  max-width: 64rem; margin-inline: auto; padding-inline: 16px; pointer-events: none; } /* el ancho de las migas (max-w-5xl) */
+.hc-riel > * { pointer-events: auto; }
+@media (min-width: 640px) { .hc-riel { padding-inline: 24px; } }
+/* Las migas dejan sitio a las dos acciones de la derecha. */
+.hc-marco nav[aria-label="Ruta de navegación"] { min-height: 52px; display: flex; align-items: center; padding-top: 8px; padding-right: 150px; }
+.hc-volver { display: none; }
+/* Celular: las migas largas quedaban debajo de los botones. Aquí la fila es propia: «← Herramientas» a la izquierda y
+   buscar + estrella a la derecha; las migas visibles se esconden (su JSON-LD sigue en la página para los buscadores). */
+@media (max-width: 760px) {
+  .hc { padding-top: 72px; }
+  .hc-riel { position: static; justify-content: space-between; padding-inline: 0; margin-top: 4px; }
+  .hc-volver { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding-right: 8px; color: var(--mut); font-size: 15px; font-weight: 500; text-decoration: none; }
+  .hc-volver:hover { color: var(--txt); }
+  .hc-volver:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; border-radius: 8px; }
+  .hc-marco nav[aria-label="Ruta de navegación"] { display: none; }
+  .hc-boton span, .hc-boton kbd { display: none; }
+  .hc-boton { padding: 0; width: 44px; }
+}
+.hc-acciones { display: flex; align-items: center; gap: 8px; }
+.hc-boton { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 55%, transparent); color: var(--txt); font-size: 14.5px; cursor: pointer; transition: border-color .25s, background .25s; }
+.hc-boton:hover { border-color: var(--acento); }
+.hc-boton:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+.hc-boton kbd { padding: 2px 6px; border-radius: 6px; border: 1px solid var(--linea-2); font: 500 11.5px var(--mono); color: var(--mut); }
+.hc-estrella { padding: 0; width: 44px; }
+.hc-estrella[aria-pressed="true"] { color: #fbbf24; border-color: color-mix(in srgb, #fbbf24 55%, transparent); }
+.hc-boton:disabled { opacity: .5; cursor: default; }
+.hc-aviso { flex-basis: 100%; margin: 0; font-size: 13px; color: #fcd34d; text-align: right; }
+/* Las herramientas traían su propio relleno superior pensado para la barra vieja de 64 px: aquí lo pone el armazón. */
+.hc-contenido > .tool-page > .tool-main, .hc-contenido > .tool-page > main { padding-top: 18px; }
+.hc-contenido:focus { outline: none; }
+
+/* La búsqueda: un diálogo modal, como el formulario de contacto. */
+.hc-dialogo { margin: 10vh auto auto; padding: 0; width: min(620px, 100% - 32px); max-height: min(76vh, 720px); overflow: hidden; display: flex; flex-direction: column;
+  border: 1px solid var(--linea-2); border-radius: 24px; color: var(--txt);
+  background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--acento) 11%, transparent), transparent 62%), var(--fondo-2);
+  opacity: 0; translate: 0 18px; transition: opacity .25s, translate .35s var(--curva), overlay .35s allow-discrete, display .35s allow-discrete; }
+.hc-dialogo:not([open]) { display: none; }
+.hc-dialogo[open] { opacity: 1; translate: 0 0; }
+@starting-style { .hc-dialogo[open] { opacity: 0; translate: 0 18px; } }
+.hc-dialogo::backdrop { background: rgb(4 6 10 / 0); overflow: hidden; overscroll-behavior: contain; transition: background .35s, overlay .35s allow-discrete, display .35s allow-discrete; }
+.hc-dialogo[open]::backdrop { background: rgb(4 6 10 / .72); }
+@starting-style { .hc-dialogo[open]::backdrop { background: rgb(4 6 10 / 0); } }
+.hc-dialogo-cab { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px 20px; border-bottom: 1px solid var(--linea); }
+.hc-buscar { display: flex; flex: 1; align-items: center; gap: 10px; color: var(--mut); }
+.hc-buscar input { flex: 1; min-width: 0; min-height: 44px; border: 0; background: none; color: var(--txt); font: inherit; font-size: 17px; outline: none; }
+.hc-buscar input::placeholder { color: var(--mut); }
+.hc-cerrar { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--linea-2); color: var(--mut); transition: color .2s, border-color .2s, rotate .35s var(--curva); }
+.hc-cerrar:hover { color: var(--txt); border-color: var(--acento); rotate: 90deg; }
+.hc-lista { overflow: auto; overscroll-behavior: contain; padding: 10px 12px 18px; }
+.hc-todas { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: 12px; color: var(--txt); font-weight: 600; text-decoration: none; }
+.hc-todas small { font: 500 12.5px var(--mono); color: var(--mut); }
+.hc-todas:hover, .hc-todas:focus-visible { background: var(--linea); outline: none; }
+.hc-familia { margin-top: 12px; }
+.hc-familia > p { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; padding: 0 10px; font-size: 13.5px; color: var(--mut); }
+.hc-familia > p::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.hc-familia ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2px; }
+.hc-familia a { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 10px; border-radius: 12px; color: var(--txt); font-size: 15px; text-decoration: none; transition: background .2s; }
+.hc-familia a svg { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--c); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.hc-familia a em { margin-left: auto; color: #fbbf24; font-style: normal; }
+.hc-familia a:hover, .hc-familia a:focus-visible { background: var(--linea); outline: none; }
+.hc-familia a[aria-current="page"] { background: color-mix(in srgb, var(--c) 14%, transparent); }
+.hc-nada { padding: 20px 10px; color: var(--mut); }
+
+@media (max-width: 640px) {
+  .hc-boton span, .hc-boton kbd { display: none; }
+  .hc-boton { padding: 0; width: 44px; }
+  .hc-dialogo { margin: auto 0 0; width: 100%; max-width: 100%; max-height: 86svh; border-radius: 24px 24px 0 0; border-inline: 0; border-bottom: 0; translate: 0 40px; }
+  @starting-style { .hc-dialogo[open] { translate: 0 40px; } }
+}
+@media (prefers-reduced-motion: reduce) { .hc-dialogo, .hc-dialogo::backdrop { transition: none; } }
+
+/* Dentro de una herramienta, las luces del primer plano (profundidad de la portada) caían sobre los campos como manchas:
+   en un espacio de trabajo se apagan. El catálogo las conserva. */
+html:has(.hc-marco) .frente { opacity: 0; }

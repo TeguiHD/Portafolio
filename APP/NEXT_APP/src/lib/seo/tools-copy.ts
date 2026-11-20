@@ -37,19 +37,19 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         steps: [
             {
                 title: "Elige el tipo de contenido",
-                body: "URL es lo más común, pero WiFi ahorra dictar contraseñas y vCard entrega tus datos de contacto completos con un escaneo. El tipo cambia qué campos se piden, no la dificultad.",
+                body: "URL es lo más común, pero WiFi ahorra dictar contraseñas, incluso de redes ocultas, y vCard entrega nombre, cargo, teléfonos, correo, web y dirección con un escaneo. El tipo cambia qué campos se piden, no la dificultad.",
             },
             {
                 title: "Rellena los datos",
                 body: "El código se regenera mientras escribes. Cuanto más texto codifiques, más denso queda el patrón y más difícil resulta escanearlo de lejos o impreso en pequeño.",
             },
             {
-                title: "Ajusta tamaño y color",
-                body: "Mantén contraste alto entre el código y el fondo. Un QR claro sobre fondo oscuro falla en muchos lectores: conviene invertirlo antes que arriesgarse.",
+                title: "Ajusta diseño y logo",
+                body: "Elige un estilo listo o define colores, degradado y la forma de los módulos y los ojos. Mantén el cuerpo oscuro sobre fondo claro: la herramienta avisa si el contraste es bajo. Si agregas un logo, la corrección de errores pasa a H.",
             },
             {
                 title: "Descarga en PNG o SVG",
-                body: "PNG sirve para pantalla y redes. Para imprimir usa SVG: es vectorial y se amplía a cualquier tamaño sin pixelarse, desde una tarjeta hasta un pendón.",
+                body: "PNG, de 256 a 2048 píxeles, sirve para pantalla y redes. Para imprimir usa SVG: es vectorial y se amplía a cualquier tamaño sin pixelarse, desde una tarjeta hasta un pendón.",
             },
         ],
         useCases: [
@@ -63,7 +63,11 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Tarjetas de presentación",
-                body: "Un QR de tipo vCard pasa nombre, teléfono, correo y empresa a la agenda del otro sin que tenga que teclear nada ni transcribir mal un dígito.",
+                body: "Un QR de tipo vCard pasa nombre, cargo, teléfono, correo, empresa, web y dirección a la agenda del otro sin que tenga que teclear nada ni transcribir mal un dígito.",
+            },
+            {
+                title: "Invitaciones a eventos",
+                body: "Un QR de evento agrega al calendario el título, el lugar, el inicio, el término y la descripción. La hora se guarda en UTC, así cada teléfono la muestra en su zona horaria.",
             },
         ],
         faq: [
@@ -77,15 +81,11 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Cuántos caracteres caben en un código QR?",
-                answer: "Hasta unos 4.296 caracteres alfanuméricos en el tamaño máximo. Pero mucho antes de ese límite el patrón se vuelve tan denso que los lectores fallan. Para uso práctico conviene quedarse bajo los 300 caracteres, y para impresión pequeña bajo los 100.",
+                answer: "Depende de la corrección de errores y del tipo de texto. En el tamaño máximo, con corrección L, caben 2.953 bytes, o 4.296 caracteres si usas solo mayúsculas, números y unos pocos signos. Con corrección H, la que se usa con logo y la que viene por defecto, el tope baja a 1.273 bytes. Una letra con tilde ocupa dos bytes. Mucho antes del tope, el patrón se vuelve tan denso que cuesta leerlo impreso en pequeño.",
             },
             {
                 question: "¿Puedo cambiar el destino después de imprimir el código?",
                 answer: "No directamente: el destino está grabado en el patrón. La solución es codificar una URL propia que tú controles y redirigir desde tu servidor. Así cambias el destino sin reimprimir nada, a costa de depender de que esa URL siga viva.",
-            },
-            {
-                question: "¿Qué formato conviene para imprimir?",
-                answer: "SVG. Es vectorial, así que escala a cualquier tamaño sin perder nitidez, desde una etiqueta hasta una valla. PNG sirve para pantalla, pero al ampliarlo aparecen bordes borrosos que confunden a los lectores y bajan la tasa de escaneo.",
             },
             {
                 question: "¿Se puede escanear un QR de color?",
@@ -96,23 +96,23 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     claves: {
         intro:
-            "Una contraseña fuerte no es la que resulta difícil de recordar, sino la que resulta cara de adivinar. Este generador crea claves aleatorias con la longitud y el juego de caracteres que definas, usando el generador criptográfico del propio navegador. Nada viaja por la red: la clave se produce en tu equipo y no se registra en ningún lado, ni siquiera de forma temporal.",
+            "Una contraseña fuerte no es la que resulta difícil de recordar, sino la que resulta cara de adivinar. Este generador crea claves de caracteres al azar, con la longitud y los grupos que definas, o frases de palabras en español que se teclean mejor. Usa el generador criptográfico del navegador y calcula la entropía de cada clave. Nada viaja por la red: la clave se produce en tu equipo y no se registra en ningún lado.",
         steps: [
             {
+                title: "Elige caracteres o frase",
+                body: "Los caracteres al azar dan más seguridad por cada carácter. Una frase de palabras se recuerda y se teclea mejor, sobre todo en el celular, a cambio de ser más larga.",
+            },
+            {
                 title: "Define la longitud",
-                body: "La longitud pesa más que cualquier otra cosa. Doce caracteres es el mínimo razonable hoy; dieciséis o más para lo que de verdad importa, como el correo principal o el gestor de contraseñas.",
+                body: "Entre 8 y 128 caracteres, o entre 3 y 12 palabras. Doce caracteres es el mínimo razonable hoy; dieciséis o más para lo que de verdad importa. En frases, cada palabra suma unos 10,5 bits: seis dan unos 63.",
             },
             {
                 title: "Elige los tipos de carácter",
-                body: "Mayúsculas, minúsculas, números y símbolos. Si un sistema antiguo rechaza símbolos, compénsalo alargando la clave: cada carácter extra multiplica el espacio de búsqueda.",
+                body: "Minúsculas, mayúsculas, números, símbolos, paréntesis y otros signos. La clave lleva al menos uno de cada grupo elegido. Si un sistema rechaza símbolos, compénsalo alargando la clave.",
             },
             {
-                title: "Genera y copia",
-                body: "Genera tantas veces como quieras. Ninguna de las claves descartadas queda guardada; se pierden en cuanto cierras la pestaña.",
-            },
-            {
-                title: "Guárdala en un gestor",
-                body: "Una clave aleatoria fuerte que terminas anotando en un papel pegado al monitor deja de ser fuerte. Un gestor de contraseñas es el complemento obligatorio de esta herramienta.",
+                title: "Genera, copia y guárdala",
+                body: "Ninguna de las claves descartadas queda guardada. Guarda la elegida en un gestor de contraseñas: una clave fuerte anotada en un papel pegado al monitor deja de ser fuerte.",
             },
         ],
         useCases: [
@@ -127,6 +127,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             {
                 title: "Credenciales de servicio",
                 body: "Bases de datos, APIs y cuentas de despliegue no las teclea nadie, así que no hay razón para que sean cortas ni memorizables. Genera cadenas largas y guárdalas cifradas.",
+            },
+            {
+                title: "Contraseña maestra del gestor",
+                body: "Es la única que tienes que recordar y teclear tú. Una frase de seis o más palabras al azar se memoriza sin anotarla.",
             },
         ],
         faq: [
@@ -143,8 +147,8 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 answer: "Poco, y suele ser contraproducente. Forzar cambios frecuentes empuja a la gente a variaciones predecibles del tipo Clave1, Clave2. Las guías actuales del NIST recomiendan claves largas y únicas, cambiadas solo ante sospecha real de filtración.",
             },
             {
-                question: "¿Los símbolos hacen la contraseña más segura?",
-                answer: "Amplían el alfabeto, así que sí, pero menos de lo que la gente cree. Pasar de 62 a 94 caracteres posibles equivale a añadir un par de caracteres de longitud. Si un sistema rechaza símbolos, alargar la clave compensa de sobra.",
+                question: "¿Una frase de palabras es tan segura como una clave de caracteres?",
+                answer: "Si las palabras salen al azar, sí, a igual entropía. Aquí cada palabra sale de una lista de 1.451 palabras en español, sin tildes ni ñ, y suma unos 10,5 bits: seis palabras dan unos 63 bits, y el número opcional del 0 al 99 suma algunos más. La cuenta supone que el atacante conoce la lista; la fuerza sale solo del azar.",
             },
             {
                 question: "¿Puedo reutilizar una contraseña fuerte en varios sitios?",
@@ -159,7 +163,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         steps: [
             {
                 title: "Elige el sentido",
-                body: "Codificar convierte tu contenido en una cadena Base64. Decodificar hace lo contrario y recupera el original. La herramienta detecta imágenes y texto por separado.",
+                body: "Codificar convierte tu contenido en una cadena Base64. Decodificar hace lo contrario y recupera el original. Texto e imagen van en pestañas separadas; al decodificar acepta Base64 URL (JWT), URL de datos y cabeceras «Basic», y avisa si lo que trae no es texto.",
             },
             {
                 title: "Pega el contenido o suelta el archivo",
@@ -206,19 +210,23 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     json: {
         intro:
-            "JSON mal formateado es ilegible, y el error casi siempre es una coma de más, una comilla suelta o una llave sin cerrar. Este formateador indenta la estructura, la colorea por tipo de dato y señala el punto exacto donde la sintaxis se rompe, en lugar del mensaje genérico que suelen dar las consolas. Todo se procesa en tu navegador.",
+            "JSON mal formateado es ilegible, y el error casi siempre es una coma de más, una comilla simple o una llave sin cerrar. Este formateador indenta la estructura, la colorea por tipo de dato y ubica el error por línea y columna, con una explicación en español. También muestra el JSON como árbol plegable y avisa de lo que JSON.parse cambia sin decir nada: claves repetidas y enteros demasiado grandes para JavaScript. Todo se procesa en tu navegador.",
         steps: [
             {
-                title: "Pega el JSON",
-                body: "Da igual si viene en una sola línea o mal indentado. La herramienta lo analiza tal como llega, incluidas las respuestas de API sin formato ninguno.",
+                title: "Pega el JSON o abre un archivo",
+                body: "Da igual si viene en una sola línea o mal indentado. Puedes abrir un archivo de hasta 5 MB; los textos grandes se analizan en segundo plano para que la página no se congele.",
             },
             {
                 title: "Lee el resultado",
-                body: "Si es válido, verás la estructura indentada y coloreada. Si no, verás la posición del error: casi siempre está una línea antes de donde parece.",
+                body: "Si es válido, verás la estructura indentada y coloreada. Si no, verás la línea, la columna y qué falla: comillas simples, una coma final, un comentario o una llave sin cerrar.",
             },
             {
-                title: "Copia o compacta",
-                body: "El formato indentado sirve para leer y depurar. El compacto, sin espacios, es el que conviene enviar por la red porque pesa bastante menos.",
+                title: "Recorre el árbol",
+                body: "La vista Árbol muestra cada objeto y arreglo plegable, con sus claves. Sirve para ubicarse en una respuesta larga sin leer cientos de llaves.",
+            },
+            {
+                title: "Copia, minifica o descarga",
+                body: "Elige 2 o 4 espacios de indentación. El formato compacto, sin espacios, es el que conviene enviar por la red; el resultado también se descarga como .json.",
             },
         ],
         useCases: [
@@ -234,6 +242,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 title: "Revisar payloads de webhooks",
                 body: "Los webhooks llegan compactados. Formatearlos permite comparar lo que el proveedor documenta con lo que de verdad envía, que no siempre coincide.",
             },
+            {
+                title: "Revisar identificadores numéricos largos",
+                body: "Algunas APIs y bases de datos usan IDs de 64 bits, más grandes de lo que JavaScript guarda exacto. La herramienta avisa qué número cambiaría y en qué línea está.",
+            },
         ],
         faq: [
             {
@@ -246,30 +258,38 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Se envía mi JSON a algún servidor?",
-                answer: "No. El análisis ocurre íntegramente en tu navegador, así que puedes pegar payloads con datos reales sin que salgan de tu equipo. Es la razón por la que esta herramienta sirve para depurar respuestas que contienen información de clientes.",
+                answer: "No. El análisis ocurre íntegramente en tu navegador, así que puedes pegar payloads con datos reales sin que salgan de tu equipo. El límite es de 5 MB por texto o archivo.",
             },
             {
                 question: "¿Cuál es la diferencia entre formatear y minificar?",
-                answer: "Formatear añade saltos de línea e indentación para que un humano pueda leerlo. Minificar quita todo espacio innecesario para que pese menos al viajar por la red. El contenido es idéntico en ambos casos; solo cambia la presentación.",
+                answer: "Formatear añade saltos de línea e indentación para que un humano pueda leerlo. Minificar quita todo espacio innecesario para que pese menos al viajar por la red. El contenido es el mismo; solo cambia la presentación, salvo en los casos que la herramienta avisa.",
+            },
+            {
+                question: "¿Por qué cambió un número o desapareció una clave al formatear?",
+                answer: "JavaScript guarda exactos los enteros hasta 9.007.199.254.740.991; uno mayor se redondea al leerlo y queda distinto al formatear. Y si un objeto repite una clave, solo queda el último valor. La herramienta avisa de ambos casos con un ejemplo y su línea. Si son identificadores, conviene enviarlos como texto.",
             },
         ],
     },
 
     jwt: {
         intro:
-            "Un JWT son tres bloques separados por puntos: cabecera, payload y firma. Los dos primeros son Base64 y cualquiera puede leerlos — no están cifrados, solo codificados. Este decodificador los muestra formateados y traduce las fechas de expiración a algo legible, para que puedas ver qué afirma realmente un token. La decodificación ocurre en tu navegador y el token no se envía a ningún lado.",
+            "Un JWT son tres bloques separados por puntos: cabecera, payload y firma. Los dos primeros son base64url y cualquiera puede leerlos: no están cifrados, solo codificados. Este decodificador los muestra formateados, traduce iat, exp y nbf a fechas legibles y verifica la firma con tu secreto o tu clave pública, usando WebCrypto. El token y la clave no salen de tu navegador.",
         steps: [
             {
                 title: "Pega el token",
-                body: "Pega la cadena completa, con los dos puntos incluidos. Si copiaste desde una cabecera Authorization, quita el prefijo Bearer antes de pegar.",
+                body: "Puedes pegarlo tal como viene en la cabecera Authorization: el prefijo Bearer (con o sin «Authorization:»), las comillas, los espacios y los saltos de línea se quitan solos. Si tiene cinco partes es un JWE, que va cifrado y no se puede leer sin su clave.",
             },
             {
-                title: "Revisa la cabecera",
-                body: "Indica el algoritmo de firma. Un token que declare alg: none es una señal de alarma: significa que no está firmado y cualquiera pudo fabricarlo.",
+                title: "Revisa la cabecera y el payload",
+                body: "La cabecera indica el algoritmo; el payload, quién es el usuario, qué permisos tiene y hasta cuándo vale el token. Las fechas se muestran convertidas, con aviso si expiró o si aún no es válido.",
             },
             {
-                title: "Lee el payload",
-                body: "Ahí están las afirmaciones: quién es el usuario, qué permisos tiene y hasta cuándo vale el token. Las fechas vienen en formato Unix y se muestran ya convertidas.",
+                title: "Verifica la firma",
+                body: "Con HS256, HS384 o HS512 escribe el secreto, en texto o en base64. Con RS, PS o ES pega la clave pública en PEM, como JWK o como JWKS; si el token trae kid, se usa la clave que coincide.",
+            },
+            {
+                title: "Atiende los avisos",
+                body: "alg: none significa que el token no está firmado y cualquiera pudo fabricarlo. Si la cabecera trae jku, x5u o jwk, la herramienta no usa esa clave: quien fabrica el token puede poner ahí la suya.",
             },
         ],
         useCases: [
@@ -285,6 +305,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 title: "Auditar qué datos viajan",
                 body: "Un payload es legible por cualquiera que intercepte el token. Revisarlo muestra si estás metiendo ahí datos personales que no deberían viajar en claro.",
             },
+            {
+                title: "Comprobar qué clave firmó un token",
+                body: "Antes de culpar al código del servidor por un 401, confirmar si el token de pruebas lo firmó la clave que crees o la de otro entorno.",
+            },
         ],
         faq: [
             {
@@ -296,8 +320,8 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 answer: "Puedes cambiar el payload, pero entonces la firma deja de cuadrar y el servidor debería rechazarlo. El riesgo real aparece cuando el servidor no verifica la firma o acepta el algoritmo none, que es una vulnerabilidad clásica en implementaciones apresuradas.",
             },
             {
-                question: "¿Se envía mi token a algún servidor al decodificarlo?",
-                answer: "No. La decodificación ocurre en tu navegador, así que puedes analizar tokens de producción sin exponerlos. Esto importa: un token válido pegado en un decodificador remoto es una credencial entregada a un tercero.",
+                question: "¿Se envía mi token o mi clave a algún servidor?",
+                answer: "No. La decodificación y la verificación ocurren en tu navegador; la firma se comprueba con WebCrypto en la misma pestaña. Esto importa: un token válido o un secreto pegado en un servicio remoto es una credencial entregada a un tercero. Con secretos de producción, lo prudente sigue siendo verificar en tu servidor.",
             },
             {
                 question: "¿Qué significa el campo exp?",
@@ -305,25 +329,29 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Puedo verificar la firma aquí?",
-                answer: "No, y es deliberado: verificar exige la clave secreta, y pegar una clave de producción en cualquier página web es justo lo que no hay que hacer. Esta herramienta decodifica para inspección; la verificación pertenece a tu servidor.",
+                answer: "Sí, con HS256/384/512, RS256/384/512, PS256/384/512 y ES256/384/512. Los HS piden el secreto compartido; los demás, la clave pública en PEM (BEGIN PUBLIC KEY), JWK o JWKS. No verifica EdDSA, no descarga claves desde jku ni x5u, y una firma válida no dice si el token expiró: eso se lee en exp.",
             },
         ],
     },
     regex: {
         intro:
-            "Una expresión regular es un patrón para buscar dentro de texto. Escribirlas a ciegas es lento y propenso a errores silenciosos: el patrón compila, no lanza ningún error y aun así captura lo que no debía. Este probador evalúa el patrón mientras escribes, resalta cada coincidencia sobre tu propio texto y muestra los grupos capturados, que es donde suele estar el fallo.",
+            "Una expresión regular es un patrón para buscar dentro de texto. Escribirlas a ciegas es lento y propenso a errores silenciosos: el patrón compila y aun así captura lo que no debía. Este probador usa el motor de JavaScript: resalta cada coincidencia sobre tu texto, lista los grupos capturados, explica qué hace cada parte del patrón y muestra el resultado de un reemplazo. Corre aparte de la página y se corta si tarda más de medio segundo.",
         steps: [
             {
                 title: "Escribe el patrón",
-                body: "Sin las barras delimitadoras: el campo ya asume que lo que escribes es la expresión. Los modificadores como global o insensible a mayúsculas se activan aparte.",
+                body: "Sin las barras delimitadoras: el campo ya asume que lo que escribes es la expresión. Las banderas g, i, m, s y u se activan aparte.",
             },
             {
                 title: "Pega el texto de prueba",
-                body: "Usa datos reales, no ejemplos inventados. Los casos que rompen un patrón casi siempre son los raros: acentos, espacios dobles, líneas vacías.",
+                body: "Hasta 50.000 caracteres. Usa datos reales, no ejemplos inventados: los casos que rompen un patrón casi siempre son los raros, como acentos, espacios dobles o líneas vacías.",
             },
             {
-                title: "Revisa los grupos",
-                body: "Cada paréntesis crea un grupo de captura numerado. Si extraes el fragmento equivocado, comparar los grupos suele señalar el paréntesis mal puesto.",
+                title: "Revisa grupos y explicación",
+                body: "Cada coincidencia aparece con su posición y sus grupos, numerados o con nombre. La explicación desglosa el patrón parte por parte: si extraes el fragmento equivocado, ahí suele verse el paréntesis mal puesto.",
+            },
+            {
+                title: "Prueba el reemplazo",
+                body: "Abre el panel de reemplazo y arma el texto nuevo con $1, $<nombre> o $& para la coincidencia completa. Sin la bandera g solo cambia la primera coincidencia.",
             },
         ],
         useCases: [
@@ -343,7 +371,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         faq: [
             {
                 question: "¿Por qué mi expresión regular es tan lenta?",
-                answer: "Casi siempre por retroceso catastrófico: cuantificadores anidados como (a+)+ hacen que el motor pruebe una cantidad explosiva de combinaciones antes de rendirse. La solución es evitar anidar cuantificadores y ser lo más específico posible en cada parte del patrón.",
+                answer: "Casi siempre por retroceso catastrófico: cuantificadores anidados como (a+)+ hacen que el motor pruebe una cantidad explosiva de combinaciones antes de rendirse. Aquí la ejecución se corta a los 500 ms y te avisa. La solución es evitar anidar cuantificadores y ser lo más específico posible en cada parte del patrón.",
             },
             {
                 question: "¿Cuál es la diferencia entre codicioso y perezoso?",
@@ -356,6 +384,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             {
                 question: "¿Las expresiones regulares funcionan igual en todos los lenguajes?",
                 answer: "No. La sintaxis básica se comparte, pero el comportamiento de lookbehind, grupos con nombre y clases Unicode varía entre JavaScript, Python, PCRE y Go. Un patrón probado aquí funciona en JavaScript; conviene verificarlo en el motor de destino.",
+            },
+            {
+                question: "¿Se envía mi texto a algún servidor?",
+                answer: "No. El patrón y el texto de prueba se evalúan en tu navegador. Solo las funciones con IA salen de él: Generar con IA envía la descripción que escribes y Generar ejemplos envía el patrón, nunca el texto de prueba. Ambas tienen un límite de usos.",
             },
         ],
     },
@@ -374,7 +406,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Copia el desglose",
-                body: "Verás neto, impuesto y total por separado. Ese desglose es el que va en la factura, no solo la cifra final.",
+                body: "Verás neto, impuesto y total por separado. Ese desglose es el que va en la factura, no solo la cifra final. En pesos se redondea al peso, como en la boleta: neto + IVA da siempre el total.",
             },
         ],
         useCases: [
@@ -413,25 +445,29 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     subredes: {
         intro:
-            "Dividir una red en subredes es aritmética binaria disfrazada de decimal, y ahí es donde se cometen los errores. Esta calculadora toma una dirección con su prefijo y devuelve máscara, dirección de red, broadcast, rango utilizable y cuántos hosts caben, además de la representación binaria que hace evidente por qué el corte cae donde cae. Funciona con IPv4 e IPv6.",
+            "Dividir una red en subredes es aritmética binaria disfrazada de decimal, y ahí es donde se cometen los errores. Esta calculadora toma una dirección IPv4 con su prefijo y devuelve máscara, wildcard, red, broadcast, rango utilizable y cuántos hosts caben, con la vista binaria que muestra por qué el corte cae donde cae. En IPv6 da el rango del prefijo. Para IPv4 también planifica VLSM: indicas cuántos hosts necesita cada subred y reparte el bloque.",
         steps: [
             {
                 title: "Introduce la dirección con prefijo",
-                body: "En notación CIDR, por ejemplo 192.168.1.0/24. El número tras la barra indica cuántos bits pertenecen a la red y cuántos quedan para los hosts.",
+                body: "En notación CIDR, por ejemplo 192.168.1.0/24; si pegas una dirección con dos puntos, cambia sola a IPv6. El número tras la barra indica cuántos bits pertenecen a la red y cuántos quedan para los hosts.",
             },
             {
                 title: "Lee el rango utilizable",
-                body: "No es el rango completo: la primera dirección identifica la red y la última es el broadcast. Ninguna de las dos se puede asignar a un equipo en IPv4.",
+                body: "No es el rango completo: la primera dirección identifica la red y la última es el broadcast. Ninguna de las dos se puede asignar a un equipo en IPv4. Un /31 se trata como enlace punto a punto (RFC 3021), sin broadcast.",
             },
             {
                 title: "Revisa la vista binaria",
                 body: "Es donde se ve el corte real. Un /26 parece arbitrario en decimal, pero en binario queda claro que parte el último octeto en cuatro bloques de 64.",
             },
+            {
+                title: "Planifica con VLSM",
+                body: "Escribe la red base y una fila por subred con los hosts que necesita. Verás red, máscara, rango, desperdicio y el espacio que queda libre. Copia la tabla o descárgala en CSV.",
+            },
         ],
         useCases: [
             {
                 title: "Segmentar una red de oficina",
-                body: "Separar servidores, equipos de trabajo e invitados en subredes distintas para que un dispositivo comprometido en la red de visitas no vea la red interna.",
+                body: "Separar servidores, equipos de trabajo e invitados en subredes del tamaño justo con VLSM, para que un dispositivo comprometido en la red de visitas no vea la red interna.",
             },
             {
                 title: "Planificar direccionamiento en la nube",
@@ -459,6 +495,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 question: "¿Qué rangos de IP son privados?",
                 answer: "En IPv4: 10.0.0.0/8, 172.16.0.0/12 y 192.168.0.0/16. No se enrutan por internet, así que se pueden reutilizar dentro de cualquier red local. En IPv6 el rango equivalente para direcciones únicas locales es fc00::/7.",
             },
+            {
+                question: "¿Qué es VLSM y cómo lo calcula esta herramienta?",
+                answer: "VLSM es usar máscaras de distinto largo dentro de una misma red, para que cada subred tenga el tamaño que necesita. Aquí se asignan de la más grande a la más chica, cada una alineada a su tamaño, reservando red y broadcast: un enlace de 2 hosts queda en /30. Solo funciona con IPv4 y hasta 100 subredes por plan.",
+            },
         ],
     },
 
@@ -472,11 +512,11 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Escribe o pega",
-                body: "La conversión es inmediata. Cada carácter se traduce a 8 bits, que es lo que ocupa un carácter ASCII básico.",
+                body: "La conversión es inmediata. Cada byte se escribe con 8 bits: una letra sin tilde ocupa un byte; una ñ, dos; un emoji, cuatro.",
             },
             {
                 title: "Copia el resultado",
-                body: "Si conviertes de binario a texto, revisa que los bloques tengan 8 dígitos: un bloque incompleto produce un carácter equivocado o ninguno.",
+                body: "Si conviertes de binario a texto, la herramienta avisa si sobran bits al final o si un grupo pasa de 8.",
             },
         ],
         useCases: [
@@ -515,39 +555,43 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     unidades: {
         intro:
-            "Un conversor de unidades sirve de poco si solo escupe un número. Este convierte longitud, velocidad, masa y otras magnitudes, y además explica la relación entre las unidades: cuántos metros hay en una milla náutica y por qué, o qué distancia recorre la luz en un segundo. La idea es que salgas sabiendo la equivalencia, no habiéndola consultado.",
+            "Un conversor de unidades sirve de poco si solo entrega un número. Este convierte entre 95 unidades de 12 magnitudes, de la longitud y la masa a la presión, la energía y el consumo de combustible. Junto al resultado muestra de dónde sale la equivalencia: el factor en ambos sentidos, o la fórmula cuando la escala no es proporcional. Además arma una tabla con el valor en todas las unidades de esa magnitud, lista para copiar.",
         steps: [
             {
                 title: "Elige la magnitud",
-                body: "Longitud, velocidad, masa, tiempo. Cada magnitud agrupa solo unidades compatibles entre sí, para que no puedas convertir kilos a kilómetros.",
+                body: "Longitud, masa, temperatura, área, volumen, velocidad, tiempo, datos, presión, energía, potencia o consumo. Cada una agrupa solo unidades compatibles, para que no puedas convertir kilos a kilómetros.",
             },
             {
-                title: "Introduce el valor",
-                body: "La conversión se actualiza mientras escribes, en todas las unidades de esa magnitud a la vez, no solo en la que elegiste como destino.",
+                title: "Escribe el valor",
+                body: "Acepta 1.234,5 o 1234.5, negativos y notación científica como 1,5e6. El resultado se actualiza mientras escribes.",
             },
             {
-                title: "Lee la explicación",
-                body: "Junto al resultado aparece de dónde sale la equivalencia. Es lo que diferencia convertir de entender qué acabas de convertir.",
+                title: "Lee cómo se calcula",
+                body: "Debajo del resultado aparece el factor en ambos sentidos, o la fórmula si no basta con multiplicar, como en temperatura o en L/100 km. Muchas unidades traen además una nota con su definición.",
+            },
+            {
+                title: "Copia la tabla o comparte el enlace",
+                body: "La tabla muestra el valor en todas las unidades de la magnitud, con hasta 12 cifras significativas. La dirección de la página guarda la conversión, así que puedes compartirla tal cual.",
             },
         ],
         useCases: [
             {
                 title: "Trabajar con documentación en otras unidades",
-                body: "Especificaciones técnicas en pulgadas, velocidades en nudos, potencias en caballos de fuerza. Convertir sin salir a buscar la tabla cada vez.",
+                body: "Especificaciones en pulgadas, presiones en psi, potencias en HP o CV, consumos en millas por galón. Convertir sin salir a buscar la tabla cada vez.",
             },
             {
                 title: "Cocinar con recetas extranjeras",
-                body: "Onzas, tazas y grados Fahrenheit traducidos a gramos, mililitros y Celsius, que es donde se arruinan las recetas importadas.",
+                body: "Tazas y cucharadas a mililitros, onzas a gramos y Fahrenheit a Celsius. Para pasar una taza de harina a gramos hace falta la densidad del ingrediente: eso no lo resuelve un conversor de volumen.",
             },
             {
                 title: "Estudiar física o astronomía",
-                body: "Años luz, unidades astronómicas y pársecs puestos en escala con distancias cotidianas, que es lo que hace que las cifras signifiquen algo.",
+                body: "Unidades astronómicas, años luz y pársecs, o electronvoltios y joules, con la definición de cada unidad junto al resultado.",
             },
         ],
         faq: [
             {
                 question: "¿Cuántos metros tiene una milla náutica?",
-                answer: "Exactamente 1.852 metros. No es una cifra arbitraria: equivale a un minuto de arco de latitud sobre la superficie terrestre, que es precisamente por qué se adoptó para navegación marítima y aérea.",
+                answer: "Exactamente 1.852 metros. No es una cifra arbitraria: equivale a cerca de un minuto de arco de latitud sobre la superficie terrestre, que es precisamente por qué se adoptó para navegación marítima y aérea.",
             },
             {
                 question: "¿Qué distancia recorre la luz en un año?",
@@ -561,24 +605,28 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 question: "¿La conversión ocurre en mi navegador?",
                 answer: "Sí. Los factores de conversión están en el propio código de la página y el cálculo no consulta ningún servicio externo. La herramienta sigue funcionando sin conexión una vez que la página cargó.",
             },
+            {
+                question: "¿Cuál es la diferencia entre GB y GiB?",
+                answer: "Un GB son 1.000.000.000 bytes; un GiB, 1.073.741.824, que es 1.024³. Los discos y las conexiones cuentan en GB; Windows cuenta en GiB pero los llama «GB». Por eso un disco de 1 TB aparece como unos 931 GB.",
+            },
         ],
     },
 
     aleatorio: {
         intro:
-            "Elegir al azar delante de otras personas exige que el método sea visible, no solo justo. Esta herramienta sortea con una ruleta animada y también forma grupos aleatorios a partir de una lista. El resultado sale del generador criptográfico del navegador, no de un pseudoaleatorio predecible, y la animación existe para que quien mira acepte el resultado.",
+            "Elegir al azar delante de otras personas exige que el método sea visible, no solo justo. Esta herramienta sortea con una ruleta animada, saca uno o varios ganadores sin repetir y en orden, y reparte una lista en la cantidad de grupos que elijas. El resultado sale del generador criptográfico del navegador, sin sesgo y no de un pseudoaleatorio predecible. La animación existe para que quien mira acepte el resultado.",
         steps: [
             {
                 title: "Carga los participantes",
-                body: "Un nombre por línea. Puedes pegar una lista completa desde una planilla sin tener que reformatearla.",
+                body: "Un nombre por línea, o separados por comas o punto y coma. Puedes pegar una columna completa desde una planilla. Si un nombre se repite, cuenta como dos entradas y la herramienta te lo avisa.",
             },
             {
                 title: "Elige el modo",
-                body: "Ruleta para sacar un ganador único. Grupos para repartir a todos en equipos del tamaño que definas.",
+                body: "Ruleta para sacar ganadores: defines cuántos y salen en orden, sin que nadie salga dos veces. Grupos para repartir a todos en la cantidad de equipos que definas.",
             },
             {
-                title: "Gira y comparte",
-                body: "El resultado queda a la vista para capturarlo. Si repites el sorteo, el anterior no queda registrado en ningún lado.",
+                title: "Gira y copia",
+                body: "Con varios ganadores, la ruleta gira una vez por cada uno y el que sale queda apagado para el giro siguiente. «Terminar ya» muestra al resto sin esperar. Copia la lista numerada o los grupos. Si no quieres esperar nada, sortea sin animación; con la opción de reducir movimiento del sistema, la ruleta no gira.",
             },
         ],
         useCases: [
@@ -592,17 +640,17 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Decidir turnos",
-                body: "Quién presenta primero, quién revisa el código, quién se queda de guardia. Aleatorio y a la vista de todos zanja la discusión.",
+                body: "Quién presenta primero, segundo y tercero: con varios ganadores en orden, la ruleta gira una vez por turno, a la vista de todos.",
             },
         ],
         faq: [
             {
                 question: "¿El sorteo es realmente aleatorio?",
-                answer: "Usa la API criptográfica del navegador, que es la misma fuente de aleatoriedad empleada para generar claves. No es un pseudoaleatorio sembrado con la hora, así que el resultado no se puede predecir ni reproducir conociendo el momento del sorteo.",
+                answer: "Usa la API criptográfica del navegador, que es la misma fuente de aleatoriedad empleada para generar claves, y elige sin sesgo: cada entrada tiene la misma probabilidad. No es un pseudoaleatorio sembrado con la hora, así que el resultado no se puede predecir ni reproducir conociendo el momento del sorteo.",
             },
             {
                 question: "¿Se guardan los participantes o los resultados?",
-                answer: "No. La lista vive solo en la memoria de tu navegador mientras la pestaña está abierta y desaparece al cerrarla. Nada se envía a un servidor, así que no queda registro del sorteo en ningún lado.",
+                answer: "No. La lista y el historial de los últimos sorteos viven en la memoria de la pestaña y desaparecen al cerrarla. Los nombres no se envían a ningún servidor; solo se cuenta el uso de la herramienta, sin los nombres.",
             },
             {
                 question: "¿Puedo repetir el sorteo si no me gusta el resultado?",
@@ -610,7 +658,11 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Cuántos participantes admite?",
-                answer: "No hay un límite fijado por la herramienta. Con listas de varios miles la animación se vuelve menos legible, pero el sorteo sigue siendo correcto. Para listas muy grandes el modo de grupos resulta más práctico que la ruleta.",
+                answer: "Hasta 1.000 entradas de hasta 100 caracteres cada una. Con muchas, las porciones de la ruleta se vuelven finas y en ella los nombres se cortan a 12 caracteres, pero el sorteo sigue siendo correcto: el nombre completo aparece en la lista de ganadores.",
+            },
+            {
+                question: "¿Cómo se arman los grupos?",
+                answer: "Defines cuántos grupos quieres, no de qué tamaño. La lista se baraja y se reparte por turnos, así que los grupos quedan parejos: a lo más difieren en una persona. Necesitas al menos tantos participantes como grupos.",
             },
         ],
     },
@@ -625,7 +677,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Completa los campos",
-                body: "Para WhatsApp usa el número con código de país y sin signos ni espacios. Es el error más frecuente y hace que el enlace no abra nada.",
+                body: "Escribe el número con código de país; los espacios, guiones, el + y el 00 se limpian solos, y un celular chileno de 9 dígitos recibe el 56. Sin hora de inicio, el evento queda de día completo.",
             },
             {
                 title: "Copia y prueba",
@@ -667,29 +719,33 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
     },
     dns: {
         intro:
-            "Cuando cambias un registro DNS, el cambio no llega a todo el mundo al mismo tiempo: cada resolutor guarda la respuesta anterior hasta que expira su TTL. Este verificador consulta el dominio desde servidores de distintas regiones y muestra qué responde cada uno, que es la única forma de saber si la propagación terminó o si aún hay resolutores sirviendo lo viejo.",
+            "Cuando cambias un registro DNS, el cambio no llega a todos al mismo tiempo: cada resolvedor guarda la respuesta anterior hasta que vence su TTL. Este verificador consulta el dominio en seis resolvedores públicos (Google, Cloudflare, Quad9, OpenDNS, AdGuard y CleanBrowsing) desde el servidor de este sitio y compara lo que responde cada uno. También revisa el SPF y el DMARC del dominio. No mide cada país: muestra si los resolvedores más usados ya tienen el valor nuevo.",
         steps: [
             {
-                title: "Escribe el dominio",
-                body: "Sin http ni barras, solo el nombre. Puedes consultar también subdominios concretos si el registro que cambiaste no es el raíz.",
+                title: "Escribe el dominio o una IP",
+                body: "Basta el nombre; si pegas una URL completa o un correo, se queda solo con el dominio. Sirven también subdominios concretos. Si escribes una IP, se hace la consulta inversa (PTR).",
             },
             {
                 title: "Elige el tipo de registro",
-                body: "A para IPv4, AAAA para IPv6, MX para correo, TXT para verificaciones y SPF, CNAME para alias. Cada uno propaga por separado.",
+                body: "A, AAAA, CNAME, MX, TXT, NS, SOA, CAA, SRV o PTR. Cada uno propaga por separado. En A y AAAA verás también el TTL que informa cada resolvedor.",
             },
             {
                 title: "Compara las respuestas",
-                body: "Si todos los servidores coinciden, la propagación terminó. Si difieren, aún hay cachés con el valor antiguo y toca esperar a que expire su TTL.",
+                body: "Si los seis coinciden, el cambio ya llegó a esos resolvedores. Si difieren, alguno sirve todavía el valor antiguo desde su caché y toca esperar a que venza su TTL.",
+            },
+            {
+                title: "Revisa el SPF y el DMARC",
+                body: "Revisar SPF y DMARC lee ambos registros, explica cada término y cuenta en forma aproximada las consultas DNS del SPF, que no pueden pasar de 10. DKIM no se revisa porque hace falta su selector.",
             },
         ],
         useCases: [
             {
                 title: "Confirmar una migración de servidor",
-                body: "Tras apuntar el dominio a una IP nueva, saber si el tráfico ya llega al servidor nuevo o si parte de los usuarios sigue golpeando el viejo.",
+                body: "Tras apuntar el dominio a una IP nueva, ver si los resolvedores públicos más usados ya entregan la nueva o si alguno sigue con la vieja.",
             },
             {
                 title: "Depurar entrega de correo",
-                body: "Los registros MX, SPF y DKIM mal propagados hacen que el correo rebote o caiga en spam. Verlos desde varias regiones señala si el problema es de propagación o de configuración.",
+                body: "Un MX mal propagado, un SPF con demasiadas consultas o un DMARC mal escrito hacen que el correo rebote o caiga en spam. La revisión de correo señala qué conviene corregir.",
             },
             {
                 title: "Validar verificaciones de dominio",
@@ -699,19 +755,23 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         faq: [
             {
                 question: "¿Cuánto tarda en propagarse un cambio de DNS?",
-                answer: "Depende del TTL que tenía el registro anterior, no del nuevo. Si el TTL era de 24 horas, algunos resolutores servirán el valor viejo hasta un día completo. Bajar el TTL antes de un cambio planificado acorta mucho la espera.",
+                answer: "Depende del TTL que tenía el registro anterior, no del nuevo. Si el TTL era de 24 horas, algunos resolvedores servirán el valor viejo hasta un día completo. Bajar el TTL antes de un cambio planificado acorta mucho la espera.",
             },
             {
                 question: "¿Qué es el TTL de un registro DNS?",
-                answer: "El tiempo en segundos que un resolutor puede guardar la respuesta antes de volver a preguntar. Un TTL alto reduce consultas y mejora rendimiento; uno bajo hace que los cambios se propaguen rápido. Se suele bajar días antes de una migración.",
+                answer: "El tiempo en segundos que un resolvedor puede guardar la respuesta antes de volver a preguntar. Un TTL alto reduce consultas y mejora rendimiento; uno bajo hace que los cambios se propaguen rápido. Se suele bajar días antes de una migración.",
             },
             {
                 question: "¿Por qué mi dominio funciona en un lugar y en otro no?",
-                answer: "Porque cada resolutor tiene su propia caché con su propio vencimiento. Unos ya pidieron el valor nuevo y otros aún sirven el guardado. No es un error: es cómo funciona el DNS, y se resuelve esperando a que expiren los TTL.",
+                answer: "Porque cada resolvedor tiene su propia caché con su propio vencimiento. Unos ya pidieron el valor nuevo y otros aún sirven el guardado. No es un error: es cómo funciona el DNS, y se resuelve esperando a que expiren los TTL.",
             },
             {
                 question: "¿Puedo forzar la propagación?",
-                answer: "No globalmente. Puedes limpiar tu caché local y la de tu resolutor, pero no la del resto del mundo. Lo único que acelera de verdad una migración es haber bajado el TTL con antelación, antes de hacer el cambio.",
+                answer: "No globalmente. Puedes limpiar tu caché local y la de tu resolvedor, pero no la del resto del mundo. Lo único que acelera de verdad una migración es haber bajado el TTL con antelación, antes de hacer el cambio.",
+            },
+            {
+                question: "¿Esto muestra la propagación en todo el mundo?",
+                answer: "No. Consulta seis resolvedores públicos desde un solo servidor. Como son anycast, cada uno responde desde su nodo más cercano a ese servidor, no desde cada país. Sirve para saber si los resolvedores más usados ya tienen el valor nuevo; el de tu proveedor de internet puede ir a otro ritmo.",
             },
         ],
     },
@@ -773,7 +833,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         steps: [
             {
                 title: "Suelta la imagen",
-                body: "JPEG y TIFF son los formatos que más metadatos guardan. PNG almacena menos, y algunas redes sociales los eliminan al subir, pero no todas.",
+                body: "Acepta JPEG, PNG y WebP. JPEG es el que más metadatos guarda y el único del que se muestra el detalle; de PNG y WebP también se quitan al limpiar. Algunas redes sociales los eliminan al subir, pero no todas.",
             },
             {
                 title: "Revisa lo que aparece",
@@ -809,7 +869,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Se pierde calidad al quitar los metadatos?",
-                answer: "No. Los metadatos son un bloque de información separado de los píxeles, así que eliminarlos no recomprime ni altera la imagen. El archivo resultante pesa incluso un poco menos y se ve exactamente igual.",
+                answer: "No. Los metadatos van en bloques aparte de los píxeles, así que quitarlos no recomprime la imagen, ni en JPEG, ni en PNG ni en WebP. En JPEG se conserva solo la orientación, para que una foto vertical no aparezca acostada.",
             },
             {
                 question: "¿Se sube mi foto a algún servidor?",
@@ -819,25 +879,29 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
     },
     "convertir-imagen": {
         intro:
-            "El formato de una imagen decide cuánto pesa y dónde se puede usar. WebP pesa bastante menos que JPG con calidad equivalente, PNG conserva transparencia y JPG sigue siendo el que acepta cualquier sistema antiguo. Este conversor pasa entre PNG, JPG, WebP y BMP en el navegador, sin subir el archivo a ningún servidor y sin límite de cantidad.",
+            "El formato de una imagen decide cuánto pesa y dónde se puede usar. WebP suele pesar menos que JPG con calidad parecida, PNG conserva la transparencia y JPG sigue siendo el que acepta cualquier sistema antiguo. Este conversor abre PNG, JPG, WebP, AVIF, GIF y BMP, y exporta a WebP, PNG o JPG. Puedes convertir una imagen o hasta 20 a la vez y bajarlas en un ZIP. Todo pasa en tu navegador, sin subir archivos.",
         steps: [
             {
-                title: "Suelta la imagen",
-                body: "Arrastra el archivo o selecciónalo. Se lee localmente con la API del navegador, así que el original nunca sale de tu equipo.",
+                title: "Suelta una o varias imágenes",
+                body: "Arrástralas, selecciónalas o pégalas con Ctrl o ⌘ V en cualquier parte de la página. Con varias, hasta 20 por vez, se aplican los mismos ajustes a todas. Cada archivo puede pesar hasta 50 MB.",
             },
             {
                 title: "Elige el formato de salida",
-                body: "WebP para web, PNG si necesitas transparencia, JPG si el destino es un sistema que no acepta nada más moderno.",
+                body: "WebP para web, PNG si necesitas transparencia, JPG si el destino es un sistema que no acepta nada más moderno. En JPG eliges el color que rellena las zonas transparentes.",
+            },
+            {
+                title: "Ajusta la calidad y compara",
+                body: "En WebP y JPG la calidad va de 10 a 100. Mantén pulsado el botón del ojo para ver el original y compara el peso antes y después.",
             },
             {
                 title: "Descarga el resultado",
-                body: "Compara el peso antes y después. Si el ahorro es marginal, probablemente la imagen ya estaba optimizada y no vale la pena cambiar de formato.",
+                body: "Un lote se baja imagen por imagen o todo en un ZIP. Si el ahorro es marginal, probablemente la imagen ya estaba optimizada y no vale la pena cambiar de formato.",
             },
         ],
         useCases: [
             {
                 title: "Aligerar imágenes de una web",
-                body: "Convertir a WebP suele recortar entre un 25% y un 35% del peso frente a JPG, lo que se nota directamente en el tiempo de carga y en Core Web Vitals.",
+                body: "En las pruebas de Google, WebP pesó entre un 25% y un 34% menos que JPG con calidad equivalente. Se nota en el tiempo de carga y en Core Web Vitals.",
             },
             {
                 title: "Preparar imágenes para impresión",
@@ -851,7 +915,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         faq: [
             {
                 question: "¿WebP es mejor que JPG?",
-                answer: "Para web, casi siempre: pesa entre un 25% y un 35% menos con calidad visual equivalente, y admite transparencia, que JPG no. La excepción son los sistemas antiguos que no lo soportan, cada vez menos frecuentes pero todavía presentes en software de escritorio.",
+                answer: "Para web, casi siempre: suele pesar menos con calidad visual equivalente y admite transparencia, que JPG no. La excepción son los sistemas antiguos que no lo soportan, cada vez menos frecuentes pero todavía presentes en software de escritorio.",
             },
             {
                 question: "¿Convertir de JPG a PNG mejora la calidad?",
@@ -865,24 +929,32 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
                 question: "¿Se pierde calidad al convertir entre formatos?",
                 answer: "Al pasar a JPG o WebP sí, porque ambos comprimen con pérdida. A PNG no, porque es sin pérdida. Convertir repetidamente entre formatos con pérdida degrada la imagen en cada paso, así que conviene partir siempre del original.",
             },
+            {
+                question: "¿Puedo convertir a BMP, GIF o AVIF?",
+                answer: "No. Esos formatos se pueden abrir, pero la salida es WebP, PNG o JPG, que son los que el navegador sabe crear. Si tu navegador no sabe crear WebP, la herramienta te avisa y entrega el archivo en otro formato. De un GIF animado se usa solo el primer cuadro.",
+            },
         ],
     },
 
     "comprimir-imagen": {
         intro:
-            "Las imágenes son casi siempre lo que más pesa en una página, y casi siempre lo que menos se optimiza. Este compresor reduce el tamaño del archivo ajustando la calidad hasta el punto donde la diferencia deja de notarse a simple vista, y te muestra el antes y el después para que decidas tú dónde está ese punto. Todo ocurre en tu navegador.",
+            "Las imágenes son casi siempre lo que más pesa en una página, y casi siempre lo que menos se optimiza. Este compresor baja la calidad hasta donde la diferencia deja de notarse y te muestra el antes y el después para que decidas tú. Si un formulario pide un máximo, escribe el peso objetivo en KB y busca la mayor calidad que cabe. Comprime una imagen o hasta 20 a la vez, en tu navegador.",
         steps: [
             {
-                title: "Carga la imagen",
-                body: "Verás el peso original de referencia. Sin ese número no hay forma de saber si la compresión valió la pena.",
+                title: "Carga una o varias imágenes",
+                body: "Verás el peso original de referencia. Puedes soltar, elegir o pegar hasta 20 imágenes; a todas se les aplican los mismos ajustes. Un JPEG sale en JPEG y un WebP en WebP; un PNG pasa a WebP, salvo que elijas otro formato.",
             },
             {
-                title: "Ajusta el nivel",
-                body: "Baja la calidad progresivamente y observa la vista previa. El punto útil suele estar entre 70 y 85: por debajo aparecen artefactos en degradados y bordes.",
+                title: "Ajusta la calidad o fija un peso",
+                body: "El punto útil suele estar entre 70 y 85: por debajo aparecen artefactos en degradados y bordes. Con un peso objetivo, la herramienta prueba calidades entre 40 y 92; si ni con 40 alcanza, achica la imagen.",
             },
             {
-                title: "Descarga",
-                body: "Compara el peso final con el original. Una reducción menor al 20% rara vez justifica el cambio; una del 60% sí, y suele ser invisible.",
+                title: "Limita el lado mayor (opcional)",
+                body: "Escribe un lado máximo en píxeles para achicar fotos grandes sin deformarlas; nunca amplía. Bajar las medidas suele ahorrar más peso que bajar la calidad.",
+            },
+            {
+                title: "Compara y descarga",
+                body: "Mantén pulsado el botón del ojo para ver el original. Si el resultado pesa más que el original, la herramienta te lo dice y conviene quedarse con el original. Un lote se baja en ZIP.",
             },
         ],
         useCases: [
@@ -896,13 +968,13 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Subir a plataformas con límite",
-                body: "Formularios, marketplaces y portales de trámites suelen imponer un máximo por archivo. Comprimir permite cumplirlo sin recortar la imagen.",
+                body: "Formularios, marketplaces y portales de trámites suelen imponer un máximo por archivo. Escribe ese máximo como peso objetivo y la herramienta busca la mejor calidad que cabe.",
             },
         ],
         faq: [
             {
                 question: "¿Cuánto se puede comprimir sin que se note?",
-                answer: "En fotografías, una calidad del 80% suele reducir el peso a la mitad sin diferencia perceptible. En imágenes con texto, líneas finas o zonas planas de color, los artefactos aparecen antes: ahí conviene no bajar de 90 o usar PNG.",
+                answer: "Depende de la imagen. En fotografías, una calidad cercana a 80 suele bajar bastante el peso sin diferencia perceptible. En imágenes con texto, líneas finas o zonas planas de color, los artefactos aparecen antes: ahí conviene no bajar de 90.",
             },
             {
                 question: "¿La compresión es reversible?",
@@ -910,30 +982,38 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Comprimir cambia las dimensiones de la imagen?",
-                answer: "No. Comprimir reduce el peso del archivo manteniendo el mismo alto y ancho en píxeles. Si lo que necesitas es cambiar las dimensiones, esa es otra operación distinta y suele reducir el peso mucho más que ajustar la calidad.",
+                answer: "Solo en dos casos. Si escribes un lado máximo, la imagen se achica sin deformarse. Y si fijas un peso objetivo que no se alcanza ni con calidad 40, la herramienta reduce las medidas y te muestra las nuevas. Si no tocas ninguna de las dos opciones, el alto y el ancho se mantienen.",
             },
             {
                 question: "¿Se sube mi imagen a algún servidor?",
                 answer: "No. La compresión ocurre en tu navegador y el archivo no se transmite en ningún momento. Es lo que permite comprimir fotos personales o material de clientes sin entregárselos a un tercero.",
+            },
+            {
+                question: "¿Por qué no puedo comprimir un PNG?",
+                answer: "Porque PNG guarda sin pérdida y no tiene calidad que ajustar: solo baja de peso si reduces sus medidas. Para comprimirlo o apuntar a un peso, pásalo a WebP, que también conserva la transparencia, o a JPG si no la necesitas.",
             },
         ],
     },
 
     redimensionar: {
         intro:
-            "Servir una imagen de 4000 píxeles de ancho en un espacio de 400 desperdicia ancho de banda y tiempo de carga sin ganar nada: el navegador la reduce igual, después de haberla descargado entera. Esta herramienta cambia las dimensiones reales del archivo, con presets para los formatos de YouTube, Instagram y otras plataformas, y mantiene la proporción salvo que le digas lo contrario.",
+            "Servir una imagen de 4000 píxeles de ancho en un espacio de 400 desperdicia ancho de banda y tiempo de carga sin ganar nada: el navegador la reduce igual, después de haberla descargado entera. Esta herramienta cambia las dimensiones reales del archivo, con presets para Instagram, YouTube, Facebook y LinkedIn. Eliges cómo entra la imagen en la medida nueva: ajustar, cubrir o estirar, y solo estirar la deforma. Funciona con una imagen o con hasta 20 a la vez.",
         steps: [
             {
-                title: "Carga la imagen",
-                body: "Verás sus dimensiones actuales. Es el dato que determina cuánto margen de reducción tienes antes de que se note.",
+                title: "Carga una o varias imágenes",
+                body: "Verás sus dimensiones actuales, que determinan cuánto margen de reducción tienes antes de que se note. En un lote, las medidas de partida son las de la primera imagen.",
             },
             {
                 title: "Elige preset o medida propia",
-                body: "Los presets cubren los formatos habituales de cada plataforma. Para medidas propias, mantén bloqueada la proporción o la imagen se deformará.",
+                body: "Los presets cubren formatos de Instagram, YouTube, Facebook y LinkedIn, además de Full HD y 4K. Con el candado activado, al cambiar el ancho el alto se ajusta solo.",
+            },
+            {
+                title: "Elige cómo encaja",
+                body: "Ajustar mete la imagen entera y deja márgenes, que puedes rellenar con un color. Cubrir llena la medida y recorta lo que sobra. Estirar llena la medida deformando la imagen.",
             },
             {
                 title: "Descarga",
-                body: "Reducir siempre da buen resultado. Ampliar por encima del tamaño original nunca lo da: no hay información que inventar y el resultado sale borroso.",
+                body: "Sale en el formato de la original, salvo que elijas otro. Reducir siempre da buen resultado. Ampliar por encima del tamaño original nunca lo da: no hay información que inventar y el resultado sale borroso.",
             },
         ],
         useCases: [
@@ -961,34 +1041,38 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Por qué se deforma mi imagen al cambiar el tamaño?",
-                answer: "Porque el alto y el ancho se modificaron en proporciones distintas. Bloquear la proporción hace que al cambiar una dimensión la otra se ajuste sola. Si necesitas una medida exacta que no respeta la proporción original, recorta antes en vez de deformar.",
+                answer: "Porque elegiste Estirar con una medida de otra proporción. Ajustar y Cubrir nunca deforman: el primero deja márgenes y el segundo recorta los bordes. Con el candado activado, al cambiar una dimensión la otra se ajusta sola y la proporción se mantiene.",
             },
             {
                 question: "¿Cuál es el tamaño ideal para una imagen de web?",
                 answer: "El mismo en que se va a mostrar, multiplicado por dos si quieres que se vea nítida en pantallas de alta densidad. Servir una imagen de 3000 píxeles en un contenedor de 600 desperdicia descarga sin ninguna mejora visual.",
+            },
+            {
+                question: "¿Puedo redimensionar varias imágenes a la vez?",
+                answer: "Sí, hasta 20 por vez. Con el candado, cada una cabe en la medida que pongas y conserva su proporción; sin el candado, todas salen con el ancho y el alto exactos. Se bajan una por una o en un ZIP. El límite es de 16.000 píxeles por lado y 40 megapíxeles por imagen.",
             },
         ],
     },
 
     "recortar-imagen": {
         intro:
-            "Recortar no es solo quitar bordes: es decidir qué mira quien ve la imagen. Este editor recorta con vista previa en vivo y trae los formatos que piden las redes, para que la plataforma no recorte por su cuenta y termine cortando lo importante. El archivo se procesa en tu navegador, así que puedes recortar material privado sin subirlo a ningún lado.",
+            "Recortar no es solo quitar bordes: es decidir qué mira quien ve la imagen. Este editor recorta con vista previa en vivo, zoom, giro y las proporciones que piden las redes, para que la plataforma no recorte por su cuenta y corte lo importante. También encaja el recorte al sujeto: un modelo de segmentación encuentra sus bordes y ajusta el encuadre. Todo pasa en tu navegador; el modelo se descarga la primera vez que usas esa función.",
         steps: [
             {
                 title: "Carga la imagen",
-                body: "Aparece con el marco de recorte encima. Puedes moverlo y redimensionarlo con el ratón o con gestos táctiles.",
+                body: "Aparece con el marco de recorte encima. Arrastra la imagen para encuadrarla, usa el zoom para acercarte y las flechas del teclado para ajustes finos.",
             },
             {
                 title: "Elige la proporción",
-                body: "Cuadrado para perfiles, 16:9 para portadas, vertical para historias. Fijar la proporción evita entregar una medida que la plataforma vaya a recortar de nuevo.",
+                body: "Original, 1:1, 16:9, 9:16, 4:3, 3:2 o 4:5. Fijar la proporción evita entregar una medida que la plataforma vaya a recortar de nuevo.",
             },
             {
-                title: "Ajusta y descarga",
-                body: "Deja aire alrededor del sujeto principal: muchas plataformas recortan un poco más al generar sus propias miniaturas.",
+                title: "Encaja al sujeto (opcional)",
+                body: "Pulsa Encajar al sujeto y el encuadre se ajusta a lo que detecta el modelo, con el margen que elijas y respetando la proporción. Si hay varios objetos, cambia a Marcar sujeto y pinta encima del que quieres conservar.",
             },
             {
-                title: "Marca el sujeto (opcional)",
-                body: "Cambia a Marcar sujeto, pinta por encima de lo que quieres conservar y pulsa Ajustar: la segmentación detecta sus bordes y el encuadre se ajusta solo, respetando el formato elegido.",
+                title: "Gira y descarga",
+                body: "Gira de a 90° o en grados sueltos y descarga en PNG, JPG o WebP; en JPG y WebP eliges la calidad. Deja aire alrededor del sujeto: muchas plataformas recortan un poco más al generar sus miniaturas.",
             },
         ],
         useCases: [
@@ -1020,11 +1104,11 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Se sube mi imagen a algún servidor?",
-                answer: "No. El recorte ocurre en tu navegador mediante la API Canvas y el archivo nunca se transmite. Es lo que permite recortar documentos, capturas con datos o fotos personales sin entregarlos a un servicio externo.",
+                answer: "No. El recorte ocurre en tu navegador mediante la API Canvas y el archivo nunca se transmite. Encajar al sujeto descarga una vez el modelo de segmentación, pero tu imagen se analiza en tu equipo. Así puedes recortar documentos, capturas con datos o fotos personales sin entregarlos a un servicio externo.",
             },
             {
                 question: "¿Cómo funciona el recorte automático al sujeto?",
-                answer: "Pintas por encima de lo que te interesa y la herramienta segmenta la imagen en tu navegador para encontrar los bordes exactos; luego encuadra el rectángulo más pequeño del formato elegido que contenga al sujeto, con el margen que definas. Si hay varios objetos, la pincelada decide cuál.",
+                answer: "Al pulsar Encajar al sujeto, un modelo de segmentación corre en tu navegador, encuentra el sujeto y encuadra el rectángulo más pequeño de la proporción elegida que lo contiene, con el margen que definas. La primera vez descarga el modelo y tarda más. Si hay varios objetos, marca con el pincel el que quieres.",
             },
         ],
     },
@@ -1042,7 +1126,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Descarga el PNG",
-                body: "Sale con transparencia real, no con fondo blanco. Si necesitas fondo de color, ponlo después en cualquier editor sin perder el recorte.",
+                body: "Sale con transparencia real, no con fondo blanco. Si necesitas fondo, elige blanco, marfil, oscuro, degradado o un color propio antes de descargar.",
             },
         ],
         useCases: [
@@ -1081,19 +1165,23 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     "marca-agua": {
         intro:
-            "Una marca de agua no impide que copien tu imagen, pero deja constancia de su origen cuando circula sin crédito. Esta herramienta superpone texto o un logo con control de posición, tamaño, rotación y opacidad, y aplica el resultado en tu navegador. Puedes ajustar la transparencia hasta el punto donde la marca se lee sin arruinar la imagen.",
+            "Una marca de agua no impide que copien tu imagen, pero deja constancia de su origen cuando circula sin crédito. Esta herramienta pone texto o un logo en una esquina, al centro o repetido en mosaico, con tamaño, opacidad y giro ajustables. Los tamaños van en proporción al ancho, así que la marca se ve igual en una foto chica que en una grande. La imagen se descarga a tamaño completo y se procesa en tu navegador.",
         steps: [
             {
                 title: "Carga la imagen base",
-                body: "Es la que recibirá la marca. Se procesa localmente, así que puedes marcar material que aún no has publicado.",
+                body: "Es la que recibirá la marca: PNG, JPG, WebP, GIF o BMP. Se procesa localmente, así que puedes marcar material que aún no has publicado.",
             },
             {
                 title: "Elige texto o logo",
-                body: "El texto sirve para firmas y avisos de copyright. Un logo en PNG con transparencia queda mejor integrado que uno con fondo sólido.",
+                body: "El texto sirve para firmas y avisos de copyright, con el color que elijas. Un logo en PNG con transparencia queda mejor integrado que uno con fondo sólido.",
             },
             {
                 title: "Ajusta posición y opacidad",
-                body: "Entre 30% y 50% suele ser el rango útil: visible pero sin tapar. Una esquina es discreta; el centro es difícil de recortar pero molesta más.",
+                body: "Elige una de las cuatro esquinas, el centro o mosaico, y gira la marca hasta 45° a cada lado. Entre 30% y 50% de opacidad suele ser el rango útil: visible pero sin tapar.",
+            },
+            {
+                title: "Descarga",
+                body: "Sale a tamaño completo y en el formato del original: PNG, JPG o WebP. GIF y BMP salen en PNG. En JPG y WebP puedes elegir la calidad.",
             },
         ],
         useCases: [
@@ -1126,6 +1214,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             {
                 question: "¿Se sube mi imagen a algún servidor?",
                 answer: "No. La marca se aplica en tu navegador mediante la API Canvas y ni la imagen base ni el logo salen de tu equipo. Es lo que permite marcar material inédito o de clientes sin entregarlo a un tercero primero.",
+            },
+            {
+                question: "¿La marca cambia de tamaño según la foto?",
+                answer: "Se mantiene en proporción: el tamaño del texto, la escala del logo y el espaciado del mosaico van en porcentaje del ancho de la imagen. La vista previa es reducida, pero la descarga usa la imagen original completa con la misma composición.",
             },
         ],
     },
@@ -1183,19 +1275,23 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     favicon: {
         intro:
-            "El favicon dejó de ser un solo archivo hace años: hoy un navegador, un móvil y una app instalada piden tamaños distintos, y faltar uno hace que el icono salga borroso o directamente en blanco. Este generador produce todos los tamaños necesarios a partir de una imagen y los entrega en un ZIP, junto con las etiquetas HTML que hay que pegar.",
+            "El favicon dejó de ser un solo archivo hace años: un navegador, un celular y una app instalada piden tamaños distintos, y si falta uno el icono sale borroso o en blanco. Este generador produce ocho PNG, de 16 a 512 píxeles, un favicon.ico con 16, 32 y 48 píxeles dentro y un site.webmanifest, y lo entrega todo en un ZIP junto con las etiquetas HTML que hay que pegar. La imagen se procesa en tu navegador.",
         steps: [
             {
                 title: "Sube la imagen de origen",
-                body: "Cuadrada y de al menos 512 píxeles. Los tamaños pequeños se generan reduciendo, así que partir de algo grande evita bordes sucios.",
+                body: "Cuadrada y de al menos 512 píxeles. Si no es cuadrada, se encaja sin deformarse. Los tamaños pequeños se generan reduciendo, así que partir de algo grande evita bordes sucios.",
             },
             {
-                title: "Revisa las previsualizaciones",
-                body: "Mira sobre todo el tamaño de 16 píxeles: un logo con detalle fino se convierte ahí en una mancha ilegible y conviene simplificarlo.",
+                title: "Ajusta margen y fondo",
+                body: "Mira sobre todo el tamaño de 16 píxeles: un logo con detalle fino se vuelve ahí una mancha. El margen interior va de 0 a 30%, y el fondo puede ser transparente o de un color.",
+            },
+            {
+                title: "Completa el manifest",
+                body: "El nombre de la app, el nombre corto y el color del tema van al site.webmanifest y a la etiqueta theme-color. El nombre corto es el que aparece bajo el icono en el celular.",
             },
             {
                 title: "Descarga el ZIP",
-                body: "Incluye todos los tamaños y las etiquetas HTML. Los archivos van en la raíz del sitio, y las etiquetas dentro del head.",
+                body: "Trae los ocho PNG, favicon.ico, site.webmanifest y las etiquetas HTML. Los archivos van en la raíz del sitio y las etiquetas dentro del head. Cada tamaño también se baja por separado.",
             },
         ],
         useCases: [
@@ -1219,7 +1315,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Sigue haciendo falta el archivo .ico?",
-                answer: "Cada vez menos, pero conviene incluirlo. Los navegadores modernos prefieren PNG declarados en el HTML, aunque algunos aún buscan favicon.ico en la raíz por defecto, y ciertos lectores de feeds y herramientas antiguas solo entienden ese formato.",
+                answer: "Cada vez menos, pero conviene incluirlo, y el ZIP lo trae con 16, 32 y 48 píxeles dentro. Los navegadores modernos prefieren PNG declarados en el HTML, aunque algunos aún buscan favicon.ico en la raíz por defecto, y ciertos lectores de feeds y herramientas antiguas solo entienden ese formato.",
             },
             {
                 question: "¿Por qué mi favicon se ve borroso?",
@@ -1228,6 +1324,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             {
                 question: "¿Por qué no cambia mi favicon tras actualizarlo?",
                 answer: "Porque los navegadores lo cachean de forma muy agresiva, a veces durante días. Forzar una recarga completa suele bastar; si no, cambiar el nombre del archivo o añadirle un parámetro de versión en la etiqueta obliga a volver a pedirlo.",
+            },
+            {
+                question: "¿Por qué el icono de Apple sale con fondo?",
+                answer: "Porque iPhone y iPad no respetan la transparencia del apple-touch-icon: la pintan de negro. Por eso ese icono de 180 píxeles sale siempre opaco, con el color que elijas, aunque el resto de los tamaños quede transparente.",
             },
         ],
     },
@@ -1238,7 +1338,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         steps: [
             {
                 title: "Sube la imagen",
-                body: "Cuadrada da mejor resultado. Una imagen rectangular se deforma o se recorta al ajustarse a los tamaños cuadrados del formato.",
+                body: "Cuadrada da mejor resultado. Una imagen rectangular se encaja sin deformarse y quedan márgenes transparentes a los lados.",
             },
             {
                 title: "Convierte",
@@ -1284,19 +1384,23 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
     },
     ascii: {
         intro:
-            "El arte ASCII convierte una imagen en texto: cada zona de la foto se reemplaza por el carácter cuya densidad visual se parece a ese nivel de brillo. Esta herramienta hace esa traducción con varios juegos de caracteres y opciones de color, y exporta el resultado como texto o como imagen. Sirve para banners de terminal, firmas de correo y por el gusto de ver una foto hecha de letras.",
+            "El arte ASCII convierte una imagen en texto: cada zona de la foto se reemplaza por el carácter cuya densidad visual se parece a ese nivel de brillo. Esta herramienta hace esa traducción con varios juegos de caracteres, o con los tuyos, en blanco y negro o en color. Puedes ajustar brillo, contraste y nitidez antes de convertir, y exportar como texto, PNG o HTML en color. Sirve para banners de terminal, firmas de correo y por el gusto de ver una foto hecha de letras.",
         steps: [
             {
                 title: "Carga la imagen",
-                body: "Las de contraste alto y sujeto claro funcionan mejor. Una foto plana de tonos medios se convierte en una masa de caracteres sin forma reconocible.",
+                body: "JPG, PNG, GIF, WebP o BMP de hasta 10 MB. Las de contraste alto y sujeto claro funcionan mejor: una foto plana de tonos medios se convierte en una masa de caracteres sin forma reconocible.",
             },
             {
                 title: "Ajusta ancho y caracteres",
-                body: "El ancho es la resolución: más columnas, más detalle y más texto. El juego de caracteres cambia el aspecto, de fino y detallado a grueso y contrastado.",
+                body: "El ancho, de 30 a 200 columnas, es la resolución: más columnas, más detalle y más texto. El juego de caracteres cambia el aspecto: estándar, detallado, bloques, simple, binario o uno propio, de oscuro a claro.",
+            },
+            {
+                title: "Afina la imagen",
+                body: "Brillo, contraste, saturación, tono, escala de grises, sepia y nitidez se aplican antes de convertir. Invertir cambia qué zonas llevan los caracteres más densos.",
             },
             {
                 title: "Exporta",
-                body: "Como texto para pegar en una terminal o un README, o como imagen si vas a publicarlo donde el texto monoespaciado se descuadra.",
+                body: "Copia el texto o bájalo en TXT para una terminal o un README. El PNG sale tal como se ve, en color si lo activaste y con fondo transparente si lo eliges; el HTML conserva el color.",
             },
         ],
         useCases: [
@@ -1320,7 +1424,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Por qué se ve descuadrado al pegarlo?",
-                answer: "Porque el arte ASCII solo se alinea en una fuente monoespaciada, donde todos los caracteres ocupan el mismo ancho. En una fuente normal cada letra mide distinto y la imagen se deforma. Para publicarlo fuera de una terminal, expórtalo como imagen.",
+                answer: "Porque el arte ASCII solo se alinea en una fuente monoespaciada, donde todos los caracteres ocupan el mismo ancho. En una fuente normal cada letra mide distinto y la imagen se deforma. Para publicarlo fuera de una terminal, expórtalo como PNG o HTML.",
             },
             {
                 question: "¿Qué significa el ancho en caracteres?",
@@ -1329,6 +1433,10 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             {
                 question: "¿Se sube mi imagen a algún servidor?",
                 answer: "No. La conversión lee los píxeles con la API Canvas del navegador y la imagen no se transmite. Todo el procesamiento es local, así que puedes convertir cualquier imagen sin que salga de tu equipo.",
+            },
+            {
+                question: "¿Puedo conservar los colores de la foto?",
+                answer: "Sí. Con el modo color, cada carácter toma el color de su zona. El color se ve en la vista previa, en el PNG y en el HTML; el TXT y el texto copiado son solo caracteres, porque el texto plano no guarda color.",
             },
         ],
     },
@@ -1343,7 +1451,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Elige la tipografía",
-                body: "Las hay finas, en bloque y en relieve. La legibilidad cambia mucho: algunas quedan bien con una palabra y se vuelven ilegibles con otra.",
+                body: "Hay cinco: Standard (la clásica de FIGlet), Banner (bloques ██), Small (de tres líneas), Block y Mini (cada letra en un recuadro). La legibilidad cambia mucho: algunas quedan bien con una palabra y se vuelven ilegibles con otra.",
             },
             {
                 title: "Exporta",
@@ -1379,32 +1487,40 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Puedo usar acentos y eñes en el banner?",
-                answer: "Depende de la tipografía: muchas de las clásicas solo definen el alfabeto inglés básico y los caracteres acentuados salen en blanco o como un signo de interrogación. Si necesitas acentos, prueba primero con la palabra completa antes de darlo por bueno.",
+                answer: "Depende de la tipografía: muchas de las clásicas solo definen el alfabeto inglés básico. Aquí las tildes y la ñ salen como su letra base (Ñ → N) y la herramienta avisa qué signos no dibuja la fuente elegida.",
             },
         ],
     },
 
     esteganografia: {
         intro:
-            "La esteganografía esconde un mensaje a plena vista, sin que se note que hay algo escondido. Esta herramienta oculta texto dentro de un emoji usando caracteres Unicode invisibles: el emoji se ve completamente normal, pero arrastra el mensaje pegado. Quien no sepa que está ahí solo verá una carita. No es cifrado, es ocultación: cualquiera que sepa dónde mirar lo recupera.",
+            "La esteganografía esconde un mensaje a plena vista, sin que se note que hay algo escondido. Esta herramienta oculta texto entre los emojis de un portador usando caracteres Unicode invisibles: se ve normal, pero arrastra el mensaje. No es cifrado: quien sepa dónde mirar lo recupera. El modo Detectar hace lo contrario con cualquier texto: encuentra espacios de ancho cero, controles bidi y etiquetas Unicode, muestra lo que esconden y entrega una copia limpia.",
         steps: [
             {
-                title: "Elige el emoji portador",
-                body: "El que se verá a simple vista. Cualquiera sirve: el mensaje va en caracteres invisibles añadidos después, no en el emoji en sí.",
+                title: "Elige el portador",
+                body: "Uno o varios emojis, o una frase corta. El mensaje se reparte entre sus caracteres sin partir los emojis compuestos; si el portador es un solo emoji, va después de él.",
             },
             {
                 title: "Escribe el mensaje",
-                body: "Se codifica como caracteres invisibles y se adjunta al emoji. El resultado se copia y se pega como cualquier texto normal.",
+                body: "Cada byte se escribe con 8 caracteres invisibles, más una marca al inicio: una letra sin tilde ocupa 8 y una con tilde, 16. El resultado se copia y se pega como cualquier texto.",
             },
             {
                 title: "Para leer, pega y decodifica",
-                body: "El destinatario pega el emoji aquí en modo decodificar y recupera el texto oculto. Sin la herramienta, el mensaje pasa inadvertido.",
+                body: "El destinatario pega el texto aquí en modo Decodificar y recupera el mensaje oculto. Sin la herramienta, el mensaje pasa inadvertido.",
+            },
+            {
+                title: "Revisa textos sospechosos",
+                body: "En Detectar, pega un correo, un mensaje o un prompt. Verás cuántos invisibles hay, en qué línea y columna, qué texto esconden las etiquetas, y podrás copiar el texto limpio.",
             },
         ],
         useCases: [
             {
                 title: "Curiosidad y juegos",
                 body: "Mandar un mensaje escondido en un emoji por diversión, o montar la pista de una búsqueda del tesoro que solo se revela con la herramienta correcta.",
+            },
+            {
+                title: "Revisar un prompt antes de usarlo",
+                body: "Las etiquetas Unicode pueden llevar instrucciones que no ves y que algunos asistentes de IA sí leen. Detectar las muestra y entrega el texto sin ellas.",
             },
             {
                 title: "Marcar texto de forma invisible",
@@ -1426,11 +1542,15 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Alguien puede darse cuenta de que hay un mensaje oculto?",
-                answer: "A simple vista no, pero no es indetectable: el texto ocupa más caracteres de los que aparenta, y quien lo revise con una herramienta que muestre caracteres invisibles lo notará al instante. Es ocultación frente a un observador casual, no frente a un análisis.",
+                answer: "A simple vista no, pero no es indetectable: el texto ocupa más caracteres de los que aparenta, y el modo Detectar de esta misma herramienta lo encuentra. Es ocultación frente a un observador casual, no frente a un análisis.",
             },
             {
                 question: "¿Se envía mi mensaje a algún servidor?",
-                answer: "No. La codificación y la decodificación ocurren en tu navegador, así que el texto oculto nunca se transmite. Todo el proceso es local, lo que importa precisamente cuando el punto es que el mensaje no quede registrado en ningún lado.",
+                answer: "No. Codificar, decodificar y detectar ocurren en tu navegador, así que el texto nunca se transmite. Todo el proceso es local, lo que importa precisamente cuando el punto es que el mensaje no quede registrado en ningún lado.",
+            },
+            {
+                question: "¿Qué caracteres invisibles detecta?",
+                answer: "Espacios de ancho cero, controles de dirección bidi (los del ataque Trojan Source), selectores de variación sueltos y etiquetas Unicode, que pueden esconder texto. No marca los invisibles que forman parte de un emoji compuesto ni los de uso normal en escrituras como el persa: esos se conservan en el texto limpio.",
             },
         ],
     },
@@ -1481,7 +1601,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Cuánto texto cabe en una imagen?",
-                answer: "Depende de sus dimensiones: cada píxel almacena unos pocos bits, así que una imagen grande esconde más. Un texto que supere la capacidad no cabe, y forzarlo empezaría a alterar la imagen de forma visible. La herramienta avisa cuando el mensaje no entra.",
+                answer: "Depende de sus dimensiones: cada píxel almacena unos pocos bits, así que una imagen grande esconde más. Cada píxel opaco guarda 3 bits: una imagen de 1000 × 1000 guarda unos 375.000 bytes. Las zonas transparentes no guardan datos. Si el mensaje no cabe, la herramienta lo avisa y no lo oculta a medias.",
             },
         ],
     },

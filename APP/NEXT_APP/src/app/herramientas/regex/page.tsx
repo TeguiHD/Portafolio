@@ -37,6 +37,17 @@ const CHEATSHEET = [
     { cat: "Clases", items: [["[abc]", "a, b o c"], ["[^abc]", "Excepto a, b, c"], ["[a-z]", "Rango a-z"]] },
 ];
 
+/** Para copiar como literal /…/: una «/» sin escapar cerraría el literal antes de tiempo («https?://» → /https?:\/\//). */
+function comoLiteral(patron: string): string {
+    let salida = "";
+    for (let i = 0; i < patron.length; i++) {
+        const c = patron[i];
+        if (c === "\\") { salida += c + (patron[i + 1] ?? ""); i++; continue; }
+        salida += c === "/" ? "\\/" : c;
+    }
+    return salida;
+}
+
 // Maximum test string length (50KB) for safety
 const MAX_TEXT_LENGTH = 50000;
 // La regex corre en un Web Worker; al superar este límite el worker se termina
@@ -44,7 +55,11 @@ const MAX_TEXT_LENGTH = 50000;
 const EXECUTION_TIMEOUT_MS = 500;
 
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
-import { runRegex, warmRegexWorker } from "@/lib/regex-client";
+import { cancelRegex, runRegex, warmRegexWorker, type RegexRunResult } from "@/lib/regex-client";
+import { PatternExplainer } from "@/components/tools/regex/PatternExplainer";
+import { MatchInfoPanel } from "@/components/tools/regex/MatchInfoPanel";
+import { SubstitutionPanel } from "@/components/tools/regex/SubstitutionPanel";
+import { useCopiar } from "@/lib/tools/copiar";
 
 export default function RegexTesterPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("regex");
@@ -52,13 +67,13 @@ export default function RegexTesterPage() {
     const [regex, setRegex] = useState("");
     const [activeFlags, setActiveFlags] = useState({ g: true, i: false, m: true, s: false, u: false });
     const [testString, setTestString] = useState("");
-    const [matches, setMatches] = useState<string[] | null>(null);
-    const [ranges, setRanges] = useState<[number, number][]>([]);
-    const [truncated, setTruncated] = useState(false);
+    // Resultado del worker: coincidencias, rangos, grupos y reemplazo de la última ejecución.
+    const [run, setRun] = useState<RegexRunResult | null>(null);
     const runIdRef = useRef(0);
     const [error, setError] = useState<string | null>(null);
-    const [execTime, setExecTime] = useState<number | null>(null);
-    const [copied, setCopied] = useState<string | null>(null);
+    const [replaceOpen, setReplaceOpen] = useState(false);
+    const [replacement, setReplacement] = useState("");
+    const { copiado, fallo, copiar } = useCopiar();
     const [showCheatsheet, setShowCheatsheet] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
     const [timeoutWarning, setTimeoutWarning] = useState(false);
@@ -182,24 +197,29 @@ export default function RegexTesterPage() {
     // Ejecución en Web Worker con timeout real (ver regex-client.ts).
     const executeRegex = useCallback(async () => {
         const runId = ++runIdRef.current;
+        // Las salidas tempranas también cortan la ejecución pendiente; si no, «Ejecutando…» quedaba pegado.
         if (!regex) {
-            setMatches(null);
-            setRanges([]);
+            cancelRegex();
+            setIsExecuting(false);
+            setRun(null);
             setError(null);
-            setExecTime(null);
             setTimeoutWarning(false);
             return;
         }
 
         if (testString.length > MAX_TEXT_LENGTH) {
-            setError(`Texto demasiado largo. Máximo: ${MAX_TEXT_LENGTH.toLocaleString()} caracteres`);
+            cancelRegex();
+            setIsExecuting(false);
+            setRun(null);
+            setTimeoutWarning(false);
+            setError(`Texto demasiado largo. Máximo: ${MAX_TEXT_LENGTH.toLocaleString("es-CL")} caracteres`);
             return;
         }
 
         setIsExecuting(true);
         setTimeoutWarning(false);
 
-        const outcome = await runRegex(regex, flagsString, testString, EXECUTION_TIMEOUT_MS);
+        const outcome = await runRegex(regex, flagsString, testString, replaceOpen ? replacement : null, EXECUTION_TIMEOUT_MS);
         if (runId !== runIdRef.current) return; // ya hay una ejecución más nueva
         if (!outcome.ok && outcome.cancelled) return;
 
@@ -207,17 +227,12 @@ export default function RegexTesterPage() {
         if (!outcome.ok) {
             setTimeoutWarning(Boolean(outcome.timedOut));
             setError(outcome.error);
-            setMatches(null);
-            setRanges([]);
-            setExecTime(null);
+            setRun(null);
             return;
         }
-        setExecTime(outcome.result.execMs);
-        setMatches(outcome.result.matches);
-        setRanges(outcome.result.ranges);
-        setTruncated(outcome.result.truncated);
+        setRun(outcome.result);
         setError(null);
-    }, [regex, flagsString, testString]);
+    }, [regex, flagsString, testString, replaceOpen, replacement]);
 
     // Debounced execution
     useEffect(() => {
@@ -230,13 +245,6 @@ export default function RegexTesterPage() {
         setActiveFlags(prev => ({ ...prev, [flag]: !prev[flag as keyof typeof prev] }));
     };
 
-    // Copy to clipboard
-    const copyToClipboard = (text: string, type: string) => {
-        navigator.clipboard.writeText(text);
-        setCopied(type);
-        setTimeout(() => setCopied(null), 1500);
-    };
-
     // Insert pattern
     const insertPattern = (pattern: string) => {
         setRegex(pattern);
@@ -245,10 +253,10 @@ export default function RegexTesterPage() {
     // Resaltado a partir de los rangos que calculó el worker: aquí no se
     // ejecuta ninguna regex, así que un patrón catastrófico no puede colgar el render.
     const highlightMatches = () => {
-        if (!regex || error || !testString || ranges.length === 0) return testString;
+        if (!regex || error || !testString || !run || run.ranges.length === 0) return testString;
         const parts: React.ReactNode[] = [];
         let cursor = 0;
-        ranges.forEach(([start, end], i) => {
+        run.ranges.forEach(([start, end], i) => {
             if (end <= start || start < cursor) return; // vacías o solapadas
             if (start > cursor) parts.push(testString.slice(cursor, start));
             parts.push(
@@ -298,6 +306,7 @@ export default function RegexTesterPage() {
                     <div className="flex flex-col sm:flex-row gap-2">
                         <input
                             type="text"
+                            aria-label="Describe la regex que necesitas"
                             value={aiPrompt}
                             onChange={(e) => setAiPrompt(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && generateWithAI()}
@@ -307,6 +316,7 @@ export default function RegexTesterPage() {
                             className="flex-1 bg-black/40 border border-purple-500/30 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-neutral-600 focus:ring-2 focus:ring-purple-500/50 focus:border-transparent outline-none disabled:opacity-50"
                         />
                         <button
+                            type="button"
                             onClick={generateWithAI}
                             disabled={!aiPrompt.trim() || isGenerating}
                             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-w-[120px]"
@@ -332,6 +342,7 @@ export default function RegexTesterPage() {
                             {/* Generate Examples Button */}
                             <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap items-center gap-3">
                                 <button
+                                    type="button"
                                     onClick={generateExamples}
                                     disabled={isGeneratingExamples || (rateLimitInfo?.remaining === 0)}
                                     className="px-3 py-1.5 rounded-lg text-xs bg-purple-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
@@ -356,8 +367,9 @@ export default function RegexTesterPage() {
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs text-neutral-400">Ejemplos generados:</span>
                                         <button
+                                            type="button"
                                             onClick={copyExamplesToTestArea}
-                                            className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
+                                            className="min-h-11 text-[11px] text-purple-400 hover:text-purple-300 transition-colors"
                                         >
                                             ⇩ Copiar al área de prueba
                                         </button>
@@ -379,32 +391,42 @@ export default function RegexTesterPage() {
                 <div className="bg-[#0a0e17] rounded-2xl p-4 sm:p-5 border border-white/10 mb-4">
                     <div className="flex flex-col sm:flex-row gap-3 mb-3">
                         <div className="flex-1 relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-mono text-lg">/</span>
+                            <label htmlFor="regex-patron" className="sr-only">Expresión regular</label>
+                            <span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-mono text-lg">/</span>
                             <input
+                                id="regex-patron"
                                 type="text"
+                                spellCheck={false}
+                                autoComplete="off"
+                                aria-invalid={Boolean(error) && !timeoutWarning}
                                 value={regex}
                                 onChange={(e) => setRegex(e.target.value)}
                                 placeholder="Escribe tu expresión regular..."
                                 className={`w-full bg-black/40 border ${error ? 'border-red-500/50' : 'border-white/10'} rounded-xl pl-7 pr-7 py-3 text-white font-mono focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none`}
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 font-mono text-lg">/{flagsString}</span>
+                            <span aria-hidden="true" className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 font-mono text-lg">/{flagsString}</span>
                         </div>
                         <button
-                            onClick={() => copyToClipboard(`/${regex}/${flagsString}`, 'regex')}
-                            className={`px-4 py-2 rounded-xl text-sm transition-colors ${copied === 'regex' ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'}`}
+                            type="button"
+                            onClick={() => void copiar(`/${comoLiteral(regex)}/${flagsString}`, "regex")}
+                            aria-label="Copiar la regex con sus banderas"
+                            className={`min-h-11 px-4 py-2 rounded-xl text-sm transition-colors ${copiado === "regex" ? "bg-green-500/20 text-green-400" : fallo === "regex" ? "bg-red-500/10 text-red-400" : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white"}`}
                         >
-                            {copied === 'regex' ? '✓ Copiado' : 'Copiar'}
+                            {copiado === "regex" ? "✓ Copiado" : fallo === "regex" ? "No se pudo copiar" : "Copiar"}
                         </button>
+                        <span role="status" className="sr-only">{copiado === "regex" ? "Regex copiada" : fallo === "regex" ? "No se pudo copiar" : ""}</span>
                     </div>
 
                     {/* Flags */}
-                    <div className="flex flex-wrap gap-2 mb-3">
+                    <div role="group" aria-label="Banderas" className="flex flex-wrap gap-2 mb-3">
                         {FLAGS.map((f) => (
                             <button
+                                type="button"
                                 key={f.char}
                                 onClick={() => toggleFlag(f.char)}
                                 title={f.desc}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${activeFlags[f.char as keyof typeof activeFlags]
+                                aria-pressed={activeFlags[f.char as keyof typeof activeFlags]}
+                                className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${activeFlags[f.char as keyof typeof activeFlags]
                                     ? 'bg-blue-500/20 border border-blue-500/40 text-blue-400'
                                     : 'bg-white/5 border border-white/10 text-neutral-500 hover:bg-white/10'
                                     }`}
@@ -416,18 +438,21 @@ export default function RegexTesterPage() {
 
                     {/* Error/Warning */}
                     {error && (
-                        <div className={`p-2 rounded-lg text-xs ${timeoutWarning ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400' : 'bg-red-500/10 border border-red-500/30 text-red-400'}`}>
+                        <div role="alert" className={`p-2 rounded-lg text-xs ${timeoutWarning ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400' : 'bg-red-500/10 border border-red-500/30 text-red-400'}`}>
                             {error}
                         </div>
                     )}
 
                     {/* Stats */}
-                    {!error && matches && (
-                        <div className="flex flex-wrap gap-3 text-xs text-neutral-500">
-                            <span className="text-blue-400">{matches.length.toLocaleString()}{truncated ? '+' : ''} coincidencia{matches.length !== 1 ? 's' : ''}</span>
-                            {execTime !== null && <span>• {execTime.toFixed(2)}ms</span>}
-                        </div>
-                    )}
+                    <div aria-live="polite" className="flex flex-wrap gap-3 text-xs text-neutral-500">
+                        {!error && run && (
+                            <>
+                                <span className="text-blue-400">{run.matches.length.toLocaleString("es-CL")}{run.truncated ? "+" : ""} coincidencia{run.matches.length !== 1 ? "s" : ""}</span>
+                                {run.groupNames.length > 0 && <span>• {run.groupNames.length} grupo{run.groupNames.length !== 1 ? "s" : ""} de captura</span>}
+                                <span>• {run.execMs.toFixed(2)} ms</span>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Common Patterns */}
@@ -439,10 +464,11 @@ export default function RegexTesterPage() {
                     <div className="flex flex-wrap gap-2">
                         {COMMON_PATTERNS.map((p) => (
                             <button
+                                type="button"
                                 key={p.name}
                                 onClick={() => insertPattern(p.regex)}
                                 title={p.desc}
-                                className="px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-neutral-400 hover:bg-purple-500/10 hover:border-purple-500/30 hover:text-purple-400 transition-all"
+                                className="min-h-11 px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-neutral-400 hover:bg-purple-500/10 hover:border-purple-500/30 hover:text-purple-400 transition-all"
                             >
                                 {p.name}
                             </button>
@@ -453,8 +479,10 @@ export default function RegexTesterPage() {
                 {/* Test & Results */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                        <label className="block text-sm font-medium text-neutral-400 mb-2">Texto de prueba</label>
+                        <label htmlFor="regex-texto" className="block text-sm font-medium text-neutral-400 mb-2">Texto de prueba</label>
                         <textarea
+                            id="regex-texto"
+                            spellCheck={false}
                             value={testString}
                             onChange={(e) => setTestString(e.target.value)}
                             placeholder="Ingresa el texto para probar tu regex..."
@@ -465,18 +493,44 @@ export default function RegexTesterPage() {
 
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                         <div className="flex justify-between items-center mb-2">
-                            <label className="text-sm font-medium text-neutral-400">Resultados</label>
-                            {isExecuting && <span className="text-xs text-blue-400 animate-pulse">Ejecutando...</span>}
+                            <h3 id="regex-resaltado" className="text-sm font-medium text-neutral-400">Coincidencias resaltadas</h3>
+                            {isExecuting && <span className="text-xs text-blue-400 animate-pulse motion-reduce:animate-none">Ejecutando…</span>}
                         </div>
-                        <div className="w-full h-48 bg-[#0a0e17] border border-white/10 rounded-xl p-3 text-neutral-400 font-mono text-sm overflow-auto whitespace-pre-wrap">
+                        <div role="region" aria-labelledby="regex-resaltado" tabIndex={0} className="w-full h-48 bg-[#0a0e17] border border-white/10 rounded-xl p-3 text-neutral-400 font-mono text-sm overflow-auto whitespace-pre-wrap">
                             {testString ? highlightMatches() : <span className="text-neutral-600">Los resultados aparecerán aquí...</span>}
                         </div>
                     </div>
                 </div>
 
+                {/* Explicación y grupos: el explicador solo lee el patrón; los grupos vienen del worker. */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                    <PatternExplainer regex={regex} flags={flagsString} />
+                    <MatchInfoPanel
+                        details={!error && run ? run.details : []}
+                        groupNames={run?.groupNames ?? []}
+                        total={!error && run ? run.matches.length : 0}
+                        truncated={Boolean(run?.truncated)}
+                        empty={!regex || !testString}
+                        matches={!error && run ? run.matches : []}
+                        blockedMessage={error ? "Corrige el error de arriba para ver las coincidencias." : null}
+                    />
+                </div>
+
+                <SubstitutionPanel
+                    open={replaceOpen}
+                    onOpenChange={setReplaceOpen}
+                    replacement={replacement}
+                    onReplacementChange={setReplacement}
+                    result={!error ? run?.replaced ?? null : null}
+                    count={run?.matches.length ?? 0}
+                    countTruncated={Boolean(run?.truncated)}
+                    global={activeFlags.g}
+                    ready={Boolean(regex && testString && !error)}
+                />
+
                 {/* Cheatsheet */}
                 <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
-                    <button onClick={() => setShowCheatsheet(!showCheatsheet)} className="w-full p-4 flex items-center justify-between">
+                    <button type="button" onClick={() => setShowCheatsheet(!showCheatsheet)} aria-expanded={showCheatsheet} aria-controls="regex-cheatsheet" className="w-full p-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <span className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-sm">📖</span>
                             <div className="text-left">
@@ -489,6 +543,8 @@ export default function RegexTesterPage() {
 
                     <div
                         ref={cheatsheetRef}
+                        id="regex-cheatsheet"
+                        inert={!showCheatsheet}
                         className="overflow-hidden transition-all duration-300 ease-out"
                         style={{ maxHeight: showCheatsheet ? '500px' : '0px', opacity: showCheatsheet ? 1 : 0 }}
                     >
@@ -513,9 +569,9 @@ export default function RegexTesterPage() {
                 {/* Security Notice */}
                 <div className="mt-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
                     <p className="text-[10px] text-amber-400/80">
-                        <strong>🛡️ Seguridad:</strong> La expresión se ejecuta en un Web Worker, fuera del hilo de la página.
-                        Si tarda más de {EXECUTION_TIMEOUT_MS}ms (posible ReDoS) el worker se termina: la pestaña nunca se congela.
-                        Límite de texto: {(MAX_TEXT_LENGTH / 1000).toFixed(0)}KB.
+                        <strong>🛡️ Seguridad:</strong> La expresión, sus grupos y el reemplazo se calculan en un Web Worker, fuera del hilo de la página.
+                        Si tardan más de {EXECUTION_TIMEOUT_MS} ms (posible retroceso catastrófico) el worker se termina y la pestaña no se congela.
+                        Límite de texto: {(MAX_TEXT_LENGTH / 1000).toFixed(0)} KB. La explicación del patrón solo lo lee, no lo ejecuta.
                     </p>
                 </div>
 
@@ -558,7 +614,7 @@ export default function RegexTesterPage() {
                                     <span className="w-5 h-5 rounded-full bg-blue-500/30 text-blue-400 flex items-center justify-center text-[10px] font-bold">4</span>
                                     <span className="text-white font-medium">Ve los resultados</span>
                                 </div>
-                                <p className="text-neutral-400">Las coincidencias se <span className="bg-blue-500/30 text-white px-1 rounded">resaltan en azul</span> automáticamente.</p>
+                                <p className="text-neutral-400">Las coincidencias se <span className="bg-blue-500/30 text-white px-1 rounded">resaltan en azul</span>. Debajo ves cada una con sus grupos, qué hace cada parte del patrón y, si lo abres, el reemplazo.</p>
                             </div>
                         </div>
 

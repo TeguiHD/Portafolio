@@ -8,8 +8,7 @@ import { AuthorBio } from "@/components/seo/AuthorBio";
 import { SITE_NAME, SITE_URL } from "@/lib/seo/metadata";
 import { ArLaunchPanel } from "@/components/qr/ArLaunchPanel";
 import { ModelPreview } from "@/components/qr/ModelPreview";
-import { Navbar } from "@/modules/landing/layout/Navbar";
-import { FooterSection } from "@/modules/landing/sections/FooterSection";
+import { Esqueleto } from "@/modules/esqueleto/Esqueleto";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
@@ -27,6 +26,13 @@ import { arQuery, detectPlatform, parseArParams, type ArModel, type ArPlatform }
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
+/**
+ * ¿Trae un modelo? Solo cuentan los parámetros del generador: un enlace compartido con ?utm_source= o ?fbclid= es la
+ * guía, no «Este enlace de realidad aumentada no es válido».
+ */
+const PARAMS_AR = ["glb", "usdz", "t", "p"];
+const traeModelo = (sp: SearchParams) => PARAMS_AR.some((k) => sp[k] !== undefined);
+
 const trail: BreadcrumbTrail = [
     { name: "Inicio", path: "" },
     { name: "Realidad aumentada", path: "/ar" },
@@ -35,7 +41,7 @@ const trail: BreadcrumbTrail = [
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
     const sp = await searchParams;
-    if (Object.keys(sp).length > 0) {
+    if (traeModelo(sp)) {
         // Contenido de terceros bajo este dominio: nunca se indexa.
         return { title: { absolute: "Ver en realidad aumentada" }, robots: { index: false, follow: false } };
     }
@@ -59,7 +65,7 @@ async function requestOrigin(): Promise<string> {
 
 export default async function ArPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
     const sp = await searchParams;
-    if (Object.keys(sp).length === 0) return <Landing />;
+    if (!traeModelo(sp)) return <Landing />;
 
     const model = parseArParams(sp);
     if (!model) return <Invalid />;
@@ -78,15 +84,15 @@ export default async function ArPage({ searchParams }: { searchParams: Promise<S
 
 function Shell({ children }: { children: React.ReactNode }) {
     return (
+        <Esqueleto soloOscuro>
         <div className="min-h-screen bg-[#050914] text-neutral-300">
-            <Navbar />
             <div className="pt-24">
                 <main className="px-4 pb-16 sm:px-6">
                     <div className="mx-auto max-w-3xl">{children}</div>
                 </main>
             </div>
-            <FooterSection />
-        </div>
+            </div>
+        </Esqueleto>
     );
 }
 
@@ -95,7 +101,7 @@ const CTA = "mt-6 inline-flex min-h-[48px] items-center justify-center gap-2 rou
 function Launcher({ model, platform, qrSvg }: { model: ArModel; platform: ArPlatform; qrSvg: string }) {
     return (
         <div className="text-center">
-            <p className="mb-3 text-xs uppercase tracking-[0.3em] text-[#00B8A9]">Realidad aumentada</p>
+            <p className="mb-3 text-sm font-medium text-[#00B8A9]">Realidad aumentada</p>
             <h1 className="text-2xl font-bold text-white sm:text-3xl">{model.title}</h1>
 
             <ArLaunchPanel model={model} initialPlatform={platform} qrSvg={qrSvg} />
@@ -136,7 +142,7 @@ function Landing() {
                 { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: AR_GUIDE_FAQ.map(item => ({ "@type": "Question", name: item.question, acceptedAnswer: { "@type": "Answer", text: item.answer } })) },
             ]} />
             <Breadcrumbs trail={trail} />
-            <p className="mb-3 mt-6 text-xs uppercase tracking-[0.3em] text-[#00B8A9]">Generador de QR</p>
+            <p className="mb-3 mt-6 text-sm font-medium text-[#00B8A9]">Generador de QR</p>
             <h1 className="text-3xl font-bold text-white sm:text-4xl">QR con realidad aumentada</h1>
             <p className="mt-4 text-base leading-relaxed text-neutral-400">
                 Un código QR que abre una experiencia para explorar un modelo 3D y colocarlo en el espacio real: el plato de un

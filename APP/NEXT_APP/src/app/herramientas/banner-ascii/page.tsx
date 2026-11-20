@@ -2,11 +2,13 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { useCopiar } from "@/lib/tools/copiar";
+import { descargarTexto } from "@/lib/tools/descargar";
 
 const ACCENT = "#06B6D4";
 
@@ -34,7 +36,8 @@ const ACCENT = "#06B6D4";
 const MAX_INPUT_LENGTH = 80;
 
 // FIGlet-style font definitions (subset for client-side rendering)
-type FontName = "standard" | "big" | "banner" | "slant" | "small" | "block" | "mini";
+// «Big» y «Slant» se quitaron: no eran tipografías, solo la letra metida en un marco o rodeada de barras.
+type FontName = "standard" | "banner" | "small" | "block" | "mini";
 
 interface FontDef {
     name: string;
@@ -410,13 +413,6 @@ const STANDARD_FONT: FontDef = {
     },
 };
 
-// Big font (simpler block style)
-const BIG_FONT: FontDef = {
-    name: "Big",
-    height: 6,
-    chars: generateBlockFont(6),
-};
-
 // Banner font (hash-based)
 const BANNER_FONT: FontDef = {
     name: "Banner",
@@ -437,27 +433,6 @@ const BLOCK_FONT: FontDef = {
     height: 5,
     chars: generateBoxFont(),
 };
-
-function generateBlockFont(height: number): Record<string, string[]> {
-    const chars: Record<string, string[]> = {};
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !.-_@#/:";
-    for (const c of alphabet) {
-        if (c === " ") {
-            chars[c] = Array(height).fill("    ");
-            continue;
-        }
-        const w = 7;
-        const lines: string[] = [];
-        lines.push(" " + "█".repeat(w - 2) + " ");
-        lines.push("█" + " ".repeat(Math.floor((w - 3) / 2)) + c + " ".repeat(Math.ceil((w - 3) / 2)) + "█");
-        for (let i = 2; i < height - 1; i++) {
-            lines.push("█" + " ".repeat(w - 2) + "█");
-        }
-        lines.push(" " + "█".repeat(w - 2) + " ");
-        chars[c] = lines;
-    }
-    return chars;
-}
 
 function generateBannerFont(): Record<string, string[]> {
     const chars: Record<string, string[]> = {};
@@ -488,6 +463,24 @@ function generateBannerFont(): Record<string, string[]> {
         X: [[1,0,0,1],[0,1,1,0],[0,1,1,0],[0,1,1,0],[1,0,0,1]],
         Y: [[1,0,0,0,1],[0,1,0,1,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0]],
         Z: [[1,1,1,1],[0,0,1,0],[0,1,0,0],[1,0,0,0],[1,1,1,1]],
+        "0": [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+        "1": [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]],
+        "2": [[1,1,1],[0,0,1],[1,1,1],[1,0,0],[1,1,1]],
+        "3": [[1,1,1],[0,0,1],[0,1,1],[0,0,1],[1,1,1]],
+        "4": [[1,0,1],[1,0,1],[1,1,1],[0,0,1],[0,0,1]],
+        "5": [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+        "6": [[1,1,1],[1,0,0],[1,1,1],[1,0,1],[1,1,1]],
+        "7": [[1,1,1],[0,0,1],[0,1,0],[0,1,0],[0,1,0]],
+        "8": [[1,1,1],[1,0,1],[1,1,1],[1,0,1],[1,1,1]],
+        "9": [[1,1,1],[1,0,1],[1,1,1],[0,0,1],[1,1,1]],
+        "!": [[1],[1],[1],[0],[1]],
+        ".": [[0],[0],[0],[0],[1]],
+        ":": [[0],[1],[0],[1],[0]],
+        "-": [[0,0,0],[0,0,0],[1,1,1],[0,0,0],[0,0,0]],
+        "_": [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[1,1,1]],
+        "/": [[0,0,1],[0,0,1],[0,1,0],[1,0,0],[1,0,0]],
+        "#": [[0,1,0,1,0],[1,1,1,1,1],[0,1,0,1,0],[1,1,1,1,1],[0,1,0,1,0]],
+        "@": [[0,1,1,1,0],[1,0,0,0,1],[1,0,1,1,1],[1,0,1,1,0],[0,1,1,1,1]],
     };
 
     // Add space
@@ -503,21 +496,6 @@ function generateBannerFont(): Record<string, string[]> {
         }
         lines.push("");
         chars[letter] = lines;
-    }
-
-    // Numbers (simplified)
-    for (let d = 0; d <= 9; d++) {
-        if (!chars[String(d)]) {
-            chars[String(d)] = [
-                "",
-                pixelChar.repeat(3),
-                pixelChar + emptyChar + pixelChar,
-                pixelChar + emptyChar + pixelChar,
-                pixelChar + emptyChar + pixelChar,
-                pixelChar.repeat(3),
-                "",
-            ];
-        }
     }
 
     return chars;
@@ -584,7 +562,6 @@ function generateBoxFont(): Record<string, string[]> {
 
 const FONTS: Record<FontName, FontDef> = {
     standard: STANDARD_FONT,
-    big: BIG_FONT,
     banner: BANNER_FONT,
     small: SMALL_FONT,
     block: BLOCK_FONT,
@@ -601,49 +578,47 @@ const FONTS: Record<FontName, FontDef> = {
             return c;
         })(),
     },
-    slant: {
-        name: "Slant",
-        height: 5,
-        chars: (() => {
-            const c: Record<string, string[]> = {};
-            // Simplified slant-style for common letters
-            const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
-            for (const ch of alpha) {
-                if (ch === " ") { c[ch] = ["    ", "    ", "    ", "    ", "    "]; continue; }
-                c[ch] = [
-                    `   __${ch}`,
-                    `  / ${ch}/`,
-                    ` / ${ch}/ `,
-                    `/_${ch}/  `,
-                    `      `,
-                ];
-            }
-            return c;
-        })(),
-    },
 };
 
 /**
  * Render text as ASCII art using the specified font.
  * SECURITY(CWE-20): Only processes printable ASCII characters.
  */
+/** Mayúsculas sin tildes: «Ñandú» → «NANDU» (antes la ñ y las vocales con tilde desaparecían). */
+function normalizar(text: string): string {
+    return text.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase();
+}
+
 function renderBanner(text: string, fontName: FontName): string {
     const font = FONTS[fontName];
     // SECURITY: Sanitize input - only printable ASCII
-    const clean = text.toUpperCase().replace(/[^A-Z0-9 !.\-_@#/:]/g, "").slice(0, MAX_INPUT_LENGTH);
+    const clean = normalizar(text).replace(/[^A-Z0-9 !.\-_@#/:]/g, "").slice(0, MAX_INPUT_LENGTH);
 
-    if (!clean) return "";
+    if (!clean.trim()) return "";
 
     const lines: string[] = Array(font.height).fill("");
 
     for (const char of clean) {
         const charDef = font.chars[char] || font.chars[" "] || Array(font.height).fill(" ");
+        // Todas las filas de un carácter al mismo ancho: si una es más corta, las letras siguientes se descuadran.
+        const ancho = Math.max(...charDef.map((fila) => fila.length));
         for (let row = 0; row < font.height; row++) {
-            lines[row] += (charDef[row] || "") + " ";
+            lines[row] += (charDef[row] ?? "").padEnd(ancho) + " ";
         }
     }
 
-    return lines.join("\n");
+    return lines.map((linea) => linea.trimEnd()).join("\n");
+}
+
+/** Caracteres escritos que esta fuente no dibuja (salen como espacio o se omiten). */
+function sinGlifo(text: string, fontName: FontName): string[] {
+    const font = FONTS[fontName];
+    const faltan = new Set<string>();
+    for (const ch of normalizar(text)) {
+        if (ch === " ") continue;
+        if (!/[A-Z0-9!.\-_@#/:]/.test(ch) || !font.chars[ch]) faltan.add(ch);
+    }
+    return [...faltan];
 }
 
 /**
@@ -701,52 +676,26 @@ export default function AsciiBannerPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("banner-ascii");
     const [text, setText] = useState("HELLO");
     const [fontName, setFontName] = useState<FontName>("standard");
-    const [copied, setCopied] = useState(false);
-    const [copiedScript, setCopiedScript] = useState(false);
+    const { copiado, fallo, copiar } = useCopiar(2000);
 
     const banner = useMemo(() => renderBanner(text, fontName), [text, fontName]);
+    const faltan = useMemo(() => sinGlifo(text, fontName), [text, fontName]);
 
-    const handleCopy = useCallback(async (content: string, isScript: boolean) => {
-        await navigator.clipboard.writeText(content);
-        if (isScript) {
-            setCopiedScript(true);
-            setTimeout(() => setCopiedScript(false), 2000);
-        } else {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        }
-    }, []);
-
+    // Se llama banner.sh, como en la guía de instalación de abajo.
     const handleDownloadScript = useCallback(() => {
-        const script = generateShScript(banner, text);
-        const blob = new Blob([script], { type: "text/x-shellscript" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `banner_${text.toLowerCase().replace(/[^a-z0-9]/g, "_")}.sh`;
-        link.click();
-        URL.revokeObjectURL(url);
+        descargarTexto(generateShScript(banner, text), "banner.sh", "text/x-shellscript");
     }, [banner, text]);
 
+    // El archivo se muestra tal cual al conectarse: sin líneas «#» de comentario, que aparecerían en pantalla.
     const handleDownloadConf = useCallback(() => {
-        const content = `# /etc/motd or /etc/issue.net
-# Generated by NicoHolas Security Tools
-# NIST SP 800-123: Systems should display a legal banner
-#
-${banner}
+        const content = `${banner}
 
 ═══════════════════════════════════════════
 ⚠  WARNING: Authorized access only.
 All activities are monitored and logged.
 ═══════════════════════════════════════════
 `;
-        const blob = new Blob([content], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "motd";
-        link.click();
-        URL.revokeObjectURL(url);
+        descargarTexto(content, "motd");
     }, [banner]);
 
     if (isLoading) {
@@ -771,10 +720,11 @@ All activities are monitored and logged.
                     <label className="block">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium text-white">Texto</span>
-                            <span className="text-xs text-neutral-500">{text.length}/{MAX_INPUT_LENGTH}</span>
+                            <span className="text-xs text-neutral-500" aria-hidden="true">{text.length}/{MAX_INPUT_LENGTH}</span>
                         </div>
                         <input
                             type="text"
+                            aria-describedby={faltan.length ? "banner-faltan" : undefined}
                             value={text}
                             onChange={e => setText(e.target.value.slice(0, MAX_INPUT_LENGTH))}
                             placeholder="Escribe el texto para tu banner..."
@@ -784,17 +734,24 @@ All activities are monitored and logged.
                             maxLength={MAX_INPUT_LENGTH}
                         />
                     </label>
+                    {faltan.length > 0 && (
+                        <p id="banner-faltan" className="mt-2 text-xs text-neutral-400">
+                            Esta fuente no dibuja {faltan.map((c) => `«${c}»`).join(" ")}: {faltan.length === 1 ? "se omite" : "se omiten"}. Las tildes y la ñ salen como la letra base.
+                        </p>
+                    )}
                 </div>
 
                 {/* Font Selection */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10 mb-6">
-                    <span className="text-sm font-medium text-white block mb-3">Fuente</span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <span id="banner-fuente" className="text-sm font-medium text-white block mb-3">Fuente</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2" role="group" aria-labelledby="banner-fuente">
                         {(Object.keys(FONTS) as FontName[]).map(f => (
                             <button
                                 key={f}
+                                type="button"
+                                aria-pressed={fontName === f}
                                 onClick={() => setFontName(f)}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${fontName === f
+                                className={`min-h-11 px-3 py-2 rounded-lg text-sm font-medium transition-all ${fontName === f
                                     ? "text-white border"
                                     : "bg-white/5 text-neutral-400 border border-transparent hover:bg-white/10"
                                     }`}
@@ -816,11 +773,12 @@ All activities are monitored and logged.
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-white">Vista Previa</span>
                             <button
-                                onClick={() => handleCopy(banner, false)}
-                                className="px-3 py-1 rounded-md text-xs font-medium text-white transition-colors"
+                                type="button"
+                                onClick={() => { void copiar(banner, "ascii"); }}
+                                className="min-h-11 px-3 py-1 rounded-md text-xs font-medium text-white transition-colors"
                                 style={{ background: `${ACCENT}30` }}
                             >
-                                {copied ? "✓ Copiado" : "Copiar ASCII"}
+                                {copiado === "ascii" ? "✓ Copiado" : fallo === "ascii" ? "No se pudo copiar" : "Copiar ASCII"}
                             </button>
                         </div>
                         <div className="bg-[#0A0E17] rounded-lg p-4 overflow-x-auto border border-white/5">
@@ -835,26 +793,30 @@ All activities are monitored and logged.
                 {banner && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                         <button
+                            type="button"
                             onClick={handleDownloadScript}
-                            className="py-3 px-4 rounded-xl text-sm font-medium text-white transition-all hover:scale-[1.005]"
+                            className="py-3 px-4 rounded-xl text-sm font-medium text-white transition-all motion-safe:hover:scale-[1.005]"
                             style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
                         >
                             📥 Descargar .sh (MOTD)
                         </button>
                         <button
+                            type="button"
                             onClick={handleDownloadConf}
                             className="py-3 px-4 rounded-xl text-sm font-medium text-white bg-white/10 hover:bg-white/15 transition-all"
                         >
                             📄 Descargar motd (conf)
                         </button>
                         <button
-                            onClick={() => handleCopy(generateShScript(banner, text), true)}
+                            type="button"
+                            onClick={() => { void copiar(generateShScript(banner, text), "script"); }}
                             className="py-3 px-4 rounded-xl text-sm font-medium text-white bg-white/10 hover:bg-white/15 transition-all"
                         >
-                            {copiedScript ? "✓ Copiado" : "📋 Copiar Script .sh"}
+                            {copiado === "script" ? "✓ Copiado" : fallo === "script" ? "No se pudo copiar" : "📋 Copiar Script .sh"}
                         </button>
                     </div>
                 )}
+                <p role="status" className="sr-only">{copiado ? "Copiado" : fallo ? "No se pudo copiar" : ""}</p>
 
                 {/* Quick Presets */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10 mb-6">
@@ -872,8 +834,9 @@ All activities are monitored and logged.
                         ].map(preset => (
                             <button
                                 key={preset.text}
+                                type="button"
                                 onClick={() => setText(preset.text)}
-                                className="px-3 py-1.5 rounded-lg bg-white/5 text-sm text-neutral-400 hover:bg-white/10 hover:text-white transition-colors"
+                                className="min-h-11 px-3 py-1.5 rounded-lg bg-white/5 text-sm text-neutral-400 hover:bg-white/10 hover:text-white transition-colors"
                             >
                                 {preset.label}
                             </button>

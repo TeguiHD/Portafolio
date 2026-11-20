@@ -66,7 +66,7 @@
 .mesa-escenario { position: relative; overflow: hidden; user-select: none; background: radial-gradient(ellipse at 50% 40%, #16352f55, transparent 65%), #0b121b; transition: box-shadow .26s; }
 .mesa-lienzo { position: relative; margin-inline: auto; overflow: hidden; border-radius: 10px; }
 .mesa-escenario[data-fondo="transparent"] .mesa-lienzo { background: repeating-conic-gradient(#232d3a 0 25%, #18222d 0 50%) 0 0 / 20px 20px; }
-.mesa-pista { position: absolute; left: 12px; bottom: 12px; z-index: 8; max-width: calc(100% - 24px); padding: 5px 9px; border-radius: 999px; background: #07090fb3; color: #cbd5e1; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; backdrop-filter: blur(6px); pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mesa-pista { position: absolute; left: 12px; bottom: 12px; z-index: 8; max-width: calc(100% - 24px); padding: 5px 9px; border-radius: 999px; background: #07090fb3; color: #cbd5e1; font-size: 11px; backdrop-filter: blur(6px); pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mesa-cambios { position: absolute; right: 12px; top: 12px; z-index: 8; padding: 4px 8px; border-radius: 999px; background: #07090fb3; color: var(--mesa-mut); font-size: 10.5px; font-variant-numeric: tabular-nums; backdrop-filter: blur(6px); pointer-events: none; }
 .mesa-cursor { position: absolute; z-index: 5; pointer-events: none; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #0009; transform: translate(-50%, -50%); color: #fff; }
 .mesa-cursor::before, .mesa-cursor::after { content: ""; position: absolute; left: 50%; top: 50%; background: currentColor; transform: translate(-50%, -50%); }
@@ -114,6 +114,8 @@
 .mesa-chip:hover { color: #fff; }
 .mesa-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--mesa-acento) 14%, transparent); color: var(--mesa-acento); }
 .mesa-chip:focus-visible { outline: 2px solid var(--mesa-acento); outline-offset: 1px; }
+/* Con dedo, 44 px de alto (la guía de objetivos táctiles). */
+@media (pointer: coarse) { .mesa-chip { min-height: 44px; } .mesa-muestra { width: 44px; height: 44px; } }
 
 /* iconos vivos */
 .mesa-ico { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }

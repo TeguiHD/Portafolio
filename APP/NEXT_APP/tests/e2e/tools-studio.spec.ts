@@ -22,7 +22,7 @@ test("QR actualizable y PNG de resolución exacta incluso en pantalla Retina", a
     const context = await browser.newContext({ deviceScaleFactor: 2 });
     const page = await context.newPage();
     await page.goto("/herramientas/qr");
-    await page.getByLabel("https://ejemplo.com", { exact: true }).fill("https://example.com/catalogo");
+    await page.getByLabel("Enlace", { exact: true }).fill("https://example.com/catalogo");
     await waitForQR(page);
     expect(await decodeCanvas(page)).toBe("https://example.com/catalogo");
     await page.getByText("Opciones de exportación", { exact: true }).click();
@@ -44,7 +44,8 @@ test("QR actualizable y PNG de resolución exacta incluso en pantalla Retina", a
 
 test("contenido demasiado largo bloquea exportación y se recupera al corregirlo", async ({ page }) => {
     await page.goto("/herramientas/qr?tipo=text");
-    const input = page.getByLabel("Escribe cualquier texto...");
+    // Por rol: el textarea vive dentro de su label y React copia el valor a su texto, así que getByLabel exacto deja de calzar.
+    const input = page.getByRole("textbox", { name: "Texto", exact: true });
     await input.fill("x".repeat(5000));
     await expect(page.getByRole("alert").filter({ hasText: "No se pudo generar" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Descargar PNG", exact: true })).toBeDisabled();
@@ -104,10 +105,10 @@ test("navegación móvil por teclado y favoritas compartidas con el catálogo", 
     await page.getByRole("button", { name: "Guardar herramienta", exact: true }).click();
     await expect(page.getByRole("button", { name: "Guardada", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("Control+k");
-    const search = page.getByRole("textbox", { name: "Buscar en la navegación" });
+    const search = page.getByRole("searchbox", { name: "Buscar en la navegación" });
     await expect(search).toBeFocused();
     await search.fill("json");
-    await expect(page.locator("#tools-sidebar").getByRole("link", { name: "Formateador JSON", exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Navegación de herramientas" }).getByRole("link", { name: "Formateador JSON", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(search).not.toBeVisible();
     await page.getByRole("button", { name: "Personalizar", exact: true }).click();

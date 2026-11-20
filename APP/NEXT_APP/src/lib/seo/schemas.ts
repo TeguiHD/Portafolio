@@ -38,6 +38,9 @@ export function personSchema(): JsonLdObject {
             credentialCategory: "degree",
             name: "Ingeniero en Informática",
         },
+        // Datos públicos del propio sitio: el correo de contacto y el país (no se declara ciudad: no está publicada).
+        email: "mailto:contacto@nicoholas.dev",
+        address: { "@type": "PostalAddress", addressCountry: "CL" },
         sameAs: SAME_AS,
         knowsAbout: [
             "Next.js",
@@ -71,18 +74,65 @@ export function professionalServiceSchema(): JsonLdObject {
     return {
         "@context": CONTEXT,
         "@type": "ProfessionalService",
-        name: `${SITE_NAME} — Desarrollo Full Stack`,
+        "@id": `${SITE_URL}/#servicio`,
+        name: `${SITE_NAME} — Desarrollo web a medida`,
         url: SITE_URL,
         description:
-            "Servicios de desarrollo web Full Stack: plataformas, automatizaciones, APIs y arquitectura de software.",
+            "Desarrollo web a medida: tiendas en línea, sistemas internos e intranets, herramientas web y automatizaciones.",
         provider: { "@id": `${SITE_URL}/#person` },
+        email: "mailto:contacto@nicoholas.dev",
+        address: { "@type": "PostalAddress", addressCountry: "CL" },
         areaServed: { "@type": "Country", name: "Chile" },
+        availableLanguage: "es",
+        sameAs: SAME_AS,
+        // Lo que ofrece la portada (el selector «Tiendas y sitios / Sistemas internos / Herramientas») y lo que ya figuraba.
         serviceType: [
-            "Desarrollo Web",
-            "Desarrollo Full Stack",
+            "Tiendas en línea y sitios web a medida",
+            "Sistemas internos e intranets",
+            "Herramientas web",
             "Automatización",
-            "Consultoría en Arquitectura de Software",
+            "Desarrollo Full Stack",
         ],
+    };
+}
+
+/**
+ * Los proyectos de la portada como lista de trabajos. Solo lo publicado: nombre, tipo, descripción y, si es público, su URL.
+ * La intranet OTEC es privada: va sin URL propia.
+ */
+export function portafolioSchema(casos: readonly { title: string; category: string; description: string; href: string; external: boolean }[]): JsonLdObject {
+    return {
+        "@context": CONTEXT,
+        "@type": "ItemList",
+        "@id": `${SITE_URL}/#proyectos`,
+        name: "Proyectos",
+        itemListElement: casos.map((c, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            item: {
+                "@type": "CreativeWork",
+                name: c.title,
+                genre: c.category,
+                description: c.description,
+                creator: { "@id": `${SITE_URL}/#person` },
+                ...(c.external ? { url: c.href } : c.href.startsWith("/herramientas") ? { url: `${SITE_URL}${c.href}` } : {}),
+            },
+        })),
+    };
+}
+
+/** El blog: una página de colección (titulares de fuentes externas enlazadas, más el mercado y la actividad en GitHub). */
+export function blogSchema(): JsonLdObject {
+    return {
+        "@context": CONTEXT,
+        "@type": "CollectionPage",
+        "@id": `${SITE_URL}/blog#pagina`,
+        name: "Blog: seguridad, IA y desarrollo",
+        url: `${SITE_URL}/blog`,
+        inLanguage: "es",
+        description: "Titulares de seguridad, inteligencia artificial y desarrollo de fuentes oficiales, con el mercado del día y la actividad en GitHub.",
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        author: { "@id": `${SITE_URL}/#person` },
     };
 }
 

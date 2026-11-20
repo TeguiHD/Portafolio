@@ -44,23 +44,24 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "qr con realidad aumentada",
         ],
         related: ["enlaces", "base64", "favicon"],
-        lastModified: "2026-09-06",
+        lastModified: "2026-11-20",
     },
 
     claves: {
         slug: "claves",
         title: "Generador de Contraseñas Aleatorias Online y Gratis",
         description:
-            "Genera contraseñas seguras y aleatorias con la longitud y los caracteres que elijas. Todo ocurre en tu navegador: ninguna clave se envía ni se almacena.",
+            "Genera contraseñas aleatorias con la longitud y los caracteres que elijas, o frases de palabras en español fáciles de teclear. Todo ocurre en tu navegador.",
         h1: "Generador de Contraseñas Seguras",
         primaryKeyword: "generador de contraseñas seguras",
         secondaryKeywords: [
             "crear contraseña aleatoria",
             "contraseña segura online",
             "generador de claves fuertes",
+            "generador de frases de contraseña",
         ],
         related: ["aleatorio", "jwt", "esteganografia"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     base64: {
@@ -77,58 +78,61 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "data uri generator",
         ],
         related: ["binario", "json", "jwt"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     json: {
         slug: "json",
-        title: "Formatear JSON Online: Validar y Embellecer Gratis",
+        title: "Formatear JSON Online: Validar, Minificar y Ver Árbol",
         description:
-            "Formatea, valida y embellece JSON con resaltado de errores en tiempo real. Todo se procesa en tu navegador, sin subir datos a ningún servidor externo.",
+            "Formatea, valida y minifica JSON en tu navegador. Ubica el error por línea y columna, lo muestra en árbol y avisa de claves repetidas y enteros que cambian.",
         h1: "Formateador y Validador de JSON",
         primaryKeyword: "formatear json online",
         secondaryKeywords: [
             "validar json online",
+            "minificar json",
+            "visor de json en árbol",
             "json beautifier",
-            "formatear json gratis",
             "detectar errores de sintaxis json",
         ],
         related: ["jwt", "regex", "base64"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     jwt: {
         slug: "jwt",
-        title: "Decodificar JWT Online: Ver Header, Payload y Firma",
+        title: "Decodificar JWT Online y Verificar la Firma en tu Navegador",
         description:
-            "Decodifica tokens JWT y revisa header, payload y firma al instante. El token nunca sale de tu navegador, ideal para depurar sesiones sin exponer datos.",
+            "Decodifica tokens JWT y verifica su firma HS, RS, PS o ES con tu secreto o tu clave pública. Todo ocurre en tu navegador: ni el token ni la clave salen de él.",
         h1: "Decodificador de JWT",
         primaryKeyword: "decodificar jwt online",
         secondaryKeywords: [
             "decodificar token jwt",
-            "ver payload de jwt",
-            "jwt debugger online",
             "verificar firma jwt",
+            "ver payload de jwt",
+            "validar jwt con clave pública",
+            "jwt debugger online",
         ],
         related: ["json", "base64", "claves"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     regex: {
         slug: "regex",
         title: "Probar Expresiones Regulares Online en el Navegador",
         description:
-            "Prueba y depura expresiones regulares en tiempo real con resaltado de coincidencias y grupos. Escribe tu regex y texto de prueba, sin instalar nada extra.",
+            "Prueba expresiones regulares de JavaScript: resalta coincidencias y grupos, explica cada parte del patrón y prueba reemplazos con $1 o $<nombre> en vivo.",
         h1: "Probador de Expresiones Regulares",
         primaryKeyword: "probar expresiones regulares online",
         secondaryKeywords: [
             "regex tester online",
             "probar regex en vivo",
-            "validar expresiones regulares",
+            "explicar expresión regular",
+            "reemplazar con regex",
             "alternativa a regex101",
         ],
         related: ["json", "jwt", "nginx"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     impuestos: {
@@ -145,31 +149,32 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "tasa de iva personalizada",
         ],
         related: ["unidades", "binario", "subredes"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     subredes: {
         slug: "subredes",
-        title: "Calculadora de Subredes IPv4 e IPv6 Online y Gratis",
+        title: "Calculadora de Subredes IPv4 e IPv6 y Planificador VLSM",
         description:
-            "Calcula subredes IPv4 e IPv6: máscara, dirección de red, broadcast y rango utilizable en notación binaria. Pensada para estudiar redes sin instalar nada.",
+            "Calcula red, máscara, broadcast y hosts de una subred IPv4, o el rango de un prefijo IPv6. Planifica VLSM según los hosts de cada subred y exporta a CSV.",
         h1: "Calculadora de Subredes IPv4 e IPv6",
         primaryKeyword: "calculadora de subredes",
         secondaryKeywords: [
+            "calculadora vlsm",
             "subnet calculator online",
             "calcular máscara de red",
             "cidr calculator",
             "rango de direcciones ip",
         ],
         related: ["dns", "nginx", "banner-ascii"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     unidades: {
         slug: "unidades",
-        title: "Conversor de Unidades Online con Explicación Visual",
+        title: "Conversor de Unidades Online con Tabla de Equivalencias",
         description:
-            "Convierte longitud, velocidad, temperatura y luz entre sí, con una explicación visual de cada unidad. Resultados instantáneos, gratis y sin registro previo.",
+            "Convierte longitud, masa, temperatura, volumen, presión, energía, consumo y más, con el factor en ambos sentidos y la tabla de equivalencias para copiar.",
         h1: "Conversor de Unidades",
         primaryKeyword: "conversor de unidades",
         secondaryKeywords: [
@@ -177,16 +182,17 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "conversor de medidas",
             "convertir kilómetros a millas",
             "conversor de temperatura",
+            "convertir km/l a l/100 km",
         ],
         related: ["impuestos", "binario", "base64"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-19",
     },
 
     binario: {
         slug: "binario",
         title: "Convertir Texto a Binario Online: Traductor Gratis",
         description:
-            "Convierte texto a código binario y viceversa al instante, carácter por carácter. Útil para aprender cómo funciona la codificación digital, sin instalar nada.",
+            "Convierte texto a código binario y viceversa al instante, byte a byte, en UTF-8. Útil para aprender cómo funciona la codificación digital, sin instalar nada.",
         h1: "Traductor de Texto a Binario",
         primaryKeyword: "convertir texto a binario",
         secondaryKeywords: [
@@ -196,24 +202,25 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "binary translator",
         ],
         related: ["base64", "unidades", "json"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     aleatorio: {
         slug: "aleatorio",
-        title: "Ruleta para Sorteos Online: Elige un Ganador Gratis",
+        title: "Ruleta para Sorteos Online: Elige Uno o Varios Ganadores",
         description:
-            "Gira una ruleta animada para sortear premios o elegir ganadores al azar, o genera grupos aleatorios desde una lista. Ideal para rifas y dinámicas en vivo.",
+            "Sortea uno o varios ganadores sin repetir con una ruleta que gira una vez por cada uno, o reparte una lista en los grupos que elijas. Hasta 1.000 nombres.",
         h1: "Ruleta de Sorteos y Generador Aleatorio",
         primaryKeyword: "ruleta para sorteos",
         secondaryKeywords: [
             "ruleta de la suerte online",
             "sorteo aleatorio para instagram",
+            "sortear varios ganadores",
             "generador de grupos al azar",
             "elegir ganador de un sorteo",
         ],
         related: ["claves", "qr", "enlaces"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     enlaces: {
@@ -230,24 +237,25 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "wa.me link generator",
         ],
         related: ["qr", "aleatorio", "claves"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     dns: {
         slug: "dns",
-        title: "Verificar la Propagación DNS Online en Todo el Mundo",
+        title: "Verificar Propagación DNS en Seis Resolvedores Públicos",
         description:
-            "Comprueba la propagación DNS de tu dominio en servidores de distintos continentes en segundos. Detecta si tus registros A, MX o CNAME ya se actualizaron.",
+            "Consulta un dominio en seis resolvedores públicos, como Google, Cloudflare y Quad9, y compara sus respuestas. Revisa A, MX, TXT y más, y también SPF y DMARC.",
         h1: "Verificador de Propagación DNS",
         primaryKeyword: "verificar propagación dns",
         secondaryKeywords: [
             "dns checker online",
+            "consultar registros dns",
             "verificar registros a y mx",
-            "propagación dns mundial",
+            "revisar spf y dmarc",
             "dns propagation checker",
         ],
         related: ["subredes", "nginx", "banner-ascii"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     nginx: {
@@ -264,24 +272,25 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "redirecciones en nginx",
         ],
         related: ["dns", "subredes", "banner-ascii"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     favicon: {
         slug: "favicon",
-        title: "Generador de Favicon Online: Pack de Todos los Tamaños",
+        title: "Generador de Favicon Online: PNG, favicon.ico y Manifest",
         description:
-            "Genera todos los tamaños de favicon que tu web necesita a partir de una sola imagen y descárgalos en un ZIP listo para usar en cualquier navegador moderno.",
+            "Sube tu logo y descarga un ZIP con ocho PNG de 16 a 512 px, favicon.ico, site.webmanifest y las etiquetas HTML para el head. Se genera en tu navegador.",
         h1: "Generador de Favicon",
         primaryKeyword: "generador de favicon",
         secondaryKeywords: [
             "crear favicon online",
             "favicon generator gratis",
-            "favicon para todos los dispositivos",
             "generar favicon.ico",
+            "generar apple touch icon",
+            "crear site.webmanifest",
         ],
         related: ["convertir-ico", "convertir-imagen", "paleta-colores"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "convertir-ico": {
@@ -298,75 +307,79 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "ico converter gratis",
         ],
         related: ["favicon", "convertir-imagen", "redimensionar"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "convertir-imagen": {
         slug: "convertir-imagen",
         title: "Convertir Imagen a WebP, PNG o JPG Online y Gratis",
         description:
-            "Convierte imágenes entre PNG, JPG, WebP y BMP directamente en tu navegador, optimizado para acelerar la carga web. Sin subir archivos a servidores externos.",
+            "Convierte imágenes PNG, JPG, WebP, AVIF, GIF o BMP a WebP, PNG o JPG directamente en tu navegador. Hasta 20 a la vez, con descarga en ZIP y sin subir archivos.",
         h1: "Conversor de Formatos de Imagen",
         primaryKeyword: "convertir imagen a webp",
         secondaryKeywords: [
             "convertir jpg a webp",
             "conversor de imágenes online",
             "png a jpg gratis",
-            "cambiar formato de imagen",
+            "convertir avif a jpg",
+            "convertir varias imágenes a la vez",
         ],
         related: ["comprimir-imagen", "redimensionar", "convertir-ico"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "comprimir-imagen": {
         slug: "comprimir-imagen",
         title: "Comprimir Imagen Online Sin Perder Calidad Visible",
         description:
-            "Reduce el peso de tus imágenes sin pérdida de calidad visible, ideal para mejorar el SEO técnico y la velocidad de carga. Procesamiento local, sin subir nada.",
+            "Reduce el peso de tus imágenes ajustando la calidad o fijando un peso objetivo en KB. Comprime hasta 20 a la vez y bájalas en un ZIP, sin subir ningún archivo.",
         h1: "Compresor de Imágenes",
         primaryKeyword: "comprimir imagen online",
         secondaryKeywords: [
             "comprimir imagen sin perder calidad",
             "reducir peso de una foto",
+            "comprimir imagen a un peso en kb",
             "optimizar imágenes para web",
             "image compressor online",
         ],
         related: ["convertir-imagen", "redimensionar", "recortar-imagen"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     redimensionar: {
         slug: "redimensionar",
         title: "Redimensionar Imagen Online con Presets para Redes",
         description:
-            "Cambia el tamaño de tus imágenes con presets listos para YouTube, Instagram y otras redes sociales. Todo ocurre en tu navegador, sin subir ningún archivo.",
+            "Cambia el tamaño de tus imágenes con medidas exactas o presets para Instagram, YouTube, Facebook y LinkedIn. Hasta 20 a la vez, en tu navegador y sin subirlas.",
         h1: "Redimensionador de Imágenes",
         primaryKeyword: "redimensionar imagen online",
         secondaryKeywords: [
             "cambiar tamaño de imagen online",
             "resize image para instagram",
             "redimensionar foto para youtube",
+            "redimensionar varias imágenes a la vez",
             "ajustar dimensiones de una imagen",
         ],
         related: ["comprimir-imagen", "recortar-imagen", "convertir-imagen"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "recortar-imagen": {
         slug: "recortar-imagen",
-        title: "Recortar una Imagen Online con Editor Visual y Gratis",
+        title: "Recortar Imagen Online: Proporciones y Ajuste al Sujeto",
         description:
-            "Recorta cualquier imagen con un editor visual intuitivo y presets para redes sociales, avatares y portadas. Ajusta el encuadre y descarga el resultado.",
+            "Recorta, gira y encuadra tus imágenes con proporciones para redes, o ajusta el recorte al sujeto con detección automática. Descarga en PNG, JPG o WebP.",
         h1: "Recortador de Imágenes",
         primaryKeyword: "recortar imagen online",
         secondaryKeywords: [
             "recortar foto online",
             "crop image tool",
             "recortar imagen para redes sociales",
+            "recortar foto al sujeto",
             "editor de recorte gratis",
         ],
         related: ["redimensionar", "comprimir-imagen", "convertir-imagen"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "quitar-fondo": {
@@ -383,24 +396,25 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "eliminar fondo de imagen gratis",
         ],
         related: ["recortar-imagen", "marca-agua", "convertir-imagen"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "marca-agua": {
         slug: "marca-agua",
         title: "Poner una Marca de Agua a una Imagen Online y Gratis",
         description:
-            "Añade texto o un logo como marca de agua a tus imágenes con control total de posición, tamaño y opacidad. Protege tu contenido antes de compartirlo en redes.",
+            "Añade texto o un logo como marca de agua en una esquina, al centro o en mosaico, con tamaño, opacidad y giro. Se descarga a tamaño completo y en su formato.",
         h1: "Generador de Marca de Agua",
         primaryKeyword: "poner marca de agua a imagen",
         secondaryKeywords: [
             "poner watermark a fotos",
             "proteger fotos con marca de agua",
             "añadir logo a una imagen",
+            "marca de agua en mosaico",
             "watermark online gratis",
         ],
         related: ["quitar-fondo", "recortar-imagen", "paleta-colores"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "paleta-colores": {
@@ -417,7 +431,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "extraer colores dominantes",
         ],
         related: ["marca-agua", "favicon", "convertir-imagen"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     metadatos: {
@@ -434,24 +448,25 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "exif viewer online",
         ],
         related: ["esteganografia-imagen", "esteganografia", "quitar-fondo"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     ascii: {
         slug: "ascii",
         title: "Convertir una Foto en Imagen ASCII Art Online Gratis",
         description:
-            "Convierte cualquier imagen en arte ASCII personalizable, con múltiples estilos y densidades de caracteres. Exporta el resultado como texto o imagen final.",
+            "Convierte una imagen en arte ASCII con varios juegos de caracteres, color y ajustes de brillo y contraste. Copia el texto o descárgalo en TXT, PNG o HTML.",
         h1: "Conversor de Imagen a ASCII Art",
         primaryKeyword: "convertir imagen a ascii art",
         secondaryKeywords: [
             "convertir foto a ascii",
             "generador de arte ascii",
+            "ascii art en color",
             "image to ascii converter",
             "ascii art online gratis",
         ],
         related: ["banner-ascii", "paleta-colores", "convertir-imagen"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "banner-ascii": {
@@ -468,24 +483,25 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "generador de banners ssh",
         ],
         related: ["ascii", "nginx", "subredes"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     esteganografia: {
         slug: "esteganografia",
         title: "Ocultar un Mensaje en Emoji: Esteganografía Online",
         description:
-            "Oculta mensajes secretos dentro de emojis usando caracteres invisibles imperceptibles a simple vista. Codifica y decodifica el texto oculto en tu navegador.",
+            "Oculta mensajes en emojis con caracteres invisibles y decodifícalos. También detecta y limpia invisibles en cualquier texto, como instrucciones ocultas para IA.",
         h1: "Esteganografía en Emojis",
         primaryKeyword: "ocultar mensaje en emoji",
         secondaryKeywords: [
             "ocultar texto en un emoji",
             "esteganografía online",
-            "mensajes ocultos con caracteres invisibles",
+            "detectar caracteres invisibles",
+            "quitar caracteres invisibles de un texto",
             "emoji steganography",
         ],
         related: ["esteganografia-imagen", "claves", "metadatos"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "esteganografia-imagen": {
@@ -499,10 +515,10 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "ocultar texto en una foto",
             "steganography lsb online",
             "mensaje secreto en imagen png",
-            "esconder archivo en una imagen",
+            "esconder texto en una imagen",
         ],
         related: ["esteganografia", "metadatos", "claves"],
-        lastModified: "2026-08-02",
+        lastModified: "2026-11-20",
     },
 
     "reverse-shell": {

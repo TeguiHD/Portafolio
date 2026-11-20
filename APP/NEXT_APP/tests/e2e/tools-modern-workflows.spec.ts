@@ -43,6 +43,8 @@ test("JSON maneja archivos, primitivas, errores y descarga sin perder Unicode", 
 
 test("recientes conservan el orden de visita, se abren por teclado y se borran", async ({ page }) => {
     await page.goto("/herramientas/json");
+    // El atajo se engancha al hidratar: la estrella se habilita en ese momento (favoritas leídas en el cliente).
+    await expect(page.getByRole("button", { name: "Guardar herramienta" })).toBeEnabled();
     await page.keyboard.press("Control+k");
     await page.getByLabel("Buscar en la navegación").fill("base64");
     await page.keyboard.press("Enter");
@@ -121,8 +123,9 @@ test("quitafondos: error recuperable, pincel real, historial, restauración y re
     const alpha = () => canvas.evaluate((node: HTMLCanvasElement) => node.getContext("2d")!.getImageData(node.width / 2, node.height / 2, 1, 1).data[3]);
     expect(await alpha()).toBe(255);
     await page.getByLabel("Dureza", { exact: true }).fill("100");
-    const box = (await canvas.boundingBox())!;
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    // El centro se mide justo antes de cada pincelada: pulsar los botones puede desplazar la página y mover el lienzo.
+    const pincelada = async () => { const b = (await canvas.boundingBox())!; await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); };
+    await pincelada();
     await expect.poll(alpha).toBe(0);
     await page.getByRole("button", { name: "Deshacer pincelada" }).click();
     await expect.poll(alpha).toBe(255);
@@ -130,10 +133,10 @@ test("quitafondos: error recuperable, pincel real, historial, restauración y re
     await expect.poll(alpha).toBe(0);
     await page.getByRole("button", { name: "Restaurar", exact: true }).click();
     await expect.poll(alpha).toBe(56); // Ghost preview: 22% of 255.
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await pincelada();
     await expect.poll(alpha).toBe(255);
     await page.getByRole("button", { name: "Borrar", exact: true }).click();
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await pincelada();
     await expect.poll(alpha).toBe(0);
     await page.setViewportSize({ width: 375, height: 850 });
     await expect.poll(alpha).toBe(0);

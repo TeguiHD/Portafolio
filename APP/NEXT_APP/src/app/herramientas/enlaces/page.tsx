@@ -6,7 +6,8 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
-import { sanitizeInput } from "@/lib/security";
+import { useCopiar } from "@/lib/tools/copiar";
+import { descargarTexto } from "@/lib/tools/descargar";
 
 // Security: Input limits
 const MAX_PHONE_LENGTH = 20;
@@ -38,35 +39,83 @@ const cleanPhone = (phone: string): string => {
     return phone.replace(/[\s\-()]/g, "");
 };
 
-// Security: Encode for URL (prevent header injection)
-const encodeUrlParam = (text: string): string => {
-    // First sanitize for XSS, then URL encode
-    return encodeURIComponent(sanitizeInput(text.replace(/[\r\n]/g, " ")));
+/** wa.me exige el código de país. Un celular chileno escrito sin él (9 dígitos que empiezan con 9) recibe el 56. */
+const numeroWhatsApp = (phone: string): string => {
+    const limpio = cleanPhone(phone);
+    if (limpio.startsWith("+")) return limpio.slice(1);
+    // «00» es el prefijo internacional al marcar (0056 9…): en wa.me va sin él.
+    if (limpio.startsWith("00")) return limpio.slice(2);
+    return /^9\d{8}$/.test(limpio) ? `56${limpio}` : limpio;
 };
 
-// Format datetime for calendar
-const formatCalendarDate = (date: string, time: string): string => {
-    if (!date) return "";
-    const d = new Date(`${date}T${time || "00:00"}`);
-    return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+// Codificar para la URL. Antes se escapaba como HTML primero y «&», «/» o «'» llegaban como «&amp;», «&#x2F;»…
+// encodeURIComponent ya hace seguro el valor. Los saltos de línea se conservan donde sirven (mensaje, cuerpo) y en
+// asuntos y títulos se cambian por espacios.
+const encodeUrlParam = (text: string, conSaltos = false): string =>
+    encodeURIComponent(conSaltos ? text.replace(/\r\n?/g, "\n") : text.replace(/[\r\n]+/g, " "));
+
+/** Texto de un campo iCalendar (RFC 5545 §3.3.11): se escapan \\ ; , y los saltos de línea. */
+const textoIcs = (t: string): string => t.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n?|\n/g, "\\n");
+
+/** Líneas de más de 75 octetos se pliegan con CRLF + espacio (RFC 5545 §3.1). */
+const plegar = (linea: string): string => {
+    const bytes = new TextEncoder().encode(linea);
+    if (bytes.length <= 75) return linea;
+    const partes: string[] = []; let actual = "";
+    for (const c of linea) {
+        if (new TextEncoder().encode(actual + c).length > (partes.length ? 74 : 75)) { partes.push(actual); actual = ""; }
+        actual += c;
+    }
+    partes.push(actual);
+    return partes.join("\r\n ");
 };
+
+/**
+ * Cuándo es el evento. Sin hora de inicio es de día completo (antes salía de 00:00 a 01:00); sin término dura una hora
+ * (antes duraba cero minutos); si termina antes de la hora de inicio, termina al día siguiente (22:00 a 02:00).
+ */
+interface Horario { todoElDia: boolean; inicio: Date; fin: Date; alDiaSiguiente: boolean }
+const horarioEvento = (fecha: string, hora: string, horaFin: string): Horario | null => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha);
+    if (!m) return null;
+    const a = Number(m[1]), mes = Number(m[2]) - 1, d = Number(m[3]);
+    if (!hora) return { todoElDia: true, inicio: new Date(a, mes, d), fin: new Date(a, mes, d + 1), alDiaSiguiente: false };
+    const [h = 0, min = 0] = hora.split(":").map(Number);
+    const inicio = new Date(a, mes, d, h, min);
+    if (Number.isNaN(inicio.getTime())) return null;
+    if (!horaFin) return { todoElDia: false, inicio, fin: new Date(inicio.getTime() + 3_600_000), alDiaSiguiente: false };
+    const [hf = 0, mf = 0] = horaFin.split(":").map(Number);
+    const fin = new Date(a, mes, d, hf, mf);
+    return fin > inicio
+        ? { todoElDia: false, inicio, fin, alDiaSiguiente: false }
+        : { todoElDia: false, inicio, fin: new Date(a, mes, d + 1, hf, mf), alDiaSiguiente: true };
+};
+
+/** «20261120T173000Z»: hora UTC, así cada calendario la muestra en la zona de quien abre el enlace. */
+const utcCompacta = (d: Date): string => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+/** «2026-11-20T17:30:00Z». */
+const utcIso = (d: Date): string => d.toISOString().replace(/\.\d{3}/, "");
+const dos = (n: number) => String(n).padStart(2, "0");
+/** «20261120» (día local, para eventos de día completo). */
+const diaCompacto = (d: Date): string => `${d.getFullYear()}${dos(d.getMonth() + 1)}${dos(d.getDate())}`;
+/** «2026-11-20». */
+const diaIso = (d: Date): string => `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
 
 // Generate ICS file content
-const generateICS = (title: string, date: string, time: string, endTime: string, location: string, description: string): string => {
-    const start = formatCalendarDate(date, time);
-    const end = formatCalendarDate(date, endTime || time);
+const generateICS = (title: string, horario: Horario, location: string, description: string): string => {
+    const fechas = horario.todoElDia
+        ? [`DTSTART;VALUE=DATE:${diaCompacto(horario.inicio)}`, `DTEND;VALUE=DATE:${diaCompacto(horario.fin)}`]
+        : [`DTSTART:${utcCompacta(horario.inicio)}`, `DTEND:${utcCompacta(horario.fin)}`];
 
-    return `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Nicoholas.dev//Link Generator//ES
-BEGIN:VEVENT
-DTSTART:${start}
-DTEND:${end}
-SUMMARY:${sanitizeInput(title)}
-LOCATION:${sanitizeInput(location)}
-DESCRIPTION:${sanitizeInput(description)}
-END:VEVENT
-END:VCALENDAR`;
+    // UID y DTSTAMP son obligatorios en un VEVENT; sin ellos varios calendarios rechazan o duplican el evento.
+    const uid = `${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now().toString(36)}@nicoholas.dev`;
+    const sello = utcCompacta(new Date());
+    return [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Nicoholas.dev//Link Generator//ES", "CALSCALE:GREGORIAN",
+        "BEGIN:VEVENT", `UID:${uid}`, `DTSTAMP:${sello}`, ...fechas,
+        `SUMMARY:${textoIcs(title)}`, ...(location ? [`LOCATION:${textoIcs(location)}`] : []), ...(description ? [`DESCRIPTION:${textoIcs(description)}`] : []),
+        "END:VEVENT", "END:VCALENDAR",
+    ].map(plegar).join("\r\n") + "\r\n";
 };
 
 export default function LinkGeneratorPage() {
@@ -74,8 +123,7 @@ export default function LinkGeneratorPage() {
     const { trackImmediate } = useToolTracking("enlaces", { trackViewOnMount: true, debounceMs: 2000 });
 
     const [activeTab, setActiveTab] = useState<TabType>("whatsapp");
-    const [copied, setCopied] = useState(false);
-    const [isCopying, setIsCopying] = useState(false);
+    const { copiado, fallo, copiar } = useCopiar(2000);
     const lastTrackRef = useRef<number>(0);
 
     // WhatsApp state
@@ -109,82 +157,66 @@ export default function LinkGeneratorPage() {
         if (waPhone) {
             const cleanedPhone = cleanPhone(waPhone);
             if (validatePhone(waPhone)) {
-                let waUrl = `https://wa.me/${cleanedPhone.replace(/^\+/, "")}`;
+                let waUrl = `https://wa.me/${numeroWhatsApp(cleanedPhone)}`;
                 if (waMessage) {
-                    waUrl += `?text=${encodeUrlParam(waMessage)}`;
+                    waUrl += `?text=${encodeUrlParam(waMessage, true)}`;
                 }
                 result.whatsapp = waUrl;
             }
         }
 
-        // Email
+        // Email («@» sin codificar: algunos clientes de correo no entienden «%40» en el destinatario)
         if (emailTo && validateEmail(emailTo)) {
-            let mailtoUrl = `mailto:${encodeURIComponent(emailTo)}`;
+            let mailtoUrl = `mailto:${encodeURIComponent(emailTo).replace(/%40/g, "@")}`;
             const params: string[] = [];
             if (emailSubject) params.push(`subject=${encodeUrlParam(emailSubject)}`);
-            if (emailBody) params.push(`body=${encodeUrlParam(emailBody)}`);
+            if (emailBody) params.push(`body=${encodeUrlParam(emailBody, true)}`);
             if (params.length > 0) mailtoUrl += `?${params.join("&")}`;
             result.email = mailtoUrl;
         }
 
         // Calendar
-        if (calTitle && calDate) {
-            const start = formatCalendarDate(calDate, calTime || "00:00");
-            const end = formatCalendarDate(calDate, calEndTime || calTime || "01:00");
+        const horario = calTitle.trim() ? horarioEvento(calDate, calTime, calEndTime) : null;
+        if (horario) {
             const encodedTitle = encodeUrlParam(calTitle);
             const encodedLocation = encodeUrlParam(calLocation);
-            const encodedDescription = encodeUrlParam(calDescription);
+            const encodedDescription = encodeUrlParam(calDescription, true);
+            const fechasGoogle = horario.todoElDia
+                ? `${diaCompacto(horario.inicio)}/${diaCompacto(horario.fin)}`
+                : `${utcCompacta(horario.inicio)}/${utcCompacta(horario.fin)}`;
+            const fechasOutlook = horario.todoElDia
+                ? `startdt=${diaIso(horario.inicio)}&enddt=${diaIso(horario.fin)}&allday=true`
+                : `startdt=${utcIso(horario.inicio)}&enddt=${utcIso(horario.fin)}`;
 
             // Google Calendar
-            result.googleCalendar = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&dates=${start}/${end}&location=${encodedLocation}&details=${encodedDescription}`;
+            result.googleCalendar = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&dates=${fechasGoogle}&location=${encodedLocation}&details=${encodedDescription}`;
 
             // Outlook Calendar
-            result.outlookCalendar = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodedTitle}&startdt=${calDate}T${calTime || "00:00"}&enddt=${calDate}T${calEndTime || calTime || "01:00"}&location=${encodedLocation}&body=${encodedDescription}`;
+            result.outlookCalendar = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodedTitle}&${fechasOutlook}&location=${encodedLocation}&body=${encodedDescription}`;
 
             // ICS
-            result.icsFile = generateICS(calTitle, calDate, calTime, calEndTime, calLocation, calDescription);
+            result.icsFile = generateICS(calTitle, horario, calLocation, calDescription);
         }
 
         return result;
     }, [waPhone, waMessage, emailTo, emailSubject, emailBody, calTitle, calDate, calTime, calEndTime, calLocation, calDescription]);
 
-    // Copy to clipboard with throttling
+    // Copia (la clave es la pestaña: el «Copiado» de una no aparece en otra) y registra como mucho una vez cada 2 s.
     const copyToClipboard = useCallback(async (text: string | null, type: string) => {
-        if (!text || isCopying) return;
-
-        // Anti-spam cooldown
-        setIsCopying(true);
-        setTimeout(() => setIsCopying(false), 300);
-
-        try {
-            await navigator.clipboard.writeText(text);
-            setCopied(true);
-
-            // Throttle tracking: max 1 request per 2 seconds
-            const now = Date.now();
-            if (now - lastTrackRef.current > 2000) {
-                lastTrackRef.current = now;
-                trackImmediate("use", { action: "copy", type });
-            }
-
-            setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-            console.error("Failed to copy:", err);
+        if (!text || !(await copiar(text, type))) return;
+        const now = Date.now();
+        if (now - lastTrackRef.current > 2000) {
+            lastTrackRef.current = now;
+            trackImmediate("use", { action: "copy", type });
         }
-    }, [isCopying, trackImmediate]);
+    }, [copiar, trackImmediate]);
 
     // Download ICS file
     const downloadICS = useCallback(() => {
         if (!links.icsFile) return;
-        const blob = new Blob([links.icsFile], { type: "text/calendar;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${sanitizeInput(calTitle).replace(/\s+/g, "_")}.ics`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        // Conserva tildes y ñ (antes se perdían); solo quita lo que no sirve en un nombre de archivo.
+        const nombre = `${calTitle.normalize("NFC").replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "evento"}.ics`;
+        descargarTexto(links.icsFile, nombre, "text/calendar");
         trackImmediate("download", { type: "ics" });
     }, [links.icsFile, calTitle, trackImmediate]);
 
@@ -200,7 +232,8 @@ export default function LinkGeneratorPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de Enlaces"} />;
     }
 
-    const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-sm focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500";
+    const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-sm focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500 disabled:opacity-50";
+    const horarioVista = calDate ? horarioEvento(calDate, calTime, calEndTime) : null;
 
     const getCurrentLink = () => {
         switch (activeTab) {
@@ -223,18 +256,21 @@ export default function LinkGeneratorPage() {
                 <ToolPageHeader slug="enlaces" title={<>Generador de Links</>} description={<>Crea links para WhatsApp, correo y calendario</>} />
 
                 {/* Tab Navigation */}
-                <div className="flex gap-2 mb-6 p-1 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex gap-2 mb-6 p-1 rounded-xl bg-white/5 border border-white/10" role="group" aria-label="Tipo de enlace">
                     {(Object.keys(tabConfig) as TabType[]).map((tab) => (
                         <button
                             key={tab}
+                            type="button"
+                            aria-pressed={activeTab === tab}
+                            aria-label={tabConfig[tab].label}
                             onClick={() => setActiveTab(tab)}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${activeTab === tab
                                 ? "bg-[#FF8A00]/20 text-white border border-[#FF8A00]/30"
                                 : "text-neutral-400 hover:text-white"
                                 }`}
                         >
-                            <span>{tabConfig[tab].icon}</span>
-                            <span className="hidden sm:inline">{tabConfig[tab].label}</span>
+                            <span aria-hidden="true">{tabConfig[tab].icon}</span>
+                            <span className="hidden sm:inline" aria-hidden="true">{tabConfig[tab].label}</span>
                         </button>
                     ))}
                 </div>
@@ -246,8 +282,9 @@ export default function LinkGeneratorPage() {
                         {activeTab === "whatsapp" && (
                             <>
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Número de teléfono</label>
+                                    <label htmlFor="enlaces-telefono" className="text-sm text-neutral-400 mb-2 block">Número de teléfono</label>
                                     <input
+                                        id="enlaces-telefono"
                                         type="tel"
                                         value={waPhone}
                                         onChange={(e) => setWaPhone(e.target.value.slice(0, MAX_PHONE_LENGTH))}
@@ -256,12 +293,13 @@ export default function LinkGeneratorPage() {
                                         maxLength={MAX_PHONE_LENGTH}
                                     />
                                     {waPhone && !validatePhone(waPhone) && (
-                                        <p className="text-xs text-red-400 mt-1">Formato de teléfono inválido</p>
+                                        <p role="alert" className="text-xs text-red-400 mt-1">Formato de teléfono inválido: usa solo números, con o sin + y código de país.</p>
                                     )}
                                 </div>
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Mensaje predefinido (opcional)</label>
+                                    <label htmlFor="enlaces-mensaje" className="text-sm text-neutral-400 mb-2 block">Mensaje predefinido (opcional)</label>
                                     <textarea
+                                        id="enlaces-mensaje"
                                         value={waMessage}
                                         onChange={(e) => setWaMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
                                         placeholder="Hola, me gustaría..."
@@ -277,8 +315,9 @@ export default function LinkGeneratorPage() {
                         {activeTab === "email" && (
                             <>
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Destinatario</label>
+                                    <label htmlFor="enlaces-correo" className="text-sm text-neutral-400 mb-2 block">Destinatario</label>
                                     <input
+                                        id="enlaces-correo"
                                         type="email"
                                         value={emailTo}
                                         onChange={(e) => setEmailTo(e.target.value.slice(0, MAX_EMAIL_LENGTH))}
@@ -287,12 +326,13 @@ export default function LinkGeneratorPage() {
                                         maxLength={MAX_EMAIL_LENGTH}
                                     />
                                     {emailTo && !validateEmail(emailTo) && (
-                                        <p className="text-xs text-red-400 mt-1">Formato de email inválido</p>
+                                        <p role="alert" className="text-xs text-red-400 mt-1">Formato de correo inválido</p>
                                     )}
                                 </div>
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Asunto</label>
+                                    <label htmlFor="enlaces-asunto" className="text-sm text-neutral-400 mb-2 block">Asunto</label>
                                     <input
+                                        id="enlaces-asunto"
                                         type="text"
                                         value={emailSubject}
                                         onChange={(e) => setEmailSubject(e.target.value.slice(0, MAX_SUBJECT_LENGTH))}
@@ -302,8 +342,9 @@ export default function LinkGeneratorPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Cuerpo del mensaje</label>
+                                    <label htmlFor="enlaces-cuerpo" className="text-sm text-neutral-400 mb-2 block">Cuerpo del mensaje</label>
                                     <textarea
+                                        id="enlaces-cuerpo"
                                         value={emailBody}
                                         onChange={(e) => setEmailBody(e.target.value.slice(0, MAX_BODY_LENGTH))}
                                         placeholder="Estimado/a..."
@@ -319,8 +360,9 @@ export default function LinkGeneratorPage() {
                         {activeTab === "calendar" && (
                             <>
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Título del evento *</label>
+                                    <label htmlFor="enlaces-titulo" className="text-sm text-neutral-400 mb-2 block">Título del evento *</label>
                                     <input
+                                        id="enlaces-titulo"
                                         type="text"
                                         value={calTitle}
                                         onChange={(e) => setCalTitle(e.target.value.slice(0, MAX_TITLE_LENGTH))}
@@ -331,8 +373,9 @@ export default function LinkGeneratorPage() {
                                 </div>
                                 <div className="grid grid-cols-3 gap-3">
                                     <div className="col-span-1">
-                                        <label className="text-sm text-neutral-400 mb-2 block">Fecha *</label>
+                                        <label htmlFor="enlaces-fecha" className="text-sm text-neutral-400 mb-2 block">Fecha *</label>
                                         <input
+                                            id="enlaces-fecha"
                                             type="date"
                                             value={calDate}
                                             onChange={(e) => setCalDate(e.target.value)}
@@ -340,8 +383,9 @@ export default function LinkGeneratorPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm text-neutral-400 mb-2 block">Inicio</label>
+                                        <label htmlFor="enlaces-inicio" className="text-sm text-neutral-400 mb-2 block">Inicio</label>
                                         <input
+                                            id="enlaces-inicio"
                                             type="time"
                                             value={calTime}
                                             onChange={(e) => setCalTime(e.target.value)}
@@ -349,18 +393,26 @@ export default function LinkGeneratorPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm text-neutral-400 mb-2 block">Fin</label>
+                                        <label htmlFor="enlaces-fin" className="text-sm text-neutral-400 mb-2 block">Fin</label>
                                         <input
+                                            id="enlaces-fin"
                                             type="time"
+                                            disabled={!calTime}
                                             value={calEndTime}
                                             onChange={(e) => setCalEndTime(e.target.value)}
                                             className={inputClass}
                                         />
                                     </div>
                                 </div>
+                                {horarioVista && (horarioVista.todoElDia || horarioVista.alDiaSiguiente) && (
+                                    <p className="text-xs text-neutral-400" aria-live="polite">
+                                        {horarioVista.todoElDia ? "Sin hora de inicio: evento de día completo." : "Termina al día siguiente (la hora de fin es anterior a la de inicio)."}
+                                    </p>
+                                )}
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Ubicación</label>
+                                    <label htmlFor="enlaces-lugar" className="text-sm text-neutral-400 mb-2 block">Ubicación</label>
                                     <input
+                                        id="enlaces-lugar"
                                         type="text"
                                         value={calLocation}
                                         onChange={(e) => setCalLocation(e.target.value.slice(0, MAX_LOCATION_LENGTH))}
@@ -370,8 +422,9 @@ export default function LinkGeneratorPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm text-neutral-400 mb-2 block">Descripción</label>
+                                    <label htmlFor="enlaces-descripcion" className="text-sm text-neutral-400 mb-2 block">Descripción</label>
                                     <textarea
+                                        id="enlaces-descripcion"
                                         value={calDescription}
                                         onChange={(e) => setCalDescription(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
                                         placeholder="Detalles del evento..."
@@ -397,7 +450,7 @@ export default function LinkGeneratorPage() {
                             <div className="space-y-4">
                                 {/* Main Link Display */}
                                 <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                    <p className="text-xs text-neutral-500 mb-2 uppercase tracking-wide">
+                                    <p className="text-xs text-neutral-500 mb-2">
                                         {activeTab === "whatsapp" && "Link de WhatsApp"}
                                         {activeTab === "email" && "Link Mailto"}
                                         {activeTab === "calendar" && "Link de Calendario"}
@@ -410,14 +463,14 @@ export default function LinkGeneratorPage() {
                                 {/* Action Buttons */}
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => copyToClipboard(getCurrentLink(), activeTab)}
-                                        disabled={isCopying}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all ${copied
+                                        type="button"
+                                        onClick={() => { void copyToClipboard(getCurrentLink(), activeTab); }}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all ${copiado === activeTab
                                             ? "bg-green-500/20 text-green-400 border border-green-500/30"
                                             : "bg-[#FF8A00] text-white hover:bg-[#FF8A00]/90 disabled:opacity-50"
                                             }`}
                                     >
-                                        {copied ? (
+                                        {copiado === activeTab ? (
                                             <>
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -429,7 +482,7 @@ export default function LinkGeneratorPage() {
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                                 </svg>
-                                                Copiar Link
+                                                {fallo === activeTab ? "No se pudo copiar" : "Copiar Link"}
                                             </>
                                         )}
                                     </button>
@@ -437,7 +490,8 @@ export default function LinkGeneratorPage() {
                                         href={getCurrentLink() || "#"}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all"
+                                        aria-label="Abrir el enlace (otra pestaña)"
+                                        className="flex min-w-11 items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -448,7 +502,7 @@ export default function LinkGeneratorPage() {
                                 {/* Calendar Extra Links */}
                                 {activeTab === "calendar" && links.googleCalendar && (
                                     <div className="space-y-2 pt-4 border-t border-white/10">
-                                        <p className="text-xs text-neutral-500 uppercase tracking-wide mb-3">Agregar a calendario</p>
+                                        <p className="text-xs text-neutral-500 mb-3">Agregar a calendario</p>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                             <a
                                                 href={links.googleCalendar}
@@ -475,6 +529,7 @@ export default function LinkGeneratorPage() {
                                                 Outlook
                                             </a>
                                             <button
+                                                type="button"
                                                 onClick={downloadICS}
                                                 className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-sm transition-all"
                                             >

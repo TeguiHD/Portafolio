@@ -1,5 +1,5 @@
-// QR Data Format Generators
-// Organized by category with all supported types
+// Tipos de QR y formateadores simples (URL, correo, teléfono, SMS, WhatsApp, WiFi, mapas, RA).
+// vCard, MeCard, evento y Bitcoin viven en src/lib/tools/qr-formatos.ts, que escapa el texto.
 
 export type QRType =
     | "url" | "text"
@@ -20,20 +20,6 @@ export interface QRTypeConfig {
     description: string;
     category: QRCategory;
 }
-
-export interface QRCategoryConfig {
-    id: QRCategory;
-    label: string;
-    icon: string;
-}
-
-export const QR_CATEGORIES: QRCategoryConfig[] = [
-    { id: "basic", label: "Básico", icon: "📋" },
-    { id: "contact", label: "Contacto", icon: "👤" },
-    { id: "communication", label: "Comunicación", icon: "💬" },
-    { id: "network", label: "Red", icon: "📶" },
-    { id: "other", label: "Otros", icon: "⚡" },
-];
 
 export const QR_TYPES: QRTypeConfig[] = [
     // Basic
@@ -57,23 +43,24 @@ export const QR_TYPES: QRTypeConfig[] = [
 ];
 
 // Get types by category
-export const getTypesByCategory = (category: QRCategory): QRTypeConfig[] =>
-    QR_TYPES.filter(t => t.category === category);
 
 // ============ FORMATTERS ============
 
 // URL
 export const formatURL = (url: string): string => {
-    if (!url) return "";
-    if (!/^https?:\/\//i.test(url)) return `https://${url}`;
-    return url;
+    // Un enlace pegado suele traer espacios o un salto de línea al final: irían dentro del QR y lo romperían.
+    const limpia = url.trim();
+    if (!limpia) return "";
+    if (!/^https?:\/\//i.test(limpia)) return `https://${limpia}`;
+    return limpia;
 };
 
 // Email
 export interface EmailData { to: string; subject?: string; body?: string; }
 export const formatEmail = (data: EmailData): string => {
-    if (!data.to) return "";
-    let mailto = `mailto:${data.to}`;
+    const para = data.to.trim();
+    if (!para) return "";
+    let mailto = `mailto:${para}`;
     const params: string[] = [];
     if (data.subject) params.push(`subject=${encodeURIComponent(data.subject)}`);
     if (data.body) params.push(`body=${encodeURIComponent(data.body)}`);
@@ -110,7 +97,7 @@ export const formatWhatsApp = (data: WhatsAppData): string => {
 export interface WiFiData { ssid: string; password?: string; encryption: "WPA" | "WEP" | "nopass"; hidden?: boolean; }
 export const formatWiFi = (data: WiFiData): string => {
     if (!data.ssid) return "";
-    const escape = (s: string) => s.replace(/([\\;,:"'])/g, "\\$1");
+    const escape = (s: string) => s.replace(/([\\;,:"])/g, "\\$1");
     let wifi = `WIFI:S:${escape(data.ssid)};T:${data.encryption};`;
     if (data.password && data.encryption !== "nopass") wifi += `P:${escape(data.password)};`;
     if (data.hidden) wifi += `H:true;`;
@@ -130,21 +117,6 @@ export interface VCardData {
     website?: string;
     address?: string;
 }
-export const formatVCard = (data: VCardData): string => {
-    if (!data.firstName) return "";
-    const v = data.version || "3.0";
-    let vcard = `BEGIN:VCARD\nVERSION:${v}\n`;
-    vcard += `N:${data.lastName || ""};${data.firstName};;;\n`;
-    vcard += `FN:${data.firstName}${data.lastName ? ` ${data.lastName}` : ""}\n`;
-    if (data.phone) vcard += v === "2.1" ? `TEL;WORK:${data.phone}\n` : `TEL;TYPE=WORK:${data.phone}\n`;
-    if (data.cellPhone) vcard += v === "2.1" ? `TEL;CELL:${data.cellPhone}\n` : `TEL;TYPE=CELL:${data.cellPhone}\n`;
-    if (data.email) vcard += `EMAIL:${data.email}\n`;
-    if (data.organization) vcard += `ORG:${data.organization}\n`;
-    if (data.title) vcard += `TITLE:${data.title}\n`;
-    if (data.website) vcard += `URL:${data.website}\n`;
-    if (data.address) vcard += v === "2.1" ? `ADR;HOME:;;${data.address};;;;\n` : `ADR;TYPE=HOME:;;${data.address};;;;\n`;
-    return vcard + "END:VCARD";
-};
 
 // MeCard (Japanese format, widely supported)
 export interface MeCardData {
@@ -155,16 +127,6 @@ export interface MeCardData {
     url?: string;
     note?: string;
 }
-export const formatMeCard = (data: MeCardData): string => {
-    if (!data.name) return "";
-    let mecard = `MECARD:N:${data.name};`;
-    if (data.phone) mecard += `TEL:${data.phone};`;
-    if (data.email) mecard += `EMAIL:${data.email};`;
-    if (data.address) mecard += `ADR:${data.address};`;
-    if (data.url) mecard += `URL:${data.url};`;
-    if (data.note) mecard += `NOTE:${data.note};`;
-    return mecard + ";";
-};
 
 // Location - supports multiple map formats
 export type MapFormat = "google" | "apple" | "waze" | "geo";
@@ -207,48 +169,9 @@ export const formatLocation = (data: LocationData): string => {
 
 // Event (iCalendar)
 export interface EventData { title: string; location?: string; startDate: string; endDate?: string; description?: string; }
-export const formatEvent = (data: EventData): string => {
-    if (!data.title || !data.startDate) return "";
-    const fmt = (iso: string) => iso.replace(/[-:]/g, "").replace(/\.\d{3}/, "").replace("Z", "");
-    let event = "BEGIN:VEVENT\n";
-    event += `SUMMARY:${data.title}\n`;
-    event += `DTSTART:${fmt(data.startDate)}\n`;
-    if (data.endDate) event += `DTEND:${fmt(data.endDate)}\n`;
-    if (data.location) event += `LOCATION:${data.location}\n`;
-    if (data.description) event += `DESCRIPTION:${data.description}\n`;
-    return event + "END:VEVENT";
-};
 
 // Bitcoin
 export interface BitcoinData { address: string; amount?: number; label?: string; }
-export const formatBitcoin = (data: BitcoinData): string => {
-    if (!data.address) return "";
-    let btc = `bitcoin:${data.address}`;
-    const params: string[] = [];
-    if (data.amount) params.push(`amount=${data.amount}`);
-    if (data.label) params.push(`label=${encodeURIComponent(data.label)}`);
-    if (params.length) btc += `?${params.join("&")}`;
-    return btc;
-};
-
-// Master formatter
-export const formatQRData = (type: QRType, data: unknown): string => {
-    switch (type) {
-        case "url": return formatURL(data as string);
-        case "text": return data as string;
-        case "email": return formatEmail(data as EmailData);
-        case "phone": return formatPhone(data as string);
-        case "sms": return formatSMS(data as SMSData);
-        case "whatsapp": return formatWhatsApp(data as WhatsAppData);
-        case "wifi": return formatWiFi(data as WiFiData);
-        case "vcard": return formatVCard(data as VCardData);
-        case "mecard": return formatMeCard(data as MeCardData);
-        case "location": return formatLocation(data as LocationData);
-        case "event": return formatEvent(data as EventData);
-        case "bitcoin": return formatBitcoin(data as BitcoinData);
-        default: return "";
-    }
-};
 
 // ============ REALIDAD AUMENTADA ============
 // El QR apunta a /ar de este mismo sitio con las URLs de los modelos en la query.

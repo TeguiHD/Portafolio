@@ -255,7 +255,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "dns",
         name: "Verificador DNS",
-        description: "Comprueba la propagación DNS de tu dominio en servidores de todo el mundo.",
+        description: "Compara la respuesta DNS de tu dominio en seis resolvedores públicos y revisa su SPF y DMARC.",
         icon: "dns",
         category: "dev",
         publicCategory: "productividad",

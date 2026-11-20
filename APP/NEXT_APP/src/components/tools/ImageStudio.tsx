@@ -67,7 +67,7 @@ export function StudioCard({
                     <div>
                         {eyebrow && (
                             <p
-                                className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                className="mb-1 text-xs font-medium"
                                 style={{ color: accentColor }}
                             >
                                 {eyebrow}

@@ -2,11 +2,14 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { useCopiar } from "@/lib/tools/copiar";
+import { descargarTexto } from "@/lib/tools/descargar";
+import { MAX_SUBREDES_VLSM, planComoCsv, planComoTexto, planificarVlsm, type PedidoVlsm, type PlanVlsm } from "@/lib/tools/vlsm";
 
 const ACCENT = "#3B82F6";
 
@@ -88,6 +91,19 @@ function calculateIPv4Subnet(ip: string, cidr: number) {
         (firstOctet === 10) ||
         (firstOctet === 172 && ((ipNum >>> 16) & 0xFF) >= 16 && ((ipNum >>> 16) & 0xFF) <= 31) ||
         (firstOctet === 192 && ((ipNum >>> 16) & 0xFF) === 168);
+    // Rangos especiales (RFC 6890): antes loopback, enlace local o CGNAT salían como «Pública».
+    const b2 = (ipNum >>> 16) & 0xFF, b3 = (ipNum >>> 8) & 0xFF;
+    const rango =
+        isPrivate ? "Privada (RFC 1918)"
+        : firstOctet === 127 ? "Loopback"
+        : firstOctet === 169 && b2 === 254 ? "Enlace local (APIPA)"
+        : firstOctet === 100 && b2 >= 64 && b2 <= 127 ? "Compartida CGNAT (RFC 6598)"
+        : firstOctet === 0 ? "Esta red (0.0.0.0/8)"
+        : (firstOctet === 192 && b2 === 0 && b3 === 2) || (firstOctet === 198 && b2 === 51 && b3 === 100) || (firstOctet === 203 && b2 === 0 && b3 === 113) ? "Documentación (RFC 5737)"
+        : firstOctet === 198 && (b2 === 18 || b2 === 19) ? "Pruebas de red (RFC 2544)"
+        : firstOctet >= 224 && firstOctet <= 239 ? "Multicast"
+        : firstOctet >= 240 ? "Reservada"
+        : "Pública";
 
     return {
         networkAddress: numberToIPv4(network),
@@ -101,6 +117,7 @@ function calculateIPv4Subnet(ip: string, cidr: number) {
         cidr,
         ipClass,
         isPrivate,
+        rango,
         networkBinary: ipv4ToBinary(numberToIPv4(network)),
         maskBinary: ipv4ToBinary(numberToIPv4(mask)),
     };
@@ -131,6 +148,10 @@ function isValidIPv6(ip: string): boolean {
     // Count ::
     const doubleColonCount = (ip.match(/::/g) || []).length;
     if (doubleColonCount > 1) return false;
+    // Un «:» suelto al inicio o al final (":1:2:3:4:5:6:7") pasaba como un grupo 0000.
+    if ((ip.startsWith(":") && !ip.startsWith("::")) || (ip.endsWith(":") && !ip.endsWith("::"))) return false;
+    // «::» reemplaza al menos un grupo: con 8 grupos escritos sobra.
+    if (doubleColonCount === 1 && ip.split(":").filter(Boolean).length > 7) return false;
 
     try {
         const expanded = expandIPv6(ip);
@@ -218,76 +239,334 @@ function calculateIPv6Subnet(ip: string, prefix: number) {
 // ========================= COMMON CIDR PRESETS =========================
 
 const COMMON_SUBNETS = [
-    { cidr: 8, name: "Clase A", hosts: "16,777,214" },
-    { cidr: 16, name: "Clase B", hosts: "65,534" },
+    { cidr: 8, name: "Clase A", hosts: "16.777.214" },
+    { cidr: 16, name: "Clase B", hosts: "65.534" },
     { cidr: 24, name: "Clase C", hosts: "254" },
     { cidr: 25, name: "Mitad Clase C", hosts: "126" },
     { cidr: 26, name: "/26", hosts: "62" },
     { cidr: 27, name: "/27", hosts: "30" },
     { cidr: 28, name: "/28", hosts: "14" },
-    { cidr: 29, name: "/29 (Punto a punto)", hosts: "6" },
+    { cidr: 29, name: "/29 (red chica, 6 equipos)", hosts: "6" },
     { cidr: 30, name: "/30 (Enlace P2P)", hosts: "2" },
     { cidr: 32, name: "/32 (Host único)", hosts: "1" },
 ];
+
+// ========================= PLANIFICADOR VLSM =========================
+
+interface FilaVlsm {
+    id: number;
+    nombre: string;
+    hosts: string;
+}
+
+const FILAS_VLSM_INICIALES: FilaVlsm[] = [
+    { id: 1, nombre: "Usuarios", hosts: "100" },
+    { id: 2, nombre: "Invitados", hosts: "50" },
+    { id: 3, nombre: "Servidores", hosts: "20" },
+    { id: 4, nombre: "Enlace WAN", hosts: "2" },
+];
+
+/** Entero con o sin puntos de miles («1.000»). */
+const HOSTS_RE = /^\d{1,3}(\.?\d{3})*$/;
+const formatoCL = new Intl.NumberFormat("es-CL");
+const CAMPO = "w-full bg-[#0F1724] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 user-invalid:border-red-400/60";
+
+function leerFilas(filas: FilaVlsm[]): { pedidos: PedidoVlsm[]; sinHosts: string[]; error: string | null } {
+    const pedidos: PedidoVlsm[] = [];
+    const sinHosts: string[] = [];
+    for (const [indice, fila] of filas.entries()) {
+        const nombre = fila.nombre.trim() || `Subred ${indice + 1}`;
+        const hosts = fila.hosts.trim();
+        if (!hosts) {
+            if (fila.nombre.trim()) sinHosts.push(nombre);
+            continue;
+        }
+        if (!HOSTS_RE.test(hosts)) {
+            return { pedidos, sinHosts, error: `Indica cuántos hosts necesita «${nombre}» con un número entero, por ejemplo 50.` };
+        }
+        pedidos.push({ nombre, hosts: Number(hosts.replace(/\./g, "")) });
+    }
+    return { pedidos, sinHosts, error: null };
+}
+
+function PlanificadorVlsm() {
+    const [base, setBase] = useState("192.168.10.0/24");
+    const [filas, setFilas] = useState<FilaVlsm[]>(FILAS_VLSM_INICIALES);
+    const siguienteId = useRef(FILAS_VLSM_INICIALES.length + 1);
+    const { copiado, fallo, copiar } = useCopiar();
+
+    const lectura = useMemo(() => leerFilas(filas), [filas]);
+    const plan = useMemo<PlanVlsm>(
+        () => (lectura.error ? { ok: false, error: lectura.error } : planificarVlsm(base, lectura.pedidos)),
+        [base, lectura]
+    );
+
+    const cambiarFila = (id: number, campo: "nombre" | "hosts", valor: string) =>
+        setFilas(actuales => actuales.map(fila => (fila.id === id ? { ...fila, [campo]: valor } : fila)));
+
+    // Los clics se aplican antes del siguiente cuadro, así que el campo nuevo ya existe al enfocarlo.
+    const enfocar = (id: string) => requestAnimationFrame(() => document.getElementById(id)?.focus());
+
+    const agregar = () => {
+        const id = siguienteId.current++;
+        setFilas(actuales => [...actuales, { id, nombre: "", hosts: "" }]);
+        enfocar(`vlsm-nombre-${id}`);
+    };
+
+    const quitar = (id: number) => {
+        const indice = filas.findIndex(fila => fila.id === id);
+        const vecina = filas[indice + 1] ?? filas[indice - 1];
+        setFilas(actuales => actuales.filter(fila => fila.id !== id));
+        enfocar(vecina ? `vlsm-nombre-${vecina.id}` : "vlsm-agregar");
+    };
+
+    const avisoCopia = copiado === "vlsm" ? "Tabla copiada" : fallo === "vlsm" ? "No se pudo copiar" : "";
+
+    return (
+        <section aria-labelledby="vlsm-titulo" className="mt-8 bg-white/5 rounded-xl p-4 border border-white/10">
+            <h2 id="vlsm-titulo" className="text-base font-semibold text-white">Planificar subredes (VLSM)</h2>
+            <p className="mt-1 text-xs leading-5 text-neutral-400">
+                Escribe la red que tienes y cuántos hosts necesita cada subred. Se asignan de la más grande a la más chica,
+                cada una alineada a su tamaño. Cada subred reserva la dirección de red y la de broadcast, así que un enlace de 2 hosts queda en /30.
+            </p>
+
+            <div className="mt-4">
+                <label htmlFor="vlsm-base" className="block text-sm font-medium text-white">Red base (CIDR)</label>
+                <p id="vlsm-base-ayuda" className="mt-1 text-xs text-neutral-500">IPv4 con prefijo, por ejemplo 192.168.10.0/24.</p>
+                <input
+                    id="vlsm-base"
+                    type="text"
+                    value={base}
+                    onChange={event => setBase(event.target.value)}
+                    required
+                    pattern="\s*[0-9]{1,3}(\.[0-9]{1,3}){3}\s*/\s*[0-9]{1,2}\s*"
+                    aria-describedby="vlsm-base-ayuda"
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={22}
+                    className={`mt-2 font-mono sm:max-w-xs ${CAMPO}`}
+                    style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
+                />
+            </div>
+
+            <fieldset className="mt-5">
+                <legend className="text-sm font-medium text-white">Subredes</legend>
+                <div aria-hidden="true" className="mt-2 hidden grid-cols-[minmax(0,1fr)_7rem_2.75rem] gap-2 px-1 text-xs text-neutral-500 sm:grid">
+                    <span>Nombre</span>
+                    <span>Hosts necesarios</span>
+                    <span />
+                </div>
+                <ul className="mt-2 space-y-2">
+                    {filas.map((fila, indice) => {
+                        const nombreVisible = fila.nombre.trim() || `subred ${indice + 1}`;
+                        const hostsMalos = fila.hosts.trim() !== "" && !HOSTS_RE.test(fila.hosts.trim());
+                        return (
+                            <li key={fila.id} className="grid grid-cols-[minmax(0,1fr)_6rem_2.75rem] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_2.75rem]">
+                                <label htmlFor={`vlsm-nombre-${fila.id}`} className="sr-only">Nombre de la subred {indice + 1}</label>
+                                <input
+                                    id={`vlsm-nombre-${fila.id}`}
+                                    type="text"
+                                    value={fila.nombre}
+                                    onChange={event => cambiarFila(fila.id, "nombre", event.target.value)}
+                                    placeholder={`Subred ${indice + 1}`}
+                                    maxLength={40}
+                                    autoComplete="off"
+                                    className={CAMPO}
+                                    style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
+                                />
+                                <label htmlFor={`vlsm-hosts-${fila.id}`} className="sr-only">Hosts necesarios en {nombreVisible}</label>
+                                <input
+                                    id={`vlsm-hosts-${fila.id}`}
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={fila.hosts}
+                                    onChange={event => cambiarFila(fila.id, "hosts", event.target.value)}
+                                    pattern="[0-9]{1,3}(\.?[0-9]{3})*"
+                                    aria-invalid={hostsMalos ? true : undefined}
+                                    placeholder="0"
+                                    maxLength={13}
+                                    autoComplete="off"
+                                    className={`font-mono text-right ${CAMPO}`}
+                                    style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => quitar(fila.id)}
+                                    disabled={filas.length === 1}
+                                    aria-label={`Quitar ${nombreVisible}`}
+                                    className="flex h-11 w-11 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+                <button
+                    id="vlsm-agregar"
+                    type="button"
+                    onClick={agregar}
+                    disabled={filas.length >= MAX_SUBREDES_VLSM}
+                    className="mt-3 min-h-11 rounded-lg px-4 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ background: `${ACCENT}30` }}
+                >
+                    Agregar subred
+                </button>
+            </fieldset>
+
+            <div className="mt-6">
+                {!plan.ok ? (
+                    <p role="alert" className="text-sm text-red-300">{plan.error}</p>
+                ) : (
+                    <>
+                        {plan.base.ajustada && (
+                            <p className="mb-3 text-xs text-neutral-400">
+                                Se usa la red <span className="font-mono text-neutral-200">{plan.base.red}/{plan.base.prefijo}</span>, que contiene la dirección que escribiste.
+                            </p>
+                        )}
+                        <dl className="grid grid-cols-2 border-y border-white/10 sm:grid-cols-4 sm:divide-x sm:divide-white/10">
+                            <div className="px-3 py-2">
+                                <dt className="text-xs text-neutral-500">Asignadas</dt>
+                                <dd className="font-mono text-sm text-white">{formatoCL.format(plan.usadas)} de {formatoCL.format(plan.base.tamano)}</dd>
+                            </div>
+                            <div className="px-3 py-2">
+                                <dt className="text-xs text-neutral-500">Libres</dt>
+                                <dd className="font-mono text-sm text-white">{formatoCL.format(plan.libresTotal)}</dd>
+                            </div>
+                            <div className="px-3 py-2">
+                                <dt className="text-xs text-neutral-500">Hosts pedidos</dt>
+                                <dd className="font-mono text-sm text-white">{formatoCL.format(plan.subredes.reduce((suma, subred) => suma + subred.pedidos, 0))}</dd>
+                            </div>
+                            <div className="px-3 py-2">
+                                <dt className="text-xs text-neutral-500">Hosts útiles</dt>
+                                <dd className="font-mono text-sm text-white">{formatoCL.format(plan.subredes.reduce((suma, subred) => suma + subred.hostsUtiles, 0))}</dd>
+                            </div>
+                        </dl>
+
+                        <div className="mt-4 overflow-x-auto" role="region" aria-labelledby="vlsm-tabla-titulo" tabIndex={0}>
+                            <table className="w-full text-xs text-neutral-300">
+                                <caption id="vlsm-tabla-titulo" className="sr-only">Plan VLSM de {plan.base.red}/{plan.base.prefijo}</caption>
+                                <thead>
+                                    <tr className="border-b border-white/10 text-left text-white">
+                                        <th scope="col" className="py-2 px-3 font-semibold">Subred</th>
+                                        <th scope="col" className="py-2 px-3 font-semibold">Red</th>
+                                        <th scope="col" className="py-2 px-3 font-semibold">Máscara</th>
+                                        <th scope="col" className="py-2 px-3 font-semibold">Primer host</th>
+                                        <th scope="col" className="py-2 px-3 font-semibold">Último host</th>
+                                        <th scope="col" className="py-2 px-3 font-semibold">Broadcast</th>
+                                        <th scope="col" className="py-2 px-3 text-right font-semibold">Pedidos</th>
+                                        <th scope="col" className="py-2 px-3 text-right font-semibold">Hosts útiles</th>
+                                        <th scope="col" className="py-2 px-3 text-right font-semibold">Desperdicio</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {plan.subredes.map((subred, indice) => (
+                                        <tr key={`${indice}-${subred.red}`} className="border-b border-white/5">
+                                            <th scope="row" className="py-1.5 px-3 text-left font-medium text-white">{subred.nombre}</th>
+                                            <td className="py-1.5 px-3 font-mono whitespace-nowrap text-blue-400">{subred.red}/{subred.prefijo}</td>
+                                            <td className="py-1.5 px-3 font-mono whitespace-nowrap">{subred.mascara}</td>
+                                            <td className="py-1.5 px-3 font-mono whitespace-nowrap">{subred.primerHost}</td>
+                                            <td className="py-1.5 px-3 font-mono whitespace-nowrap">{subred.ultimoHost}</td>
+                                            <td className="py-1.5 px-3 font-mono whitespace-nowrap">{subred.broadcast}</td>
+                                            <td className="py-1.5 px-3 text-right font-mono tabular-nums">{formatoCL.format(subred.pedidos)}</td>
+                                            <td className="py-1.5 px-3 text-right font-mono tabular-nums">{formatoCL.format(subred.hostsUtiles)}</td>
+                                            <td className="py-1.5 px-3 text-right font-mono tabular-nums">{formatoCL.format(subred.desperdicio)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p className="mt-3 text-xs leading-5 text-neutral-400">
+                            {plan.libres.length === 0
+                                ? "La red base quedó completa."
+                                : <>Espacio libre: <span className="font-mono text-neutral-200">{plan.libres.map(bloque => `${bloque.red}/${bloque.prefijo}`).join(", ")}</span></>}
+                        </p>
+                        {lectura.sinHosts.length > 0 && (
+                            <p className="mt-1 text-xs text-neutral-500">Sin hosts, fuera del plan: {lectura.sinHosts.join(", ")}.</p>
+                        )}
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => void copiar(planComoTexto(plan), "vlsm")}
+                                className="min-h-11 rounded-lg px-4 text-sm font-medium text-white transition-colors"
+                                style={{ background: `${ACCENT}30` }}
+                            >
+                                {avisoCopia || "Copiar tabla"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => descargarTexto(planComoCsv(plan), `vlsm-${plan.base.red}-${plan.base.prefijo}.csv`, "text/csv")}
+                                className="min-h-11 rounded-lg border border-white/10 px-4 text-sm font-medium text-neutral-200 transition-colors hover:bg-white/10"
+                            >
+                                Descargar CSV
+                            </button>
+                            <span role="status" className="sr-only">{avisoCopia}</span>
+                        </div>
+                    </>
+                )}
+            </div>
+        </section>
+    );
+}
 
 export default function SubnetCalculatorPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("subredes");
     const [ipInput, setIpInput] = useState("192.168.1.0");
     const [cidrInput, setCidrInput] = useState("24");
     const [ipVersion, setIpVersion] = useState<4 | 6>(4);
-    const [copied, setCopied] = useState<string | null>(null);
+    const { copiado, fallo, copiar } = useCopiar();
+
+    // El campo guarda lo que se escribe, «/24» incluido: antes el «/» se sacaba al tiro y el «2» siguiente caía en la IP
+    // («10.0.0.0/8» tecleado terminaba en 10.0.0.08). La IP es lo que va antes del «/».
+    const ipSolo = ipInput.split("/")[0]?.trim() ?? "";
 
     const isValid = useMemo(() => {
+        if (!/^\d{1,3}$/.test(cidrInput.trim())) return false;
         const cidr = parseInt(cidrInput, 10);
-        if (isNaN(cidr)) return false;
 
         if (ipVersion === 4) {
-            return isValidIPv4(ipInput) && cidr >= 0 && cidr <= 32;
+            return isValidIPv4(ipSolo) && cidr >= 0 && cidr <= 32;
         } else {
-            return isValidIPv6(ipInput) && cidr >= 0 && cidr <= 128;
+            return isValidIPv6(ipSolo) && cidr >= 0 && cidr <= 128;
         }
-    }, [ipInput, cidrInput, ipVersion]);
+    }, [ipSolo, cidrInput, ipVersion]);
 
     const result = useMemo(() => {
         if (!isValid) return null;
         const cidr = parseInt(cidrInput, 10);
 
         if (ipVersion === 4) {
-            return { type: "v4" as const, data: calculateIPv4Subnet(ipInput, cidr) };
+            return { type: "v4" as const, data: calculateIPv4Subnet(ipSolo, cidr) };
         } else {
-            return { type: "v6" as const, data: calculateIPv6Subnet(ipInput, cidr) };
+            return { type: "v6" as const, data: calculateIPv6Subnet(ipSolo, cidr) };
         }
-    }, [ipInput, cidrInput, ipVersion, isValid]);
+    }, [ipSolo, cidrInput, ipVersion, isValid]);
 
-    const handleCopy = useCallback(async (text: string, label: string) => {
-        await navigator.clipboard.writeText(text);
-        setCopied(label);
-        setTimeout(() => setCopied(null), 2000);
-    }, []);
+    const ipMala = Boolean(ipSolo) && !(ipVersion === 4 ? isValidIPv4 : isValidIPv6)(ipSolo);
+    const maxPrefijo = ipVersion === 4 ? 32 : 128;
+    const prefijoMalo = cidrInput.trim() !== "" && (!/^\d{1,3}$/.test(cidrInput.trim()) || parseInt(cidrInput, 10) > maxPrefijo);
 
-    const handleAutoDetect = useCallback((value: string) => {
-        // Auto-detect IP version from input
-        if (value.includes(":")) {
-            setIpVersion(6);
-            // If input contains /, split it
-            if (value.includes("/")) {
-                const [ip, prefix] = value.split("/");
-                setIpInput(ip);
-                setCidrInput(prefix);
-            } else {
-                setIpInput(value);
-            }
-        } else {
-            setIpVersion(4);
-            if (value.includes("/")) {
-                const [ip, prefix] = value.split("/");
-                setIpInput(ip);
-                setCidrInput(prefix);
-            } else {
-                setIpInput(value);
-            }
-        }
+    const estadoCopia = (clave: string, enReposo: string) =>
+        copiado === clave ? "Copiado" : fallo === clave ? "No se pudo copiar" : enReposo;
+
+    const handleAutoDetect = useCallback((bruto: string) => {
+        // Pegado con espacios alrededor («192.168.1.0 / 24 ») también vale.
+        const value = bruto.trimStart().replace(/\s*\/\s*/, "/");
+        const [ip = "", prefijo = ""] = value.split("/");
+        setIpVersion(ip.includes(":") ? 6 : 4);
+        setIpInput(value);
+        // El prefijo escrito tras «/» manda sobre el campo de prefijo (sin dígitos todavía, se deja el que había).
+        if (prefijo.trim()) setCidrInput(prefijo.trim());
     }, []);
+    // Si se cambia el prefijo en su campo o con los atajos, el «/xx» escrito en la IP deja de mandar: se quita.
+    const cambiarPrefijo = (valor: string) => {
+        setCidrInput(valor);
+        if (ipInput.includes("/")) setIpInput(ipSolo);
+    };
 
     if (isLoading) {
         return (
@@ -304,13 +583,15 @@ export default function SubnetCalculatorPage() {
     return (
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="subredes" title={<>Calculadora de Subredes</>} description={<>Calcula subredes IPv4 e IPv6 — máscara, red, broadcast y rango utilizable</>} />
+                <ToolPageHeader slug="subredes" title={<>Calculadora de Subredes</>} description={<>Calcula subredes IPv4 e IPv6 (máscara, red, broadcast y rango utilizable) y planifica VLSM.</>} />
 
                 {/* IP Version Toggle */}
-                <div className="flex gap-2 bg-white/5 rounded-xl p-2 border border-white/10 mb-6">
+                <div className="flex gap-2 bg-white/5 rounded-xl p-2 border border-white/10 mb-6" role="group" aria-label="Versión de IP">
                     {([4, 6] as const).map(v => (
                         <button
                             key={v}
+                            type="button"
+                            aria-pressed={ipVersion === v}
                             onClick={() => {
                                 setIpVersion(v);
                                 if (v === 4) { setIpInput("192.168.1.0"); setCidrInput("24"); }
@@ -340,11 +621,17 @@ export default function SubnetCalculatorPage() {
                                 className="w-full bg-[#0F1724] border border-white/10 rounded-lg px-4 py-3 text-sm text-white font-mono outline-none focus:ring-2"
                                 style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
                                 spellCheck={false}
-                                maxLength={ipVersion === 4 ? 15 : 45}
+                                autoComplete="off"
+                                aria-invalid={ipMala || undefined}
+                                aria-describedby={ipMala ? "subred-ip-error" : undefined}
+                                // Cabe una IPv6 con su prefijo (45 + «/128»): con 15, pegar «192.168.100.0/24» quedaba en «/2».
+                                maxLength={50}
                             />
-                            {ipInput && !((ipVersion === 4 ? isValidIPv4 : isValidIPv6)(ipInput)) && (
-                                <p className="text-xs text-red-400 mt-1">
-                                    IPv{ipVersion} no válida
+                            {ipMala && (
+                                <p id="subred-ip-error" className="text-xs text-red-400 mt-1">
+                                    {ipVersion === 4
+                                        ? "IPv4 no válida: cuatro números de 0 a 255 separados por puntos, sin ceros a la izquierda."
+                                        : "IPv6 no válida: hasta ocho grupos hexadecimales separados por «:», con un solo «::»."}
                                 </p>
                             )}
                         </label>
@@ -359,25 +646,30 @@ export default function SubnetCalculatorPage() {
                                 <input
                                     type="number"
                                     value={cidrInput}
-                                    onChange={e => setCidrInput(e.target.value)}
+                                    onChange={e => cambiarPrefijo(e.target.value)}
                                     min={0}
-                                    max={ipVersion === 4 ? 32 : 128}
+                                    max={maxPrefijo}
+                                    aria-invalid={prefijoMalo || undefined}
+                                    aria-describedby={prefijoMalo ? "subred-prefijo-error" : undefined}
                                     className="w-full bg-[#0F1724] border border-white/10 rounded-lg px-4 py-3 text-sm text-white font-mono outline-none focus:ring-2"
                                     style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
                                 />
                             </div>
+                            {prefijoMalo && <p id="subred-prefijo-error" className="text-xs text-red-400 mt-1">El prefijo IPv{ipVersion} va de 0 a {maxPrefijo}.</p>}
                         </label>
                     </div>
                 </div>
 
                 {/* Quick CIDR Presets (IPv4 only) */}
                 {ipVersion === 4 && (
-                    <div className="flex flex-wrap gap-2 mb-6">
+                    <div className="flex flex-wrap gap-2 mb-6" role="group" aria-label="Prefijos comunes">
                         {COMMON_SUBNETS.map(s => (
                             <button
                                 key={s.cidr}
-                                onClick={() => setCidrInput(String(s.cidr))}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${parseInt(cidrInput) === s.cidr
+                                type="button"
+                                aria-pressed={cidrInput.trim() === String(s.cidr)}
+                                onClick={() => cambiarPrefijo(String(s.cidr))}
+                                className={`min-h-11 min-w-11 px-3 py-1.5 rounded-lg text-xs font-medium transition-all sm:min-h-0 ${cidrInput.trim() === String(s.cidr)
                                     ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
                                     : "bg-white/5 text-neutral-400 border border-transparent hover:bg-white/10"
                                     }`}
@@ -389,22 +681,38 @@ export default function SubnetCalculatorPage() {
                     </div>
                 )}
 
+                <span role="status" className="sr-only">{copiado ? "Copiado" : fallo ? "No se pudo copiar" : ""}</span>
+
                 {/* Results */}
                 {result && result.type === "v4" && (
                     <div className="space-y-4">
                         {/* Main Info Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {result.data.cidr >= 31 && (
+                                <p className="sm:col-span-2 text-xs leading-5 text-neutral-400">
+                                    {result.data.cidr === 31
+                                        ? "Un /31 es un enlace punto a punto (RFC 3021): sus 2 direcciones son de hosts y no hay red ni broadcast reservados."
+                                        : "Un /32 es una sola dirección: la de un host (loopback, una IP fija en una regla de firewall). No tiene broadcast."}
+                                </p>
+                            )}
                             {[
-                                { label: "Dirección de Red", value: result.data.networkAddress, accent: true },
-                                { label: "Dirección de Broadcast", value: result.data.broadcastAddress },
+                                { label: result.data.cidr === 32 ? "Dirección" : "Dirección de Red", value: result.data.networkAddress, accent: true },
+                                { label: "Dirección de Broadcast", value: result.data.cidr >= 31 ? null : result.data.broadcastAddress },
                                 { label: "Máscara de Subred", value: result.data.subnetMask },
                                 { label: "Máscara Wildcard", value: result.data.wildcardMask },
                                 { label: "Primera IP Utilizable", value: result.data.firstUsable, accent: true },
                                 { label: "Última IP Utilizable", value: result.data.lastUsable, accent: true },
-                            ].map(item => (
+                            ].map(item => item.value === null ? (
+                                <div key={item.label} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                                    <span className="text-xs text-neutral-500 block mb-1">{item.label}</span>
+                                    <span className="text-sm text-neutral-400">No tiene en un /{result.data.cidr}</span>
+                                </div>
+                            ) : (
                                 <button
                                     key={item.label}
-                                    onClick={() => handleCopy(item.value, item.label)}
+                                    type="button"
+                                    onClick={() => void copiar(item.value ?? "", item.label)}
+                                    aria-label={`Copiar ${item.label.toLowerCase()}: ${item.value}`}
                                     className="bg-white/5 rounded-xl p-4 border border-white/10 text-left hover:bg-white/8 transition-colors group"
                                 >
                                     <span className="text-xs text-neutral-500 block mb-1">{item.label}</span>
@@ -412,7 +720,7 @@ export default function SubnetCalculatorPage() {
                                         {item.value}
                                     </span>
                                     <span className="text-[10px] text-neutral-600 block mt-1 group-hover:text-neutral-400 transition-colors">
-                                        {copied === item.label ? "✓ Copiado" : "Click para copiar"}
+                                        {estadoCopia(item.label, "Clic para copiar")}
                                     </span>
                                 </button>
                             ))}
@@ -422,11 +730,11 @@ export default function SubnetCalculatorPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             <div className="bg-white/5 rounded-xl p-3 border border-white/10 text-center">
                                 <span className="text-xs text-neutral-500 block">Hosts Totales</span>
-                                <span className="text-lg font-bold text-white">{result.data.totalHosts.toLocaleString()}</span>
+                                <span className="text-lg font-bold text-white">{formatoCL.format(result.data.totalHosts)}</span>
                             </div>
                             <div className="bg-white/5 rounded-xl p-3 border border-white/10 text-center">
                                 <span className="text-xs text-neutral-500 block">Hosts Utilizables</span>
-                                <span className="text-lg font-bold text-blue-400">{result.data.usableHosts.toLocaleString()}</span>
+                                <span className="text-lg font-bold text-blue-400">{formatoCL.format(result.data.usableHosts)}</span>
                             </div>
                             <div className="bg-white/5 rounded-xl p-3 border border-white/10 text-center">
                                 <span className="text-xs text-neutral-500 block">Clase IP</span>
@@ -434,8 +742,8 @@ export default function SubnetCalculatorPage() {
                             </div>
                             <div className="bg-white/5 rounded-xl p-3 border border-white/10 text-center">
                                 <span className="text-xs text-neutral-500 block">Tipo</span>
-                                <span className={`text-lg font-bold ${result.data.isPrivate ? "text-green-400" : "text-yellow-400"}`}>
-                                    {result.data.isPrivate ? "Privada" : "Pública"}
+                                <span className={`text-lg font-bold ${result.data.rango === "Pública" ? "text-yellow-400" : "text-green-400"}`}>
+                                    {result.data.rango}
                                 </span>
                             </div>
                         </div>
@@ -483,11 +791,12 @@ export default function SubnetCalculatorPage() {
                                     </span>
                                 </div>
                                 <button
-                                    onClick={() => handleCopy(`${result.data.networkAddress}/${result.data.cidr}`, "cidr")}
-                                    className="px-3 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
+                                    type="button"
+                                    onClick={() => void copiar(`${result.data.networkAddress}/${result.data.cidr}`, "cidr")}
+                                    className="min-h-11 px-3 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
                                     style={{ background: `${ACCENT}30` }}
                                 >
-                                    {copied === "cidr" ? "✓ Copiado" : "Copiar"}
+                                    {estadoCopia("cidr", "Copiar")}
                                 </button>
                             </div>
                         </div>
@@ -504,14 +813,15 @@ export default function SubnetCalculatorPage() {
                             ].map(item => (
                                 <button
                                     key={item.label}
-                                    onClick={() => handleCopy(item.full, item.label)}
+                                    type="button"
+                                    onClick={() => void copiar(item.full, item.label)}
                                     className="bg-white/5 rounded-xl p-4 border border-white/10 text-left hover:bg-white/8 transition-colors group"
                                 >
                                     <span className="text-xs text-neutral-500 block mb-1">{item.label}</span>
                                     <span className="text-sm font-mono text-blue-400 block">{item.value}</span>
                                     <span className="text-[10px] font-mono text-neutral-600 block mt-1">{item.full}</span>
                                     <span className="text-[10px] text-neutral-600 block mt-1 group-hover:text-neutral-400">
-                                        {copied === item.label ? "✓ Copiado" : "Click para copiar"}
+                                        {estadoCopia(item.label, "Clic para copiar")}
                                     </span>
                                 </button>
                             ))}
@@ -554,24 +864,27 @@ export default function SubnetCalculatorPage() {
                                     </span>
                                 </div>
                                 <button
-                                    onClick={() => handleCopy(`${result.data.networkAddress}/${result.data.prefix}`, "cidr6")}
-                                    className="px-3 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
+                                    type="button"
+                                    onClick={() => void copiar(`${result.data.networkAddress}/${result.data.prefix}`, "cidr6")}
+                                    className="min-h-11 px-3 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
                                     style={{ background: `${ACCENT}30` }}
                                 >
-                                    {copied === "cidr6" ? "✓ Copiado" : "Copiar"}
+                                    {estadoCopia("cidr6", "Copiar")}
                                 </button>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {!isValid && ipInput && (
+                {!isValid && ipSolo && (
                     <div className="text-center py-8">
                         <p className="text-neutral-500 text-sm">
                             Introduce una dirección IPv{ipVersion} y un prefijo CIDR válidos
                         </p>
                     </div>
                 )}
+
+                {ipVersion === 4 && <PlanificadorVlsm />}
 
                 {/* Reference Table */}
                 {ipVersion === 4 && (
@@ -589,8 +902,8 @@ export default function SubnetCalculatorPage() {
                                 </thead>
                                 <tbody>
                                     {[
-                                        { cidr: "/8", mask: "255.0.0.0", hosts: "16,777,214", use: "Redes clase A (ISPs)" },
-                                        { cidr: "/16", mask: "255.255.0.0", hosts: "65,534", use: "Redes clase B (empresas)" },
+                                        { cidr: "/8", mask: "255.0.0.0", hosts: "16.777.214", use: "Redes clase A (ISPs)" },
+                                        { cidr: "/16", mask: "255.255.0.0", hosts: "65.534", use: "Redes clase B (empresas)" },
                                         { cidr: "/24", mask: "255.255.255.0", hosts: "254", use: "Redes clase C (LAN típica)" },
                                         { cidr: "/25", mask: "255.255.255.128", hosts: "126", use: "Mitad de clase C" },
                                         { cidr: "/26", mask: "255.255.255.192", hosts: "62", use: "Segmento mediano" },
@@ -613,15 +926,7 @@ export default function SubnetCalculatorPage() {
                     </div>
                 )}
 
-                {/* Security Notice */}
-                <div className="mt-4 bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
-                    <p className="text-xs text-blue-300">
-                        <strong>🛡️ NIST SP 800-53 SC-7 (Boundary Protection):</strong> La segmentación de red
-                        es fundamental para la defensa en profundidad. Esta herramienta ayuda a planificar
-                        subredes siguiendo las mejores prácticas de protección de perímetro.
-                        Todo se calcula localmente en tu navegador.
-                    </p>
-                </div>
+                <p className="mt-4 text-xs text-neutral-500">Todo se calcula en tu navegador.</p>
 
                 <div className="mt-8 text-center">
                     <Link href={"/herramientas" as Route} className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">

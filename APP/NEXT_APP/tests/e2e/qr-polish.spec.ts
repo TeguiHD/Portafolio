@@ -5,7 +5,14 @@ for (const width of [320, 375, 768, 1024, 1440]) {
         await page.setViewportSize({ width, height: 850 });
         await page.goto("/herramientas/qr");
         await expect(page.getByRole("button", { name: "Descargar PNG", exact: true })).toBeEnabled();
-        await expect(page.getByRole("navigation", { name: "Ruta de navegación" })).toHaveCount(1);
+        // En celular las migas visibles se cambian por «← Herramientas» (no cabían junto a buscar y estrella); su JSON-LD sigue.
+        if (width <= 760) {
+            await expect(page.getByRole("navigation", { name: "Ruta de navegación" })).toHaveCount(0);
+            await expect(page.locator(".hc-volver")).toBeVisible();
+            expect(await page.evaluate(() => [...document.querySelectorAll('script[type="application/ld+json"]')].some((s) => s.textContent?.includes("BreadcrumbList")))).toBe(true);
+        } else {
+            await expect(page.getByRole("navigation", { name: "Ruta de navegación" })).toHaveCount(1);
+        }
         await expect(page.getByRole("link", { name: /Catálogo \// })).toHaveCount(0);
         await expect(page.getByText("QR generado en tu navegador")).toHaveCount(0);
         await expect(page.getByText("Quién mantiene esta herramienta")).toHaveCount(0);
@@ -38,7 +45,7 @@ test("selector compacto conserva todos los tipos y selección al contraer", asyn
     await types.getByRole("button", { name: "Más tipos" }).click();
     await expect(types.getByRole("button")).toHaveCount(14);
     await types.getByRole("button", { name: "Texto", exact: true }).click();
-    await page.getByLabel("Escribe cualquier texto...").fill("Una idea clara");
+    await page.getByLabel("Texto", { exact: true }).fill("Una idea clara");
     await types.getByRole("button", { name: "Menos tipos" }).click();
     await expect(types.getByRole("button", { name: "Texto", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Descargar PNG", exact: true })).toBeEnabled();

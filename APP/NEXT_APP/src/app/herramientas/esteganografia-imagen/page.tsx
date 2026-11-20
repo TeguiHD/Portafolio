@@ -2,7 +2,7 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -10,6 +10,8 @@ import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ImageDropzone } from "@/components/tools/ImageDropzone";
 import { runStego } from "@/lib/stego-client";
 import { MAX_MESSAGE_LENGTH, calculateCapacity, calculateCapacityBytes } from "@/lib/stego-lsb";
+import { descargarBlob, nombreArchivo } from "@/lib/tools/descargar";
+import { useCopiar } from "@/lib/tools/copiar";
 
 const ACCENT = "#8B5CF6";
 
@@ -55,7 +57,7 @@ export default function ImageSteganographyPage() {
     const [sourceImage, setSourceImage] = useState<string | null>(null);
     const [sourceFile, setSourceFile] = useState<File | null>(null);
     const [message, setMessage] = useState("");
-    const [encodedUrl, setEncodedUrl] = useState<string | null>(null);
+    const [encoded, setEncoded] = useState<{ url: string; blob: Blob; bytes: number } | null>(null);
     const [capacity, setCapacity] = useState<number>(0);
     const [capacityBytes, setCapacityBytes] = useState(0);
     const [sourceDimensions, setSourceDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -70,20 +72,33 @@ export default function ImageSteganographyPage() {
 
     const [error, setError] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const { copiado, fallo: falloCopia, copiar } = useCopiar(2000);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    // URL blob: de cada imagen y del resultado: se liberan al cambiarlas o al salir (los recuadros se desmontan al cambiar de modo).
+    const urlsRef = useRef<{ fuente: string | null; extraer: string | null; resultado: string | null }>({ fuente: null, extraer: null, resultado: null });
+    const cambiarUrl = useCallback((cual: "fuente" | "extraer" | "resultado", siguiente: string | null) => {
+        const actual = urlsRef.current[cual];
+        if (actual && actual !== siguiente) URL.revokeObjectURL(actual);
+        urlsRef.current[cual] = siguiente;
+    }, []);
+    useEffect(() => () => { cambiarUrl("fuente", null); cambiarUrl("extraer", null); cambiarUrl("resultado", null); }, [cambiarUrl]);
     const messageBytes = message ? new TextEncoder().encode(message).length : 0;
-    const encodeUsagePercent = capacityBytes > 0 ? Math.min(100, Math.round((messageBytes / capacityBytes) * 100)) : 0;
+    const encodeUsagePercent = capacityBytes > 0 ? Math.round((messageBytes / capacityBytes) * 100) : 0;
+    // Antes el campo cortaba el texto en silencio al llegar al límite; ahora se avisa y no se oculta un mensaje a medias.
+    const noCabe = capacityBytes > 0 && messageBytes > capacityBytes;
     const decodedUsagePercent = decodedByteLength !== null && decodeCapacityBytes > 0
         ? Math.min(100, Math.round((decodedByteLength / decodeCapacityBytes) * 100))
         : 0;
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
+        cambiarUrl("fuente", dataUrl);
+        cambiarUrl("resultado", null);
         setSourceImage(dataUrl);
         setSourceFile(file);
-        setEncodedUrl(null);
+        setEncoded(null);
         setError(null);
         setSourceDimensions(null);
+        setCapacity(0);
         setCapacityBytes(0);
 
         // Capacidad: una sola decodificación con createImageBitmap
@@ -98,13 +113,16 @@ export default function ImageSteganographyPage() {
                 console.warn("createImageBitmap falló", err);
                 setError("No se pudo leer la imagen");
             });
-    }, []);
+    }, [cambiarUrl]);
 
     const handleDecodeImageLoad = useCallback((file: File, dataUrl: string) => {
+        cambiarUrl("extraer", dataUrl);
         setDecodeImage(dataUrl);
         setDecodeFile(file);
         setDecodedMessage("");
         setDecodedByteLength(null);
+        setDecodeDimensions(null);
+        setDecodeCapacityBytes(0);
         setError(null);
 
         void createImageBitmap(file)
@@ -117,10 +135,10 @@ export default function ImageSteganographyPage() {
                 console.warn("createImageBitmap falló", err);
                 setError("No se pudo leer la imagen");
             });
-    }, []);
+    }, [cambiarUrl]);
 
     const handleEncode = useCallback(async () => {
-        if (!sourceFile || !message.trim()) return;
+        if (!sourceFile || !message.trim() || noCabe) return;
         setIsProcessing(true);
         setError(null);
 
@@ -132,14 +150,15 @@ export default function ImageSteganographyPage() {
                 setError(result.error);
                 return;
             }
-            if (encodedUrl) URL.revokeObjectURL(encodedUrl);
-            setEncodedUrl(URL.createObjectURL(result.blob));
+            const url = URL.createObjectURL(result.blob);
+            cambiarUrl("resultado", url);
+            setEncoded({ url, blob: result.blob, bytes: new TextEncoder().encode(message).length });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error al procesar la imagen");
         } finally {
             setIsProcessing(false);
         }
-    }, [sourceFile, message, encodedUrl]);
+    }, [sourceFile, message, noCabe, cambiarUrl]);
 
     const handleDecode = useCallback(async () => {
         if (!decodeFile) return;
@@ -162,33 +181,34 @@ export default function ImageSteganographyPage() {
     }, [decodeFile]);
 
     const handleDownload = useCallback(() => {
-        if (!encodedUrl) return;
-        const baseName = sourceFile?.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_\-\s]/g, "") || "imagen";
-        const link = document.createElement("a");
-        link.href = encodedUrl;
-        link.download = `${baseName}_stego.png`;
-        link.click();
-    }, [encodedUrl, sourceFile]);
+        if (!encoded) return;
+        descargarBlob(encoded.blob, `${nombreArchivo(sourceFile?.name ?? "", "imagen")}_stego.png`);
+    }, [encoded, sourceFile]);
 
-    const handleCopy = useCallback(async (text: string) => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    }, []);
+    const cambiarMensaje = (texto: string) => {
+        setMessage(texto);
+        // El PNG listo lleva el mensaje anterior: se descarta para no descargar algo distinto de lo que se ve.
+        if (encoded) {
+            cambiarUrl("resultado", null);
+            setEncoded(null);
+        }
+    };
 
     const handleClearEncode = useCallback(() => {
+        cambiarUrl("fuente", null);
+        cambiarUrl("resultado", null);
         setSourceImage(null);
         setSourceFile(null);
         setMessage("");
         setCapacity(0);
         setCapacityBytes(0);
         setSourceDimensions(null);
-        if (encodedUrl) URL.revokeObjectURL(encodedUrl);
-        setEncodedUrl(null);
+        setEncoded(null);
         setError(null);
-    }, [encodedUrl]);
+    }, [cambiarUrl]);
 
     const handleClearDecode = useCallback(() => {
+        cambiarUrl("extraer", null);
         setDecodeFile(null);
         setDecodeImage(null);
         setDecodedMessage("");
@@ -196,7 +216,7 @@ export default function ImageSteganographyPage() {
         setDecodeCapacityBytes(0);
         setDecodeDimensions(null);
         setError(null);
-    }, []);
+    }, [cambiarUrl]);
 
     if (isLoading) {
         return (
@@ -223,6 +243,8 @@ export default function ImageSteganographyPage() {
                     {(["encode", "decode"] as const).map(m => (
                         <button
                             key={m}
+                            type="button"
+                            aria-pressed={mode === m}
                             onClick={() => { setMode(m); setError(null); }}
                             className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === m ? "text-white" : "text-neutral-400"}`}
                             style={mode === m ? { background: `${ACCENT}20`, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
@@ -233,7 +255,7 @@ export default function ImageSteganographyPage() {
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    <div role="alert" className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
                         ❌ {error}
                     </div>
                 )}
@@ -269,20 +291,27 @@ export default function ImageSteganographyPage() {
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-medium text-white">Mensaje Secreto</span>
                                         <span className="text-xs text-neutral-500">
-                                            {message.length}/{Math.min(MAX_MESSAGE_LENGTH, capacity)} caracteres
+                                            {message.length.toLocaleString("es-CL")}/{MAX_MESSAGE_LENGTH.toLocaleString("es-CL")} caracteres
                                         </span>
                                     </div>
                                     <textarea
                                         value={message}
-                                        onChange={e => setMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
+                                        onChange={e => cambiarMensaje(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
                                         placeholder="Escribe el mensaje que deseas ocultar en la imagen..."
                                         className="w-full bg-[#0F1724] border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:ring-2 resize-none"
                                         style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
                                         rows={4}
-                                        maxLength={Math.min(MAX_MESSAGE_LENGTH, capacity)}
+                                        maxLength={MAX_MESSAGE_LENGTH}
+                                        readOnly={isProcessing}
                                         spellCheck={false}
+                                        aria-invalid={noCabe}
                                     />
                                 </label>
+                                {noCabe && (
+                                    <p role="alert" className="mt-2 text-xs text-red-400">
+                                        El mensaje no cabe: ocupa {messageBytes.toLocaleString("es-CL")} bytes y esta imagen guarda hasta {capacityBytes.toLocaleString("es-CL")}. Acórtalo o usa una imagen más grande.
+                                    </p>
+                                )}
                                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                                     <div className="rounded-lg bg-black/20 p-3 text-xs">
                                         <p className="text-neutral-500">Imagen</p>
@@ -302,8 +331,9 @@ export default function ImageSteganographyPage() {
 
                         {sourceImage && (
                             <button
+                                type="button"
                                 onClick={handleEncode}
-                                disabled={!message.trim() || isProcessing}
+                                disabled={!message.trim() || isProcessing || noCabe}
                                 className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
                                 style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
                             >
@@ -312,13 +342,14 @@ export default function ImageSteganographyPage() {
                         )}
 
                         {/* Encoded Result */}
-                        {encodedUrl && (
+                        {encoded && (
                             <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium text-white">Imagen con Mensaje Oculto</span>
                                     <button
+                                        type="button"
                                         onClick={handleDownload}
-                                        className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                                        className="min-h-11 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
                                         style={{ background: `${ACCENT}30` }}
                                     >
                                         ⬇️ Descargar PNG
@@ -326,15 +357,15 @@ export default function ImageSteganographyPage() {
                                 </div>
                                 <div className="bg-[#0F1724] rounded-lg p-2 flex justify-center">
                                     <img
-                                        src={encodedUrl}
+                                        src={encoded.url}
                                         alt="Imagen con mensaje oculto"
                                         className="max-w-full max-h-64 object-contain rounded"
                                     />
                                 </div>
-                                <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                <div role="status" className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
                                     <p className="text-xs text-purple-300">
                                         <strong>Mensaje oculto correctamente.</strong> Guarda este PNG para conservar el texto embebido.
-                                        El mensaje ocupa {messageBytes.toLocaleString()} bytes y usa aproximadamente {encodeUsagePercent}% de la capacidad disponible.
+                                        El mensaje ocupa {encoded.bytes.toLocaleString("es-CL")} bytes y usa aproximadamente {capacityBytes > 0 ? Math.round((encoded.bytes / capacityBytes) * 100) : 0}% de la capacidad disponible.
                                     </p>
                                 </div>
                             </div>
@@ -373,6 +404,7 @@ export default function ImageSteganographyPage() {
 
                         {decodeImage && (
                             <button
+                                type="button"
                                 onClick={handleDecode}
                                 disabled={isProcessing}
                                 className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
@@ -388,11 +420,12 @@ export default function ImageSteganographyPage() {
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-medium text-white">Mensaje Descubierto</span>
                                     <button
-                                        onClick={() => handleCopy(decodedMessage)}
-                                        className="px-3 py-1 rounded-md text-xs font-medium text-white transition-colors"
+                                        type="button"
+                                        onClick={() => { void copiar(decodedMessage, "mensaje"); }}
+                                        className="min-h-11 px-3 py-1 rounded-md text-xs font-medium text-white transition-colors"
                                         style={{ background: `${ACCENT}30` }}
                                     >
-                                        {copied ? "✓ Copiado" : "Copiar"}
+                                        {copiado === "mensaje" ? "✓ Copiado" : falloCopia === "mensaje" ? "No se pudo copiar" : "Copiar"}
                                     </button>
                                 </div>
                                 <div className="bg-[#0F1724] rounded-lg p-4 text-sm text-white whitespace-pre-wrap break-words">

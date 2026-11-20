@@ -8,16 +8,23 @@ import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { ArModelEditor, arValidation } from "@/components/qr/ArModelEditor";
-import { renderQRToCanvas, renderQRToSVG, type QRStyle, type EyeStyle } from "@/utils/qr-renderer";
+import { renderQRToCanvas, renderQRToSVG, type QRStyle, type EyeStyle, type RenderOptions } from "@/utils/qr-renderer";
 import {
     QR_TYPES, type QRType,
     formatURL, formatEmail, formatPhone, formatSMS, formatWhatsApp,
-    formatWiFi, formatVCard, formatMeCard, formatLocation, formatEvent, formatBitcoin,
+    formatWiFi, formatLocation,
     type EmailData, type SMSData, type WhatsAppData, type WiFiData, type VCardData, type MeCardData, type LocationData, type EventData, type BitcoinData, type MapFormat,
     formatAR, type ARData,
 } from "@/utils/qr-data-formats";
+import { vcardQr, mecardQr, eventoQr, validarEvento, bitcoinQr } from "@/lib/tools/qr-formatos";
+import { descargarBlob, nombreArchivo } from "@/lib/tools/descargar";
 import { getTypeIconDataURL } from "@/utils/qr-type-icons";
 import { QR_TYPE_ICONS, MAP_FORMAT_ICONS } from "@/components/qr/QRIcons";
+
+/** La vista previa se ve a 280 px como mucho: 768 px bastan aun en pantallas de densidad 2–3. La descarga usa la resolución elegida. */
+const PREVIEW_PX = 768;
+type Nivel = RenderOptions["level"];
+type OpcionesQr = Omit<RenderOptions, "size">;
 
 const templates = [
     { name: "Esencial", fg: "#111827", bg: "#ffffff", style: "square" as QRStyle },
@@ -31,18 +38,19 @@ function luminance(hex: string) {
     return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
 }
 function contrast(a: string, b: string) { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
-function saveFile(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url; link.download = filename;
-    document.body.appendChild(link); link.click(); link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+function validarUbicacion(data: LocationData): string | null {
+    const { latitude: lat, longitude: lon } = data;
+    if (lat === undefined && lon === undefined) return null;
+    if (lat === undefined || lon === undefined) return "Completa latitud y longitud, o deja las dos vacías.";
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) return "La latitud va de −90 a 90.";
+    if (!Number.isFinite(lon) || lon < -180 || lon > 180) return "La longitud va de −180 a 180.";
+    return null;
 }
-function QrInput({ label, ...props }: InputHTMLAttributes<HTMLInputElement> & { label?: string }) {
-    return <label className="studio-field">{label ?? props.placeholder ?? "Valor"}<input {...props} /></label>;
+function QrInput({ label, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+    return <label className="studio-field">{label}<input {...props} /></label>;
 }
-function QrTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-    return <label className="studio-field">{props.placeholder ?? "Contenido"}<textarea {...props} /></label>;
+function QrTextarea({ label, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
+    return <label className="studio-field">{label}<textarea {...props} /></label>;
 }
 
 export default function QRGeneratorPage() {
@@ -71,7 +79,7 @@ function QRStudio() {
     const [fgColor, setFgColor] = useState("#000000");
     const [bgColor, setBgColor] = useState("#ffffff");
     const [eyeColor, setEyeColor] = useState("#000000");
-    const [errorLevel, setErrorLevel] = useState<"L" | "M" | "Q" | "H">("H");
+    const [errorLevel, setErrorLevel] = useState<Nivel>("H");
     const [style, setStyle] = useState<QRStyle>("rounded");
     const [eyeStyle, setEyeStyle] = useState<EyeStyle>("rounded");
     const [logo, setLogo] = useState<string | null>(null);
@@ -81,7 +89,8 @@ function QRStudio() {
     const [gradientAngle, setGradientAngle] = useState(135);
 
 
-    const [renderedKey, setRenderedKey] = useState("");
+    // Opciones de la última vista previa dibujada; se comparan por identidad (useMemo) en vez de serializar el logo en cada render.
+    const [renderedOptions, setRenderedOptions] = useState<OpcionesQr | null>(null);
     const [generationError, setGenerationError] = useState<string | null>(null);
     const [logoError, setLogoError] = useState<string | null>(null);
     const [exporting, setExporting] = useState(false);
@@ -106,12 +115,13 @@ function QRStudio() {
             case "phone": return formatPhone(phoneData);
             case "sms": return formatSMS(smsData);
             case "whatsapp": return formatWhatsApp(whatsappData);
-            case "wifi": return formatWiFi(wifiData);
-            case "vcard": return formatVCard(vcardData);
-            case "mecard": return formatMeCard(mecardData);
+            // WPA/WEP sin contraseña daría un QR que no conecta: se espera a que la escriban.
+            case "wifi": return wifiData.encryption !== "nopass" && !wifiData.password ? "" : formatWiFi(wifiData);
+            case "vcard": return vcardQr(vcardData);
+            case "mecard": return mecardQr(mecardData);
             case "location": return formatLocation(locationData);
-            case "event": return formatEvent(eventData);
-            case "bitcoin": return formatBitcoin(bitcoinData);
+            case "event": return eventoQr(eventData);
+            case "bitcoin": return bitcoinQr(bitcoinData);
             case "ar": return formatAR(arData);
             default: return "";
         }
@@ -129,11 +139,15 @@ function QRStudio() {
     );
 
 
-    const arError = qrType === "ar" ? arValidation(arData) : null;
-    const renderOptions = useMemo(() => ({ text: qrContent, size, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: errorLevel, gradient, margin: 4 }), [qrContent, size, bgColor, fgColor, eyeColor, style, eyeStyle, activeLogo, errorLevel, gradient]);
-    const renderKey = JSON.stringify(renderOptions);
-    const canDownload = !!qrContent && !arError && !generationError && renderedKey === renderKey;
-    const updating = !!qrContent && !arError && renderedKey !== renderKey && !generationError;
+    const formError = qrType === "ar" ? arValidation(arData)
+        : qrType === "event" ? validarEvento(eventData)
+        : qrType === "location" ? validarUbicacion(locationData)
+        : null;
+    // Con logo va siempre H: el logo tapa módulos del centro y H es la única corrección que tolera ~30 % de daño.
+    const nivel: Nivel = activeLogo ? "H" : errorLevel;
+    const qrOptions = useMemo<OpcionesQr>(() => ({ text: qrContent, bg: bgColor, fg: fgColor, eyeColor, style, eyeStyle, logo: activeLogo, level: nivel, gradient, margin: 4 }), [qrContent, bgColor, fgColor, eyeColor, style, eyeStyle, activeLogo, nivel, gradient]);
+    const canDownload = !!qrContent && !formError && !generationError && renderedOptions === qrOptions;
+    const updating = !!qrContent && !formError && renderedOptions !== qrOptions && !generationError;
     const minimumContrast = Math.min(contrast(fgColor, bgColor), contrast(eyeColor, bgColor), ...(useGradient ? [contrast(gradientTo, bgColor)] : []));
     const lowContrast = minimumContrast < 4.5 || luminance(fgColor) > luminance(bgColor);
     const lastGenerateTrack = useRef(0);
@@ -141,30 +155,33 @@ function QRStudio() {
     useEffect(() => {
         setGenerationError(null);
         setExportMessage("");
-        if (!qrContent || arError || isLoading || !isAuthorized) return;
+        if (!qrContent || formError || isLoading || !isAuthorized) return;
         let cancelled = false;
+        // Espera a que se deje de escribir y dibuja a PREVIEW_PX, no a la resolución de exportación (hasta 2048 px).
         const timer = window.setTimeout(async () => {
             try {
                 // Render aislado: un logo lento nunca puede sobreescribir un QR posterior.
                 const draft = document.createElement("canvas");
-                await renderQRToCanvas(draft, renderOptions);
+                await renderQRToCanvas(draft, { ...qrOptions, size: PREVIEW_PX });
                 if (cancelled || !canvasRef.current) return;
                 const canvas = canvasRef.current;
                 const context = canvas.getContext("2d");
                 if (!context) throw new Error("Canvas no disponible");
                 canvas.width = draft.width; canvas.height = draft.height;
                 context.drawImage(draft, 0, 0);
-                setRenderedKey(renderKey);
+                setRenderedOptions(qrOptions);
                 if (Date.now() - lastGenerateTrack.current > 5000) {
                     lastGenerateTrack.current = Date.now();
                     trackRef.current("generate", { type: qrType });
                 }
             } catch {
-                if (!cancelled) setGenerationError("No se pudo generar este QR. Reduce el contenido o cambia la corrección de errores e inténtalo de nuevo.");
+                if (!cancelled) setGenerationError(qrOptions.logo
+                    ? "Con logo se usa corrección H y este contenido no cabe. Acórtalo o quita el logo."
+                    : "No se pudo generar este QR. Acorta el contenido o baja la corrección de errores.");
             }
-        }, 250);
+        }, 300);
         return () => { cancelled = true; window.clearTimeout(timer); };
-    }, [renderKey, renderOptions, qrContent, arError, qrType, isLoading, isAuthorized]);
+    }, [qrOptions, qrContent, formError, qrType, isLoading, isAuthorized]);
 
     function selectType(type: QRType) {
         setQrType(type);
@@ -184,24 +201,38 @@ function QRStudio() {
         }
         try {
             const bitmap = await createImageBitmap(file);
+            // El renderizador pinta el logo en un cuadrado: se centra en un lienzo cuadrado transparente
+            // para que uno ancho o alto conserve su proporción (en PNG y en SVG).
+            const escala = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+            const ancho = Math.max(1, Math.round(bitmap.width * escala));
+            const alto = Math.max(1, Math.round(bitmap.height * escala));
+            const lado = Math.max(ancho, alto);
             const draft = document.createElement("canvas");
-            const ratio = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
-            draft.width = Math.max(1, Math.round(bitmap.width * ratio)); draft.height = Math.max(1, Math.round(bitmap.height * ratio));
-            draft.getContext("2d")!.drawImage(bitmap, 0, 0, draft.width, draft.height);
+            draft.width = lado; draft.height = lado;
+            const context = draft.getContext("2d");
+            if (!context) throw new Error("Canvas no disponible");
+            context.drawImage(bitmap, Math.round((lado - ancho) / 2), Math.round((lado - alto) / 2), ancho, alto);
             bitmap.close();
             if (request !== logoRequest.current) return;
-            setLogo(draft.toDataURL("image/png")); setUseTypeIcon(false); setErrorLevel("H");
+            setLogo(draft.toDataURL("image/png")); setUseTypeIcon(false);
         } catch { if (request === logoRequest.current) setLogoError("No pudimos leer esa imagen. Prueba con otro archivo."); }
     }
 
     async function download(format: "png" | "svg") {
-        if (!canDownload || exporting || !canvasRef.current) return;
+        if (!canDownload || exporting) return;
         setExporting(true); setExportMessage("");
         try {
-            const blob = format === "svg"
-                ? new Blob([await renderQRToSVG(renderOptions)], { type: "image/svg+xml;charset=utf-8" })
-                : await new Promise<Blob>((resolve, reject) => canvasRef.current!.toBlob((value) => value ? resolve(value) : reject(new Error("Export failed")), "image/png"));
-            saveFile(blob, `${filename.trim().replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80) || "mi-codigo-qr"}.${format}`);
+            // La descarga sí se dibuja a la resolución elegida, una sola vez.
+            const opciones: RenderOptions = { ...qrOptions, size };
+            let blob: Blob;
+            if (format === "svg") {
+                blob = new Blob([await renderQRToSVG(opciones)], { type: "image/svg+xml;charset=utf-8" });
+            } else {
+                const lienzo = document.createElement("canvas");
+                await renderQRToCanvas(lienzo, opciones);
+                blob = await new Promise<Blob>((resolve, reject) => lienzo.toBlob((value) => value ? resolve(value) : reject(new Error("Export failed")), "image/png"));
+            }
+            descargarBlob(blob, `${nombreArchivo(filename, "mi-codigo-qr")}.${format}`);
             setExportMessage(`Descarga ${format.toUpperCase()} preparada.`);
             trackRef.current("download", { type: qrType, format });
         } catch { setExportMessage("No pudimos preparar la descarga. Inténtalo de nuevo."); }
@@ -215,15 +246,15 @@ function QRStudio() {
     const visibleTypes = QR_TYPES.filter(item => showAllTypes || primaryTypes.includes(item.id) || item.id === qrType);
     const renderTypeForm = () => {
         switch (qrType) {
-            case "url": return <QrInput type="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); }} placeholder="https://ejemplo.com" className={inputClass} />;
-            case "text": return <QrTextarea value={textData} onChange={(e) => { setTextData(e.target.value); }} placeholder="Escribe cualquier texto..." className={`${inputClass} h-24 resize-none`} />;
-            case "email": return (<div className="space-y-2"><QrInput type="email" placeholder="correo@ejemplo.com" className={inputClass} value={emailData.to} onChange={(e) => { setEmailData({ ...emailData, to: e.target.value }); }} /><QrInput type="text" placeholder="Asunto" className={inputClass} value={emailData.subject || ""} onChange={(e) => { setEmailData({ ...emailData, subject: e.target.value }); }} /><QrTextarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={emailData.body || ""} onChange={(e) => { setEmailData({ ...emailData, body: e.target.value }); }} /></div>);
-            case "phone": return <QrInput type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); }} placeholder="+56 9 1234 5678" className={inputClass} />;
-            case "sms": return (<div className="space-y-2"><QrInput type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); }} /><QrTextarea placeholder="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); }} /></div>);
-            case "whatsapp": return (<div className="space-y-2"><QrInput type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); }} /><QrTextarea placeholder="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); }} /></div>);
-            case "wifi": return (<div className="space-y-2"><QrInput type="text" placeholder="Nombre de red (SSID)" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><QrInput type="password" placeholder="Contraseña" className={inputClass} value={wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} /><select aria-label="Seguridad de la red WiFi" className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></div>);
-            case "vcard": return (<div className="space-y-2"><select aria-label="Versión de vCard" className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (Recomendado)</option><option value="2.1">vCard 2.1 (Legacy)</option></select><div className="grid grid-cols-2 gap-2"><QrInput type="text" placeholder="Nombre *" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><QrInput type="text" placeholder="Apellido" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><QrInput type="tel" placeholder="Teléfono" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><QrInput type="tel" placeholder="Celular" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><QrInput type="email" placeholder="Email" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><QrInput type="text" placeholder="Empresa" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /></div>);
-            case "mecard": return (<div className="space-y-2"><QrInput type="text" placeholder="Nombre completo *" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><QrInput type="tel" placeholder="Teléfono" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><QrInput type="email" placeholder="Email" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /></div>);
+            case "url": return <QrInput label="Enlace" type="url" inputMode="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); }} placeholder="https://ejemplo.com" className={inputClass} />;
+            case "text": return <QrTextarea label="Texto" value={textData} onChange={(e) => { setTextData(e.target.value); }} placeholder="Escribe cualquier texto…" className={`${inputClass} h-24 resize-none`} />;
+            case "email": return (<div className="space-y-2"><QrInput label="Correo de destino *" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={emailData.to} onChange={(e) => { setEmailData({ ...emailData, to: e.target.value }); }} /><QrInput label="Asunto" type="text" className={inputClass} value={emailData.subject || ""} onChange={(e) => { setEmailData({ ...emailData, subject: e.target.value }); }} /><QrTextarea label="Mensaje" className={`${inputClass} h-16 resize-none`} value={emailData.body || ""} onChange={(e) => { setEmailData({ ...emailData, body: e.target.value }); }} /></div>);
+            case "phone": return <QrInput label="Teléfono" type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); }} placeholder="+56 9 1234 5678" className={inputClass} />;
+            case "sms": return (<div className="space-y-2"><QrInput label="Teléfono" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); }} /><QrTextarea label="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); }} /></div>);
+            case "whatsapp": return (<div className="space-y-2"><QrInput label="Número con código de país" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); }} /><QrTextarea label="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); }} /></div>);
+            case "wifi": return (<div className="space-y-2"><QrInput label="Nombre de la red (SSID)" type="text" autoComplete="off" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><QrInput label="Contraseña" type="password" autoComplete="off" disabled={wifiData.encryption === "nopass"} aria-describedby={wifiData.ssid && wifiData.encryption !== "nopass" && !wifiData.password ? "qr-wifi-clave" : undefined} className={`${inputClass} disabled:opacity-50`} value={wifiData.encryption === "nopass" ? "" : wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} />{wifiData.ssid && wifiData.encryption !== "nopass" && !wifiData.password && <p id="qr-wifi-clave" className="text-[11px] text-slate-400">Falta la contraseña. Si la red es abierta, elige «Sin contraseña».</p>}<label className="studio-field">Seguridad<select className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></label><label className="flex min-h-11 items-center gap-3 text-xs text-slate-300"><input type="checkbox" checked={!!wifiData.hidden} onChange={(e) => { setWifiData({ ...wifiData, hidden: e.target.checked }); }} className="h-4 w-4 accent-teal-300" />Red oculta (no aparece en la lista de redes)</label></div>);
+            case "vcard": return (<div className="space-y-2"><label className="studio-field">Versión<select className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (recomendada)</option><option value="2.1">vCard 2.1 (lectores antiguos)</option></select></label><div className="grid grid-cols-2 gap-2"><QrInput label="Nombre *" type="text" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><QrInput label="Apellido" type="text" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><QrInput label="Teléfono" type="tel" placeholder="+56 2 2345 6789" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><QrInput label="Celular" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><QrInput label="Correo" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><div className="grid grid-cols-2 gap-2"><QrInput label="Empresa" type="text" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /><QrInput label="Cargo" type="text" className={inputClass} value={vcardData.title || ""} onChange={(e) => { setVcardData({ ...vcardData, title: e.target.value }); }} /></div><QrInput label="Sitio web" type="text" inputMode="url" placeholder="ejemplo.cl" className={inputClass} value={vcardData.website || ""} onChange={(e) => { setVcardData({ ...vcardData, website: e.target.value }); }} /><QrInput label="Dirección" type="text" placeholder="Calle 123, comuna, ciudad" className={inputClass} value={vcardData.address || ""} onChange={(e) => { setVcardData({ ...vcardData, address: e.target.value }); }} /></div>);
+            case "mecard": return (<div className="space-y-2"><QrInput label="Nombre completo *" type="text" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><QrInput label="Teléfono" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><QrInput label="Correo" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /><QrInput label="Sitio web" type="text" inputMode="url" placeholder="ejemplo.cl" className={inputClass} value={mecardData.url || ""} onChange={(e) => { setMecardData({ ...mecardData, url: e.target.value }); }} /><QrInput label="Dirección" type="text" className={inputClass} value={mecardData.address || ""} onChange={(e) => { setMecardData({ ...mecardData, address: e.target.value }); }} /></div>);
             case "ar": return <ArModelEditor data={arData} onChange={setArData} />;
             case "location":
                 return (
@@ -241,18 +272,18 @@ function QRStudio() {
                                 );
                             })}
                         </div>
-                        <QrInput type="text" placeholder="Dirección o nombre del lugar" className={inputClass} value={locationData.query || ""} onChange={(e) => { setLocationData({ ...locationData, query: e.target.value }); }} />
+                        <QrInput label="Dirección o nombre del lugar" type="text" placeholder="Plaza Prat, Iquique" className={inputClass} value={locationData.query || ""} onChange={(e) => { setLocationData({ ...locationData, query: e.target.value }); }} />
                         <details className="text-xs">
                             <summary className="text-neutral-500 cursor-pointer hover:text-neutral-300">Coordenadas exactas (opcional)</summary>
                             <div className="grid grid-cols-2 gap-2 mt-2">
-                                <QrInput type="number" step="any" placeholder="Latitud" className={inputClass} value={locationData.latitude ?? ""} onChange={(e) => { setLocationData({ ...locationData, latitude: e.target.value === "" ? undefined : Number(e.target.value) }); }} />
-                                <QrInput type="number" step="any" placeholder="Longitud" className={inputClass} value={locationData.longitude ?? ""} onChange={(e) => { setLocationData({ ...locationData, longitude: e.target.value === "" ? undefined : Number(e.target.value) }); }} />
+                                <QrInput label="Latitud" type="number" step="any" min={-90} max={90} placeholder="-33.4489" className={inputClass} value={locationData.latitude ?? ""} onChange={(e) => { setLocationData({ ...locationData, latitude: e.target.value === "" ? undefined : Number(e.target.value) }); }} />
+                                <QrInput label="Longitud" type="number" step="any" min={-180} max={180} placeholder="-70.6693" className={inputClass} value={locationData.longitude ?? ""} onChange={(e) => { setLocationData({ ...locationData, longitude: e.target.value === "" ? undefined : Number(e.target.value) }); }} />
                             </div>
                         </details>
                     </div>
                 );
-            case "event": return (<div className="space-y-2"><QrInput type="text" placeholder="Título *" className={inputClass} value={eventData.title} onChange={(e) => { setEventData({ ...eventData, title: e.target.value }); }} /><QrInput type="text" placeholder="Lugar" className={inputClass} value={eventData.location || ""} onChange={(e) => { setEventData({ ...eventData, location: e.target.value }); }} /><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-neutral-500">Inicio *</label><QrInput type="datetime-local" label="Fecha y hora de inicio" className={inputClass} value={eventData.startDate} onChange={(e) => { setEventData({ ...eventData, startDate: e.target.value }); }} /></div><div><label className="text-[10px] text-neutral-500">Fin</label><QrInput type="datetime-local" label="Fecha y hora de fin" className={inputClass} value={eventData.endDate || ""} onChange={(e) => { setEventData({ ...eventData, endDate: e.target.value }); }} /></div></div></div>);
-            case "bitcoin": return (<div className="space-y-2"><QrInput type="text" placeholder="Dirección Bitcoin *" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); }} /><QrInput type="number" step="0.00000001" placeholder="Cantidad (opcional)" className={inputClass} value={bitcoinData.amount || ""} onChange={(e) => { setBitcoinData({ ...bitcoinData, amount: e.target.value ? parseFloat(e.target.value) : undefined }); }} /></div>);
+            case "event": return (<div className="space-y-2"><QrInput label="Título *" type="text" className={inputClass} value={eventData.title} onChange={(e) => { setEventData({ ...eventData, title: e.target.value }); }} /><QrInput label="Lugar" type="text" className={inputClass} value={eventData.location || ""} onChange={(e) => { setEventData({ ...eventData, location: e.target.value }); }} /><div className="grid gap-2 sm:grid-cols-2"><QrInput label="Inicio *" type="datetime-local" className={inputClass} value={eventData.startDate} onChange={(e) => { setEventData({ ...eventData, startDate: e.target.value }); }} /><QrInput label="Término" type="datetime-local" min={eventData.startDate || undefined} className={inputClass} value={eventData.endDate || ""} onChange={(e) => { setEventData({ ...eventData, endDate: e.target.value }); }} /></div><QrTextarea label="Descripción" className={`${inputClass} h-16 resize-none`} value={eventData.description || ""} onChange={(e) => { setEventData({ ...eventData, description: e.target.value }); }} /><p className="text-[11px] leading-relaxed text-slate-500">Escribe la hora de tu zona. El QR la guarda en UTC, así cada calendario la muestra a la hora correcta.</p></div>);
+            case "bitcoin": return (<div className="space-y-2"><QrInput label="Dirección Bitcoin *" type="text" spellCheck={false} autoComplete="off" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); }} /><QrInput label="Monto en BTC (opcional)" type="number" min="0" step="0.00000001" className={inputClass} value={bitcoinData.amount ?? ""} onChange={(e) => { const monto = parseFloat(e.target.value); setBitcoinData({ ...bitcoinData, amount: Number.isFinite(monto) ? monto : undefined }); }} /></div>);
             default: return null;
         }
     };
@@ -270,7 +301,7 @@ function QRStudio() {
                             <h2 className="text-sm font-medium text-white">Tu código QR</h2>
                             <span role="status" className={`mt-1 flex items-center gap-1.5 text-[11px] ${canDownload ? "text-teal-300" : "text-slate-400"}`}>
                                 {updating ? <LoaderCircle size={12} className="animate-spin" aria-hidden="true" /> : canDownload ? <Check size={12} aria-hidden="true" /> : null}
-                                {updating ? "Actualizando…" : canDownload ? "Listo para descargar" : "Añade contenido"}
+                                {updating ? "Actualizando…" : canDownload ? "Listo para descargar" : formError || generationError ? "Revisa el contenido" : "Añade contenido"}
                             </span>
                         </div>
                         <div className="qr-preview-image">
@@ -297,7 +328,7 @@ function QRStudio() {
                                     <button type="button" onClick={() => setShowAllTypes(!showAllTypes)} aria-expanded={showAllTypes} className="qr-type-button text-slate-400"><span>{showAllTypes ? "Menos tipos" : "Más tipos"}</span><ChevronDown size={14} aria-hidden="true" className={showAllTypes ? "rotate-180" : ""} /></button>
                                 </div>
                                 {renderTypeForm()}
-                                {(generationError || arError) && <p role="alert" className="flex items-start gap-2 text-xs leading-relaxed text-amber-200"><AlertCircle size={16} className="shrink-0" aria-hidden="true" />{generationError || arError}</p>}
+                                {(generationError || (qrType !== "ar" && formError)) && <p role="alert" className="flex items-start gap-2 text-xs leading-relaxed text-amber-200"><AlertCircle size={16} className="shrink-0" aria-hidden="true" />{generationError || formError}</p>}
                             </div>
                         </section>
                         <section className="studio-panel">
@@ -314,8 +345,8 @@ function QRStudio() {
                                 {lowContrast && <p role="status" className="text-xs leading-relaxed text-amber-200">Contraste bajo. Elige un cuerpo oscuro sobre un fondo claro para facilitar la lectura.</p>}
                                 <div className="border-t border-white/[0.06] pt-4"><p className="mb-3 text-xs font-medium text-slate-300">Logo <span className="font-normal text-slate-500">· opcional</span></p><div className="flex flex-wrap gap-2">
                                     <label className="studio-button cursor-pointer focus-within:outline-2 focus-within:outline-teal-300"><Upload size={15} aria-hidden="true" />{logo ? "Cambiar logo" : "Subir logo"}<input type="file" aria-label="Subir logo" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} className="sr-only" /></label>
-                                    <button type="button" aria-pressed={useTypeIcon && !logo} onClick={() => { logoRequest.current++; setUseTypeIcon(!useTypeIcon); setLogo(null); setErrorLevel("H"); }} className="studio-button"><QrCode size={15} aria-hidden="true" />Icono del contenido</button>
-                                    {(logo || useTypeIcon) && <button type="button" onClick={() => { logoRequest.current++; setLogo(null); setUseTypeIcon(false); }} className="studio-button" aria-label="Quitar logo"><X size={15} />Quitar</button>}
+                                    <button type="button" aria-pressed={useTypeIcon && !logo} onClick={() => { logoRequest.current++; setUseTypeIcon(!useTypeIcon); setLogo(null); }} className="studio-button"><QrCode size={15} aria-hidden="true" />Icono del contenido</button>
+                                    {(logo || useTypeIcon) && <button type="button" onClick={() => { logoRequest.current++; setLogo(null); setUseTypeIcon(false); }} className="studio-button" aria-label="Quitar logo"><X size={15} aria-hidden="true" />Quitar</button>}
                                 </div><p className="mt-2 text-[11px] text-slate-500">PNG, JPG o WebP · hasta 2 MB</p>{logoError && <p role="alert" className="mt-2 text-xs text-amber-200">{logoError}</p>}</div>
                             </div>
                         </section>
@@ -323,9 +354,9 @@ function QRStudio() {
                             <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 text-sm text-slate-300 sm:px-5"><SlidersHorizontal size={16} aria-hidden="true" />Opciones de exportación<ChevronDown size={16} aria-hidden="true" className="ml-auto" /></summary>
                             <div className="space-y-4 border-t border-white/[0.06] p-4 sm:p-5">
                                 <label className="studio-field">Nombre del archivo<input value={filename} maxLength={80} onChange={event => setFilename(event.target.value)} /></label>
-                                <div className="grid gap-3 sm:grid-cols-2"><div className="studio-field"><label htmlFor="qr-size">Resolución PNG</label><select id="qr-size" value={size} onChange={event => setSize(Number(event.target.value))}>{[256, 512, 1024, 2048].map(resolution => <option key={resolution} value={resolution}>{resolution} px</option>)}</select></div><div className="studio-field"><label htmlFor="qr-level">Corrección de errores</label><select id="qr-level" value={errorLevel} onChange={event => setErrorLevel(event.target.value as "L" | "M" | "Q" | "H")}><option value="L">L · mínima</option><option value="M">M · equilibrada</option><option value="Q">Q · alta</option><option value="H">H · máxima</option></select></div></div>
+                                <div className="grid gap-3 sm:grid-cols-2"><div className="studio-field"><label htmlFor="qr-size">Resolución PNG</label><select id="qr-size" value={size} onChange={event => setSize(Number(event.target.value))}>{[256, 512, 1024, 2048].map(resolution => <option key={resolution} value={resolution}>{resolution} px</option>)}</select></div><div className="studio-field"><label htmlFor="qr-level">Corrección de errores</label><select id="qr-level" value={nivel} disabled={!!activeLogo} aria-describedby={activeLogo ? "qr-level-logo" : undefined} onChange={event => setErrorLevel(event.target.value as Nivel)}><option value="L">L · mínima</option><option value="M">M · equilibrada</option><option value="Q">Q · alta</option><option value="H">H · máxima</option></select></div></div>
                                 <p className="text-xs text-slate-400">PNG para compartir; SVG para imprimir a cualquier tamaño.</p>
-                                {activeLogo && errorLevel !== "H" && <p className="text-xs text-amber-200">Con logo, recomendamos corrección H. Comprueba la lectura antes de distribuirlo.</p>}
+                                {activeLogo && <p id="qr-level-logo" className="text-xs text-slate-400">Con logo se usa siempre corrección H: el logo tapa parte del código y H es la que más daño tolera. Comprueba la lectura antes de imprimir.</p>}
                             </div>
                         </details>
                         {qrType === "ar" && <a href="/ar" target="_blank" rel="noopener noreferrer" className="studio-button"><Box size={15} aria-hidden="true" />Guía de realidad aumentada<ArrowUpRight size={14} aria-hidden="true" /></a>}

@@ -7,7 +7,23 @@ import { ImageDropzone } from "@/components/tools/ImageDropzone";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { useToolTracking } from "@/hooks/useDebounce";
-import { decodeUtf8Base64, encodeUtf8Base64 } from "@/lib/base64-utf8";
+import { base64ToBytes, encodeUtf8Base64 } from "@/lib/base64-utf8";
+import { copiarTexto } from "@/lib/tools/copiar";
+import { descargarTexto } from "@/lib/tools/descargar";
+
+const ERROR_BASE64 = "El contenido no es Base64 de texto UTF-8 válido. Revisa lo que pegaste o cambia a Codificar.";
+
+/**
+ * Base64 → texto. Acepta también una URL de datos («data:…;base64,»), una cabecera «Basic …» y Base64 URL (- y _, sin
+ * relleno), como el de un JWT. Si los bytes no son UTF-8 lo dice, en vez de mostrar «�» y caracteres sueltos.
+ */
+function decodificarTexto(entrada: string): { output: string; error: string } {
+    const base = entrada.trim().replace(/^data:[^,]*;base64,/i, "").replace(/^(?:authorization:\s*)?basic\s+/i, "").replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+    let bytes: Uint8Array;
+    try { bytes = base64ToBytes(base); } catch { return { output: "", error: ERROR_BASE64 }; }
+    try { return { output: new TextDecoder("utf-8", { fatal: true }).decode(bytes), error: "" }; }
+    catch { return { output: "", error: "Es Base64 válido, pero lo que trae no es texto UTF-8: puede ser una imagen u otro archivo." }; }
+}
 
 export default function ImageBase64Page() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("base64");
@@ -21,21 +37,22 @@ export default function ImageBase64Page() {
     const result = useMemo(() => {
         if (tab === "image") return { output: image ?? "", error: "" };
         if (!input) return { output: "", error: "" };
-        try { return { output: mode === "encode" ? encodeUtf8Base64(input) : decodeUtf8Base64(input), error: "" }; }
-        catch { return { output: "", error: "El contenido no es Base64 de texto UTF-8 válido. Revisa lo que pegaste o cambia a Codificar." }; }
+        if (mode === "decode") return decodificarTexto(input);
+        try { return { output: encodeUtf8Base64(input), error: "" }; }
+        catch { return { output: "", error: ERROR_BASE64 }; }
     }, [input, mode, tab, image]);
+    // Con hasta 1 M de caracteres, contar bytes en cada render (también al copiar) se nota: solo cuando cambia la entrada.
+    const bytesEntrada = useMemo(() => new TextEncoder().encode(input).byteLength, [input]);
     if (isLoading) return <div role="status" className="p-8 text-sm text-slate-400">Cargando conversor…</div>;
     if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor Base64"} />;
 
     async function copy() {
-        try { await navigator.clipboard.writeText(result.output); setFeedback("Copiado al portapapeles."); trackImmediate("copy"); }
-        catch { setFeedback("No pudimos copiar. Selecciona el resultado y cópialo manualmente."); }
+        if (await copiarTexto(result.output)) { setFeedback("Copiado al portapapeles."); trackImmediate("copy"); }
+        else setFeedback("No se pudo copiar. Selecciona el resultado y cópialo a mano.");
     }
     function download() {
-        const url = URL.createObjectURL(new Blob([result.output], { type: "text/plain;charset=utf-8" }));
-        const link = document.createElement("a"); link.href = url; link.download = tab === "image" ? "imagen-base64.txt" : mode === "encode" ? "texto-base64.txt" : "texto-decodificado.txt";
-        document.body.appendChild(link); link.click(); link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 10_000); trackImmediate("download");
+        descargarTexto(result.output, tab === "image" ? "imagen-base64.txt" : mode === "encode" ? "texto-base64.txt" : "texto-decodificado.txt");
+        trackImmediate("download");
     }
     return (
         <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 sm:px-8">
@@ -48,7 +65,7 @@ export default function ImageBase64Page() {
                 <section className="studio-panel overflow-hidden">
                     <div className="studio-panel-heading flex items-center justify-between"><h2 className="text-sm font-medium text-white">{tab === "image" ? "Imagen original" : mode === "encode" ? "Texto original" : "Entrada Base64"}</h2>{tab === "text" && <button type="button" onClick={() => { setInput(""); setFeedback(""); }} className="studio-icon-button -my-3" aria-label="Limpiar entrada"><X size={16} /></button>}</div>
                     <div className="p-4">
-                        {tab === "text" ? <><textarea aria-label="Entrada" value={input} maxLength={1_000_000} onChange={(event) => { setInput(event.target.value); setFeedback(""); }} placeholder={mode === "encode" ? "Escribe o pega tu texto. También admite ñ, tildes y emojis…" : "Pega aquí el texto Base64…"} className="min-h-[290px] w-full resize-y rounded-xl border border-white/[0.08] bg-[#0b111a] p-4 font-mono text-sm leading-relaxed text-slate-200 placeholder:text-slate-600" spellCheck={false} /><div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>{new TextEncoder().encode(input).byteLength.toLocaleString("es-CL")} bytes UTF-8 · máx. 1 M de caracteres</span><button type="button" className="min-h-11 text-teal-300" onClick={() => { setInput(mode === "encode" ? "Hola, mundo. ¡Diseña y crea! 🚀" : "SG9sYSwgbXVuZG8u"); setFeedback(""); }}>Cargar ejemplo</button></div></> : <ImageDropzone currentImage={image} onImageLoad={(file, data) => { setImage(data); setImageName(file.name); setFeedback(""); trackImmediate("convert", { mode: "image" }); }} onClear={() => { setImage(null); setImageName(""); setFeedback(""); }} maxSize={20 * 1024 * 1024} accentColor="#5eead4" />}
+                        {tab === "text" ? <><textarea aria-label="Entrada" value={input} maxLength={1_000_000} onChange={(event) => { setInput(event.target.value); setFeedback(""); }} placeholder={mode === "encode" ? "Escribe o pega tu texto. También admite ñ, tildes y emojis…" : "Pega aquí el texto Base64…"} className="min-h-[290px] w-full resize-y rounded-xl border border-white/[0.08] bg-[#0b111a] p-4 font-mono text-sm leading-relaxed text-slate-200 placeholder:text-slate-600" spellCheck={false} /><div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>{bytesEntrada.toLocaleString("es-CL")} bytes UTF-8 · máx. 1 M de caracteres</span><button type="button" className="min-h-11 text-teal-300" onClick={() => { setInput(mode === "encode" ? "Hola, mundo. ¡Diseña y crea! 🚀" : "SG9sYSwgbXVuZG8u"); setFeedback(""); }}>Cargar ejemplo</button></div></> : <ImageDropzone entrega="dataUrl" currentImage={image} onImageLoad={(file, data) => { setImage(data); setImageName(file.name); setFeedback(""); trackImmediate("convert", { mode: "image" }); }} onClear={() => { setImage(null); setImageName(""); setFeedback(""); }} maxSize={20 * 1024 * 1024} accentColor="#5eead4" />}
                     </div>
                 </section>
                 <section className="studio-panel overflow-hidden">

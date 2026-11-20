@@ -11,8 +11,10 @@ import { MesaCabecera } from "@/components/tools/mesa/MesaCabecera";
 import { IconoDescargar, IconoImagen, IconoSubir, IconoVarita } from "@/components/tools/mesa/MesaIcons";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
-import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { ImageDropzone, useSinAbrirArchivoSoltado } from "@/components/tools/ImageDropzone";
 import { imageBitmapFromSource, canvasToBlob, drawImageToCanvas } from "@/lib/tools/image-processing";
+import { empaquetarIco } from "@/lib/tools/ico";
+import { nombreArchivo } from "@/lib/tools/descargar";
 
 const ACCENT = "#F59E0B";
 
@@ -48,57 +50,13 @@ async function generateIco(img: ImageBitmap, sizes: number[]): Promise<Blob> {
         pngBlobs.push({ size, data: buffer });
     }
 
-    // Build ICO file
-    // Header: 6 bytes
-    // Directory entries: 16 bytes each
-    // Image data: PNG blobs
-    const headerSize = 6;
-    const dirEntrySize = 16;
-    const dirSize = dirEntrySize * pngBlobs.length;
-    let dataOffset = headerSize + dirSize;
-
-    const totalSize = dataOffset + pngBlobs.reduce((acc, b) => acc + b.data.byteLength, 0);
-    const buffer = new ArrayBuffer(totalSize);
-    const view = new DataView(buffer);
-
-    // ICONDIR header
-    view.setUint16(0, 0, true);     // Reserved
-    view.setUint16(2, 1, true);     // Type: 1 = ICO
-    view.setUint16(4, pngBlobs.length, true); // Number of images
-
-    // ICONDIRENTRY for each size
-    for (let i = 0; i < pngBlobs.length; i++) {
-        const entry = pngBlobs[i];
-        const offset = headerSize + i * dirEntrySize;
-        const w = entry.size >= 256 ? 0 : entry.size;
-        const h = entry.size >= 256 ? 0 : entry.size;
-
-        view.setUint8(offset + 0, w);          // Width
-        view.setUint8(offset + 1, h);          // Height
-        view.setUint8(offset + 2, 0);          // Color palette
-        view.setUint8(offset + 3, 0);          // Reserved
-        view.setUint16(offset + 4, 1, true);   // Color planes
-        view.setUint16(offset + 6, 32, true);  // Bits per pixel
-        view.setUint32(offset + 8, entry.data.byteLength, true);  // Image data size
-        view.setUint32(offset + 12, dataOffset, true);             // Offset to image data
-
-        dataOffset += entry.data.byteLength;
-    }
-
-    // Write image data
-    let currentOffset = headerSize + dirSize;
-    for (const entry of pngBlobs) {
-        const src = new Uint8Array(entry.data);
-        const dst = new Uint8Array(buffer, currentOffset, entry.data.byteLength);
-        dst.set(src);
-        currentOffset += entry.data.byteLength;
-    }
-
-    return new Blob([buffer], { type: "image/x-icon" });
+    // El armado del .ico (cabecera, entradas y PNG) es el mismo que usa el generador de favicon.
+    return empaquetarIco(pngBlobs.map(({ size, data }) => ({ lado: size, png: data })));
 }
 
 export default function IcoConverterPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("convertir-ico");
+    useSinAbrirArchivoSoltado();
     const [sourceImage, setSourceImage] = useState<string | null>(null);
     const [sourceFile, setSourceFile] = useState<File | null>(null);
     const [selectedSizes, setSelectedSizes] = useState<number[]>([16, 32, 48]);
@@ -107,19 +65,28 @@ export default function IcoConverterPage() {
     const [isConverting, setIsConverting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const resultUrlRef = useRef<string | null>(null);
+    // La URL blob: de la imagen es de esta página (el recuadro de carga se desmonta): se libera al cambiarla o al salir.
+    const urlFuenteRef = useRef<string | null>(null);
+    const cambiarUrlFuente = useCallback((siguiente: string | null) => {
+        if (urlFuenteRef.current && urlFuenteRef.current !== siguiente) URL.revokeObjectURL(urlFuenteRef.current);
+        urlFuenteRef.current = siguiente;
+    }, []);
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
+        cambiarUrlFuente(dataUrl);
         setSourceImage(dataUrl);
         setSourceFile(file);
         setResultUrl(null);
-    }, []);
+    }, [cambiarUrlFuente]);
 
     const handleClear = useCallback(() => {
+        cambiarUrlFuente(null);
         setSourceImage(null);
         setSourceFile(null);
         setResultUrl(null);
         if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
-    }, []);
+        resultUrlRef.current = null;
+    }, [cambiarUrlFuente]);
 
     const toggleSize = (size: number) => {
         setSelectedSizes(prev =>
@@ -128,7 +95,10 @@ export default function IcoConverterPage() {
         setResultUrl(null);
     };
 
-    useEffect(() => () => { if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current); }, []);
+    useEffect(() => () => {
+        if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
+        cambiarUrlFuente(null);
+    }, [cambiarUrlFuente]);
     useEffect(() => {
         setResultUrl(null);
         setError(null);
@@ -158,11 +128,13 @@ export default function IcoConverterPage() {
 
     const handleDownload = useCallback(() => {
         if (!resultUrl || !sourceFile) return;
-        const baseName = sourceFile.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_\-\s]/g, "");
+        // nombreArchivo conserva tildes, ñ y otros alfabetos; nunca deja el nombre vacío («.ico» sería un archivo oculto).
         const link = document.createElement("a");
         link.href = resultUrl;
-        link.download = `${baseName}.ico`;
+        link.download = `${nombreArchivo(sourceFile.name, "icono")}.ico`;
+        document.body.append(link);
         link.click();
+        link.remove();
         setUrlDescargada(resultUrl);
     }, [resultUrl, sourceFile]);
 

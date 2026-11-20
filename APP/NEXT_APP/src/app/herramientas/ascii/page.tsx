@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -16,8 +16,8 @@ const ASCII_CHAR_SETS = {
 };
 
 type CharSetKey = keyof typeof ASCII_CHAR_SETS;
-type SpaceDensity = "compact" | "normal" | "sparse";
-type AsciiGradient = "dark-to-light" | "light-to-dark";
+// «Compacto» salía igual que «Normal» (no hay nada más junto que un carácter por píxel): se quitó.
+type SpaceDensity = "normal" | "sparse";
 
 interface AsciiSettings {
     width: number;
@@ -33,7 +33,6 @@ interface AsciiSettings {
     hue: number;            // 0 to 360
     grayscale: boolean;
     sepia: boolean;
-    asciiGradient: AsciiGradient;
     spaceDensity: SpaceDensity;
     transparentFrame: boolean;
     qualityEnhancements: boolean;
@@ -53,7 +52,6 @@ const DEFAULT_SETTINGS: AsciiSettings = {
     hue: 0,
     grayscale: false,
     sepia: false,
-    asciiGradient: "dark-to-light",
     spaceDensity: "normal",
     transparentFrame: false,
     qualityEnhancements: false,
@@ -68,12 +66,6 @@ const PRESETS = [
 ];
 
 // Icons
-const UploadIcon = () => (
-    <svg className="w-16 h-16 sm:w-20 sm:h-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-);
-
 const CopyIcon = () => (
     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -141,596 +133,201 @@ const InvertIcon = () => (
 );
 
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { useCopiar } from "@/lib/tools/copiar";
+import { descargarBlob, descargarTexto, nombreArchivo } from "@/lib/tools/descargar";
+import { canvasToBlob } from "@/lib/tools/image-processing";
+import { asciiAHtml, enfocar, escalaExportacion, medidasAscii, pintarAscii, pixelesAAscii, type ResultadoAscii } from "@/lib/tools/ascii";
+
+// Límites para no agotar la memoria al decodificar.
+const MAX_DIMENSION = 8000;
+const MAX_TOTAL_PIXELS = 25_000_000;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+// Espera tras el último cambio de un control antes de recalcular: arrastrar un deslizador no convierte en cada paso.
+const ESPERA_AJUSTES_MS = 120;
+const FONDO = "#0F1724";
+const COLOR_TEXTO = "#d4d4d4";
+const TAM_FUENTE_PNG = 14;
+
+const CHARSET_OPTIONS: { value: CharSetKey; label: string }[] = [
+    { value: "standard", label: "Estándar ( .:-=+*#%@)" },
+    { value: "detailed", label: "Detallado (70 caracteres)" },
+    { value: "blocks", label: "Bloques (░▒▓█)" },
+    { value: "simple", label: "Simple ( .oO@)" },
+    { value: "binary", label: "Binario (01)" },
+    { value: "custom", label: "Personalizado" },
+];
+
+/** Muestrea la imagen al tamaño de la grilla (con filtros y enfoque) y la pasa a caracteres. */
+function convertir(canvas: HTMLCanvasElement, img: ImageBitmap, s: AsciiSettings): ResultadoAscii | null {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    const width = s.width;
+    const height = Math.max(1, s.preserveAspect ? Math.round(width * (img.height / img.width) * 0.5) : Math.round(width * 0.5));
+    canvas.width = width;
+    canvas.height = height;
+
+    let filtro = `brightness(${(100 + s.brightness) / 100}) contrast(${(100 + s.contrast) / 100}) saturate(${(100 + s.saturation) / 100}) hue-rotate(${s.hue}deg)`;
+    if (s.grayscale) filtro += " grayscale(100%)";
+    if (s.sepia) filtro += " sepia(100%)";
+    ctx.filter = filtro;
+    ctx.drawImage(img, 0, 0, width, height);
+    ctx.filter = "none";
+
+    let pixeles: Uint8ClampedArray = ctx.getImageData(0, 0, width, height).data;
+    if (s.qualityEnhancements) pixeles = enfocar(pixeles, width, height);
+
+    const base = s.charSet === "custom" && s.customChars.length > 0 ? s.customChars : ASCII_CHAR_SETS[s.charSet] || ASCII_CHAR_SETS.standard;
+    // «Dirección del gradiente: claro → oscuro» hacía lo mismo que «Invertir» (y las dos juntas se anulaban): quedó solo Invertir.
+    const rampa = Array.from(base);
+    if (s.inverted) rampa.reverse();
+    return pixelesAAscii(pixeles, width, height, rampa, s.spaceDensity === "sparse");
+}
 
 export default function AsciiArtPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("ascii");
     const { trackImmediate } = useToolTracking("ascii", { trackViewOnMount: true });
 
     const [imageUrl, setImageUrl] = useState<string | null>(null);
-    const [asciiArt, setAsciiArt] = useState<string>("");
-    const [coloredAscii, setColoredAscii] = useState<{ char: string; color: string }[][]>([]);
+    // Último resultado y los ajustes con que se hizo: si no coinciden con los actuales, hay una conversión pendiente.
+    const [hecho, setHecho] = useState<{ resultado: ResultadoAscii; ajustes: AsciiSettings } | null>(null);
     const [settings, setSettings] = useState<AsciiSettings>(DEFAULT_SETTINGS);
-    const [copied, setCopied] = useState(false);
-    const [processing, setProcessing] = useState(false);
     const [fileName, setFileName] = useState<string>("");
     const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
     const [activeView, setActiveView] = useState<"original" | "ascii">("ascii");
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
     const [fontSize, setFontSize] = useState(6);
-    const [rateLimitError, setRateLimitError] = useState<string | null>(null);
-    const [charSetDropdownOpen, setCharSetDropdownOpen] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [errorExportar, setErrorExportar] = useState<string | null>(null);
+    const [exportando, setExportando] = useState(false);
+    const { copiado, fallo, copiar } = useCopiar();
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const vistaColorRef = useRef<HTMLCanvasElement>(null);
     // Imagen decodificada UNA vez (createImageBitmap); cada cambio de ajuste la reutiliza.
     const bitmapRef = useRef<ImageBitmap | null>(null);
-    const outputRef = useRef<HTMLPreElement>(null);
 
-    // ==========================================
-    // SECURITY: Rate Limiting & Logging
-    // ==========================================
+    const actualizando = !!imageUrl && hecho?.ajustes !== settings;
+    const baseNombre = nombreArchivo(fileName, "imagen");
 
-    const RATE_LIMIT_KEY = "ascii_art_uploads";
-    const SECURITY_LOG_KEY = "ascii_art_security_log";
-    const MAX_UPLOADS_PER_MINUTE = 10;
-    const MAX_UPLOADS_PER_HOUR = 50;
-    const SUSPICIOUS_THRESHOLD = 3; // Failed validations before flagging
+    useEffect(() => () => { bitmapRef.current?.close(); }, []);
+    // Libera la URL de la vista previa al cambiar de imagen o salir.
+    useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
 
-    interface RateLimitEntry {
-        timestamps: number[];
-        failedAttempts: number;
-        lastFailedType?: string;
-    }
-
-    interface SecurityLogEntry {
-        timestamp: number;
-        event: string;
-        details: string;
-        severity: "info" | "warning" | "critical";
-    }
-
-    // Get or initialize rate limit data from sessionStorage
-    const getRateLimitData = (): RateLimitEntry => {
-        try {
-            const data = sessionStorage.getItem(RATE_LIMIT_KEY);
-            if (data) {
-                return JSON.parse(data);
-            }
-        } catch {
-            // Ignore parse errors
-        }
-        return { timestamps: [], failedAttempts: 0 };
-    };
-
-    // Save rate limit data
-    const saveRateLimitData = (data: RateLimitEntry) => {
-        try {
-            sessionStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(data));
-        } catch {
-            // Ignore storage errors
-        }
-    };
-
-    // Log security event
-    const logSecurityEvent = (event: string, details: string, severity: SecurityLogEntry["severity"] = "info") => {
-        try {
-            const logs: SecurityLogEntry[] = JSON.parse(sessionStorage.getItem(SECURITY_LOG_KEY) || "[]");
-            logs.push({
-                timestamp: Date.now(),
-                event,
-                details,
-                severity,
-            });
-            // Keep only last 100 entries
-            if (logs.length > 100) {
-                logs.shift();
-            }
-            sessionStorage.setItem(SECURITY_LOG_KEY, JSON.stringify(logs));
-
-            // Also log to console in development
-            if (process.env.NODE_ENV === "development") {
-                const colors = { info: "\x1b[34m", warning: "\x1b[33m", critical: "\x1b[31m" };
-                console.log(`${colors[severity]}[SECURITY ${severity.toUpperCase()}]\x1b[0m ${event}: ${details}`);
-            }
-
-            // Report critical events to server
-            if (severity === "critical") {
-                reportSecurityIncident(event, details);
-            }
-        } catch {
-            // Ignore logging errors
-        }
-    };
-
-    // Report security incident to server (async, non-blocking)
-    const reportSecurityIncident = async (event: string, details: string) => {
-        try {
-            await fetch("/api/tools/public/ascii", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action: "security_incident",
-                    metadata: {
-                        event,
-                        details,
-                        userAgent: navigator.userAgent,
-                        timestamp: new Date().toISOString(),
-                    },
-                }),
-            });
-        } catch {
-            // Silently fail - don't block user experience
-        }
-    };
-
-    // Check rate limit before processing
-    const checkRateLimit = (): boolean => {
-        const now = Date.now();
-        const data = getRateLimitData();
-
-        // Clean old timestamps (older than 1 hour)
-        const oneHourAgo = now - 60 * 60 * 1000;
-        const oneMinuteAgo = now - 60 * 1000;
-
-        data.timestamps = data.timestamps.filter(t => t > oneHourAgo);
-
-        // Count recent uploads
-        const uploadsLastMinute = data.timestamps.filter(t => t > oneMinuteAgo).length;
-        const uploadsLastHour = data.timestamps.length;
-
-        // Check per-minute limit
-        if (uploadsLastMinute >= MAX_UPLOADS_PER_MINUTE) {
-            const waitTime = Math.ceil((data.timestamps.find(t => t > oneMinuteAgo)! + 60000 - now) / 1000);
-            setRateLimitError(`Demasiados intentos. Espera ${waitTime} segundos.`);
-            logSecurityEvent("rate_limit_minute", `${uploadsLastMinute} uploads in last minute`, "warning");
-            return false;
-        }
-
-        // Check per-hour limit
-        if (uploadsLastHour >= MAX_UPLOADS_PER_HOUR) {
-            setRateLimitError("Límite por hora alcanzado. Intenta más tarde.");
-            logSecurityEvent("rate_limit_hour", `${uploadsLastHour} uploads in last hour`, "warning");
-            return false;
-        }
-
-        // Check for suspicious behavior (multiple failed attempts)
-        if (data.failedAttempts >= SUSPICIOUS_THRESHOLD) {
-            logSecurityEvent("suspicious_activity", `${data.failedAttempts} failed attempts, last type: ${data.lastFailedType}`, "critical");
-            // Don't block, but flag for monitoring
-        }
-
-        setRateLimitError(null);
-        return true;
-    };
-
-    // Record successful upload
-    const recordUpload = () => {
-        const data = getRateLimitData();
-        data.timestamps.push(Date.now());
-        data.failedAttempts = 0; // Reset on success
-        saveRateLimitData(data);
-        logSecurityEvent("upload_success", `File processed successfully`, "info");
-    };
-
-    // Record failed validation
-    const recordFailedValidation = (reason: string) => {
-        const data = getRateLimitData();
-        data.failedAttempts++;
-        data.lastFailedType = reason;
-        saveRateLimitData(data);
-        logSecurityEvent("validation_failed", reason, data.failedAttempts >= SUSPICIOUS_THRESHOLD ? "warning" : "info");
-    };
-
-    // ==========================================
-    // SECURITY: File Validation
-    // ==========================================
-
-    // Magic bytes signatures for image formats
-    const MAGIC_BYTES: Record<string, number[][]> = {
-        "image/jpeg": [[0xFF, 0xD8, 0xFF]],
-        "image/png": [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]],
-        "image/gif": [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]], // GIF87a, GIF89a
-        "image/webp": [[0x52, 0x49, 0x46, 0x46]], // RIFF (WebP starts with RIFF)
-        "image/bmp": [[0x42, 0x4D]], // BM
-    };
-
-    // Verify magic bytes match claimed MIME type
-    const verifyMagicBytes = async (file: File, claimedType: string): Promise<boolean> => {
-        const signatures = MAGIC_BYTES[claimedType];
-        if (!signatures) return false;
-
-        const headerBytes = await file.slice(0, 12).arrayBuffer();
-        const header = new Uint8Array(headerBytes);
-
-        return signatures.some(signature =>
-            signature.every((byte, index) => header[index] === byte)
-        );
-    };
-
-    // Validate image dimensions to prevent memory DoS
-    const validateImageDimensions = (img: { width: number; height: number }): boolean => {
-        const MAX_DIMENSION = 8000; // Max 8000x8000 pixels
-        const MAX_TOTAL_PIXELS = 25_000_000; // 25 megapixels max
-
-        if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-            alert(`Imagen demasiado grande. Máximo ${MAX_DIMENSION}x${MAX_DIMENSION} píxeles.`);
-            return false;
-        }
-
-        if (img.width * img.height > MAX_TOTAL_PIXELS) {
-            alert(`Imagen con demasiados píxeles. Máximo ${MAX_TOTAL_PIXELS / 1_000_000}MP.`);
-            return false;
-        }
-
-        return true;
-    };
-
-    // Sanitize filename to prevent XSS
-    const sanitizeFilename = (name: string): string => {
-        return name
-            .replace(/[<>"'&]/g, '') // Remove HTML special chars
-            .replace(/[^\w\s.-]/g, '_') // Replace non-safe chars
-            .substring(0, 100); // Limit length
-    };
-
-    // Sanitize custom characters for HTML output
-    const sanitizeChars = (chars: string): string => {
-        return chars
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    };
-
-    // Main file validation with security checks
-    const validateFile = async (file: File): Promise<boolean> => {
-        const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp"];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-
-        // 0. Check rate limit first
-        if (!checkRateLimit()) {
-            return false;
-        }
-
-        // 1. Check MIME type (basic)
-        if (!validTypes.includes(file.type)) {
-            recordFailedValidation(`invalid_mime_type: ${file.type}`);
-            alert("Formato de imagen no soportado. Use: JPG, PNG, GIF, WebP o BMP.");
-            return false;
-        }
-
-        // 2. Check file size
-        if (file.size > maxSize) {
-            recordFailedValidation(`file_too_large: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
-            alert("La imagen es demasiado grande. Máximo: 10MB.");
-            return false;
-        }
-
-        // 3. Verify magic bytes match claimed type (prevents MIME spoofing)
-        const validMagic = await verifyMagicBytes(file, file.type);
-        if (!validMagic) {
-            recordFailedValidation(`magic_bytes_mismatch: claimed ${file.type}`);
-            alert("El archivo no parece ser una imagen válida. Posible archivo corrupto o manipulado.");
-            return false;
-        }
-
-        // Log successful validation
-        logSecurityEvent("file_validated", `${file.type}, ${(file.size / 1024).toFixed(1)}KB`, "info");
-        return true;
-    };
-
-    // Convert image to ASCII
-    const convertToAscii = useCallback((img: ImageBitmap | HTMLImageElement) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return;
-
-        setProcessing(true);
-
-        const aspectRatio = img.height / img.width;
-        const charAspect = 0.5;
-
-        const width = settings.width;
-        const height = settings.preserveAspect
-            ? Math.round(width * aspectRatio * charAspect)
-            : Math.round(width * 0.5);
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Apply CSS filters for brightness, contrast, saturation, hue, grayscale, sepia
-        const brightnessVal = (100 + settings.brightness) / 100; // 0 to 2
-        const contrastVal = (100 + settings.contrast) / 100; // 0 to 2
-        const saturateVal = (100 + settings.saturation) / 100; // 0 to 2
-        const hueVal = settings.hue;
-
-        let filterStr = `brightness(${brightnessVal}) contrast(${contrastVal}) saturate(${saturateVal}) hue-rotate(${hueVal}deg)`;
-        if (settings.grayscale) filterStr += ' grayscale(100%)';
-        if (settings.sepia) filterStr += ' sepia(100%)';
-
-        ctx.filter = filterStr;
-        ctx.drawImage(img, 0, 0, width, height);
-        ctx.filter = 'none';
-
-        // Apply quality enhancements (simple edge sharpening using Laplacian-like convolution)
-        if (settings.qualityEnhancements) {
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0]; // Sharpen kernel
-            const output = new Uint8ClampedArray(data.length);
-
-            for (let y = 1; y < height - 1; y++) {
-                for (let x = 1; x < width - 1; x++) {
-                    for (let c = 0; c < 3; c++) { // RGB channels
-                        let sum = 0;
-                        for (let ky = -1; ky <= 1; ky++) {
-                            for (let kx = -1; kx <= 1; kx++) {
-                                const idx = ((y + ky) * width + (x + kx)) * 4 + c;
-                                sum += data[idx] * kernel[(ky + 1) * 3 + (kx + 1)];
-                            }
-                        }
-                        output[(y * width + x) * 4 + c] = Math.min(255, Math.max(0, sum));
-                    }
-                    output[(y * width + x) * 4 + 3] = data[(y * width + x) * 4 + 3]; // Alpha
-                }
-            }
-
-            // Copy edge pixels
-            for (let x = 0; x < width; x++) {
-                for (let c = 0; c < 4; c++) {
-                    output[x * 4 + c] = data[x * 4 + c];
-                    output[((height - 1) * width + x) * 4 + c] = data[((height - 1) * width + x) * 4 + c];
-                }
-            }
-            for (let y = 0; y < height; y++) {
-                for (let c = 0; c < 4; c++) {
-                    output[(y * width) * 4 + c] = data[(y * width) * 4 + c];
-                    output[(y * width + width - 1) * 4 + c] = data[(y * width + width - 1) * 4 + c];
-                }
-            }
-
-            imageData.data.set(output);
-            ctx.putImageData(imageData, 0, 0);
-        }
-
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const pixels = imageData.data;
-
-        let chars = ASCII_CHAR_SETS[settings.charSet];
-        if (settings.charSet === "custom" && settings.customChars.length > 0) {
-            chars = settings.customChars;
-        }
-        if (chars.length === 0) chars = ASCII_CHAR_SETS.standard;
-
-        // Handle ASCII gradient direction
-        let charArray = chars.split("");
-        if (settings.asciiGradient === "light-to-dark") {
-            charArray = charArray.reverse();
-        }
-        // Then apply inverted if needed
-        if (settings.inverted) {
-            charArray = charArray.reverse();
-        }
-
-        // Space density character mapping
-        const getSpacedChar = (char: string): string => {
-            if (settings.spaceDensity === "compact") {
-                return char; // No spacing
-            } else if (settings.spaceDensity === "sparse") {
-                return char + " "; // Extra space
-            }
-            return char; // Normal
-        };
-
-        const lines: string[] = [];
-        const colorLines: { char: string; color: string }[][] = [];
-
-        for (let y = 0; y < height; y++) {
-            let line = "";
-            const colorLine: { char: string; color: string }[] = [];
-
-            for (let x = 0; x < width; x++) {
-                const idx = (y * width + x) * 4;
-                const r = pixels[idx];
-                const g = pixels[idx + 1];
-                const b = pixels[idx + 2];
-
-                const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                const charIndex = Math.floor(brightness * (charArray.length - 1));
-                const char = charArray[Math.min(charIndex, charArray.length - 1)];
-                const spacedChar = getSpacedChar(char);
-
-                line += spacedChar;
-                colorLine.push({ char: spacedChar, color: `rgb(${r},${g},${b})` });
-            }
-            lines.push(line);
-            colorLines.push(colorLine);
-        }
-
-        setAsciiArt(lines.join("\n"));
-        setColoredAscii(colorLines);
-        setProcessing(false);
-    }, [settings]);
-
-    // Decodifica una sola vez con createImageBitmap y muestra la vista previa
-    // por object URL (sin data URL gigante en memoria).
-    const ingestFile = async (file: File, tag: string) => {
-        try {
-            const bitmap = await createImageBitmap(file);
-            if (!validateImageDimensions(bitmap)) {
-                recordFailedValidation(`dimensions_exceeded: ${bitmap.width}x${bitmap.height}`);
-                bitmap.close();
-                setImageUrl(null);
-                return;
-            }
-            bitmapRef.current?.close();
-            bitmapRef.current = bitmap;
-            setImageSize({ width: bitmap.width, height: bitmap.height });
-            setImageUrl((prev) => {
-                if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-                return URL.createObjectURL(file);
-            });
-            recordUpload(); // Record successful upload
-        } catch {
-            recordFailedValidation(`image_load_error${tag}`);
-            alert("Error al cargar la imagen. El archivo puede estar corrupto.");
-            setImageUrl(null);
-        }
-    };
-
-    // Handle file upload
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Async validation with magic bytes check
-        const isValid = await validateFile(file);
-        if (!isValid) return;
-
-        setFileName(sanitizeFilename(file.name));
-
-        await ingestFile(file, "");
-    };
-
-    // Handle drag and drop
-    const handleDrop = useCallback(async (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-
-        const file = e.dataTransfer.files[0];
-        if (!file) return;
-
-        // Async validation with magic bytes check
-        const isValid = await validateFile(file);
-        if (!isValid) return;
-
-        setFileName(sanitizeFilename(file.name));
-
-        await ingestFile(file, "_drop");
-        // recordFailedValidation, recordUpload, validateFile are stable helper functions defined in component scope
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [convertToAscii]);
-
-    // (Re)genera el ASCII al cargar la imagen o cambiar ajustes, desde el bitmap ya decodificado.
+    // (Re)genera el ASCII desde el bitmap ya decodificado, con una espera corta tras el último cambio.
     useEffect(() => {
         const bitmap = bitmapRef.current;
-        if (imageUrl && bitmap) convertToAscii(bitmap);
-    }, [settings, imageUrl, convertToAscii]);
+        const canvas = canvasRef.current;
+        if (!imageUrl || !bitmap || !canvas) return;
+        const id = window.setTimeout(() => {
+            try {
+                const resultado = convertir(canvas, bitmap, settings);
+                if (resultado) { setHecho({ resultado, ajustes: settings }); setError(null); }
+            } catch {
+                setError("No se pudo convertir la imagen.");
+            }
+        }, ESPERA_AJUSTES_MS);
+        return () => window.clearTimeout(id);
+    }, [settings, imageUrl]);
 
-    // Copy to clipboard
-    const handleCopy = async () => {
+    // Vista en color: se pinta en un canvas (un <span> por carácter eran hasta ~27 000 nodos).
+    useEffect(() => {
+        const canvas = vistaColorRef.current;
+        if (!canvas || !hecho?.ajustes.colored) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const { ancho, alto } = medidasAscii(ctx, hecho.resultado, fontSize);
+        const escala = escalaExportacion(ancho, alto, Math.min(window.devicePixelRatio || 1, 2));
+        pintarAscii(canvas, hecho.resultado, { tamFuente: fontSize, conColor: true, colorTexto: COLOR_TEXTO, fondo: null, escala });
+        canvas.style.width = `${ancho}px`;
+        canvas.style.height = `${alto}px`;
+    }, [hecho, fontSize]);
+
+    const abrirImagen = async (file: File) => {
+        setError(null);
+        let bitmap: ImageBitmap;
         try {
-            await navigator.clipboard.writeText(asciiArt);
-            setCopied(true);
-            trackImmediate("copy_ascii");
-            setTimeout(() => setCopied(false), 2000);
+            bitmap = await createImageBitmap(file);
         } catch {
-            const textArea = document.createElement("textarea");
-            textArea.value = asciiArt;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textArea);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            setError("No se pudo abrir la imagen. El archivo puede estar dañado.");
+            return;
         }
+        if (bitmap.width > MAX_DIMENSION || bitmap.height > MAX_DIMENSION) {
+            bitmap.close();
+            setError(`La imagen es demasiado grande: máximo ${MAX_DIMENSION} × ${MAX_DIMENSION} px.`);
+            return;
+        }
+        if (bitmap.width * bitmap.height > MAX_TOTAL_PIXELS) {
+            bitmap.close();
+            setError(`La imagen tiene demasiados píxeles: máximo ${MAX_TOTAL_PIXELS / 1_000_000} MP.`);
+            return;
+        }
+        bitmapRef.current?.close();
+        bitmapRef.current = bitmap;
+        setHecho(null);
+        setFileName(file.name);
+        setImageSize({ width: bitmap.width, height: bitmap.height });
+        // Vista previa propia desde el File: no depende de la URL que entregue la zona de carga.
+        setImageUrl(URL.createObjectURL(file));
     };
 
-    // Download as text file (secure)
+    const handleCopy = async () => {
+        if (!hecho) return;
+        if (await copiar(hecho.resultado.texto, "ascii")) trackImmediate("copy_ascii");
+    };
+
     const handleDownloadTxt = () => {
-        const blob = new Blob([asciiArt], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        try {
-            const a = document.createElement("a");
-            a.href = url;
-            // Use sanitized filename
-            const safeName = fileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_") || "ascii";
-            a.download = `${safeName}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            trackImmediate("download_txt");
-        } finally {
-            // Always revoke to prevent memory leak
-            URL.revokeObjectURL(url);
-        }
+        if (!hecho) return;
+        descargarTexto(hecho.resultado.texto, `${baseNombre}-ascii.txt`);
+        trackImmediate("download_txt");
     };
 
-    // Download as HTML (colored version) - SECURED
+    // HTML siempre en color (el texto plano ya está en TXT).
     const handleDownloadHtml = () => {
-        // Sanitize filename for HTML title
-        const safeTitle = sanitizeChars(fileName || "image");
-        const safeName = fileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_") || "ascii";
+        if (!hecho) return;
+        const html = asciiAHtml(hecho.resultado, fileName || "imagen", settings.transparentFrame ? null : FONDO, true, COLOR_TEXTO);
+        descargarTexto(html, `${baseNombre}-ascii.html`, "text/html");
+        trackImmediate("download_html");
+    };
 
-        // Build HTML with sanitized content
-        const bgColor = settings.transparentFrame ? 'transparent' : '#0F1724';
-        const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
-    <title>ASCII Art - ${safeTitle}</title>
-    <style>
-        body { background: ${bgColor}; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        pre { 
-            font-family: 'Courier New', monospace; 
-            font-size: 8px; 
-            line-height: 1;
-            letter-spacing: 0;
-            white-space: pre;
-        }
-        span { display: inline; }
-    </style>
-</head>
-<body>
-    <pre>${coloredAscii.map(line =>
-            line.map(({ char, color }) => {
-                // Sanitize char to prevent XSS
-                const safeChar = char === " " ? "&nbsp;" : sanitizeChars(char);
-                // Validate color format (only allow rgb())
-                const safeColor = /^rgb\(\d{1,3},\d{1,3},\d{1,3}\)$/.test(color) ? color : "rgb(255,255,255)";
-                return `<span style="color:${safeColor}">${safeChar}</span>`;
-            }).join("")
-        ).join("\n")}</pre>
-</body>
-</html>`;
-
-        const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
+    // PNG tal como se ve (con o sin color), a 14 px por fila y escala 2× salvo que la imagen salga demasiado grande.
+    const handleDownloadPng = async () => {
+        if (!hecho || exportando) return;
+        setErrorExportar(null);
+        setExportando(true);
         try {
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${safeName}-colored.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            trackImmediate("download_html");
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Sin contexto 2D");
+            const { ancho, alto } = medidasAscii(ctx, hecho.resultado, TAM_FUENTE_PNG);
+            pintarAscii(canvas, hecho.resultado, {
+                tamFuente: TAM_FUENTE_PNG,
+                conColor: hecho.ajustes.colored,
+                colorTexto: COLOR_TEXTO,
+                fondo: settings.transparentFrame ? null : FONDO,
+                escala: escalaExportacion(ancho, alto),
+            });
+            descargarBlob(await canvasToBlob(canvas, "image/png"), `${baseNombre}-ascii.png`);
+            trackImmediate("download_png");
+        } catch {
+            setErrorExportar("No se pudo crear el PNG. Prueba con un ancho menor.");
         } finally {
-            // Always revoke to prevent memory leak
-            URL.revokeObjectURL(url);
+            setExportando(false);
         }
     };
 
-    // Reset
     const handleReset = () => {
         bitmapRef.current?.close();
         bitmapRef.current = null;
-        if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
         setImageUrl(null);
-        setAsciiArt("");
-        setColoredAscii([]);
+        setHecho(null);
         setFileName("");
         setImageSize(null);
         setSettings(DEFAULT_SETTINGS);
         setActiveView("ascii");
         setShowAdvanced(false);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
+        setError(null);
+        setErrorExportar(null);
     };
 
     // Apply preset
@@ -745,7 +342,7 @@ export default function AsciiArtPage() {
     if (isLoading) {
         return (
             <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-accent-1 border-t-transparent rounded-full motion-safe:animate-spin" />
             </div>
         );
     }
@@ -773,8 +370,10 @@ export default function AsciiArtPage() {
 
                         {imageUrl && (
                             <button
+                                type="button"
                                 onClick={handleReset}
-                                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-white/10 text-neutral-300 rounded-lg hover:bg-white/20 transition-colors text-sm"
+                                aria-label="Nueva imagen"
+                                className="flex-shrink-0 flex min-h-11 items-center gap-1.5 px-3 py-2 bg-white/10 text-neutral-300 rounded-lg hover:bg-white/20 transition-colors text-sm"
                             >
                                 <RefreshIcon />
                                 <span className="hidden sm:inline">Nueva imagen</span>
@@ -786,74 +385,18 @@ export default function AsciiArtPage() {
                 {/* Upload Area */}
                 {!imageUrl && (
                     <div className="space-y-6">
-                        {/* Rate Limit Error Banner */}
-                        {rateLimitError && (
-                            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 animate-shake">
-                                <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                                <span className="text-red-300 text-sm">{rateLimitError}</span>
-                                <button
-                                    onClick={() => setRateLimitError(null)}
-                                    className="ml-auto text-red-400 hover:text-red-300"
-                                >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        )}
+                        <ImageDropzone
+                            onImageLoad={(file) => { void abrirImagen(file); }}
+                            maxSize={MAX_FILE_SIZE}
+                            label="Arrastra una imagen"
+                            sublabel="JPG, PNG, GIF, WebP o BMP · todo se procesa en tu navegador"
+                        />
 
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            onDrop={handleDrop}
-                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                            onDragLeave={() => setIsDragging(false)}
-                            onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-                            className={`
-                                relative border-2 border-dashed rounded-2xl p-8 sm:p-16 text-center cursor-pointer 
-                                transition-all duration-300 group min-h-[50vh] sm:min-h-[400px] flex flex-col items-center justify-center
-                                ${rateLimitError
-                                    ? "border-red-500/30 opacity-50 pointer-events-none"
-                                    : isDragging
-                                        ? "border-accent-1 bg-accent-1/10 scale-[1.01]"
-                                        : "border-white/20 hover:border-accent-1/50 hover:bg-white/5"
-                                }
-                            `}
-                        >
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileUpload}
-                                accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"
-                                className="hidden"
-                            />
-
-                            <div className={`transition-all duration-300 ${isDragging ? "scale-110 text-accent-1" : "text-neutral-400 group-hover:text-accent-1"}`}>
-                                <UploadIcon />
-                            </div>
-
-                            <div className="mt-6 space-y-2">
-                                <p className="text-white font-semibold text-lg sm:text-xl">
-                                    {isDragging ? "Suelta la imagen aquí" : "Arrastra una imagen"}
-                                </p>
-                                <p className="text-neutral-400 text-sm">
-                                    o <span className="text-accent-1 underline underline-offset-2">selecciona un archivo</span>
-                                </p>
-                            </div>
-
-                            <div className="mt-6 flex flex-wrap justify-center gap-2">
-                                {["JPG", "PNG", "GIF", "WebP", "BMP"].map(fmt => (
-                                    <span key={fmt} className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-neutral-500">
-                                        {fmt}
-                                    </span>
-                                ))}
-                            </div>
-
-                            <p className="mt-4 text-xs text-neutral-600">
-                                Máximo 10MB • Todo se procesa en tu navegador
+                        {error && (
+                            <p role="alert" className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
+                                {error}
                             </p>
-                        </div>
+                        )}
 
                         {/* How it works */}
                         <div className="grid grid-cols-3 gap-3 sm:gap-4">
@@ -883,8 +426,10 @@ export default function AsciiArtPage() {
                                 {PRESETS.map((preset) => (
                                     <button
                                         key={preset.name}
+                                        type="button"
+                                        aria-pressed={settings.width === preset.width && settings.charSet === preset.charSet}
                                         onClick={() => applyPreset(preset)}
-                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${settings.width === preset.width && settings.charSet === preset.charSet
+                                        className={`flex-shrink-0 min-h-11 sm:min-h-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${settings.width === preset.width && settings.charSet === preset.charSet
                                             ? "bg-accent-1 text-white"
                                             : "bg-white/10 text-neutral-300 hover:bg-white/20"
                                             }`}
@@ -898,8 +443,9 @@ export default function AsciiArtPage() {
                             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                 {/* Width Control */}
                                 <div className="flex items-center gap-3 bg-white/5 rounded-lg px-3 py-2">
-                                    <span className="text-[10px] text-neutral-500 uppercase tracking-wide shrink-0">Ancho</span>
+                                    <label htmlFor="ascii-ancho" className="text-xs text-neutral-500 shrink-0">Ancho</label>
                                     <input
+                                        id="ascii-ancho"
                                         type="range"
                                         min="30"
                                         max="200"
@@ -913,8 +459,11 @@ export default function AsciiArtPage() {
                                 {/* Toggle Buttons */}
                                 <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
                                     <button
+                                        type="button"
+                                        aria-pressed={settings.colored}
+                                        aria-label="Modo color"
                                         onClick={() => setSettings({ ...settings, colored: !settings.colored })}
-                                        className={`p-2 rounded-md transition-all ${settings.colored
+                                        className={`flex h-11 w-11 items-center justify-center rounded-md transition-all sm:h-9 sm:w-9 ${settings.colored
                                             ? "bg-accent-1 text-white"
                                             : "text-neutral-400 hover:text-white hover:bg-white/10"
                                             }`}
@@ -923,8 +472,11 @@ export default function AsciiArtPage() {
                                         <ColorIcon filled={settings.colored} />
                                     </button>
                                     <button
+                                        type="button"
+                                        aria-pressed={settings.inverted}
+                                        aria-label="Invertir"
                                         onClick={() => setSettings({ ...settings, inverted: !settings.inverted })}
-                                        className={`p-2 rounded-md transition-all ${settings.inverted
+                                        className={`flex h-11 w-11 items-center justify-center rounded-md transition-all sm:h-9 sm:w-9 ${settings.inverted
                                             ? "bg-accent-1 text-white"
                                             : "text-neutral-400 hover:text-white hover:bg-white/10"
                                             }`}
@@ -936,8 +488,11 @@ export default function AsciiArtPage() {
 
                                 {/* Advanced Toggle */}
                                 <button
+                                    type="button"
+                                    aria-expanded={showAdvanced}
+                                    aria-controls="ascii-mas-opciones"
                                     onClick={() => setShowAdvanced(!showAdvanced)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-all ${showAdvanced
+                                    className={`flex min-h-11 sm:min-h-0 items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-all ${showAdvanced
                                         ? "bg-white/20 text-white"
                                         : "bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10"
                                         }`}
@@ -949,67 +504,29 @@ export default function AsciiArtPage() {
 
                             {/* Advanced Options */}
                             {showAdvanced && (
-                                <div className="pt-3 border-t border-white/10 space-y-4 animate-slideDown">
+                                <div id="ascii-mas-opciones" className="pt-3 border-t border-white/10 space-y-4 animate-slideDown">
                                     {/* Character Set Section */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {/* Custom Dropdown for Character Set */}
-                                        <div className="relative">
-                                            <label className="block text-xs text-neutral-500 mb-1.5">Juego de caracteres</label>
-                                            <button
-                                                type="button"
-                                                onClick={() => setCharSetDropdownOpen(!charSetDropdownOpen)}
-                                                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1 transition-colors flex items-center justify-between"
+                                        <div>
+                                            <label htmlFor="ascii-caracteres" className="block text-xs text-neutral-500 mb-1.5">Juego de caracteres</label>
+                                            <select
+                                                id="ascii-caracteres"
+                                                value={settings.charSet}
+                                                onChange={(e) => setSettings({ ...settings, charSet: e.target.value as CharSetKey })}
+                                                className="w-full min-h-11 px-3 py-2 bg-[#1a2332] border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-accent-1 transition-colors"
                                             >
-                                                <span>
-                                                    {settings.charSet === "standard" && "Estándar ( .:-=+*#%@)"}
-                                                    {settings.charSet === "detailed" && "Detallado (70 caracteres)"}
-                                                    {settings.charSet === "blocks" && "Bloques (░▒▓█)"}
-                                                    {settings.charSet === "simple" && "Simple ( .oO@)"}
-                                                    {settings.charSet === "binary" && "Binario (01)"}
-                                                    {settings.charSet === "custom" && "Personalizado"}
-                                                </span>
-                                                <ChevronDownIcon className={`w-4 h-4 transition-transform ${charSetDropdownOpen ? "rotate-180" : ""}`} />
-                                            </button>
-                                            {charSetDropdownOpen && (
-                                                <>
-                                                    <div
-                                                        className="fixed inset-0 z-40"
-                                                        onClick={() => setCharSetDropdownOpen(false)}
-                                                    />
-                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a2332] border border-white/20 rounded-lg shadow-xl z-50 overflow-hidden">
-                                                        {[
-                                                            { value: "standard", label: "Estándar ( .:-=+*#%@)" },
-                                                            { value: "detailed", label: "Detallado (70 caracteres)" },
-                                                            { value: "blocks", label: "Bloques (░▒▓█)" },
-                                                            { value: "simple", label: "Simple ( .oO@)" },
-                                                            { value: "binary", label: "Binario (01)" },
-                                                            { value: "custom", label: "Personalizado" },
-                                                        ].map((option) => (
-                                                            <button
-                                                                key={option.value}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setSettings({ ...settings, charSet: option.value as CharSetKey });
-                                                                    setCharSetDropdownOpen(false);
-                                                                }}
-                                                                className={`w-full px-3 py-2.5 text-left text-sm transition-colors ${settings.charSet === option.value
-                                                                    ? "bg-accent-1 text-white"
-                                                                    : "text-neutral-300 hover:bg-white/10"
-                                                                    }`}
-                                                            >
-                                                                {option.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </>
-                                            )}
+                                                {CHARSET_OPTIONS.map((option) => (
+                                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                                ))}
+                                            </select>
                                         </div>
 
                                         {/* Custom Characters Input */}
                                         {settings.charSet === "custom" && (
                                             <div>
-                                                <label className="block text-xs text-neutral-500 mb-1.5">Caracteres (oscuro → claro)</label>
+                                                <label htmlFor="ascii-propios" className="block text-xs text-neutral-500 mb-1.5">Caracteres (oscuro → claro)</label>
                                                 <input
+                                                    id="ascii-propios"
                                                     type="text"
                                                     value={settings.customChars}
                                                     onChange={(e) => setSettings({ ...settings, customChars: e.target.value })}
@@ -1019,47 +536,20 @@ export default function AsciiArtPage() {
                                             </div>
                                         )}
 
-                                        {/* ASCII Gradient Direction */}
-                                        <div>
-                                            <label className="block text-xs text-neutral-500 mb-1.5">Dirección del gradiente</label>
-                                            <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSettings({ ...settings, asciiGradient: "dark-to-light" })}
-                                                    className={`flex-1 py-1.5 px-2 rounded text-xs font-medium transition-colors ${settings.asciiGradient === "dark-to-light"
-                                                        ? "bg-accent-1 text-white"
-                                                        : "text-neutral-400 hover:text-white"
-                                                        }`}
-                                                >
-                                                    Oscuro → Claro
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSettings({ ...settings, asciiGradient: "light-to-dark" })}
-                                                    className={`flex-1 py-1.5 px-2 rounded text-xs font-medium transition-colors ${settings.asciiGradient === "light-to-dark"
-                                                        ? "bg-accent-1 text-white"
-                                                        : "text-neutral-400 hover:text-white"
-                                                        }`}
-                                                >
-                                                    Claro → Oscuro
-                                                </button>
-                                            </div>
-                                        </div>
-
                                         {/* Space Density */}
                                         <div>
-                                            <label className="block text-xs text-neutral-500 mb-1.5">Densidad de espaciado</label>
-                                            <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
+                                            <p id="ascii-espaciado" className="block text-xs text-neutral-500 mb-1.5">Densidad de espaciado</p>
+                                            <div className="flex gap-1 bg-white/5 p-1 rounded-lg" role="group" aria-labelledby="ascii-espaciado">
                                                 {[
-                                                    { value: "compact", label: "Compacto" },
                                                     { value: "normal", label: "Normal" },
                                                     { value: "sparse", label: "Espaciado" },
                                                 ].map((option) => (
                                                     <button
                                                         key={option.value}
                                                         type="button"
+                                                        aria-pressed={settings.spaceDensity === option.value}
                                                         onClick={() => setSettings({ ...settings, spaceDensity: option.value as SpaceDensity })}
-                                                        className={`flex-1 py-1.5 px-2 rounded text-xs font-medium transition-colors ${settings.spaceDensity === option.value
+                                                        className={`flex-1 min-h-11 sm:min-h-0 py-1.5 px-2 rounded text-xs font-medium transition-colors ${settings.spaceDensity === option.value
                                                             ? "bg-accent-1 text-white"
                                                             : "text-neutral-400 hover:text-white"
                                                             }`}
@@ -1082,8 +572,9 @@ export default function AsciiArtPage() {
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {/* Brightness */}
                                             <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-                                                <span className="text-[10px] text-neutral-500 uppercase tracking-wide w-16">Brillo</span>
+                                                <label htmlFor="ascii-brightness" className="text-xs text-neutral-500 w-16">Brillo</label>
                                                 <input
+                                                    id="ascii-brightness"
                                                     type="range"
                                                     min="-100"
                                                     max="100"
@@ -1096,8 +587,9 @@ export default function AsciiArtPage() {
 
                                             {/* Contrast */}
                                             <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-                                                <span className="text-[10px] text-neutral-500 uppercase tracking-wide w-16">Contraste</span>
+                                                <label htmlFor="ascii-contrast" className="text-xs text-neutral-500 w-16">Contraste</label>
                                                 <input
+                                                    id="ascii-contrast"
                                                     type="range"
                                                     min="-100"
                                                     max="100"
@@ -1110,8 +602,9 @@ export default function AsciiArtPage() {
 
                                             {/* Saturation */}
                                             <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-                                                <span className="text-[10px] text-neutral-500 uppercase tracking-wide w-16">Saturación</span>
+                                                <label htmlFor="ascii-saturation" className="text-xs text-neutral-500 w-16">Saturación</label>
                                                 <input
+                                                    id="ascii-saturation"
                                                     type="range"
                                                     min="-100"
                                                     max="100"
@@ -1124,8 +617,9 @@ export default function AsciiArtPage() {
 
                                             {/* Hue */}
                                             <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-                                                <span className="text-[10px] text-neutral-500 uppercase tracking-wide w-16">Tono</span>
+                                                <label htmlFor="ascii-hue" className="text-xs text-neutral-500 w-16">Tono</label>
                                                 <input
+                                                    id="ascii-hue"
                                                     type="range"
                                                     min="0"
                                                     max="360"
@@ -1153,8 +647,9 @@ export default function AsciiArtPage() {
                                             {/* Grayscale */}
                                             <button
                                                 type="button"
+                                                aria-pressed={settings.grayscale}
                                                 onClick={() => setSettings({ ...settings, grayscale: !settings.grayscale })}
-                                                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.grayscale
+                                                className={`flex min-h-11 sm:min-h-0 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.grayscale
                                                     ? "bg-accent-1 text-white"
                                                     : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white"
                                                     }`}
@@ -1168,8 +663,9 @@ export default function AsciiArtPage() {
                                             {/* Sepia */}
                                             <button
                                                 type="button"
+                                                aria-pressed={settings.sepia}
                                                 onClick={() => setSettings({ ...settings, sepia: !settings.sepia })}
-                                                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.sepia
+                                                className={`flex min-h-11 sm:min-h-0 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.sepia
                                                     ? "bg-accent-1 text-white"
                                                     : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white"
                                                     }`}
@@ -1183,8 +679,9 @@ export default function AsciiArtPage() {
                                             {/* Quality Enhancements */}
                                             <button
                                                 type="button"
+                                                aria-pressed={settings.qualityEnhancements}
                                                 onClick={() => setSettings({ ...settings, qualityEnhancements: !settings.qualityEnhancements })}
-                                                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.qualityEnhancements
+                                                className={`flex min-h-11 sm:min-h-0 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.qualityEnhancements
                                                     ? "bg-accent-1 text-white"
                                                     : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white"
                                                     }`}
@@ -1198,8 +695,9 @@ export default function AsciiArtPage() {
                                             {/* Transparent Frame */}
                                             <button
                                                 type="button"
+                                                aria-pressed={settings.transparentFrame}
                                                 onClick={() => setSettings({ ...settings, transparentFrame: !settings.transparentFrame })}
-                                                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.transparentFrame
+                                                className={`flex min-h-11 sm:min-h-0 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all ${settings.transparentFrame
                                                     ? "bg-accent-1 text-white"
                                                     : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white"
                                                     }`}
@@ -1214,7 +712,7 @@ export default function AsciiArtPage() {
 
                                     {/* Options Row */}
                                     <div className="pt-3 border-t border-white/10 flex flex-wrap gap-3">
-                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                        <label className="flex min-h-11 sm:min-h-0 items-center gap-2 cursor-pointer group">
                                             <input
                                                 type="checkbox"
                                                 checked={settings.preserveAspect}
@@ -1237,7 +735,7 @@ export default function AsciiArtPage() {
                                                 sepia: false,
                                                 qualityEnhancements: false,
                                             })}
-                                            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                                            className="ml-auto flex min-h-11 sm:min-h-0 items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
                                         >
                                             <RefreshIcon />
                                             Restablecer ajustes
@@ -1248,10 +746,12 @@ export default function AsciiArtPage() {
                         </div>
 
                         {/* Mobile View Toggle */}
-                        <div className="sm:hidden flex bg-white/5 border border-white/10 rounded-xl p-1">
+                        <div className="sm:hidden flex bg-white/5 border border-white/10 rounded-xl p-1" role="group" aria-label="Vista">
                             <button
+                                type="button"
+                                aria-pressed={activeView === "original"}
                                 onClick={() => setActiveView("original")}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeView === "original"
+                                className={`flex-1 flex min-h-11 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeView === "original"
                                     ? "bg-white/10 text-white"
                                     : "text-neutral-400"
                                     }`}
@@ -1260,8 +760,10 @@ export default function AsciiArtPage() {
                                 Original
                             </button>
                             <button
+                                type="button"
+                                aria-pressed={activeView === "ascii"}
                                 onClick={() => setActiveView("ascii")}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeView === "ascii"
+                                className={`flex-1 flex min-h-11 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeView === "ascii"
                                     ? "bg-white/10 text-white"
                                     : "text-neutral-400"
                                     }`}
@@ -1290,7 +792,7 @@ export default function AsciiArtPage() {
                                     <div className="aspect-[4/3] sm:h-[350px] lg:h-[400px] flex items-center justify-center">
                                         <img
                                             src={imageUrl}
-                                            alt="Original"
+                                            alt="Imagen original"
                                             className="max-w-full max-h-full object-contain"
                                         />
                                     </div>
@@ -1303,105 +805,143 @@ export default function AsciiArtPage() {
                                     <span className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
                                         <TerminalIcon />
                                         ASCII Art
+                                        {hecho && (
+                                            <span className="font-mono text-[10px] text-neutral-600">
+                                                {hecho.resultado.columnas}×{hecho.resultado.filas}
+                                            </span>
+                                        )}
                                     </span>
-                                    <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5">
+                                    <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5" role="group" aria-label="Tamaño de la vista previa">
                                         <button
+                                            type="button"
                                             onClick={() => setFontSize(prev => Math.max(3, prev - 1))}
-                                            className="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                                            title="Reducir tamaño"
+                                            disabled={fontSize <= 3}
+                                            aria-label="Reducir tamaño"
+                                            className="flex h-11 w-11 items-center justify-center rounded hover:bg-white/10 text-neutral-400 hover:text-white transition-colors disabled:opacity-40 sm:h-7 sm:w-7"
                                         >
                                             <ZoomOutIcon />
                                         </button>
-                                        <span className="text-[10px] text-neutral-500 font-mono w-4 text-center">{fontSize}</span>
+                                        <span className="text-[10px] text-neutral-500 font-mono w-4 text-center" aria-hidden="true">{fontSize}</span>
                                         <button
+                                            type="button"
                                             onClick={() => setFontSize(prev => Math.min(12, prev + 1))}
-                                            className="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                                            title="Aumentar tamaño"
+                                            disabled={fontSize >= 12}
+                                            aria-label="Aumentar tamaño"
+                                            className="flex h-11 w-11 items-center justify-center rounded hover:bg-white/10 text-neutral-400 hover:text-white transition-colors disabled:opacity-40 sm:h-7 sm:w-7"
                                         >
                                             <ZoomInIcon />
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="relative bg-[#080b10] border border-white/10 rounded-xl overflow-hidden">
-                                    <div className="aspect-[4/3] sm:h-[350px] lg:h-[400px] overflow-auto">
-                                        {processing ? (
+                                <div className="relative bg-[#080b10] border border-white/10 rounded-xl overflow-hidden" aria-busy={actualizando}>
+                                    {/* Contenedor con desplazamiento: enfocable para recorrerlo con el teclado. */}
+                                    <div className="aspect-[4/3] sm:h-[350px] lg:h-[400px] overflow-auto focus-visible:outline-2 focus-visible:outline-accent-1" tabIndex={0} role="region" aria-label="Resultado en ASCII">
+                                        {!hecho ? (error ? null :
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <div className="w-6 h-6 border-2 border-accent-1 border-t-transparent rounded-full animate-spin" />
-                                                    <span className="text-xs text-neutral-400">Procesando...</span>
+                                                <div className="flex flex-col items-center gap-2" role="status">
+                                                    <div className="w-6 h-6 border-2 border-accent-1 border-t-transparent rounded-full motion-safe:animate-spin" aria-hidden="true" />
+                                                    <span className="text-xs text-neutral-400">Generando…</span>
                                                 </div>
+                                            </div>
+                                        ) : hecho.ajustes.colored ? (
+                                            <div className="p-2 sm:p-3 w-max">
+                                                <canvas
+                                                    ref={vistaColorRef}
+                                                    role="img"
+                                                    aria-label={`Arte ASCII en color de ${hecho.resultado.columnas} columnas por ${hecho.resultado.filas} filas. Usa Copiar o TXT para obtener el texto.`}
+                                                    className="block"
+                                                />
                                             </div>
                                         ) : (
                                             <pre
-                                                ref={outputRef}
-                                                className="p-2 sm:p-3 font-mono whitespace-pre select-all leading-none min-h-full"
+                                                className="p-2 sm:p-3 font-mono whitespace-pre select-all leading-none min-h-full text-neutral-300"
                                                 style={{ fontSize: `${fontSize}px`, letterSpacing: "0px" }}
                                             >
-                                                {settings.colored ? (
-                                                    coloredAscii.map((line, y) => (
-                                                        <div key={y} className="flex">
-                                                            {line.map(({ char, color }, x) => (
-                                                                <span key={`${y}-${x}`} style={{ color }}>
-                                                                    {char}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-neutral-300">{asciiArt}</span>
-                                                )}
+                                                {hecho.resultado.texto}
                                             </pre>
                                         )}
                                     </div>
+                                    {actualizando && hecho && (
+                                        <span className="pointer-events-none absolute right-2 top-2 rounded-md bg-black/70 px-2 py-1 text-[10px] text-neutral-300">
+                                            Actualizando…
+                                        </span>
+                                    )}
                                 </div>
+                                {error && (
+                                    <p role="alert" className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-xs">
+                                        {error}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-xl">
-                            <div className="flex items-center justify-center gap-2 sm:gap-3">
+                            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                                 <button
-                                    onClick={handleCopy}
-                                    disabled={!asciiArt || processing}
-                                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${copied
+                                    type="button"
+                                    onClick={() => { void handleCopy(); }}
+                                    disabled={!hecho}
+                                    aria-label="Copiar el arte ASCII como texto"
+                                    className={`flex min-h-11 items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${copiado === "ascii"
                                         ? "bg-green-500/20 text-green-400 border border-green-500/30"
                                         : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
                                         }`}
                                 >
-                                    {copied ? <CheckIcon /> : <CopyIcon />}
-                                    <span>{copied ? "Copiado!" : "Copiar"}</span>
+                                    {copiado === "ascii" ? <CheckIcon /> : <CopyIcon />}
+                                    <span>{copiado === "ascii" ? "Copiado" : fallo === "ascii" ? "No se pudo copiar" : "Copiar"}</span>
                                 </button>
 
                                 <button
+                                    type="button"
                                     onClick={handleDownloadTxt}
-                                    disabled={!asciiArt || processing}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-accent-1 to-accent-2 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-accent-1/20"
+                                    disabled={!hecho}
+                                    aria-label="Descargar TXT"
+                                    className="flex min-h-11 items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-accent-1 to-accent-2 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-accent-1/20"
                                 >
                                     <DownloadIcon />
                                     <span>TXT</span>
                                 </button>
 
                                 <button
+                                    type="button"
+                                    onClick={() => { void handleDownloadPng(); }}
+                                    disabled={!hecho || exportando}
+                                    aria-label="Descargar PNG"
+                                    className="flex min-h-11 items-center gap-1.5 px-4 py-2.5 bg-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-white/10"
+                                >
+                                    <DownloadIcon />
+                                    <span>{exportando ? "Creando…" : "PNG"}</span>
+                                </button>
+
+                                <button
+                                    type="button"
                                     onClick={handleDownloadHtml}
-                                    disabled={!asciiArt || processing}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 bg-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-white/10"
+                                    disabled={!hecho}
+                                    aria-label="Descargar HTML en color"
+                                    className="flex min-h-11 items-center gap-1.5 px-4 py-2.5 bg-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-white/10"
                                 >
                                     <DownloadIcon />
                                     <span>HTML</span>
                                     <span className="hidden xs:inline text-neutral-400">+ Color</span>
                                 </button>
                             </div>
+                            <p role="status" className="mt-2 text-center text-xs text-neutral-500">
+                                {copiado === "ascii" ? "Texto copiado." : fallo === "ascii" ? "No se pudo copiar. Usa TXT para descargarlo." : ""}
+                            </p>
+                            {errorExportar && <p role="alert" className="mt-2 text-center text-xs text-red-300">{errorExportar}</p>}
                         </div>
                     </div>
                 )}
 
                 {/* Tip */}
-                {imageUrl && !processing && (
+                {imageUrl && hecho && (
                     <div className="mt-4 sm:mt-6 p-3 bg-accent-1/5 border border-accent-1/10 rounded-xl">
                         <p className="text-xs text-neutral-400 text-center sm:text-left">
                             <span className="text-accent-1 font-medium">💡 Tip:</span>{" "}
                             Usa el modo &quot;Bloques&quot; para logos e iconos, y &quot;Detallado&quot; para fotos con más definición.
+                            El PNG sale tal como se ve: en color si el modo color está activo y con fondo transparente si eliges «Transparente».
                         </p>
                     </div>
                 )}
@@ -1425,16 +965,10 @@ export default function AsciiArtPage() {
                     from { opacity: 0; transform: translateY(-8px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
-                @keyframes shake {
-                    0%, 100% { transform: translateX(0); }
-                    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-                    20%, 40%, 60%, 80% { transform: translateX(4px); }
-                }
-                .animate-slideDown {
-                    animation: slideDown 0.2s ease-out;
-                }
-                .animate-shake {
-                    animation: shake 0.6s ease-in-out;
+                @media (prefers-reduced-motion: no-preference) {
+                    .animate-slideDown {
+                        animation: slideDown 0.2s ease-out;
+                    }
                 }
                 .scrollbar-hide {
                     -ms-overflow-style: none;

@@ -31,20 +31,13 @@ export async function GET() {
             },
         });
 
-        // Get usage stats for each tool
+        // Uso por herramienta y acción en UNA consulta agrupada (antes eran 3 count por herramienta: ~90 consultas contra
+        // un pool de 5 conexiones).
+        const grupos = await prisma.toolUsage.groupBy({ by: ["toolId", "action"], _count: { _all: true } });
+        const cuenta = (toolId: string, acciones: string[]) => grupos.filter((g) => g.toolId === toolId && acciones.includes(g.action)).reduce((s, g) => s + g._count._all, 0);
         const toolsWithStats = await Promise.all(
             tools.map(async (tool) => {
-                const [viewCount, useCount, downloadCount] = await Promise.all([
-                    prisma.toolUsage.count({
-                        where: { toolId: tool.id, action: "view" },
-                    }),
-                    prisma.toolUsage.count({
-                        where: { toolId: tool.id, action: { in: ["use", "generate"] } },
-                    }),
-                    prisma.toolUsage.count({
-                        where: { toolId: tool.id, action: "download" },
-                    }),
-                ]);
+                const [viewCount, useCount, downloadCount] = [cuenta(tool.id, ["view"]), cuenta(tool.id, ["use", "generate"]), cuenta(tool.id, ["download"])];
 
                 return {
                     ...tool,

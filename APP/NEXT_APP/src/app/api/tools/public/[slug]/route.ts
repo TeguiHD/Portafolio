@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ipCliente } from "@/lib/ip-cliente";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { createHash } from "crypto";
@@ -86,7 +87,7 @@ export async function GET(
         }
 
         const headersList = await headers();
-        ip = headersList.get("x-forwarded-for") || "unknown";
+        ip = ipCliente(headersList);
 
         let degradedReason: string | null = null;
 
@@ -218,7 +219,7 @@ export async function POST(
 
         const headersList = await headers();
         const userAgent = headersList.get("user-agent") || "unknown";
-        const ip = headersList.get("x-forwarded-for") || "unknown";
+        const ip = ipCliente(headersList);
 
         // Security: Rate Limit (20 requests per minute per IP for tracking)
         // This prevents spamming usage stats
@@ -230,7 +231,7 @@ export async function POST(
 
         if (!allowed) {
             return NextResponse.json(
-                { error: "Too many requests" },
+                { error: "Demasiadas solicitudes seguidas. Espera un momento y vuelve a intentar." },
                 { status: 429, headers: { "Retry-After": resetIn.toString() } }
             );
         }

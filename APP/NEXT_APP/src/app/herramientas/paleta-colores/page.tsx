@@ -11,8 +11,9 @@ import { MesaCabecera } from "@/components/tools/mesa/MesaCabecera";
 import { IconoCopiar, IconoDescargar, IconoGota, IconoImagen, IconoSubir } from "@/components/tools/mesa/MesaIcons";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
-import { ImageDropzone } from "@/components/tools/ImageDropzone";
+import { ImageDropzone, useSinAbrirArchivoSoltado } from "@/components/tools/ImageDropzone";
 import { sanitizeFileBaseName, triggerDownload } from "@/lib/tools/image-processing";
+import { useCopiar } from "@/lib/tools/copiar";
 
 const ACCENT = "#EC4899";
 const PASOS = [
@@ -151,32 +152,41 @@ function extractPalette(imageData: ImageData, numColors = 6): ColorInfo[] {
         });
         counts[nearest] += sample.count;
     }
+    // Se ordena por la presencia final (tras repartir los píxeles): así «Dominante» es el de mayor porcentaje.
     return filtered.map((color, index) => ({
         hex: rgbToHex(color.r, color.g, color.b),
         rgb: { r: color.r, g: color.g, b: color.b },
         hsl: rgbToHsl(color.r, color.g, color.b),
         count: counts[index],
         percentage: Math.round((counts[index] / pixels.length) * 100),
-    }));
+    })).sort((left, right) => right.count - left.count);
 }
 
 export default function ColorPalettePage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("paleta-colores");
+    useSinAbrirArchivoSoltado();
     const [sourceImage, setSourceImage] = useState<string | null>(null);
     const [palette, setPalette] = useState<ColorInfo[]>([]);
     const [numColors, setNumColors] = useState(6);
     const [selectedColorIndex, setSelectedColorIndex] = useState(0);
-    const [copiedToken, setCopiedToken] = useState<string | null>(null);
+    const { copiado: copiedToken, fallo: falloCopia, copiar } = useCopiar(2000);
     const [error, setError] = useState<string | null>(null);
     const [extracting, setExtracting] = useState(false);
     const [fileName, setFileName] = useState("paleta");
     const [cssDescargado, setCssDescargado] = useState<string | null>(null);
     const extractionVersion = useRef(0);
-    const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Copia de 320 px ya leída: cambiar la cantidad de colores no vuelve a decodificar la foto completa.
+    const muestraRef = useRef<ImageData | null>(null);
+    // La URL blob: de la imagen es de esta página (el recuadro de carga se desmonta): se libera al cambiarla o al salir.
+    const urlFuenteRef = useRef<string | null>(null);
+    const cambiarUrlFuente = useCallback((siguiente: string | null) => {
+        if (urlFuenteRef.current && urlFuenteRef.current !== siguiente) URL.revokeObjectURL(urlFuenteRef.current);
+        urlFuenteRef.current = siguiente;
+    }, []);
     useEffect(() => () => {
         extractionVersion.current += 1;
-        if (copyTimer.current) clearTimeout(copyTimer.current);
-    }, []);
+        cambiarUrlFuente(null);
+    }, [cambiarUrlFuente]);
 
     const extractFromImage = useCallback((imageUrl: string, colors: number) => {
         const version = ++extractionVersion.current;
@@ -196,6 +206,7 @@ export default function ColorPalettePage() {
 
             context.drawImage(img, 0, 0, canvas.width, canvas.height);
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            muestraRef.current = imageData;
             const nextPalette = extractPalette(imageData, colors);
             setPalette(nextPalette);
             setSelectedColorIndex(0);
@@ -207,36 +218,37 @@ export default function ColorPalettePage() {
     }, []);
 
     const handleImageLoad = useCallback((file: File, dataUrl: string) => {
+        cambiarUrlFuente(dataUrl);
+        muestraRef.current = null;
         setFileName(sanitizeFileBaseName(file.name));
         setSourceImage(dataUrl);
         setPalette([]);
         extractFromImage(dataUrl, numColors);
-    }, [extractFromImage, numColors]);
+    }, [extractFromImage, numColors, cambiarUrlFuente]);
 
     const handleClear = useCallback(() => {
         extractionVersion.current += 1;
+        cambiarUrlFuente(null);
+        muestraRef.current = null;
         setExtracting(false);
         setError(null);
         setSourceImage(null);
         setPalette([]);
         setSelectedColorIndex(0);
-    }, []);
+    }, [cambiarUrlFuente]);
 
     const handleColorCount = useCallback((count: number) => {
         setNumColors(count);
-        if (sourceImage) {
+        if (muestraRef.current) {
+            const nextPalette = extractPalette(muestraRef.current, count);
+            setPalette(nextPalette);
+            setSelectedColorIndex(0);
+        } else if (sourceImage) {
             extractFromImage(sourceImage, count);
         }
     }, [extractFromImage, sourceImage]);
 
-    const copyValue = useCallback(async (value: string, token: string) => {
-        try {
-            await navigator.clipboard.writeText(value);
-            setCopiedToken(token);
-            if (copyTimer.current) clearTimeout(copyTimer.current);
-            copyTimer.current = setTimeout(() => setCopiedToken(null), 1600);
-        } catch { setError("No se pudo copiar. Puedes seleccionar y copiar los valores manualmente."); }
-    }, []);
+    const copyValue = useCallback(async (value: string, token: string) => { await copiar(value, token); }, [copiar]);
 
     const css = `:root {\n${palette.map((color, index) => `  --palette-${index + 1}: ${color.hex};`).join("\n")}\n}`;
     const downloadPalette = () => {
@@ -293,7 +305,8 @@ export default function ColorPalettePage() {
                         </div>
                     </section>
                 )}
-                {copiedToken && <p role="status" className="sr-only">Color copiado</p>}
+                {copiedToken && <p role="status" className="sr-only">{copiedToken === "css" ? "Paleta CSS copiada" : "Copiado"}</p>}
+                {falloCopia && <p role="alert" className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">No se pudo copiar. Puedes seleccionar y copiar los valores a mano.</p>}
                 {error && <p role="alert" className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}
             </main>
         </div>

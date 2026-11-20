@@ -1,14 +1,20 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { TOOL_ICONS } from "./ToolIcons";
+import { getDefaultPublicToolCatalog } from "@/lib/tool-registry";
+import { COLOR_CATEGORIA } from "@/modules/landing/viva/siglas";
 
+const FAMILIA = new Map(getDefaultPublicToolCatalog().map((t) => [t.slug, t.category]));
+
+/** Cabecera común de las herramientas: el ícono con el color de su familia, el título grande y una línea. */
 export function ToolPageHeader({ slug, title, description }: { slug: string; title: ReactNode; description?: ReactNode }) {
     const Icon = TOOL_ICONS[slug];
+    const color = COLOR_CATEGORIA[FAMILIA.get(slug) ?? ""] ?? "#5eead4";
     return (
-        <header className="tool-page-heading group mb-5 flex items-center gap-3">
-            {Icon && <span className="tool-glyph flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal-300/15 bg-teal-300/[0.06] text-teal-300"><Icon className="h-5 w-5" aria-hidden="true" /></span>}
+        <header className="tool-page-heading th" style={{ "--c": color } as CSSProperties}>
+            {Icon && <span className="th-icono"><Icon aria-hidden="true" /></span>}
             <div className="min-w-0">
-                <h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">{title}</h1>
-                {description && <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-400 sm:text-sm">{description}</p>}
+                <h1>{title}</h1>
+                {description && <p>{description}</p>}
             </div>
         </header>
     );

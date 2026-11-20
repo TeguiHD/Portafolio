@@ -1,12 +1,13 @@
 "use client";
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
+import { numeroCL } from "@/lib/tools/numeros";
+import { useCopiar } from "@/lib/tools/copiar";
 
 import { useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
-import { sanitizeInput } from "@/lib/security";
 
 // Tax rate presets by country
 const TAX_PRESETS = [
@@ -14,23 +15,40 @@ const TAX_PRESETS = [
     { code: "AR", name: "Argentina", rate: 21 },
     { code: "MX", name: "México", rate: 16 },
     { code: "ES", name: "España", rate: 21 },
-    { code: "US", name: "USA (avg)", rate: 8 },
+    { code: "US", name: "EE. UU. (impuesto a las ventas, aprox.; varía por estado)", rate: 8 },
     { code: "CUSTOM", name: "Personalizado", rate: 0 },
 ] as const;
 
 type CalculationMode = "add" | "remove";
 
+const MONTO_MAXIMO = 10_000_000_000;
+
 // Security: Validate and sanitize numeric input
 const validateAmount = (value: string): number | null => {
-    // Remove formatting characters except digits, dots, and commas
-    const cleaned = value.replace(/[^0-9.,-]/g, "").replace(",", ".");
-    const num = parseFloat(cleaned);
+    // A la chilena: «1.190.000» es un millón ciento noventa mil (antes se leía 1,19).
+    const num = numeroCL(value);
+    if (num === null) return null;
 
-    if (isNaN(num) || !isFinite(num) || num < 0 || num > 10_000_000_000) {
+    if (isNaN(num) || !isFinite(num) || num < 0 || num > MONTO_MAXIMO) {
         return null;
     }
     return num;
 };
+
+/** Por qué no se puede calcular lo escrito, o null si está bien (o vacío). */
+const errorMonto = (value: string): string | null => {
+    if (!value.trim()) return null;
+    const num = numeroCL(value);
+    if (num === null || !/\d/.test(value)) return "No es un monto. Escribe, por ejemplo, 1.190.000 o 19,5.";
+    if (num < 0) return "El monto no puede ser negativo.";
+    if (num > MONTO_MAXIMO) return "El monto máximo es 10.000.000.000.";
+    return null;
+};
+
+/** Redondea al entero sin el ruido de coma flotante (1,005 × 100 = 100,49999… debe dar 101). */
+const redondear = (n: number): number => Math.round(Number(n.toPrecision(15)));
+
+const formatoTasa = (tasa: number): string => tasa.toLocaleString("es-CL", { maximumFractionDigits: 2 });
 
 // Security: Validate tax rate
 const validateRate = (rate: number): number => {
@@ -56,11 +74,21 @@ export default function TaxCalculatorPage() {
     const [customRate, setCustomRate] = useState("19");
     const [selectedPreset, setSelectedPreset] = useState("CL");
     const [mode, setMode] = useState<CalculationMode>("add");
-    const [copied, setCopied] = useState<string | null>(null);
-    const [isCopying, setIsCopying] = useState(false);
+    const { copiado, fallo, copiar } = useCopiar(2000);
     const lastTrackRef = useRef<number>(0);
 
-    // Calculate results
+    // En pesos chilenos no se usan centavos: se muestra y se copia al peso. Otros países, con 2 decimales.
+    const decimales = selectedPreset === "CL" ? 0 : 2;
+    const fmt = (n: number) => formatCurrency(n, decimales);
+    const nombreImpuesto = selectedPreset === "US" ? "Impuesto" : "IVA";
+    const avisoMonto = errorMonto(amount);
+
+    /**
+     * Se calcula en la unidad que se muestra (pesos en Chile, centavos en el resto), como en una boleta:
+     * agregar → impuesto = neto × tasa redondeado y total = neto + impuesto;
+     * quitar → neto = total ÷ (1 + tasa) redondeado e impuesto = total − neto.
+     * Así neto + impuesto da siempre el total que se ve (antes, con $47 salía neto $40 + IVA $8).
+     */
     const results = useMemo(() => {
         const numAmount = validateAmount(amount);
         if (numAmount === null || numAmount === 0) {
@@ -68,30 +96,27 @@ export default function TaxCalculatorPage() {
         }
 
         const safeRate = validateRate(taxRate);
-        const taxMultiplier = safeRate / 100;
+        const unidad = 10 ** decimales;
+        const monto = redondear(numAmount * unidad);
 
         if (mode === "add") {
-            // Net to Gross: amount * (1 + rate)
-            const tax = Math.round(numAmount * taxMultiplier * 100) / 100;
-            const gross = Math.round((numAmount + tax) * 100) / 100;
+            const tax = redondear((monto * safeRate) / 100);
             return {
-                net: numAmount,
-                tax,
-                gross,
+                net: monto / unidad,
+                tax: tax / unidad,
+                gross: (monto + tax) / unidad,
                 effectiveRate: safeRate,
             };
         } else {
-            // Gross to Net: amount / (1 + rate)
-            const net = Math.round((numAmount / (1 + taxMultiplier)) * 100) / 100;
-            const tax = Math.round((numAmount - net) * 100) / 100;
+            const net = redondear((monto * 100) / (100 + safeRate));
             return {
-                net,
-                tax,
-                gross: numAmount,
+                net: net / unidad,
+                tax: (monto - net) / unidad,
+                gross: monto / unidad,
                 effectiveRate: safeRate,
             };
         }
-    }, [amount, taxRate, mode]);
+    }, [amount, taxRate, mode, decimales]);
 
     // Handle preset selection
     const handlePresetChange = useCallback((code: string) => {
@@ -112,30 +137,15 @@ export default function TaxCalculatorPage() {
         }
     }, []);
 
-    // Copy to clipboard with throttling
+    // Copia y registra el uso (como mucho una vez cada 2 s).
     const copyToClipboard = useCallback(async (value: string, label: string) => {
-        if (isCopying) return;
-
-        // Anti-spam cooldown
-        setIsCopying(true);
-        setTimeout(() => setIsCopying(false), 300);
-
-        try {
-            await navigator.clipboard.writeText(value);
-            setCopied(label);
-
-            // Throttle tracking: max 1 request per 2 seconds
-            const now = Date.now();
-            if (now - lastTrackRef.current > 2000) {
-                lastTrackRef.current = now;
-                trackImmediate("use", { action: "copy", label });
-            }
-
-            setTimeout(() => setCopied(null), 2000);
-        } catch (err) {
-            console.error("Failed to copy:", err);
+        if (!(await copiar(value, label))) return;
+        const now = Date.now();
+        if (now - lastTrackRef.current > 2000) {
+            lastTrackRef.current = now;
+            trackImmediate("use", { action: "copy", label });
         }
-    }, [isCopying, trackImmediate]);
+    }, [copiar, trackImmediate]);
 
     if (isLoading) {
         return (
@@ -161,8 +171,10 @@ export default function TaxCalculatorPage() {
                     {/* Left: Input */}
                     <div className="space-y-4">
                         {/* Mode Toggle */}
-                        <div className="p-1 rounded-xl bg-white/5 border border-white/10 flex">
+                        <div className="p-1 rounded-xl bg-white/5 border border-white/10 flex" role="group" aria-label="Operación">
                             <button
+                                type="button"
+                                aria-pressed={mode === "add"}
                                 onClick={() => setMode("add")}
                                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "add"
                                     ? "bg-green-500/20 text-green-400 border border-green-500/30"
@@ -175,6 +187,8 @@ export default function TaxCalculatorPage() {
                                 Agregar IVA
                             </button>
                             <button
+                                type="button"
+                                aria-pressed={mode === "remove"}
                                 onClick={() => setMode("remove")}
                                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "remove"
                                     ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
@@ -190,33 +204,40 @@ export default function TaxCalculatorPage() {
 
                         {/* Amount Input */}
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                            <label className="text-sm text-neutral-400 mb-2 block">
-                                {mode === "add" ? "Monto Neto (sin IVA)" : "Monto Bruto (con IVA)"}
+                            <label htmlFor="impuestos-monto" className="text-sm text-neutral-400 mb-2 block">
+                                {mode === "add" ? `Monto neto (sin ${nombreImpuesto})` : `Monto bruto (con ${nombreImpuesto})`}
                             </label>
                             <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 text-lg">$</span>
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 text-lg" aria-hidden="true">$</span>
                                 <input
+                                    id="impuestos-monto"
                                     type="text"
                                     inputMode="decimal"
+                                    autoComplete="off"
                                     value={amount}
-                                    onChange={(e) => setAmount(sanitizeInput(e.target.value))}
+                                    onChange={(e) => setAmount(e.target.value.slice(0, 32))}
                                     placeholder="0"
+                                    aria-invalid={!!avisoMonto}
+                                    aria-describedby={avisoMonto ? "impuestos-monto-error" : undefined}
                                     className={`${inputClass} pl-8 text-2xl font-semibold`}
                                 />
                             </div>
+                            {avisoMonto && <p id="impuestos-monto-error" role="alert" className="mt-2 text-xs text-amber-300">{avisoMonto}</p>}
                         </div>
 
                         {/* Tax Rate Selection */}
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                            <label className="text-sm text-neutral-400 mb-3 block">Tasa de Impuesto</label>
+                            <p id="impuestos-tasa" className="text-sm text-neutral-400 mb-3">Tasa de impuesto</p>
 
                             {/* Preset Pills */}
-                            <div className="flex flex-wrap gap-2 mb-4">
+                            <div className="flex flex-wrap gap-2 mb-4" role="group" aria-labelledby="impuestos-tasa">
                                 {TAX_PRESETS.map((preset) => (
                                     <button
                                         key={preset.code}
+                                        type="button"
+                                        aria-pressed={selectedPreset === preset.code}
                                         onClick={() => handlePresetChange(preset.code)}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedPreset === preset.code
+                                        className={`min-h-11 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedPreset === preset.code
                                             ? "bg-[#FF8A00]/20 border border-[#FF8A00] text-white"
                                             : "bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10"
                                             }`}
@@ -235,10 +256,11 @@ export default function TaxCalculatorPage() {
                                         max="100"
                                         step="0.5"
                                         value={customRate}
+                                        aria-label="Tasa personalizada en porcentaje"
                                         onChange={(e) => handleCustomRateChange(e.target.value)}
-                                        className="w-24 px-3 py-2 rounded-xl bg-[#0F1724] border border-white/10 text-white text-center focus:outline-none focus:border-[#FF8A00]/50"
+                                        className="w-24 min-h-11 px-3 py-2 rounded-xl bg-[#0F1724] border border-white/10 text-white text-center focus:outline-none focus:border-[#FF8A00]/50"
                                     />
-                                    <span className="text-neutral-400">%</span>
+                                    <span className="text-neutral-400" aria-hidden="true">%</span>
                                 </div>
                             )}
                         </div>
@@ -255,83 +277,50 @@ export default function TaxCalculatorPage() {
 
                         {results ? (
                             <div className="space-y-4">
-                                {/* Net Amount */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
-                                    <div>
-                                        <p className="text-xs text-neutral-500 uppercase tracking-wide">Neto</p>
-                                        <p className="text-2xl font-bold text-white">$ {formatCurrency(results.net)}</p>
+                                {([
+                                    { clave: "net", rotulo: "Neto", valor: `$ ${fmt(results.net)}`, copia: fmt(results.net), caja: "bg-white/5 border border-white/10", rotuloClase: "text-neutral-500", valorClase: "text-2xl font-bold text-white" },
+                                    { clave: "tax", rotulo: `${nombreImpuesto} (${formatoTasa(results.effectiveRate)}%)`, valor: `+ $ ${fmt(results.tax)}`, copia: fmt(results.tax), caja: "bg-orange-500/5 border border-orange-500/20", rotuloClase: "text-orange-400/70", valorClase: "text-xl font-semibold text-orange-400" },
+                                    { clave: "gross", rotulo: "Total bruto", valor: `$ ${fmt(results.gross)}`, copia: fmt(results.gross), caja: "bg-green-500/10 border border-green-500/30", rotuloClase: "text-green-400/70", valorClase: "text-3xl font-bold text-green-400" },
+                                ] as const).map((fila) => (
+                                    <div key={fila.clave} className={`flex items-center justify-between gap-2 p-4 rounded-xl ${fila.caja}`}>
+                                        <div className="min-w-0">
+                                            <p className={`text-xs ${fila.rotuloClase}`}>{fila.rotulo}</p>
+                                            <p className={`${fila.valorClase} break-words`}>{fila.valor}</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => { void copyToClipboard(fila.copia, fila.clave); }}
+                                            aria-label={`Copiar ${fila.clave === "tax" ? nombreImpuesto : fila.rotulo.toLowerCase()}`}
+                                            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg transition-all ${copiado === fila.clave ? "bg-green-500/20 text-green-400" : "text-neutral-400 hover:text-white hover:bg-white/10"}`}
+                                        >
+                                            {copiado === fila.clave ? (
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                            )}
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => copyToClipboard(results.net.toString(), "net")}
-                                        className={`p-2 rounded-lg transition-all ${copied === "net" ? "bg-green-500/20 text-green-400" : "text-neutral-400 hover:text-white hover:bg-white/10"
-                                            }`}
-                                    >
-                                        {copied === "net" ? (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                </div>
-
-                                {/* Tax Amount */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
-                                    <div>
-                                        <p className="text-xs text-orange-400/70 uppercase tracking-wide">IVA ({results.effectiveRate}%)</p>
-                                        <p className="text-xl font-semibold text-orange-400">+ $ {formatCurrency(results.tax)}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => copyToClipboard(results.tax.toString(), "tax")}
-                                        className={`p-2 rounded-lg transition-all ${copied === "tax" ? "bg-green-500/20 text-green-400" : "text-neutral-400 hover:text-white hover:bg-white/10"
-                                            }`}
-                                    >
-                                        {copied === "tax" ? (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                </div>
-
-                                {/* Gross Amount */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-green-500/10 border border-green-500/30">
-                                    <div>
-                                        <p className="text-xs text-green-400/70 uppercase tracking-wide">Total Bruto</p>
-                                        <p className="text-3xl font-bold text-green-400">$ {formatCurrency(results.gross)}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => copyToClipboard(results.gross.toString(), "gross")}
-                                        className={`p-2 rounded-lg transition-all ${copied === "gross" ? "bg-green-500/20 text-green-400" : "text-neutral-400 hover:text-white hover:bg-white/10"
-                                            }`}
-                                    >
-                                        {copied === "gross" ? (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                </div>
+                                ))}
+                                <p role="status" className="min-h-4 text-xs text-teal-200">
+                                    {copiado ? "Copiado." : fallo ? "No se pudo copiar. Selecciona la cifra y cópiala a mano." : ""}
+                                </p>
+                                <p className="sr-only" aria-live="polite">
+                                    {`Neto $ ${fmt(results.net)}, ${nombreImpuesto} $ ${fmt(results.tax)}, total $ ${fmt(results.gross)}.`}
+                                </p>
 
                                 {/* Formula Display */}
                                 <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
                                     <p className="text-xs text-neutral-500 text-center font-mono">
                                         {mode === "add"
-                                            ? `${formatCurrency(results.net)} × ${results.effectiveRate}% = ${formatCurrency(results.tax)} → ${formatCurrency(results.gross)}`
-                                            : `${formatCurrency(results.gross)} ÷ ${(1 + results.effectiveRate / 100).toFixed(2)} = ${formatCurrency(results.net)}`
+                                            ? `${fmt(results.net)} × ${formatoTasa(results.effectiveRate)}% = ${fmt(results.tax)} → ${fmt(results.gross)}`
+                                            : `${fmt(results.gross)} ÷ ${(1 + results.effectiveRate / 100).toLocaleString("es-CL", { maximumFractionDigits: 4 })} = ${fmt(results.net)}`
                                         }
                                     </p>
+                                    {decimales === 0 && <p className="mt-1 text-[11px] text-neutral-500 text-center">Al peso, como en la boleta: neto + IVA da siempre el total.</p>}
                                 </div>
                             </div>
                         ) : (
