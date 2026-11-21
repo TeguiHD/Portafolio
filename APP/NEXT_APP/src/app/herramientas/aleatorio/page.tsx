@@ -338,7 +338,7 @@ export default function RandomPickerPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Aleatorio"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Sorteos y ruleta"} />;
     }
 
     return (

@@ -4,15 +4,15 @@
 .ht-migas nav { max-width: none; margin: 0; padding: 0; } /* alineadas con el título, no centradas en otro ancho */
 /* .viva-portada section (portada) las haría flex y centradas, con 104 px de relleno: aquí no. */
 .viva-portada .ht-cab { display: block; padding: 26px 0 0; }
-.ht-cab h1 { margin: 0; font-size: clamp(46px, 7.4vw, 104px); font-weight: 800; letter-spacing: -.06em; line-height: .95; color: var(--txt); }
+.viva-portada .ht-cab h1 { margin: 0; font-size: clamp(46px, 7.4vw, 104px); font-weight: 800; letter-spacing: -.06em; line-height: .95; color: var(--txt); }
 .ht-cab h1 i { color: var(--acento); font-style: normal; }
 .ht-cab p { margin: 14px 0 0; color: var(--mut); font-size: 18px; }
 
 #catalogo { padding-block: 34px 90px; display: block; }
 
 /* Destacadas: tarjetas con el enlace en el título, estirado a toda la tarjeta (guía «card» de Chrome). */
-.viva-portada .ht-destacadas { display: block; padding: 0; margin-top: 30px; }
-.ht-destacadas h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; color: var(--mut); }
+.viva-portada .ht-destacadas { display: block; padding: 0; margin-top: 30px; overflow: visible; } /* el contorno de foco de las tarjetas del borde no se recorta */
+.viva-portada .ht-destacadas h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; color: var(--mut); }
 .ht-destacadas ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .ht-destacada { position: relative; height: 100%; display: grid; grid-template-rows: auto auto 1fr; gap: 8px; padding: 20px 20px 22px; border-radius: 18px; border: 1px solid var(--linea-2);
   background: color-mix(in srgb, var(--fondo-2) 70%, transparent); transition: border-color .3s, background .3s, translate .4s var(--curva); }

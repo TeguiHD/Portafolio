@@ -20,8 +20,7 @@ const primeraFrase = (t: string) => t.split(/(?<=\.)\s/)[0] ?? t;
  * Las herramientas reales del catálogo giran en profundidad. La que pasa al frente, o la que se señala,
  * hace que la materia escriba algo propio de ella; debajo aparecen su nombre y el enlace para abrirla.
  */
-/** Con `pagina` es la cabecera de /herramientas: título h1 y sin el enlace al catálogo (ya se está en él). */
-export function Herramientas({ pagina = false }: { pagina?: boolean }) {
+export function Herramientas() {
     const motor = useMateria();
     const T = useMemo(() => getDefaultPublicToolCatalog(), []);
     const categorias = useMemo(() => [...new Set(T.map((t) => t.category))], [T]);
@@ -88,16 +87,12 @@ export function Herramientas({ pagina = false }: { pagina?: boolean }) {
 
     const t = T[sel];
     return (
-        <section id="herramientas" className={pagina ? "he-pagina" : "plano"} data-al-cargar={pagina ? "" : undefined} data-forma="texto" data-ancla="#ancla-texto" aria-labelledby="he-titulo">
+        <section id="herramientas" className="plano" data-forma="texto" data-ancla="#ancla-texto" aria-labelledby="he-titulo">
             <span className="fantasma" aria-hidden="true">{T.length}</span>
             <Vista className="ancho">
                 <div className="he-cab">
-                    {pagina
-                        ? <h1 id="he-titulo"><span className="linea-r"><span>Herramientas<i>.</i></span></span></h1>
-                        : <h2 id="he-titulo"><span className="linea-r"><span>Herramientas</span></span></h2>}
-                    {pagina
-                        ? <a className="enlace-ir" href="#catalogo" data-sube="">Ver las {T.length} ↓</a>
-                        : <Link className="enlace-ir he-cab-ir" href="/herramientas" data-sube="">Ver las {T.length} ↗</Link>}
+                    <h2 id="he-titulo"><span className="linea-r"><span>Herramientas</span></span></h2>
+                    <Link className="enlace-ir he-cab-ir" href="/herramientas" data-sube="">Ver las {T.length} ↗</Link>
                 </div>
                 <div className="he-esfera" id="he-esfera" ref={esfera} data-sube="" style={{ "--i": 1 } as CSSProperties}
                     onPointerOver={(e) => { const b = (e.target as HTMLElement).closest<HTMLElement>(".he-nodo"); estado.current.sobre = !!b; if (b) elegir(Number(b.dataset.i), true); }}
@@ -126,22 +121,20 @@ export function Herramientas({ pagina = false }: { pagina?: boolean }) {
                         </button>
                     ))}
                 </div>
-                {!pagina ? (
-                    <div className="he-movil">
-                        <ul className="he-destacadas" aria-label="Herramientas destacadas">
-                            {/* En celular, en vez de la esfera: las de uso más amplio, en lista, y el enlace a todas. */}
-                            {DESTACADAS_RESPALDO.flatMap((slug) => T.filter((x) => x.slug === slug)).map((x) => (
-                                <li key={x.slug}>
-                                    <Link href={`/herramientas/${x.slug}`} style={{ "--c": COLOR_CATEGORIA[x.category] ?? "#5eead4" } as CSSProperties}>
-                                        <span className="he-ico" aria-hidden="true"><svg viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: ICONOS[x.slug] ?? "" }} /></span>
-                                        <span className="he-txt"><b>{x.name}</b><small>{primeraFrase(x.description)}</small></span>
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                        <Link className="boton lleno he-todas" href="/herramientas">Ver las {T.length} herramientas</Link>
-                    </div>
-                ) : null}
+                <div className="he-movil">
+                    <ul className="he-destacadas" aria-label="Herramientas destacadas">
+                        {/* En celular, en vez de la esfera: las de uso más amplio, en lista, y el enlace a todas. */}
+                        {DESTACADAS_RESPALDO.flatMap((slug) => T.filter((x) => x.slug === slug)).map((x) => (
+                            <li key={x.slug}>
+                                <Link href={`/herramientas/${x.slug}`} style={{ "--c": COLOR_CATEGORIA[x.category] ?? "#5eead4" } as CSSProperties}>
+                                    <span className="he-ico" aria-hidden="true"><svg viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: ICONOS[x.slug] ?? "" }} /></span>
+                                    <span className="he-txt"><b>{x.name}</b><small>{primeraFrase(x.description)}</small></span>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                    <Link className="boton lleno he-todas" href="/herramientas">Ver las {T.length} herramientas</Link>
+                </div>
             </Vista>
         </section>
     );

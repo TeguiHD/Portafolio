@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ipCliente } from "@/lib/ip-cliente";
+import { ipParaUso } from "@/lib/ip-uso";
 import { generateRegexWithAI, generateExamplesForRegex, generateCodeForRegex } from "@/services/gemini";
 import { prisma } from "@/lib/prisma";
 import { createHash, randomBytes } from "crypto";
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
                         data: {
                             toolId: tool.id,
                             action: "ai_examples",
-                            ip: ip.slice(0, 45),
+                            ip: ipParaUso(ip),
                             metadata: {
                                 regex: regex.slice(0, 100),
                                 examplesCount: examplesResult.examples?.length || 0,
@@ -190,7 +191,7 @@ export async function POST(request: NextRequest) {
                         data: {
                             toolId: tool.id,
                             action: "ai_code",
-                            ip: ip.slice(0, 45),
+                            ip: ipParaUso(ip),
                             metadata: {
                                 regex: regex.slice(0, 100),
                                 language,
@@ -245,7 +246,7 @@ export async function POST(request: NextRequest) {
                     data: {
                         toolId: tool.id,
                         action: "ai_generate",
-                        ip: ip.slice(0, 45),  // Privacy: truncate
+                        ip: ipParaUso(ip),
                         metadata: {
                             prompt: prompt.slice(0, 100),  // Store truncated prompt
                             regex: result.regex || null,

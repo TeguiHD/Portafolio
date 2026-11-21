@@ -16,6 +16,8 @@ export interface ToolRegistryEntry {
     donde?: string;
     /** Ancho de la herramienta en el PC: «estrecha» (56rem, formularios) o «ancha» (el del sitio, estudios y dos paneles). */
     ancho: "estrecha" | "ancha";
+    /** Otras palabras con que la buscan (p. ej. su nombre de antes): solo para el buscador. */
+    alias?: string;
 }
 
 export interface PublicToolCatalogEntry {
@@ -28,6 +30,7 @@ export interface PublicToolCatalogEntry {
     sortOrder: number;
     /** Ancho en el PC (del registro): la carcasa lo usa sin cargar el registro completo en el navegador. */
     ancho?: "estrecha" | "ancha";
+    alias?: string;
 }
 
 export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
@@ -269,6 +272,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
         slug: "regex",
         name: "Probador de regex",
         ancho: "ancha",
+        alias: "regex tester regexp",
         description: "Prueba una expresión regular sobre un texto, ve cada coincidencia y reemplaza.",
         icon: "code",
         category: "dev",
@@ -413,7 +417,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
 ];
 
 // Lo que va a la tabla Tool: sin los datos que solo usa el sitio (familia pública, relacionadas, fecha de publicación).
-export const DEFAULT_TOOL_SEEDS = DEFAULT_TOOL_REGISTRY.map(({ publicCategory: _publicCategory, relacionadas: _relacionadas, publicada: _publicada, donde: _donde, ancho: _ancho, ...tool }) => tool);
+export const DEFAULT_TOOL_SEEDS = DEFAULT_TOOL_REGISTRY.map(({ publicCategory: _publicCategory, relacionadas: _relacionadas, publicada: _publicada, donde: _donde, ancho: _ancho, alias: _alias, ...tool }) => tool);
 
 function normalizePublicCategory(category?: string | null) {
     switch (category) {
@@ -453,6 +457,7 @@ export function getDefaultPublicToolCatalog(): PublicToolCatalogEntry[] {
             category: tool.publicCategory,
             sortOrder: tool.sortOrder,
             ancho: tool.ancho,
+            alias: tool.alias,
         }))
         .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, "es"));
 }
@@ -485,6 +490,7 @@ export function mergePublicToolCatalog(
             category: existing?.category ?? normalizePublicCategory(tool.category),
             sortOrder: tool.sortOrder ?? existing?.sortOrder ?? Number.MAX_SAFE_INTEGER,
             ancho: existing?.ancho,
+            alias: existing?.alias,
         });
     });
 

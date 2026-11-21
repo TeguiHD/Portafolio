@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSPrope
 import { AlertCircle, Check, Link2, LoaderCircle, Maximize2, SlidersHorizontal, Unlink2 } from "lucide-react";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
+import { getDefaultToolBySlug } from "@/lib/tool-registry";
 import { ImageDropzone, useSinAbrirArchivoSoltado } from "@/components/tools/ImageDropzone";
 import { LoteImagenes } from "@/components/tools/LoteImagenes";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -231,7 +232,7 @@ export function ImageTransformStudio({ mode }: { mode: ModoEstudio }) {
     const savings = source && currentResult ? Math.round((1 - currentResult.blob.size / source.file.size) * 100) : null;
 
     if (isLoading) return <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="Cargando herramienta"><LoaderCircle className="h-6 w-6 text-slate-400 motion-safe:animate-spin" /></div>;
-    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || config.title} />;
+    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || getDefaultToolBySlug(mode)?.name || config.title} />;
 
     const estadosPasos: EstadoPaso[] = !source ? ["activo", "pendiente", "pendiente"] : currentResult ? ["listo", "listo", "listo"] : error ? ["listo", "error", "pendiente"] : ["listo", "activo", "pendiente"];
     const pista = !source ? undefined : comparando ? "Original" : processing ? (objetivoActivo ? "Buscando el peso objetivo" : "Procesando en tu dispositivo") : currentResult ? `${currentResult.width} × ${currentResult.height} · ${formatearPeso(currentResult.blob.size)}` : undefined;

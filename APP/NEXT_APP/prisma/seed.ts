@@ -209,9 +209,11 @@ async function main() {
     const tools = DEFAULT_TOOL_SEEDS
 
     for (const tool of tools) {
+        // update vacío: resembrar crea las que falten sin pisar lo editado en el panel (nombre, descripción, visibilidad…).
+        // Los cambios de fábrica a herramientas existentes van por migración (p. ej. 20261121130000_nombres_herramientas).
         await prisma.tool.upsert({
             where: { slug: tool.slug },
-            update: tool,
+            update: {},
             create: tool,
         });
     }

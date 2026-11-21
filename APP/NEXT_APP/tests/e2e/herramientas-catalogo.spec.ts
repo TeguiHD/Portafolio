@@ -14,7 +14,8 @@ test.describe("Herramientas con el lenguaje del sitio", () => {
         await expect(page.locator("canvas#materia")).toHaveAttribute("data-forma-activa", "marco");
     });
 
-    test("sin datos de uso: el rótulo es «Destacadas» y va el orden de respaldo", async ({ page }) => {
+    test("sin datos de uso: el rótulo es «Destacadas» y va el orden de respaldo", async ({ page, baseURL }) => {
+        test.skip(!!baseURL?.includes("nicoholas.dev"), "en producción hay visitas reales: el rótulo puede ser «Las más usadas»");
         await page.goto("/herramientas");
         const destacadas = page.getByRole("region", { name: "Destacadas" });
         await expect(destacadas.locator(".ht-destacada a")).toHaveText([/QR/, /Fondo/i, /Compres/i, /Contraseñas/i, /JSON/, /IVA/]);
@@ -66,7 +67,8 @@ test.describe("Herramientas con el lenguaje del sitio", () => {
         await ctx.close();
     });
 
-    test("abrir cualquier herramienta registra una visita, una vez por sesión", async ({ page }) => {
+    test("abrir cualquier herramienta registra una visita, una vez por sesión", async ({ page, baseURL }) => {
+        test.skip(!!baseURL?.includes("nicoholas.dev"), "en producción dejaría una visita falsa en el ranking");
         // Como una persona: sin la marca de navegador automatizado.
         await page.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));
         const visitas: string[] = [];

@@ -397,6 +397,7 @@ export default function RegexTesterPage() {
                                 spellCheck={false}
                                 autoComplete="off"
                                 aria-invalid={Boolean(error) && !timeoutWarning}
+                                aria-describedby="regex-limite"
                                 value={regex}
                                 onChange={(e) => setRegex(e.target.value)}
                                 placeholder="Escribe tu expresión regular..."
@@ -440,6 +441,9 @@ export default function RegexTesterPage() {
                             {error}
                         </div>
                     )}
+
+                    {/* Real: el worker se corta a los EXECUTION_TIMEOUT_MS (regex-client.ts). */}
+                    <p id="regex-limite" className="mb-2 text-xs text-neutral-500">Si una expresión tarda más de medio segundo (ReDoS), se detiene sola.</p>
 
                     {/* Stats */}
                     <div aria-live="polite" className="flex flex-wrap gap-3 text-xs text-neutral-500">

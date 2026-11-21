@@ -51,7 +51,6 @@ export function IndiceHerramientas({ tools, destacadas, nuevas = [] }: { tools: 
         <section id="catalogo" data-al-cargar="" aria-labelledby="ht-titulo">
             <span className="fantasma" aria-hidden="true">{tools.length}</span>
             <Vista className="ancho">
-                <h2 id="ht-titulo" className="sr-only">Todas las herramientas</h2>
                 <div className="ht-filtros" data-sube="" style={{ "--i": 1 } as CSSProperties}>
                     <label className="ht-buscar">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -89,6 +88,8 @@ export function IndiceHerramientas({ tools, destacadas, nuevas = [] }: { tools: 
                     </section>
                 ) : null}
 
+                {/* Después de las destacadas: así los títulos siguen el orden en que se leen. */}
+                <h2 id="ht-titulo" className="sr-only">Todas las herramientas</h2>
                 <div className="ht-familias" role="group" aria-label="Filtrar por categoría" data-sube="" style={{ "--i": 2 } as CSSProperties}>
                     <button type="button" aria-pressed={familia === null} onClick={() => setFamilia(null)}>Todas<small> {tools.length}</small></button>
                     {FAMILIAS.map((f) => {

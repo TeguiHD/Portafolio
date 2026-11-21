@@ -44,14 +44,16 @@ test.describe("Herramientas profesionales", () => {
 
     test("contraseñas e IVA usan los colores del sitio, sin verde neón ni degradados", async ({ page }) => {
         const neon = (c: string) => { const [r, g, b] = (c.match(/[\d.]+/g) ?? []).map(Number); return g - Math.max(r, b) > 60; };
+        // Tailwind 4 da los colores en oklch(): se pasan a RGB pintándolos en un canvas de 1 px (si no, «neón» no veía nada).
+        const rgb = (e: Element, prop: string) => { const c = document.createElement("canvas").getContext("2d")!; c.fillStyle = getComputedStyle(e)[prop as "color"]; c.fillRect(0, 0, 1, 1); const [r, g, b] = c.getImageData(0, 0, 1, 1).data; return `rgb(${r}, ${g}, ${b})`; };
         await page.goto("/herramientas/claves");
         const generar = page.getByRole("button", { name: "Generar otra", exact: true });
         expect(await generar.evaluate((e) => getComputedStyle(e).backgroundImage)).toBe("none");
-        expect(neon(await generar.evaluate((e) => getComputedStyle(e).backgroundColor))).toBe(false);
+        expect(neon(await generar.evaluate(rgb, "backgroundColor"))).toBe(false);
         await page.goto("/herramientas/impuestos");
         const activa = page.getByRole("button", { name: /Agregar IVA/ }).first();
-        expect(neon(await activa.evaluate((e) => getComputedStyle(e).backgroundColor))).toBe(false);
-        expect(neon(await activa.evaluate((e) => getComputedStyle(e).color))).toBe(false);
+        expect(neon(await activa.evaluate(rgb, "backgroundColor"))).toBe(false);
+        expect(neon(await activa.evaluate(rgb, "color"))).toBe(false);
     });
 
     test("IVA abre con un monto de ejemplo ya calculado, y al escribir se reemplaza", async ({ page }) => {

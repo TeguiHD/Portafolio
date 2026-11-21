@@ -299,7 +299,7 @@ export default function TaxCalculatorPage() {
                                             type="button"
                                             onClick={() => { void copyToClipboard(fila.copia, fila.clave); }}
                                             aria-label={`Copiar ${fila.clave === "tax" ? nombreImpuesto : fila.rotulo.toLowerCase()}`}
-                                            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg transition-all ${copiado === fila.clave ? "bg-green-500/20 text-green-400" : "text-neutral-400 hover:text-white hover:bg-white/10"}`}
+                                            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg transition-all ${copiado === fila.clave ? "bg-teal-500/20 text-teal-400" : "text-neutral-400 hover:text-white hover:bg-white/10"}`}
                                         >
                                             {copiado === fila.clave ? (
                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -348,7 +348,7 @@ export default function TaxCalculatorPage() {
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10">
                         <h3 className="text-sm font-medium text-white mb-2 flex items-center gap-2">
-                            <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
                             Agregar IVA

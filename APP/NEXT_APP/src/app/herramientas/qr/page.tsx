@@ -241,7 +241,7 @@ function QRStudio() {
     }
 
     if (isLoading) return <div className="flex min-h-80 items-center justify-center gap-3 text-sm text-slate-400"><LoaderCircle className="animate-spin" size={20} />Cargando editor…</div>;
-    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador QR"} />;
+    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de QR"} />;
     const inputClass = "w-full rounded-lg border border-white/10 bg-[#0b111a] px-3 py-3 text-sm text-white placeholder:text-slate-500";
     const primaryTypes: QRType[] = ["url", "wifi", "whatsapp", "ar"];
     const visibleTypes = QR_TYPES.filter(item => showAllTypes || primaryTypes.includes(item.id) || item.id === qrType);

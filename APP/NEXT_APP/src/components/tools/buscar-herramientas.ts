@@ -10,6 +10,6 @@ export const normalizar = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, 
 export function coincide(tool: PublicToolCatalogEntry, consulta: string): boolean {
     const palabras = normalizar(consulta).split(/[\s,.;:/-]+/).filter(Boolean);
     if (!palabras.length) return true;
-    const texto = normalizar(`${tool.name} ${tool.description} ${tool.category} ${tool.slug.replace(/-/g, " ")}`);
+    const texto = normalizar(`${tool.name} ${tool.description} ${tool.category} ${tool.slug.replace(/-/g, " ")} ${tool.alias ?? ""}`);
     return palabras.every((p) => texto.includes(p));
 }

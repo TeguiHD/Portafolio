@@ -6,7 +6,6 @@
  *  - title: 50-60 caracteres, único
  *  - description: 150-160 caracteres, única
  *  - primaryKeyword: única, sin solapamiento entre herramientas
- *  - related: mínimo 2 slugs válidos, nunca el propio
  */
 
 export interface ToolSeoEntry {
@@ -23,7 +22,6 @@ export interface ToolSeoEntry {
     /** Variantes y long-tail de apoyo. */
     secondaryKeywords: string[];
     /** Slugs de herramientas relacionadas, para enlazado interno. */
-    related: string[];
     /** ISO YYYY-MM-DD. Alimenta lastModified del sitemap. */
     lastModified: string;
 }
@@ -43,7 +41,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "descargar qr en svg",
             "qr con realidad aumentada",
         ],
-        related: ["enlaces", "base64", "favicon"],
         lastModified: "2026-11-20",
     },
 
@@ -60,7 +57,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "generador de claves fuertes",
             "generador de frases de contraseña",
         ],
-        related: ["aleatorio", "jwt", "esteganografia"],
         lastModified: "2026-11-20",
     },
 
@@ -77,7 +73,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "base64 a texto",
             "data uri generator",
         ],
-        related: ["binario", "json", "jwt"],
         lastModified: "2026-11-20",
     },
 
@@ -95,7 +90,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "json beautifier",
             "detectar errores de sintaxis json",
         ],
-        related: ["jwt", "regex", "base64"],
         lastModified: "2026-11-20",
     },
 
@@ -113,7 +107,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "validar jwt con clave pública",
             "jwt debugger online",
         ],
-        related: ["json", "base64", "claves"],
         lastModified: "2026-11-20",
     },
 
@@ -131,7 +124,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "reemplazar con regex",
             "alternativa a regex101",
         ],
-        related: ["json", "jwt", "nginx"],
         lastModified: "2026-11-20",
     },
 
@@ -148,7 +140,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "quitar iva de una factura",
             "tasa de iva personalizada",
         ],
-        related: ["unidades", "binario", "subredes"],
         lastModified: "2026-11-20",
     },
 
@@ -166,7 +157,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "cidr calculator",
             "rango de direcciones ip",
         ],
-        related: ["dns", "nginx", "banner-ascii"],
         lastModified: "2026-11-20",
     },
 
@@ -184,7 +174,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "conversor de temperatura",
             "convertir km/l a l/100 km",
         ],
-        related: ["impuestos", "binario", "base64"],
         lastModified: "2026-11-19",
     },
 
@@ -201,7 +190,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "código binario ascii",
             "binary translator",
         ],
-        related: ["base64", "unidades", "json"],
         lastModified: "2026-11-20",
     },
 
@@ -219,7 +207,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "generador de grupos al azar",
             "elegir ganador de un sorteo",
         ],
-        related: ["claves", "qr", "enlaces"],
         lastModified: "2026-11-20",
     },
 
@@ -236,7 +223,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "crear enlace de calendario",
             "wa.me link generator",
         ],
-        related: ["qr", "aleatorio", "claves"],
         lastModified: "2026-11-20",
     },
 
@@ -254,7 +240,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "revisar spf y dmarc",
             "dns propagation checker",
         ],
-        related: ["subredes", "nginx", "banner-ascii"],
         lastModified: "2026-11-20",
     },
 
@@ -271,7 +256,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "configurar https en nginx",
             "redirecciones en nginx",
         ],
-        related: ["dns", "subredes", "banner-ascii"],
         lastModified: "2026-11-20",
     },
 
@@ -289,7 +273,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "generar apple touch icon",
             "crear site.webmanifest",
         ],
-        related: ["convertir-ico", "convertir-imagen", "paleta-colores"],
         lastModified: "2026-11-20",
     },
 
@@ -306,7 +289,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "convertir imagen a icono",
             "ico converter gratis",
         ],
-        related: ["favicon", "convertir-imagen", "redimensionar"],
         lastModified: "2026-11-20",
     },
 
@@ -324,7 +306,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "convertir avif a jpg",
             "convertir varias imágenes a la vez",
         ],
-        related: ["comprimir-imagen", "redimensionar", "convertir-ico"],
         lastModified: "2026-11-20",
     },
 
@@ -342,7 +323,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "optimizar imágenes para web",
             "image compressor online",
         ],
-        related: ["convertir-imagen", "redimensionar", "recortar-imagen"],
         lastModified: "2026-11-20",
     },
 
@@ -360,7 +340,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "redimensionar varias imágenes a la vez",
             "ajustar dimensiones de una imagen",
         ],
-        related: ["comprimir-imagen", "recortar-imagen", "convertir-imagen"],
         lastModified: "2026-11-20",
     },
 
@@ -378,7 +357,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "recortar foto al sujeto",
             "editor de recorte gratis",
         ],
-        related: ["redimensionar", "comprimir-imagen", "convertir-imagen"],
         lastModified: "2026-11-20",
     },
 
@@ -395,7 +373,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "fondo transparente para producto",
             "eliminar fondo de imagen gratis",
         ],
-        related: ["recortar-imagen", "marca-agua", "convertir-imagen"],
         lastModified: "2026-11-20",
     },
 
@@ -413,7 +390,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "marca de agua en mosaico",
             "watermark online gratis",
         ],
-        related: ["quitar-fondo", "recortar-imagen", "paleta-colores"],
         lastModified: "2026-11-20",
     },
 
@@ -430,7 +406,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "paleta hex de una imagen",
             "extraer colores dominantes",
         ],
-        related: ["marca-agua", "favicon", "convertir-imagen"],
         lastModified: "2026-11-20",
     },
 
@@ -447,7 +422,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "datos ocultos en una imagen",
             "exif viewer online",
         ],
-        related: ["esteganografia-imagen", "esteganografia", "quitar-fondo"],
         lastModified: "2026-11-20",
     },
 
@@ -465,7 +439,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "image to ascii converter",
             "ascii art online gratis",
         ],
-        related: ["banner-ascii", "paleta-colores", "convertir-imagen"],
         lastModified: "2026-11-20",
     },
 
@@ -482,7 +455,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "figlet online",
             "generador de banners ssh",
         ],
-        related: ["ascii", "nginx", "subredes"],
         lastModified: "2026-11-20",
     },
 
@@ -500,7 +472,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "quitar caracteres invisibles de un texto",
             "emoji steganography",
         ],
-        related: ["esteganografia-imagen", "claves", "metadatos"],
         lastModified: "2026-11-20",
     },
 
@@ -517,7 +488,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "mensaje secreto en imagen png",
             "esconder texto en una imagen",
         ],
-        related: ["esteganografia", "metadatos", "claves"],
         lastModified: "2026-11-20",
     },
 
@@ -534,7 +504,6 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
             "payload de pentesting online",
             "generador de shells para ctf",
         ],
-        related: ["nginx", "subredes", "dns"],
         lastModified: "2026-08-02",
     },
 };

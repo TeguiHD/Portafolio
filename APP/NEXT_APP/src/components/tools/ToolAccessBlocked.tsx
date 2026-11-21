@@ -14,7 +14,7 @@ export function ToolAccessBlocked({ accessType, toolName = "Herramienta" }: Tool
         switch (accessType) {
             case "private":
                 return {
-                    title: "Herramienta en Mantenimiento",
+                    title: "Herramienta en mantenimiento",
                     description: `${toolName} no está disponible públicamente en este momento. Estamos realizando mejoras.`,
                     icon: (
                         <svg className="w-16 h-16 text-yellow-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -25,7 +25,7 @@ export function ToolAccessBlocked({ accessType, toolName = "Herramienta" }: Tool
                 };
             case "admin_only":
                 return {
-                    title: "Acceso Restringido",
+                    title: "Acceso restringido",
                     description: `Esta herramienta es solo para administradores. Por favor inicia sesión para continuar.`,
                     icon: (
                         <svg className="w-16 h-16 text-blue-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,13 +34,13 @@ export function ToolAccessBlocked({ accessType, toolName = "Herramienta" }: Tool
                     ),
                     action: (
                         <Link href="/acceso" className="px-6 py-2.5 rounded-xl bg-accent-1 text-white font-medium hover:bg-opacity-90 transition-all">
-                            Iniciar Sesión
+                            Iniciar sesión
                         </Link>
                     )
                 };
             case "blocked":
                 return {
-                    title: "Acceso Bloqueado",
+                    title: "Acceso bloqueado",
                     description: "Tu acceso a esta herramienta ha sido bloqueado temporalmente por seguridad.",
                     icon: (
                         <svg className="w-16 h-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,7 +51,7 @@ export function ToolAccessBlocked({ accessType, toolName = "Herramienta" }: Tool
                 };
             default: // error or unknown
                 return {
-                    title: "No Disponible",
+                    title: "No disponible",
                     description: "No se pudo verificar el acceso a la herramienta. Por favor intenta más tarde.",
                     icon: (
                         <svg className="w-16 h-16 text-neutral-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -83,7 +83,7 @@ export function ToolAccessBlocked({ accessType, toolName = "Herramienta" }: Tool
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
-                        Volver a herramientas
+                        Ver otras herramientas
                     </Link>
                 </div>
             </div>

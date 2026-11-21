@@ -40,6 +40,26 @@ export function elegirDestacadas(conteos: { slug: string; sesiones: number }[], 
     return { slugs, porUso: porUso.length >= CUANTAS };
 }
 
+type Conteos = { slug: string; sesiones: number }[];
+
+/**
+ * Lector con memoria del ranking: las visitas que llegan a la vez comparten una sola consulta, un resultado vale
+ * `vigencia` ms y, si la consulta falla (sin base), no se reintenta hasta pasados `espera` ms: antes cada visita esperaba
+ * el plazo de la base dos veces seguidas. Nunca lanza: sin datos devuelve [] (va el orden de respaldo).
+ */
+export function crearLectorRanking(leer: () => Promise<Conteos>, { vigencia, espera }: { vigencia: number; espera: number }) {
+    let guardado: { hasta: number; conteos: Conteos } | null = null;
+    let enCurso: Promise<Conteos> | null = null;
+    return async (): Promise<Conteos> => {
+        if (guardado && guardado.hasta > Date.now()) return guardado.conteos;
+        enCurso ??= leer()
+            .then((conteos) => { guardado = { hasta: Date.now() + vigencia, conteos }; return conteos; })
+            .catch(() => { guardado = { hasta: Date.now() + espera, conteos: [] }; return [] as Conteos; })
+            .finally(() => { enCurso = null; });
+        return enCurso;
+    };
+}
+
 /** «Nueva» durante los 60 días siguientes a su publicación. */
 export function esNueva(publicada: string | undefined, hoy: Date): boolean {
     if (!publicada) return false;

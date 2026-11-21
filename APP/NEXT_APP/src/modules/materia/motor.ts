@@ -1,4 +1,5 @@
 import { FIGURAS, mosaicoDeImagen, nubeDeFigura, nubeDeTexto, nubeDeTrazo, type Mosaico, type Nube } from "./figuras";
+import { radiosAnillo } from "./anillo";
 
 /**
  * Motor de «Materia viva»: un solo cuerpo de partículas en un lienzo fijo, que cambia de forma.
@@ -207,7 +208,7 @@ export function crearMotor(lienzo: HTMLCanvasElement, op: { frente: HTMLElement;
         ax = c ? c.x : 0; ay = c ? c.y - sy : 0;
         nubeActual = forma === "figuras" ? nubes.figuras : forma === "texto" ? nubes.texto : forma === "firma" ? nubes.firma : null;
         mos = forma === "imagen" ? mosaico : null;
-        rx = Math.min(W * 0.46, 640); ry = Math.min(H * 0.41, 350);
+        ({ rx, ry } = radiosAnillo(W, H));
     }
     function destino(i: number) {
         dest.marca = false; dest.celda = -1; dest.ancla = true;

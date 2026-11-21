@@ -360,8 +360,8 @@ export default function AsciiArtPage() {
                 {/* La cabecera va sola y centrada (como en las 29); «Nueva imagen» queda en su propia fila. */}
                 <div className="mb-4 sm:mb-6">
                     <ToolPageHeader slug="ascii" />
-                    <div className="flex justify-end">
-                        {imageUrl && (
+                    {imageUrl && <div className="flex justify-end">
+                        {(
                             <button
                                 type="button"
                                 onClick={handleReset}
@@ -372,7 +372,7 @@ export default function AsciiArtPage() {
                                 <span className="hidden sm:inline">Nueva imagen</span>
                             </button>
                         )}
-                    </div>
+                    </div>}
                 </div>
 
                 {/* Upload Area */}
