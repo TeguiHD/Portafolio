@@ -64,6 +64,9 @@ export function useDebouncedCallback<T extends (...args: unknown[]) => void>(
  * - Tracks 'use'/'generate' with debounce to avoid spam
  * - Tracks 'download' immediately (explicit user action)
  */
+/** Playwright, Selenium o Puppeteer: su uso no es de una persona y no debe contar en «Las más usadas». */
+const automatizado = () => typeof navigator !== "undefined" && navigator.webdriver === true;
+
 export function useToolTracking(toolSlug: string, options: {
     trackViewOnMount?: boolean;
     debounceMs?: number;
@@ -75,6 +78,7 @@ export function useToolTracking(toolSlug: string, options: {
 
     // Track view on mount (once per session)
     useEffect(() => {
+        if (automatizado()) return;
         if (trackViewOnMount && !hasTrackedView.current) {
             hasTrackedView.current = true;
             fetch(`/api/tools/public/${toolSlug}`, {
@@ -97,6 +101,7 @@ export function useToolTracking(toolSlug: string, options: {
             return;
         }
 
+        if (automatizado()) return;
         pendingTrack.current = setTimeout(() => {
             lastTrackedAction.current = action;
             fetch(`/api/tools/public/${toolSlug}`, {
@@ -114,6 +119,7 @@ export function useToolTracking(toolSlug: string, options: {
 
     // Immediate track for explicit user actions (download, complete, etc.)
     const trackImmediate = useCallback((action: string, metadata?: Record<string, unknown>) => {
+        if (automatizado()) return;
         fetch(`/api/tools/public/${toolSlug}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

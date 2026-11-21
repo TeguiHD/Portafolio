@@ -278,7 +278,7 @@ export default function ColorPalettePage() {
     return (
         <div className="tool-page">
             <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
-                <ToolPageHeader slug="paleta-colores" title="Los colores de tu imagen" description="Extrae una paleta y llévala a tu diseño en HEX, RGB, HSL o CSS." />
+                <ToolPageHeader slug="paleta-colores" />
                 {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra una imagen para extraer su paleta" /> : (
                     <section aria-label="Estudio de color" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
                         <MesaCabecera nombre={fileName} detalle={palette.length ? `${palette.length} colores` : undefined}>

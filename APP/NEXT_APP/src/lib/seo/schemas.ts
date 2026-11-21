@@ -1,3 +1,4 @@
+import { DEFAULT_TOOL_REGISTRY } from "@/lib/tool-registry";
 /**
  * Constructores de JSON-LD. Cada función devuelve un objeto schema.org
  * listo para serializar; el emisor (`@/components/seo/JsonLd`) se encarga
@@ -175,7 +176,8 @@ export function toolBreadcrumbTrail(slug: string): BreadcrumbTrail {
     return [
         { name: "Inicio", path: "" },
         { name: "Herramientas", path: "/herramientas" },
-        { name: entry.h1, path: `/herramientas/${entry.slug}` },
+        // El mismo nombre que el catálogo y la cabecera (antes, el h1 de SEO: «Quitafondos con Inteligencia Artificial»).
+        { name: DEFAULT_TOOL_REGISTRY.find((t) => t.slug === entry.slug)?.name ?? entry.h1, path: `/herramientas/${entry.slug}` },
     ];
 }
 

@@ -14,6 +14,9 @@
 /* El texto blanco sobre un botón de color se queda blanco (los primarios de acento usan texto oscuro y no cambian). */
 :root[data-tema="claro"] .tools-workspace :is([class*="bg-gradient-to"], [class*="bg-teal-5"], [class*="bg-teal-6"], [class*="bg-emerald-5"], [class*="bg-emerald-6"], [class*="bg-red-5"], [class*="bg-red-6"], [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-indigo-5"], [class*="bg-violet-5"], [class*="bg-orange-5"], [class*="bg-\[\#FF8A00\]"]).text-white { color: #fff; }
 
+/* Turquesas de acento como texto (contraseñas, IVA): en claro, el turquesa oscuro del sitio (5,5:1 sobre blanco). */
+:root[data-tema="claro"] .tools-workspace :is(.text-teal-200, .text-teal-300, .text-teal-400, .text-teal-500) { color: #0f766e; }
+
 /* ---- Fondos: los velos blancos pasan a ser velos de tinta, y las superficies oscuras, superficies del tema ---- */
 :root[data-tema="claro"] .tools-workspace :is(.bg-white\/5, .bg-white\/\[0\.02\], .bg-white\/\[0\.03\], .hover\:bg-white\/5:hover) { background-color: color-mix(in srgb, var(--txt) 4%, transparent); }
 :root[data-tema="claro"] .tools-workspace :is(.bg-white\/8, .bg-white\/10, .hover\:bg-white\/10:hover) { background-color: color-mix(in srgb, var(--txt) 7%, transparent); }

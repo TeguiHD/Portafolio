@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Herramientas } from "@/modules/landing/viva/Herramientas";
 import { IndiceHerramientas } from "@/components/tools/IndiceHerramientas";
 import "./catalogo.css";
 import { getPublicTools } from "@/lib/public-tools.server";
+import { getDestacadas } from "@/lib/tool-ranking.server";
+import { esNueva } from "@/lib/tool-destacadas";
+import { DEFAULT_TOOL_REGISTRY } from "@/lib/tool-registry";
 import { TOOL_SEO_SLUGS } from "@/lib/seo/tools-content";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -23,18 +25,28 @@ export const metadata: Metadata = {
 };
 
 /**
- * El catálogo con el lenguaje de la portada: la esfera de herramientas como cabecera (la materia escribe la elegida) y,
- * debajo, todas en un índice por familia, sin tarjetas. Las migas y su JSON-LD se conservan para los buscadores.
+ * El catálogo, como en los sitios grandes de utilidades: título, buscador, las 6 destacadas (por uso real cuando hay
+ * datos) y todas por familia. Sin la esfera de la portada: aquí se viene a usar una. Migas y JSON-LD para los buscadores.
  */
 export default async function ToolsPage() {
     const herramientas = await getPublicTools();
+    const destacadas = await getDestacadas(herramientas.map((t) => t.slug));
+    // «Nueva» se calcula aquí: el registro completo no viaja al navegador.
+    const hoy = new Date();
+    const nuevas = DEFAULT_TOOL_REGISTRY.filter((t) => esNueva(t.publicada, hoy)).map((t) => t.slug);
 
     return (
         <main id="main-content" className="ht viva-portada">
             <JsonLd schema={breadcrumbSchema(TOOLS_HUB_TRAIL)} />
             <div className="ancho ht-migas"><Breadcrumbs trail={TOOLS_HUB_TRAIL} /></div>
-            <Herramientas pagina />
-            <IndiceHerramientas tools={herramientas} />
+            {/* data-forma: la materia queda quieta en el marco, como dentro de cada herramienta. */}
+            <section className="ht-cab" data-al-cargar="" data-forma="marco" aria-labelledby="ht-cab-titulo">
+                <div className="ancho">
+                    <h1 id="ht-cab-titulo">Herramientas<i>.</i></h1>
+                    <p>{herramientas.length} utilidades gratis, sin registro.</p>
+                </div>
+            </section>
+            <IndiceHerramientas tools={herramientas} destacadas={destacadas} nuevas={nuevas} />
             <p className="ancho ht-cierre">¿Necesitas una herramienta a la medida de tu negocio? <Link className="enlace-ir" href="/#contacto">Hablemos ↗</Link></p>
         </main>
     );

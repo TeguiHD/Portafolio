@@ -148,7 +148,7 @@ export default function JwtDecoderPage() {
     return (
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="jwt" title={<>Decodificador JWT</>} description={<>Decodifica tokens JWT y verifica su firma con tu clave. Todo ocurre en tu navegador.</>} />
+                <ToolPageHeader slug="jwt" />
 
                 {/* Security Notice */}
                 <div className="mb-6 p-3 rounded-xl bg-[#6366F1]/10 border border-[#6366F1]/20 text-center">

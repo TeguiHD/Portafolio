@@ -342,7 +342,7 @@ export default function ReverseShellPage() {
     return (
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="reverse-shell" title={<>Generador de Reverse Shells</>} description={<>Genera payloads de shell reversa para pruebas de penetración autorizadas</>} />
+                <ToolPageHeader slug="reverse-shell" />
 
                 {/* Legal Disclaimer */}
                 <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4">

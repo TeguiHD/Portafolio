@@ -713,7 +713,7 @@ All activities are monitored and logged.
     return (
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="banner-ascii" title={<>Generador de Banners ASCII</>} description={<>Crea arte ASCII para terminales, MOTD de servidores y banners SSH</>} />
+                <ToolPageHeader slug="banner-ascii" />
 
                 {/* Input */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10 mb-4">

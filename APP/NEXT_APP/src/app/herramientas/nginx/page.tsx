@@ -363,7 +363,7 @@ export default function NginxConfigPage() {
     return (
         <div className="tool-page">
             <main className="tool-main max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="nginx" title={<>Generador de Configuración</>} description={<>Genera configuraciones seguras para Nginx y .htaccess</>} />
+                <ToolPageHeader slug="nginx" />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Controls */}

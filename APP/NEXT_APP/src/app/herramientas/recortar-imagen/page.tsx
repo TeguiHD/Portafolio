@@ -355,7 +355,7 @@ export default function ImageCropperPage() {
     return (
         <div className="tool-page">
             <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
-                <ToolPageHeader slug="recortar-imagen" title="Recortar imagen" description="Encuadra, gira o encaja al sujeto, y descarga en PNG, JPEG o WebP." />
+                <ToolPageHeader slug="recortar-imagen" />
                 {!sourceImage ? (
                     <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a recortar" sublabel="PNG, JPG o WebP · procesamiento local" />
                 ) : (

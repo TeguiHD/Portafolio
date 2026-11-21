@@ -1,0 +1,31 @@
+-- Descripciones de una línea en lenguaje llano (21-11-2026): qué hace cada herramienta, sin relleno.
+-- La tabla Tool manda sobre el registro del código, así que se actualizan las dos.
+UPDATE "Tool" SET description = 'Convierte imágenes PNG, JPG, WebP, AVIF, GIF o BMP a WebP, PNG o JPG, de a una o en lote.' WHERE slug = 'convertir-imagen';
+UPDATE "Tool" SET description = 'Recorta una imagen en proporciones fijas (1:1, 16:9, 4:5…), gírala y descárgala en PNG, JPG o WebP.' WHERE slug = 'recortar-imagen';
+UPDATE "Tool" SET description = 'Quita el fondo de una foto en tu navegador, retoca el borde y descarga un PNG transparente o con color.' WHERE slug = 'quitar-fondo';
+UPDATE "Tool" SET description = 'Convierte una imagen en un archivo .ico con varios tamaños, de 16 a 256 px.' WHERE slug = 'convertir-ico';
+UPDATE "Tool" SET description = 'Reduce el peso de una o varias imágenes eligiendo la calidad o un tamaño máximo en KB.' WHERE slug = 'comprimir-imagen';
+UPDATE "Tool" SET description = 'Cambia el ancho y alto de imágenes, con medidas listas para Instagram, YouTube, LinkedIn y Full HD.' WHERE slug = 'redimensionar';
+UPDATE "Tool" SET description = 'Saca los colores principales de una imagen en HEX, RGB y HSL, y los exporta como variables CSS.' WHERE slug = 'paleta-colores';
+UPDATE "Tool" SET description = 'Pone un texto o un logo sobre tus imágenes, en una esquina, al centro o repetido, con la opacidad que elijas.' WHERE slug = 'marca-agua';
+UPDATE "Tool" SET description = 'Genera desde un logo los íconos de tu sitio (16 a 512 px), el favicon.ico y el manifest, en un ZIP.' WHERE slug = 'favicon';
+UPDATE "Tool" SET description = 'Crea un código QR para un enlace, texto, Wi-Fi, contacto o WhatsApp y descárgalo en PNG o SVG.' WHERE slug = 'qr';
+UPDATE "Tool" SET description = 'Genera contraseñas o frases de paso al azar, con la longitud y los caracteres que elijas.' WHERE slug = 'claves';
+UPDATE "Tool" SET description = 'Convierte una imagen en arte ASCII y descárgalo como texto, HTML o PNG.' WHERE slug = 'ascii';
+UPDATE "Tool" SET description = 'Crea enlaces de WhatsApp con mensaje, de correo con asunto y de eventos para Google Calendar u Outlook.' WHERE slug = 'enlaces';
+UPDATE "Tool" SET description = 'Sortea ganadores con una ruleta o reparte una lista de nombres en grupos al azar.' WHERE slug = 'aleatorio';
+UPDATE "Tool" SET description = 'Convierte unidades de 12 magnitudes: longitud, masa, temperatura, velocidad, datos, energía y más.' WHERE slug = 'unidades';
+UPDATE "Tool" SET description = 'Codifica y decodifica texto en Base64 y convierte imágenes a data URL.' WHERE slug = 'base64';
+UPDATE "Tool" SET description = 'Traduce texto a código binario y de vuelta a texto.' WHERE slug = 'binario';
+UPDATE "Tool" SET description = 'Agrega o quita el IVA de un monto, con la tasa de Chile (19 %), la de otros países o la que indiques.' WHERE slug = 'impuestos';
+UPDATE "Tool" SET description = 'Prueba una expresión regular sobre un texto, ve cada coincidencia y reemplaza.' WHERE slug = 'regex';
+UPDATE "Tool" SET description = 'Decodifica un JWT, revisa sus fechas y verifica la firma con tu secreto o tu clave pública.' WHERE slug = 'jwt';
+UPDATE "Tool" SET description = 'Formatea, minifica y valida JSON, con vista de árbol y aviso de claves duplicadas.' WHERE slug = 'json';
+UPDATE "Tool" SET description = 'Compara la respuesta DNS de tu dominio en seis resolvedores públicos y revisa su SPF y DMARC.' WHERE slug = 'dns';
+UPDATE "Tool" SET description = 'Arma la configuración de Nginx o .htaccess: HTTPS, redirecciones, proxy, caché y cabeceras de seguridad.' WHERE slug = 'nginx';
+UPDATE "Tool" SET description = 'Esconde un mensaje en emojis o texto con caracteres invisibles, y detecta los que ya trae un texto.' WHERE slug = 'esteganografia';
+UPDATE "Tool" SET description = 'Esconde un mensaje dentro de los píxeles de una imagen PNG y léelo de vuelta.' WHERE slug = 'esteganografia-imagen';
+UPDATE "Tool" SET description = 'Muestra los datos ocultos de una foto (cámara, fecha, GPS) y descarga una copia sin ellos.' WHERE slug = 'metadatos';
+UPDATE "Tool" SET description = 'Arma comandos de shell reversa para pruebas de penetración en Bash, Python, PHP, PowerShell y más.' WHERE slug = 'reverse-shell';
+UPDATE "Tool" SET description = 'Convierte un texto en un banner ASCII para la terminal y descárgalo como script o MOTD.' WHERE slug = 'banner-ascii';
+UPDATE "Tool" SET description = 'Calcula red, broadcast, máscara y rango de hosts en IPv4 o IPv6, y planifica subredes VLSM.' WHERE slug = 'subredes';

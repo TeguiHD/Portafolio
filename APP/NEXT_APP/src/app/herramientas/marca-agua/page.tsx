@@ -322,7 +322,7 @@ export default function WatermarkPage() {
     const pista = comparando ? "Original" : !fuente ? "Abriendo imagen" : !marcaValida ? "Escribe tu marca o añade un logo" : `Se descarga a tamaño completo · ${formato.nombre}`;
     return <div className="tool-page">
         <main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
-            <ToolPageHeader slug="marca-agua" title="Marca de agua" description="Tu firma o tu logo sobre la foto, a tamaño completo y en su formato original." />
+            <ToolPageHeader slug="marca-agua" />
             {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a proteger" /> : <section aria-label="Editor de marca de agua" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
                 <MesaCabecera nombre={sourceFile?.name ?? "Imagen"} detalle={fuente ? `${fuente.image.naturalWidth} × ${fuente.image.naturalHeight} px` : undefined}>
                     <button type="button" className="studio-button studio-button-primary" aria-label={`Descargar ${formato.nombre} con marca de agua`} disabled={!fuente || !marcaValida || exportando} onClick={() => { void handleDownload(); }}>{exportando ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <IconoDescargar listo={claveDescargada === clave} />}<span><span className="hidden sm:inline">Descargar </span>{formato.nombre}</span></button>

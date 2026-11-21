@@ -19,12 +19,23 @@ const mayuscula = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
  * (que ya dicen dónde se está), quedan «Buscar» (también con Ctrl/⌘ K) y la estrella de favorita. La búsqueda es un <dialog> modal agrupado por familia.
  * Conserva lo que hacía el anterior: registrar la visita en recientes, marcar favorita y avisar si no se pueden guardar.
  */
-export function CarcasaHerramientas({ tools, children }: { tools: PublicToolCatalogEntry[]; children: React.ReactNode }) {
+export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { tools: PublicToolCatalogEntry[]; relacionadas?: Record<string, string[]>; children: React.ReactNode }) {
     const ruta = usePathname();
     const slug = ruta.split("/")[2];
     const actual = tools.find((t) => t.slug === slug);
     const { favorites, ready, sessionOnly, toggleFavorite } = useToolFavorites();
     useRecentTools(actual?.slug);
+    // Una visita por herramienta y sesión, en las 29 por igual: con esto se ordenan «Las más usadas» del catálogo
+    // (antes solo 8 registraban uso y el ranking habría medido solo a esas).
+    const slugActual = actual?.slug;
+    useEffect(() => {
+        // Un navegador automatizado (pruebas, robots con Chrome) no cuenta: su agente no siempre dice «headless».
+        if (!slugActual || navigator.webdriver) return;
+        const clave = `visita:${slugActual}`;
+        try { if (sessionStorage.getItem(clave)) return; sessionStorage.setItem(clave, "1"); } catch { /* sin almacenamiento: se registra igual */ }
+        fetch(`/api/tools/public/${slugActual}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "view" }), keepalive: true }).catch(() => undefined);
+    }, [slugActual]);
+    const sugeridas = actual ? (relacionadas[actual.slug] ?? []).flatMap((s) => tools.filter((t) => t.slug === s)) : [];
     const dialogo = useRef<HTMLDialogElement>(null), buscador = useRef<HTMLInputElement>(null);
     const [consulta, setConsulta] = useState("");
     const visibles = tools.filter((t) => coincide(t, consulta));
@@ -75,6 +86,22 @@ export function CarcasaHerramientas({ tools, children }: { tools: PublicToolCata
                 </div>
             ) : null}
             <div id="tools-content" tabIndex={-1} className="hc-contenido">{children}</div>
+            {/* Al terminar, las que suelen venir antes o después en el mismo trabajo: así las menos conocidas aparecen
+                justo cuando vienen al caso. Llegan del servidor ya filtradas a las visibles. */}
+            {sugeridas.length ? (
+                <nav className="hc-relacionadas ancho" aria-labelledby="hc-rel-t">
+                    <h2 id="hc-rel-t">También te puede servir</h2>
+                    <ul>
+                        {sugeridas.map((t) => (
+                            <li key={t.slug} style={{ "--c": COLOR_CATEGORIA[t.category] ?? "var(--acento)" } as CSSProperties}>
+                                <svg viewBox="0 0 24 24" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONOS[t.slug] ?? "" }} />
+                                <Link href={`/herramientas/${t.slug}`}>{t.name}</Link>
+                                <p>{t.description}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </nav>
+            ) : null}
         </>
     );
 

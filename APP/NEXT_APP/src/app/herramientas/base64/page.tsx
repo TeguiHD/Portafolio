@@ -56,7 +56,7 @@ export default function ImageBase64Page() {
     }
     return (
         <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 sm:px-8">
-            <ToolPageHeader slug="base64" title="Conversor Base64" description="Codifica y decodifica texto UTF-8, o convierte una imagen a una URL de datos. Todo se procesa en tu navegador." />
+            <ToolPageHeader slug="base64" />
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex rounded-xl border border-white/10 p-1" role="group" aria-label="Tipo de conversión"><button type="button" className="studio-segment flex items-center gap-2" aria-pressed={tab === "text"} onClick={() => { setTab("text"); setFeedback(""); }}><FileText size={15} aria-hidden="true" />Texto</button><button type="button" className="studio-segment flex items-center gap-2" aria-pressed={tab === "image"} onClick={() => { setTab("image"); setFeedback(""); }}><ImageIcon size={15} aria-hidden="true" />Imagen a Base64</button></div>
                 {tab === "text" && <div className="flex gap-1" role="group" aria-label="Operación"><button type="button" className="studio-segment" aria-pressed={mode === "encode"} onClick={() => { setMode("encode"); setFeedback(""); }}>Codificar</button><button type="button" className="studio-segment" aria-pressed={mode === "decode"} onClick={() => { setMode("decode"); setFeedback(""); }}>Decodificar</button></div>}

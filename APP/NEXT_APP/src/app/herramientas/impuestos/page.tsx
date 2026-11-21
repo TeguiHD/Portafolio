@@ -69,7 +69,9 @@ export default function TaxCalculatorPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("impuestos");
     const { trackImmediate } = useToolTracking("impuestos", { trackViewOnMount: true, debounceMs: 2000 });
 
-    const [amount, setAmount] = useState("");
+    // Abre con un monto de ejemplo y su cálculo a la vista (como las calculadoras grandes): se entiende sin tocar nada.
+    const [amount, setAmount] = useState("10.000");
+    const recienEnfocado = useRef(false);
     const [taxRate, setTaxRate] = useState(19);
     const [customRate, setCustomRate] = useState("19");
     const [selectedPreset, setSelectedPreset] = useState("CL");
@@ -159,13 +161,13 @@ export default function TaxCalculatorPage() {
         return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Calculadora de Impuestos"} />;
     }
 
-    const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-lg focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500";
+    const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-lg focus:outline-none focus:border-[color-mix(in_srgb,var(--acento)_50%,transparent)] placeholder-neutral-500";
 
     return (
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <ToolPageHeader slug="impuestos" title={<>Calculadora de IVA</>} description={<>Calcula impuestos: agrega o quita IVA de cualquier monto</>} />
+                <ToolPageHeader slug="impuestos" />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left: Input */}
@@ -177,7 +179,7 @@ export default function TaxCalculatorPage() {
                                 aria-pressed={mode === "add"}
                                 onClick={() => setMode("add")}
                                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "add"
-                                    ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                    ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--txt)] border border-[color-mix(in_srgb,var(--acento)_45%,transparent)]"
                                     : "text-neutral-400 hover:text-white"
                                     }`}
                             >
@@ -191,7 +193,7 @@ export default function TaxCalculatorPage() {
                                 aria-pressed={mode === "remove"}
                                 onClick={() => setMode("remove")}
                                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "remove"
-                                    ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                                    ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-[var(--txt)] border border-[color-mix(in_srgb,var(--acento)_45%,transparent)]"
                                     : "text-neutral-400 hover:text-white"
                                     }`}
                             >
@@ -216,6 +218,10 @@ export default function TaxCalculatorPage() {
                                     autoComplete="off"
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value.slice(0, 32))}
+                                    // Lo que se escribe reemplaza el ejemplo (10.000): al enfocar queda todo seleccionado.
+                                    // El mouseup del mismo clic deshacía la selección; se ignora solo ese.
+                                    onFocus={(e) => { e.currentTarget.select(); recienEnfocado.current = true; }}
+                                    onMouseUp={(e) => { if (recienEnfocado.current) { e.preventDefault(); recienEnfocado.current = false; } }}
                                     placeholder="0"
                                     aria-invalid={!!avisoMonto}
                                     aria-describedby={avisoMonto ? "impuestos-monto-error" : undefined}
@@ -238,7 +244,7 @@ export default function TaxCalculatorPage() {
                                         aria-pressed={selectedPreset === preset.code}
                                         onClick={() => handlePresetChange(preset.code)}
                                         className={`min-h-11 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedPreset === preset.code
-                                            ? "bg-[#FF8A00]/20 border border-[#FF8A00] text-white"
+                                            ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] border border-[color-mix(in_srgb,var(--acento)_55%,transparent)] text-white"
                                             : "bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10"
                                             }`}
                                     >
@@ -258,7 +264,7 @@ export default function TaxCalculatorPage() {
                                         value={customRate}
                                         aria-label="Tasa personalizada en porcentaje"
                                         onChange={(e) => handleCustomRateChange(e.target.value)}
-                                        className="w-24 min-h-11 px-3 py-2 rounded-xl bg-[#0F1724] border border-white/10 text-white text-center focus:outline-none focus:border-[#FF8A00]/50"
+                                        className="w-24 min-h-11 px-3 py-2 rounded-xl bg-[#0F1724] border border-white/10 text-white text-center focus:outline-none focus:border-[color-mix(in_srgb,var(--acento)_50%,transparent)]"
                                     />
                                     <span className="text-neutral-400" aria-hidden="true">%</span>
                                 </div>
@@ -269,7 +275,7 @@ export default function TaxCalculatorPage() {
                     {/* Right: Results */}
                     <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-6">
                         <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <svg className="w-5 h-5 text-[#FF8A00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-5 h-5 text-[var(--acento)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                             Resultado
@@ -279,8 +285,8 @@ export default function TaxCalculatorPage() {
                             <div className="space-y-4">
                                 {([
                                     { clave: "net", rotulo: "Neto", valor: `$ ${fmt(results.net)}`, copia: fmt(results.net), caja: "bg-white/5 border border-white/10", rotuloClase: "text-neutral-500", valorClase: "text-2xl font-bold text-white" },
-                                    { clave: "tax", rotulo: `${nombreImpuesto} (${formatoTasa(results.effectiveRate)}%)`, valor: `+ $ ${fmt(results.tax)}`, copia: fmt(results.tax), caja: "bg-orange-500/5 border border-orange-500/20", rotuloClase: "text-orange-400/70", valorClase: "text-xl font-semibold text-orange-400" },
-                                    { clave: "gross", rotulo: "Total bruto", valor: `$ ${fmt(results.gross)}`, copia: fmt(results.gross), caja: "bg-green-500/10 border border-green-500/30", rotuloClase: "text-green-400/70", valorClase: "text-3xl font-bold text-green-400" },
+                                    { clave: "tax", rotulo: `${nombreImpuesto} (${formatoTasa(results.effectiveRate)}%)`, valor: `+ $ ${fmt(results.tax)}`, copia: fmt(results.tax), caja: "bg-white/5 border border-white/10", rotuloClase: "text-neutral-500", valorClase: "text-xl font-semibold text-white" },
+                                    { clave: "gross", rotulo: "Total bruto", valor: `$ ${fmt(results.gross)}`, copia: fmt(results.gross), caja: "bg-[color-mix(in_srgb,var(--acento)_10%,transparent)] border border-[color-mix(in_srgb,var(--acento)_40%,transparent)]", rotuloClase: "text-[var(--mut)]", valorClase: "text-3xl font-bold text-[var(--txt)]" },
                                 ] as const).map((fila) => (
                                     <div key={fila.clave} className={`flex items-center justify-between gap-2 p-4 rounded-xl ${fila.caja}`}>
                                         <div className="min-w-0">
@@ -351,7 +357,7 @@ export default function TaxCalculatorPage() {
                     </div>
                     <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10">
                         <h3 className="text-sm font-medium text-white mb-2 flex items-center gap-2">
-                            <svg className="w-4 h-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-[var(--mut)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                             </svg>
                             Quitar IVA

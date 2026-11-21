@@ -87,6 +87,12 @@ export default function JsonFormatterPage() {
     const errorJson = analisis && !analisis.ok ? analisis.error : null;
     const canExport = Boolean(result && !pending);
 
+    // Un ejemplo real para ver qué hace sin tener un JSON a mano (los sitios grandes muestran un resultado antes de pedir nada).
+    const cargarEjemplo = useCallback(() => {
+        setInput(JSON.stringify({ sitio: "nicoholas.dev", herramientas: 29, gratis: true, familias: ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes"] }));
+        setFeedback(null);
+    }, []);
+
     const handleFormat = useCallback(() => {
         if (result) setInput(result.formatted);
     }, [result]);
@@ -125,7 +131,7 @@ export default function JsonFormatterPage() {
     return (
         <div className="tool-page">
             <main className="tool-main max-w-5xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="json" title={<>Formateador JSON</>} description={<>Formatea, valida y recorre JSON en árbol, con el error ubicado por línea y columna.</>} />
+                <ToolPageHeader slug="json" />
 
                 <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-[#111923] p-2">
                     <button type="button" onClick={handleFormat} disabled={!canExport} className="studio-button"><AlignLeft size={16} aria-hidden="true" />Formatear</button>
@@ -135,7 +141,7 @@ export default function JsonFormatterPage() {
                     </div>
                     <div className="ml-auto flex items-center gap-1">
                         <button type="button" onClick={() => fileRef.current?.click()} aria-label="Abrir archivo JSON" title="Abrir archivo JSON" className="studio-icon-button"><Upload size={17} aria-hidden="true" /></button>
-                        <button type="button" onClick={() => { setInput(JSON.stringify({ proyecto: "Mi próximo proyecto", herramientas: ["imágenes", "código"], listo: true }, null, 2)); setFeedback(null); }} aria-label="Cargar ejemplo" title="Cargar ejemplo" className="studio-icon-button"><Braces size={17} aria-hidden="true" /></button>
+                        <button type="button" onClick={() => { cargarEjemplo(); }} aria-label="Cargar ejemplo" title="Cargar ejemplo" className="studio-icon-button"><Braces size={17} aria-hidden="true" /></button>
                         <button type="button" onClick={() => { if (result) void copiar(result.formatted, "resultado"); }} disabled={!canExport} aria-label={copiado === "resultado" ? "Resultado copiado" : "Copiar resultado"} title="Copiar resultado" className="studio-icon-button">{copiado === "resultado" ? <Check size={17} aria-hidden="true" className="text-teal-300" /> : <Copy size={17} aria-hidden="true" />}</button>
                         <button type="button" onClick={download} disabled={!canExport} className="studio-button studio-button-primary"><Download size={16} aria-hidden="true" />JSON</button>
                     </div>
@@ -206,7 +212,10 @@ export default function JsonFormatterPage() {
                                     )) : result.formatted}
                                 </pre>
                             ) : (
-                                <p className="text-slate-400 text-sm">{vacio ? "Pega un JSON o abre un archivo para empezar." : "Analizando…"}</p>
+                                <div>
+                                    <p className="text-slate-400 text-sm">{vacio ? "Pega un JSON o abre un archivo para empezar." : "Analizando…"}</p>
+                                    {vacio ? <button type="button" onClick={cargarEjemplo} className="studio-button mt-3">Probar con un ejemplo</button> : null}
+                                </div>
                             )}
                         </div>
                     </div>

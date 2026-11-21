@@ -1,4 +1,5 @@
 "use client";
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -359,14 +360,7 @@ export default function AsciiArtPage() {
                 {/* Header */}
                 <div className="mb-4 sm:mb-6">
                     <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">
-                                Imagen a ASCII
-                            </h1>
-                            <p className="text-neutral-400 text-xs sm:text-sm mt-1">
-                                Convierte imágenes en texto ASCII con control de ancho, densidad y color
-                            </p>
-                        </div>
+                        <div className="min-w-0 flex-1"><ToolPageHeader slug="ascii" /></div>
 
                         {imageUrl && (
                             <button

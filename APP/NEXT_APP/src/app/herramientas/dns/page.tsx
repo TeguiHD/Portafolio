@@ -304,7 +304,7 @@ export default function DnsCheckerPage() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,#17345c_0%,#0F1724_35%,#08111f_100%)]">
             <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
-                <ToolPageHeader slug="dns" title={<>Verificar DNS por resolvedor</>} description={<>Consulta seis resolvedores públicos desde el servidor, compara sus respuestas y revisa el SPF y el DMARC de un dominio.</>} />
+                <ToolPageHeader slug="dns" />
 
                 <StudioCard
                     title="Consulta DNS"

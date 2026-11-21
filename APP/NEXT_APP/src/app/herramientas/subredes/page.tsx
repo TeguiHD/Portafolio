@@ -583,7 +583,7 @@ export default function SubnetCalculatorPage() {
     return (
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="subredes" title={<>Calculadora de Subredes</>} description={<>Calcula subredes IPv4 e IPv6 (máscara, red, broadcast y rango utilizable) y planifica VLSM.</>} />
+                <ToolPageHeader slug="subredes" />
 
                 {/* IP Version Toggle */}
                 <div className="flex gap-2 bg-white/5 rounded-xl p-2 border border-white/10 mb-6" role="group" aria-label="Versión de IP">

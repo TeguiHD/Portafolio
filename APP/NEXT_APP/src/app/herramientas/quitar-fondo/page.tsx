@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import { Check, ChevronDown, CircleHelp, ImagePlus, LoaderCircle, RotateCcw, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, CircleHelp, ImagePlus, LoaderCircle, RotateCcw,  X } from "lucide-react";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
@@ -429,19 +429,17 @@ export default function BackgroundRemoverPage() {
     return (
         <div className="tool-page min-h-screen">
             <main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
-                <ToolPageHeader slug="quitar-fondo" title="Quitar fondo" description="Sube una imagen. El fondo desaparece y tú afinas los detalles." />
+                <ToolPageHeader slug="quitar-fondo" />
 
                 {!source ? (
                     <section className="studio-panel overflow-hidden" aria-label="Subir imagen para quitar el fondo">
                         <div className="grid md:grid-cols-[1.05fr_1fr]">
                             <div className={`${styles.stage} relative flex flex-col items-center justify-center px-6 py-5 sm:px-10 sm:py-8`}>
-                                <div className="mb-1 flex items-center gap-2 self-start text-[11px] font-medium tracking-wide text-teal-200"><Sparkles size={14} aria-hidden="true" />Un buen recorte cambia todo.</div>
                                 <BackgroundIllustration />
                                 <p className="text-center text-xs text-slate-400">Del original a un PNG transparente.</p>
                             </div>
                             <div className="flex flex-col justify-center gap-5 p-5 sm:p-8">
                                 <ImageDropzone onImageLoad={(file, url) => { void processImage(file, url); }} accept={["image/png", "image/jpeg", "image/webp"]} maxSize={20 * 1024 * 1024} accentColor={ACCENT} label="Suelta tu imagen aquí" sublabel="JPG, PNG o WebP · Empezamos al subirla" />
-                                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-slate-400"><span className="inline-flex items-center gap-1.5"><ShieldCheck size={14} className="text-teal-300" aria-hidden="true" />Tu imagen se queda contigo</span><span className="inline-flex items-center gap-1.5"><Check size={14} className="text-teal-300" aria-hidden="true" />Sin marca de agua</span></div>
                             </div>
                         </div>
                     </section>
@@ -527,7 +525,7 @@ export default function BackgroundRemoverPage() {
                 )}
                 {status === "done" && error && <p role="alert" className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-200">{error}</p>}
                 <details className="group mt-5 rounded-xl border border-white/[0.07] bg-white/[0.015]">
-                    <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs text-slate-400"><span className="inline-flex items-center gap-2"><CircleHelp size={15} aria-hidden="true" />Unos detalles para que quede perfecto</span><ChevronDown size={14} className="transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" /></summary>
+                    <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs text-slate-400"><span className="inline-flex items-center gap-2"><CircleHelp size={15} aria-hidden="true" />Consejos para un mejor recorte</span><ChevronDown size={14} className="transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" /></summary>
                     <div className="grid gap-4 border-t border-white/5 p-4 text-xs leading-relaxed text-slate-400 sm:grid-cols-3"><p><strong className="font-medium text-slate-200">Una imagen nítida ayuda.</strong> Retratos y productos con buen contraste suelen dar el mejor resultado. Hasta 20 MB y 16 megapíxeles.</p><p><strong className="font-medium text-slate-200">Los detalles quedan en tus manos.</strong> Borra lo que sobra o restaura lo que falta. Baja la dureza para suavizar el borde.</p><p id="background-keyboard-help"><strong className="font-medium text-slate-200">También con teclado.</strong> Enfoca la imagen: flechas para mover el pincel, Espacio para pintar, Shift acelera. E borra, R restaura, [ y ] cambian el tamaño, C compara mientras se mantiene, M muestra la máscara. Ctrl / ⌘ Z deshace.</p></div>
                 </details>
             </main>

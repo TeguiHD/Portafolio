@@ -6,6 +6,7 @@ import { useMateria } from "@/modules/materia/Materia";
 import { getDefaultPublicToolCatalog } from "@/lib/tool-registry";
 import { COLOR_CATEGORIA, ICONOS, SIGLAS } from "./siglas";
 import { Vista } from "./Vista";
+import { DESTACADAS_RESPALDO } from "@/lib/tool-destacadas";
 import "./herramientas.css";
 
 // Tres órbitas inclinadas, cada una a su ritmo: el centro queda libre para que la materia escriba.
@@ -13,8 +14,6 @@ const ORBITAS = [{ n: 8, r: 0.56, inc: 0.40, giro: 1, des: -0.10 }, { n: 10, r: 
 /** Tras elegir una a mano, la elección se respeta este tiempo (ms): alcanza para leer el nombre y llegar a «Abrir», también en pantallas táctiles. */
 const SOSTENER = 12_000;
 const mayuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-/** En celular, en vez de la esfera: estas, en lista (las de uso más amplio), y el enlace a todas. */
-const DESTACADAS = ["qr", "quitar-fondo", "comprimir-imagen", "claves", "json", "impuestos"];
 const primeraFrase = (t: string) => t.split(/(?<=\.)\s/)[0] ?? t;
 
 /**
@@ -89,7 +88,7 @@ export function Herramientas({ pagina = false }: { pagina?: boolean }) {
 
     const t = T[sel];
     return (
-        <section id="herramientas" className={pagina ? "he-pagina" : "plano"} data-forma="texto" data-ancla="#ancla-texto" aria-labelledby="he-titulo">
+        <section id="herramientas" className={pagina ? "he-pagina" : "plano"} data-al-cargar={pagina ? "" : undefined} data-forma="texto" data-ancla="#ancla-texto" aria-labelledby="he-titulo">
             <span className="fantasma" aria-hidden="true">{T.length}</span>
             <Vista className="ancho">
                 <div className="he-cab">
@@ -97,7 +96,7 @@ export function Herramientas({ pagina = false }: { pagina?: boolean }) {
                         ? <h1 id="he-titulo"><span className="linea-r"><span>Herramientas<i>.</i></span></span></h1>
                         : <h2 id="he-titulo"><span className="linea-r"><span>Herramientas</span></span></h2>}
                     {pagina
-                        ? <a className="enlace-ir" href="#catalogo" data-sube="">Todas, por nombre ↓</a>
+                        ? <a className="enlace-ir" href="#catalogo" data-sube="">Ver las {T.length} ↓</a>
                         : <Link className="enlace-ir he-cab-ir" href="/herramientas" data-sube="">Ver las {T.length} ↗</Link>}
                 </div>
                 <div className="he-esfera" id="he-esfera" ref={esfera} data-sube="" style={{ "--i": 1 } as CSSProperties}
@@ -130,7 +129,8 @@ export function Herramientas({ pagina = false }: { pagina?: boolean }) {
                 {!pagina ? (
                     <div className="he-movil">
                         <ul className="he-destacadas" aria-label="Herramientas destacadas">
-                            {DESTACADAS.flatMap((slug) => T.filter((x) => x.slug === slug)).map((x) => (
+                            {/* En celular, en vez de la esfera: las de uso más amplio, en lista, y el enlace a todas. */}
+                            {DESTACADAS_RESPALDO.flatMap((slug) => T.filter((x) => x.slug === slug)).map((x) => (
                                 <li key={x.slug}>
                                     <Link href={`/herramientas/${x.slug}`} style={{ "--c": COLOR_CATEGORIA[x.category] ?? "#5eead4" } as CSSProperties}>
                                         <span className="he-ico" aria-hidden="true"><svg viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: ICONOS[x.slug] ?? "" }} /></span>

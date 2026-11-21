@@ -145,7 +145,7 @@ export default function BinaryTranslatorPage() {
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <ToolPageHeader slug="binario" title={<>Traductor Binario</>} description={<>Convierte texto a binario y viceversa</>} />
+                <ToolPageHeader slug="binario" />
 
                 {/* Mode Toggle */}
                 <div className="flex gap-2 mb-6 p-1 rounded-xl bg-white/5 border border-white/10" role="group" aria-label="Dirección">

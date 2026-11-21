@@ -271,7 +271,7 @@ export function ImageTransformStudio({ mode }: { mode: ModoEstudio }) {
 
     return <div className="tool-page">
         <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
-            <ToolPageHeader slug={mode} title={config.title} description={config.description} />
+            <ToolPageHeader slug={mode} />
             {lote ? <LoteImagenes key={lote.id} archivos={lote.archivos} ajustes={ajustes} acento={config.accent} sufijo={config.suffix} pasos={PASOS} onCambiar={handleClear}>{panel(true)}</LoteImagenes>
             : !source ? <>
                 <ImageDropzone onImageLoad={handleLoad} multiple onMultipleLoad={handleLote} accept={FORMATOS_ENTRADA} accentColor={config.accent} label="Arrastra una o varias imágenes" sublabel={`${listaFormatos(FORMATOS_ENTRADA)} · tus archivos permanecen en tu dispositivo`} />

@@ -22,9 +22,6 @@ export function ToolSeoContent({ slug }: ToolSeoContentProps) {
     if (!copy) return null;
 
     const entry = getToolSeo(slug);
-    const related = entry.related
-        .map((relatedSlug) => getToolSeo(relatedSlug))
-        .filter(Boolean);
 
     return (
         <section
@@ -93,30 +90,7 @@ export function ToolSeoContent({ slug }: ToolSeoContentProps) {
 
             {slug === "qr" && <Link href="/ar" className="mt-5 flex min-h-11 items-center justify-between gap-4 rounded-xl border border-violet-300/20 bg-violet-300/5 p-4 text-sm text-violet-200"><span>QR con realidad aumentada: formatos, compatibilidad y ejemplo</span><span aria-hidden="true">→</span></Link>}
 
-            {related.length > 0 && (
-                <>
-                    <h2 className="mt-8 text-lg font-semibold text-white">
-                        Herramientas relacionadas
-                    </h2>
-                    <ul className="mt-5 grid gap-3 sm:grid-cols-3">
-                        {related.map((tool) => (
-                            <li key={tool.slug}>
-                                <Link
-                                    href={`/herramientas/${tool.slug}`}
-                                    className="block rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-[#00B8A9]/40"
-                                >
-                                    <span className="block text-sm font-semibold text-white">
-                                        {tool.h1}
-                                    </span>
-                                    <span className="mt-1 block text-xs leading-relaxed text-neutral-500">
-                                        {tool.primaryKeyword}
-                                    </span>
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </>
-            )}
+            {/* Las relacionadas van al final de la herramienta, en «También te puede servir» (CarcasaHerramientas). */}
         </section>
     );
 }

@@ -209,7 +209,7 @@ export default function FaviconGeneratorPage() {
         : previews.length ? "8 PNG, favicon.ico, manifest y etiquetas HTML" : error ? undefined : "Generando tamaños";
 
     return <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
-        <ToolPageHeader slug="favicon" title="Favicons, listos para tu web" description="Sube tu logo. Ocho tamaños, favicon.ico y manifest, todo en un ZIP." />
+        <ToolPageHeader slug="favicon" />
         {!source ? <><ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o icono" sublabel="PNG, JPG o WebP · conserva la proporción original" />{decoding && <p role="status" className="mt-4 text-center text-sm text-slate-400">Abriendo imagen…</p>}</> : <section aria-label="Estudio de favicons" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
             <MesaCabecera nombre={source.file.name} detalle={`${source.image.naturalWidth} × ${source.image.naturalHeight} px`}>
                 <button type="button" onClick={() => { void handleDownloadZip(); }} disabled={!previews.length || packing} className="studio-button studio-button-primary">{packing ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <IconoDescargar listo={zipDescargado === zipKey && previews.length > 0} />}<span><span className="hidden sm:inline">Descargar </span>ZIP</span></button>

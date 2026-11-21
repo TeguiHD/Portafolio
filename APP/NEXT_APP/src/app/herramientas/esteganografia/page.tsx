@@ -214,7 +214,7 @@ export default function SteganographyPage() {
     return (
         <div className="tool-page">
             <main className="tool-main max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="esteganografia" title={<>Esteganografía Emoji</>} description={<>Oculta texto en emojis con caracteres invisibles, o detecta y limpia los que trae cualquier texto</>} />
+                <ToolPageHeader slug="esteganografia" />
 
                 {/* Mode Toggle */}
                 <div className="flex gap-2 bg-white/5 rounded-xl p-2 border border-white/10 mb-6" role="group" aria-label="Modo">

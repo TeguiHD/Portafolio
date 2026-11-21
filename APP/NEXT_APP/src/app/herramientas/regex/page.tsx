@@ -286,12 +286,11 @@ export default function RegexTesterPage() {
         <div className="tool-page">
             <main className="tool-main max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
-                <ToolPageHeader slug="regex" title={<>Regex Tester</>} description={<>Prueba expresiones regulares con protección anti-ReDoS</>} />
+                <ToolPageHeader slug="regex" />
 
                 {/* AI Generation Section */}
-                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl p-4 sm:p-5 border border-purple-500/30 mb-4">
+                <div className="studio-panel rounded-2xl p-4 sm:p-5 mb-4">
                     <div className="flex items-center gap-2 mb-3">
-                        <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center text-sm">🤖</span>
                         <div>
                             <h3 className="text-white font-medium text-sm">Generar con IA</h3>
                             <p className="text-[10px] text-neutral-500">Describe en español qué quieres buscar</p>
@@ -327,7 +326,7 @@ export default function RegexTesterPage() {
                                     Generando...
                                 </>
                             ) : (
-                                <>✨ Generar</>
+                                <>Generar</>
                             )}
                         </button>
                     </div>
@@ -353,7 +352,7 @@ export default function RegexTesterPage() {
                                             Generando...
                                         </>
                                     ) : (
-                                        <>✨ Generar Ejemplos</>
+                                        <>Generar ejemplos</>
                                     )}
                                 </button>
                                 <span className="text-[10px] text-neutral-600">

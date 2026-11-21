@@ -236,7 +236,7 @@ export default function ImageSteganographyPage() {
             <canvas ref={canvasRef} className="hidden" />
 
             <main className="tool-main max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-                <ToolPageHeader slug="esteganografia-imagen" title={<>Esteganografía en Imágenes</>} description={<>Oculta y extrae texto en imágenes PNG mediante LSB, sin subir archivos</>} />
+                <ToolPageHeader slug="esteganografia-imagen" />
 
                 {/* Mode Toggle */}
                 <div className="flex gap-2 bg-white/5 rounded-xl p-2 border border-white/10 mb-6">

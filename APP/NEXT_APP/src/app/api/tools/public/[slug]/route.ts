@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ipCliente } from "@/lib/ip-cliente";
+import { claveUsoIp } from "@/lib/ip-uso";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { createHash } from "crypto";
@@ -242,7 +243,8 @@ export async function POST(
                 toolId: tool.id,
                 action,
                 metadata: metadata || {},
-                ip: hashIP(ip),
+                // En IPv6 se cuenta el /64: la parte final cambia a diario y una persona contaba como varias.
+                ip: hashIP(claveUsoIp(ip)),
                 userAgent,
                 browser: getBrowserName(userAgent),
                 device: getDeviceType(userAgent),

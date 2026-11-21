@@ -1,15 +1,103 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Herramientas con el lenguaje del sitio", () => {
-    test("el catálogo: la esfera como cabecera y las 29 en un índice por familia, sin tarjetas", async ({ page }) => {
+    test("el catálogo: cabecera sobria, destacadas y las 29 por familia, sin esfera", async ({ page }) => {
         await page.goto("/herramientas");
         await expect(page.locator("h1")).toHaveCount(1);
-        await expect(page.locator("h1")).toContainText("Herramientas");
-        await expect(page.locator("#he-esfera .he-nodo")).toHaveCount(29);
+        await expect(page.locator("h1")).toHaveText("Herramientas.");
+        await expect(page.locator("#he-esfera, .he-nodo")).toHaveCount(0);
+        const destacadas = page.getByRole("region", { name: /^(Destacadas|Las más usadas)$/ });
+        await expect(destacadas.locator(".ht-destacada")).toHaveCount(6);
         await expect(page.locator(".ht-grupo")).toHaveCount(6);
         await expect(page.locator(".ht-fila")).toHaveCount(29);
         await expect(page.locator(".tool-tile, .tools-catalog-search")).toHaveCount(0);
-        await expect(page.locator("canvas#materia")).toHaveAttribute("data-forma-activa", "texto");
+        await expect(page.locator("canvas#materia")).toHaveAttribute("data-forma-activa", "marco");
+    });
+
+    test("sin datos de uso: el rótulo es «Destacadas» y va el orden de respaldo", async ({ page }) => {
+        await page.goto("/herramientas");
+        const destacadas = page.getByRole("region", { name: "Destacadas" });
+        await expect(destacadas.locator(".ht-destacada a")).toHaveText([/QR/, /Fondo/i, /Compres/i, /Contraseñas/i, /JSON/, /IVA/]);
+        await expect(page.locator(".ht-nueva")).toHaveCount(0); // ninguna se publicó en los últimos 60 días
+    });
+
+    test("al buscar o filtrar, las destacadas se ocultan", async ({ page }) => {
+        await page.goto("/herramientas");
+        const buscar = page.getByRole("searchbox", { name: "Buscar herramientas" });
+        await buscar.fill("json");
+        await expect(page.locator(".ht-destacada")).toHaveCount(0);
+        await buscar.fill("");
+        await expect(page.locator(".ht-destacada")).toHaveCount(6);
+        await page.getByRole("button", { name: /^Redes/ }).click();
+        await expect(page.locator(".ht-destacada")).toHaveCount(0);
+    });
+
+    test("a 390 px las destacadas van de a dos y nada desborda", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("/herramientas");
+        await expect(page.locator(".ht-destacada")).toHaveCount(6);
+        const filas = await page.locator(".ht-destacada").evaluateAll((es) => es.map((e) => Math.round(e.getBoundingClientRect().top)));
+        expect(new Set(filas).size).toBe(3);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    });
+
+    for (const ancho of [1440, 390]) {
+        test(`las destacadas van alineadas con el buscador, con su rótulo encima y sin hueco tras el título (${ancho} px)`, async ({ page }) => {
+            await page.setViewportSize({ width: ancho, height: 900 });
+            await page.goto("/herramientas");
+            const m = await page.evaluate(() => {
+                const caja = (s: string) => document.querySelector(s)!.getBoundingClientRect();
+                return { buscar: caja(".ht-buscar").left, tarjeta: caja(".ht-destacada").left, rotulo: caja(".ht-destacadas h2").bottom,
+                    arriba: caja(".ht-destacada").top, linea: caja(".ht-cab p").bottom, buscador: caja(".ht-buscar").top };
+            });
+            expect(Math.abs(m.tarjeta - m.buscar)).toBeLessThanOrEqual(2);
+            expect(m.rotulo).toBeLessThanOrEqual(m.arriba);
+            expect(m.buscador - m.linea).toBeLessThanOrEqual(90);
+        });
+    }
+
+    test("sin JavaScript, el buscador y las familias se ven: nada de arriba espera a hidratar", async ({ browser }) => {
+        const ctx = await browser.newContext({ javaScriptEnabled: false });
+        const page = await ctx.newPage();
+        await page.goto("/herramientas");
+        for (const sel of ["#catalogo .ancho", ".ht-filtros", ".ht-familias"]) {
+            expect(await page.locator(sel).first().evaluate((e) => getComputedStyle(e).opacity), sel).toBe("1");
+        }
+        await ctx.close();
+    });
+
+    test("abrir cualquier herramienta registra una visita, una vez por sesión", async ({ page }) => {
+        // Como una persona: sin la marca de navegador automatizado.
+        await page.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));
+        const visitas: string[] = [];
+        page.on("request", (r) => { if (r.method() === "POST" && r.url().endsWith("/api/tools/public/dns")) visitas.push(r.postData() ?? ""); });
+        await page.goto("/herramientas/dns");
+        await expect.poll(() => visitas.length).toBe(1);
+        expect(JSON.parse(visitas[0]).action).toBe("view");
+        await page.reload();
+        await page.waitForTimeout(1500);
+        expect(visitas).toHaveLength(1);
+    });
+
+    test("un navegador automatizado (navigator.webdriver) no registra visitas: no cuenta en «Las más usadas»", async ({ page }) => {
+        const visitas: string[] = [];
+        page.on("request", (r) => { if (r.method() === "POST" && r.url().includes("/api/tools/public/")) visitas.push(r.url()); });
+        for (const slug of ["dns", "qr"]) { await page.goto(`/herramientas/${slug}`); await page.waitForTimeout(2500); }
+        expect(visitas).toEqual([]);
+    });
+
+    test("cada herramienta sugiere 3 relacionadas por flujo de trabajo", async ({ page }) => {
+        await page.goto("/herramientas/quitar-fondo");
+        const nav = page.getByRole("navigation", { name: "También te puede servir" });
+        await expect(nav.getByRole("link")).toHaveCount(3);
+        await expect(nav.getByRole("link").nth(0)).toHaveAttribute("href", "/herramientas/recortar-imagen");
+        await expect(nav.getByRole("link").nth(1)).toHaveAttribute("href", "/herramientas/comprimir-imagen");
+        await expect(nav.getByRole("link").nth(2)).toHaveAttribute("href", "/herramientas/marca-agua");
+        // Un solo bloque: el antiguo «Herramientas relacionadas» de la guía repetía la idea con palabras clave.
+        await expect(page.getByRole("heading", { name: "Herramientas relacionadas" })).toHaveCount(0);
+        // En el catálogo no aparece: es solo para quien ya está usando una.
+        await page.goto("/herramientas");
+        await expect(page.getByRole("navigation", { name: "También te puede servir" })).toHaveCount(0);
     });
 
     test("en una herramienta la materia se queda en el marco, y la ruta lleva al catálogo", async ({ page }) => {

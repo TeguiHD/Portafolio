@@ -92,11 +92,17 @@ body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !i
 @media (min-width: 1280px) { .tools-workspace .studio-icon-button.tools-nav-toggle { display: none; } }
 
 /* Cabecera común (ToolPageHeader), con el lenguaje del sitio: título grande, una línea y el ícono en el color de su familia. */
-.th { display: flex; align-items: center; gap: 16px; margin: 0 0 18px; }
+/* El ícono va a la altura del título (con descripción y «dónde» debajo, centrado quedaba flotando a media altura). */
+.th { display: flex; align-items: flex-start; gap: 16px; margin: 0 0 18px; }
+.th-icono { margin-top: 2px; }
 .th-icono { display: grid; place-items: center; width: 50px; height: 50px; flex: none; border-radius: 16px; color: var(--c);
   background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--c) 26%, transparent), color-mix(in srgb, var(--c) 6%, transparent));
   border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); box-shadow: 0 18px 40px -22px var(--c); }
 .th-icono svg { width: 26px; height: 26px; }
-.th h1 { margin: 0; font-size: clamp(28px, 3.4vw, 42px); font-weight: 780; letter-spacing: -.045em; line-height: 1.02; color: var(--txt); }
-.th p { margin: 6px 0 0; max-width: 60ch; color: var(--mut); font-size: clamp(15px, 1.4vw, 17.5px); line-height: 1.5; }
+/* Alturas de línea en píxeles enteros (round): con 28 × 1,02 = 28,56 px todo lo de abajo quedaba en medio píxel y Chrome
+   recortaba una fracción de la vista previa del QR (overflow hidden). Sin round(), queda el valor de siempre. */
+.th h1 { margin: 0; font-size: clamp(28px, 3.4vw, 42px); font-weight: 780; letter-spacing: -.045em; line-height: 1.02; line-height: round(up, 1.02em, 1px); color: var(--txt); }
+.th p { margin: 6px 0 0; max-width: 60ch; color: var(--mut); font-size: clamp(15px, 1.4vw, 17.5px); line-height: 1.5; line-height: round(1.5em, 1px); }
+/* Dónde se procesa: la promesa concreta junto a la herramienta (lo hacen los sitios grandes), sin caja de aviso. */
+.th p.th-donde { margin-top: 4px; font-size: 13.5px; line-height: 20px; color: color-mix(in srgb, var(--mut) 85%, var(--acento)); }
 @media (max-width: 640px) { .th { gap: 14px; } .th-icono { width: 46px; height: 46px; border-radius: 13px; } .th-icono svg { width: 22px; height: 22px; } }

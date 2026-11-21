@@ -159,7 +159,7 @@ export default function UnitConverterPage() {
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
                 {/* Header - Simplified */}
-                <ToolPageHeader slug="unidades" title={<>Conversor de Unidades</>} description={<>Selecciona una magnitud y convierte al instante</>} />
+                <ToolPageHeader slug="unidades" />
 
                 {/* Category Selection - Cards with emoji + text always visible */}
                 <div role="group" aria-label="Magnitud" className="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-3 mb-8">

@@ -164,7 +164,7 @@ export default function PasswordGeneratorPage() {
     if (isLoading) {
         return (
             <div className="min-h-screen bg-[#0F1724] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin motion-reduce:animate-none" />
+                <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin motion-reduce:animate-none" />
             </div>
         );
     }
@@ -176,14 +176,14 @@ export default function PasswordGeneratorPage() {
     const currentScenario = ATTACK_SCENARIOS[attackScenario];
     const bits = entero.format(entropy);
     const toggleClass = (on: boolean) => on
-        ? "bg-green-500/20 border border-green-500/40 text-green-400"
+        ? "bg-teal-500/20 border border-teal-500/40 text-teal-400"
         : "bg-white/5 border border-white/10 text-neutral-500 hover:bg-white/10";
 
     return (
         <div className="tool-page">
             <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
                 {/* Header */}
-                <ToolPageHeader slug="claves" title={<>Generador de Contraseñas</>} description={<>Criptográficamente seguro • Análisis basado en benchmarks reales</>} />
+                <ToolPageHeader slug="claves" />
 
                 {/* Password Display */}
                 <div className="bg-[#0a0e17] rounded-2xl p-4 sm:p-5 border border-white/10 mb-4">
@@ -196,10 +196,10 @@ export default function PasswordGeneratorPage() {
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className={`${iconButton} bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white`} aria-label={showPassword ? "Ocultar clave" : "Mostrar clave"}>
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} /></svg>
                             </button>
-                            <button type="button" onClick={() => { void copiar(password, "clave"); }} disabled={!password} className={`${iconButton} disabled:opacity-50 ${copiado === "clave" ? "bg-green-500/20 text-green-400" : "bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white"}`} aria-label="Copiar clave">
+                            <button type="button" onClick={() => { void copiar(password, "clave"); }} disabled={!password} className={`${iconButton} disabled:opacity-50 ${copiado === "clave" ? "bg-teal-500/20 text-teal-400" : "bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white"}`} aria-label="Copiar clave">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={copiado === "clave" ? "M5 13l4 4L19 7" : "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"} /></svg>
                             </button>
-                            <button type="button" onClick={generatePassword} disabled={sinGrupos} className={`${iconButton} bg-green-500/20 hover:bg-green-500/30 text-green-400 disabled:opacity-50`} aria-label="Generar otra clave">
+                            <button type="button" onClick={generatePassword} disabled={sinGrupos} className={`${iconButton} bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 disabled:opacity-50`} aria-label="Generar otra clave">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             </button>
                         </div>
@@ -223,8 +223,8 @@ export default function PasswordGeneratorPage() {
                 {/* Configuration */}
                 <div className="bg-white/5 rounded-2xl p-4 sm:p-5 border border-white/10 mb-4">
                     <div role="group" aria-label="Tipo de clave" className="grid grid-cols-2 gap-1 rounded-xl bg-black/20 p-1 mb-4">
-                        <button type="button" aria-pressed={modo === "caracteres"} onClick={() => setModo("caracteres")} className={`min-h-11 rounded-lg text-sm transition-colors ${modo === "caracteres" ? "bg-green-500/20 text-green-400" : "text-neutral-400 hover:text-white"}`}>Caracteres al azar</button>
-                        <button type="button" aria-pressed={modo === "palabras"} onClick={() => setModo("palabras")} className={`min-h-11 rounded-lg text-sm transition-colors ${modo === "palabras" ? "bg-green-500/20 text-green-400" : "text-neutral-400 hover:text-white"}`}>Frase de palabras</button>
+                        <button type="button" aria-pressed={modo === "caracteres"} onClick={() => setModo("caracteres")} className={`min-h-11 rounded-lg text-sm transition-colors ${modo === "caracteres" ? "bg-teal-500/20 text-teal-400" : "text-neutral-400 hover:text-white"}`}>Caracteres al azar</button>
+                        <button type="button" aria-pressed={modo === "palabras"} onClick={() => setModo("palabras")} className={`min-h-11 rounded-lg text-sm transition-colors ${modo === "palabras" ? "bg-teal-500/20 text-teal-400" : "text-neutral-400 hover:text-white"}`}>Frase de palabras</button>
                     </div>
 
                     {modo === "caracteres" ? (
@@ -233,11 +233,11 @@ export default function PasswordGeneratorPage() {
                                 <label htmlFor="clave-largo" className="text-sm text-neutral-300">Longitud</label>
                                 <div className="flex items-center gap-2">
                                     <button type="button" aria-label="Cuatro caracteres menos" disabled={length <= LARGO_MIN} onClick={() => setLength(Math.max(LARGO_MIN, length - 4))} className="h-11 w-11 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm disabled:opacity-40">−</button>
-                                    <span className="w-8 text-center font-bold text-green-400" aria-hidden="true">{length}</span>
+                                    <span className="w-8 text-center font-bold text-teal-400" aria-hidden="true">{length}</span>
                                     <button type="button" aria-label="Cuatro caracteres más" disabled={length >= LARGO_MAX} onClick={() => setLength(Math.min(LARGO_MAX, length + 4))} className="h-11 w-11 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm disabled:opacity-40">+</button>
                                 </div>
                             </div>
-                            <input id="clave-largo" type="range" min={LARGO_MIN} max={LARGO_MAX} value={length} aria-valuetext={`${length} caracteres`} onChange={(e) => setLength(parseInt(e.target.value, 10))} className="w-full h-11 bg-transparent cursor-pointer accent-green-500 mb-3" />
+                            <input id="clave-largo" type="range" min={LARGO_MIN} max={LARGO_MAX} value={length} aria-valuetext={`${length} caracteres`} onChange={(e) => setLength(parseInt(e.target.value, 10))} className="w-full h-11 bg-transparent cursor-pointer accent-teal-500 mb-3" />
 
                             <div role="group" aria-label="Grupos de caracteres" className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-3">
                                 {GRUPOS.map((g) => (
@@ -252,7 +252,7 @@ export default function PasswordGeneratorPage() {
                             </button>
                             <div id="clave-avanzado" hidden={!showAdvanced}>
                                 <label className="flex min-h-11 items-center gap-2 text-xs text-neutral-400 mb-3">
-                                    <input type="checkbox" checked={excludeAmbiguous} onChange={(e) => setExcludeAmbiguous(e.target.checked)} className="w-4 h-4 rounded bg-white/10 accent-green-500" />
+                                    <input type="checkbox" checked={excludeAmbiguous} onChange={(e) => setExcludeAmbiguous(e.target.checked)} className="w-4 h-4 rounded bg-white/10 accent-teal-500" />
                                     Excluir caracteres que se confunden (l, 1, I, |, o, O, 0)
                                 </label>
                             </div>
@@ -263,11 +263,11 @@ export default function PasswordGeneratorPage() {
                                 <label htmlFor="clave-palabras" className="text-sm text-neutral-300">Palabras</label>
                                 <div className="flex items-center gap-2">
                                     <button type="button" aria-label="Una palabra menos" disabled={numPalabras <= PALABRAS_MIN} onClick={() => setNumPalabras(Math.max(PALABRAS_MIN, numPalabras - 1))} className="h-11 w-11 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm disabled:opacity-40">−</button>
-                                    <span className="w-8 text-center font-bold text-green-400" aria-hidden="true">{numPalabras}</span>
+                                    <span className="w-8 text-center font-bold text-teal-400" aria-hidden="true">{numPalabras}</span>
                                     <button type="button" aria-label="Una palabra más" disabled={numPalabras >= PALABRAS_MAX} onClick={() => setNumPalabras(Math.min(PALABRAS_MAX, numPalabras + 1))} className="h-11 w-11 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm disabled:opacity-40">+</button>
                                 </div>
                             </div>
-                            <input id="clave-palabras" type="range" min={PALABRAS_MIN} max={PALABRAS_MAX} value={numPalabras} aria-valuetext={`${numPalabras} palabras`} onChange={(e) => setNumPalabras(parseInt(e.target.value, 10))} className="w-full h-11 bg-transparent cursor-pointer accent-green-500 mb-3" />
+                            <input id="clave-palabras" type="range" min={PALABRAS_MIN} max={PALABRAS_MAX} value={numPalabras} aria-valuetext={`${numPalabras} palabras`} onChange={(e) => setNumPalabras(parseInt(e.target.value, 10))} className="w-full h-11 bg-transparent cursor-pointer accent-teal-500 mb-3" />
 
                             <div className="grid gap-3 sm:grid-cols-2 mb-3">
                                 <label className="flex flex-col gap-1.5 text-xs text-neutral-400">
@@ -278,11 +278,11 @@ export default function PasswordGeneratorPage() {
                                 </label>
                                 <div className="flex flex-col justify-end">
                                     <label className="flex min-h-11 items-center gap-2 text-xs text-neutral-300">
-                                        <input type="checkbox" checked={mayuscula} onChange={(e) => setMayuscula(e.target.checked)} className="w-4 h-4 rounded bg-white/10 accent-green-500" />
+                                        <input type="checkbox" checked={mayuscula} onChange={(e) => setMayuscula(e.target.checked)} className="w-4 h-4 rounded bg-white/10 accent-teal-500" />
                                         Mayúscula inicial en cada palabra
                                     </label>
                                     <label className="flex min-h-11 items-center gap-2 text-xs text-neutral-300">
-                                        <input type="checkbox" checked={conNumero} onChange={(e) => setConNumero(e.target.checked)} className="w-4 h-4 rounded bg-white/10 accent-green-500" />
+                                        <input type="checkbox" checked={conNumero} onChange={(e) => setConNumero(e.target.checked)} className="w-4 h-4 rounded bg-white/10 accent-teal-500" />
                                         Agregar un número del 0 al 99
                                     </label>
                                 </div>
@@ -293,7 +293,7 @@ export default function PasswordGeneratorPage() {
                         </>
                     )}
 
-                    <button type="button" onClick={generatePassword} disabled={sinGrupos} className="w-full min-h-11 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-green-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+                    <button type="button" onClick={generatePassword} disabled={sinGrupos} className="w-full min-h-11 py-3 rounded-xl bg-[var(--boton)] text-[var(--boton-tinta)] font-semibold text-sm hover:brightness-110 transition disabled:opacity-50 flex items-center justify-center gap-2">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         Generar otra
                     </button>
@@ -335,7 +335,7 @@ export default function PasswordGeneratorPage() {
                                 </div>
                             )}
                             {"isSecure" in currentScenario && currentScenario.isSecure && (
-                                <p className="text-[11px] text-green-400 mt-2 bg-green-500/10 rounded-lg p-2">
+                                <p className="text-[11px] text-teal-400 mt-2 bg-teal-500/10 rounded-lg p-2">
                                     🔐 Bcrypt es lento a propósito: su factor de costo multiplica el trabajo por intento y frena a las GPU. No exige mucha memoria, a diferencia de Argon2 o scrypt.
                                 </p>
                             )}
@@ -350,7 +350,7 @@ export default function PasswordGeneratorPage() {
                             <span className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-sm" aria-hidden="true">💡</span>
                             <div className="text-left">
                                 <div className="text-white font-medium text-sm">Mejores prácticas de seguridad</div>
-                                <div className="text-[11px] text-neutral-500">Recomendaciones profesionales</div>
+                                <div className="text-[11px] text-neutral-500">Recomendaciones</div>
                             </div>
                         </div>
                         <svg className={`w-4 h-4 text-neutral-400 transition-transform duration-300 motion-reduce:transition-none ${showTips ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -451,7 +451,7 @@ export default function PasswordGeneratorPage() {
                                 { term: "Bits efectivos post-cuánticos", def: "Seguridad real contra computadoras cuánticas. El algoritmo de Grover reduce la entropía a la mitad. 256 bits clásicos = 128 bits cuánticos." },
                                 { term: "Algoritmo de Grover (√n)", def: "Propuesto en 1996 por Lov Grover. Reduce búsqueda de O(N) a O(√N). Ejemplo: 2^128 combinaciones se reducen a 2^64 operaciones cuánticas." },
                                 { term: "NIST PQC", def: "Post-Quantum Cryptography del NIST (Instituto Nacional de Estándares de EE.UU.). Define estándares para criptografía resistente a computadoras cuánticas." },
-                                { term: "Hashcat", def: "Herramienta de código abierto para recuperación de contraseñas. Los benchmarks usados aquí provienen de pruebas reales con GPUs RTX 4090." },
+                                { term: "Hashcat", def: "Herramienta de código abierto para recuperación de contraseñas. Las velocidades de ataque usadas aquí son las que publica para GPUs RTX 4090." },
                                 { term: "Bcrypt", def: "Función hash diseñada para ser lenta y resistente a GPUs. Usa 'cost factor' para aumentar dificultad. Preferido para almacenar contraseñas." },
                                 { term: "Phishing", def: "Ataque de ingeniería social donde se clona un sitio web legítimo para robar credenciales. Siempre verifica la URL antes de ingresar datos." },
                                 { term: "Credential Stuffing", def: "Ataque automatizado que usa credenciales filtradas de un servicio para probar en otros. Por eso nunca debes reutilizar contraseñas." },
@@ -477,7 +477,7 @@ export default function PasswordGeneratorPage() {
                             { name: "NIST SP 800-131A Rev 2", url: "https://csrc.nist.gov/publications/detail/sp/800-131a/rev-2/final", desc: "Guía de transición criptográfica" },
                             { name: "NIST Post-Quantum Cryptography", url: "https://csrc.nist.gov/Projects/post-quantum-cryptography", desc: "Estándares PQC oficiales" },
                             { name: "Grover's Algorithm (1996)", url: "https://arxiv.org/abs/quant-ph/9605043", desc: "Paper original de Lov Grover" },
-                            { name: "Hashcat Benchmarks", url: "https://hashcat.net/wiki/", desc: "Velocidades reales de crackeo por GPU" },
+                            { name: "Hashcat: velocidades por GPU", url: "https://hashcat.net/wiki/", desc: "Velocidades reales de crackeo por GPU" },
                             { name: "OWASP Password Guidelines", url: "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html", desc: "Mejores prácticas de la industria" },
                             { name: "Have I Been Pwned", url: "https://haveibeenpwned.com/", desc: "Verificador de filtraciones de datos" },
                         ].map((s) => (

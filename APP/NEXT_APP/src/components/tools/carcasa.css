@@ -80,3 +80,17 @@
 /* Dentro de una herramienta, las luces del primer plano (profundidad de la portada) caían sobre los campos como manchas:
    en un espacio de trabajo se apagan. El catálogo las conserva. */
 html:has(.hc-marco) .frente { opacity: 0; }
+
+/* «También te puede servir»: al final de cada herramienta, 3 filas como las del catálogo (toda la fila es el enlace). */
+.hc-relacionadas { padding-block: 34px 90px; }
+.hc-relacionadas h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--mut); }
+.hc-relacionadas ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--linea); }
+.hc-relacionadas li { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: center; gap: 4px 14px; padding: 16px 18px 16px 4px; border-bottom: 1px solid var(--linea); transition: background .3s; }
+.hc-relacionadas li > svg { width: 22px; height: 22px; fill: none; stroke: var(--c); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.hc-relacionadas a { font-size: 17px; font-weight: 650; letter-spacing: -.015em; color: var(--txt); text-decoration: none; }
+.hc-relacionadas a::after { content: ""; position: absolute; inset: 0; }
+.hc-relacionadas a:focus-visible { outline: none; }
+.hc-relacionadas li:has(a:focus-visible) { outline: 2px solid var(--acento); outline-offset: -2px; border-radius: 10px; }
+.hc-relacionadas p { grid-column: 2; margin: 0; color: var(--mut); font-size: 14px; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+@media (hover: hover) { .hc-relacionadas li:has(a:hover) { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 10%, transparent), transparent 80%); } }
+@media (max-width: 820px) { .hc-relacionadas ul { grid-template-columns: 1fr; } .hc-relacionadas { padding-block: 26px 70px; } }

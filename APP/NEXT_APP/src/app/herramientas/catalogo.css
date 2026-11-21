@@ -1,14 +1,32 @@
-/* Catálogo de /herramientas (prefijo ht-): la esfera de la portada como cabecera y un índice por familia, sin tarjetas.
+/* Catálogo de /herramientas (prefijo ht-): título y buscador, 6 destacadas en tarjetas y todas por familia en filas.
    El lenguaje de secciones de la portada llega por la clase viva-portada del <main> (solo en esta página). */
 .ht-migas { padding-top: 4px; }
 .ht-migas nav { max-width: none; margin: 0; padding: 0; } /* alineadas con el título, no centradas en otro ancho */
-#herramientas.he-pagina { padding-block: 30px 70px; }
-.he-pagina .he-cab h1 { margin: 0; font-size: clamp(60px, 9.6vw, 140px); font-weight: 800; letter-spacing: -.065em; line-height: .9; }
-.he-pagina .he-cab h1 i { color: var(--acento); font-style: normal; }
+/* .viva-portada section (portada) las haría flex y centradas, con 104 px de relleno: aquí no. */
+.viva-portada .ht-cab { display: block; padding: 26px 0 0; }
+.ht-cab h1 { margin: 0; font-size: clamp(46px, 7.4vw, 104px); font-weight: 800; letter-spacing: -.06em; line-height: .95; color: var(--txt); }
+.ht-cab h1 i { color: var(--acento); font-style: normal; }
+.ht-cab p { margin: 14px 0 0; color: var(--mut); font-size: 18px; }
 
-#catalogo { padding-block: 60px 90px; display: block; }
-#catalogo h2 { margin: 0; font-size: clamp(34px, 4.6vw, 60px); letter-spacing: -.05em; line-height: .98; }
-.ht-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 26px; }
+#catalogo { padding-block: 34px 90px; display: block; }
+
+/* Destacadas: tarjetas con el enlace en el título, estirado a toda la tarjeta (guía «card» de Chrome). */
+.viva-portada .ht-destacadas { display: block; padding: 0; margin-top: 30px; }
+.ht-destacadas h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; color: var(--mut); }
+.ht-destacadas ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.ht-destacada { position: relative; height: 100%; display: grid; grid-template-rows: auto auto 1fr; gap: 8px; padding: 20px 20px 22px; border-radius: 18px; border: 1px solid var(--linea-2);
+  background: color-mix(in srgb, var(--fondo-2) 70%, transparent); transition: border-color .3s, background .3s, translate .4s var(--curva); }
+.ht-destacada > svg { width: 28px; height: 28px; fill: none; stroke: var(--c); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ht-destacada h3 { margin: 4px 0 0; font-size: 18px; font-weight: 650; letter-spacing: -.015em; line-height: 1.25; }
+.ht-destacada h3 a { color: var(--txt); text-decoration: none; }
+.ht-destacada h3 a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.ht-destacada h3 a:focus-visible { outline: none; }
+.ht-destacada p { margin: 0; color: var(--mut); font-size: 14.5px; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.ht-destacada:has(a:focus-visible) { outline: 2px solid var(--acento); outline-offset: 3px; }
+@media (hover: hover) { .ht-destacada:has(a:hover) { border-color: color-mix(in srgb, var(--c) 55%, var(--linea-2)); background: color-mix(in srgb, var(--c) 7%, var(--fondo-2)); translate: 0 -2px; } }
+.ht-nueva { display: inline-block; margin-left: 10px; padding: 1px 9px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--acento) 55%, transparent); color: var(--acento); font: 500 12px var(--mono); vertical-align: 3px; }
+.ht-destacada .ht-nueva { position: absolute; top: 18px; right: 18px; margin: 0; }
+.ht-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
 .ht-buscar { display: flex; flex: 1 1 300px; align-items: center; gap: 10px; max-width: 520px; padding: 10px 2px; border-bottom: 1px solid var(--linea-2); color: var(--mut); transition: border-color .25s; }
 .ht-buscar:focus-within { border-color: var(--acento); color: var(--txt); }
 .ht-buscar input { flex: 1; min-width: 0; min-height: 30px; border: 0; background: none; color: var(--txt); font: inherit; font-size: 17px; outline: none; }
@@ -73,9 +91,13 @@
 }
 @media (prefers-reduced-motion: reduce) { .ht-fila { transition: none; } }
 
-/* Celular: el título cabe en la pantalla y el índice completo sigue justo debajo (sin la esfera). */
+/* Celular: destacadas de a dos, más compactas. */
 @media (max-width: 760px) {
-  #herramientas.he-pagina { padding-block: 20px 8px; }
-  .he-pagina .he-cab h1 { font-size: clamp(42px, 12.6vw, 60px); }
-  .he-pagina .he-cab .enlace-ir { display: none; } /* el índice empieza justo debajo con el mismo título */
+  .viva-portada .ht-cab { padding-top: 16px; }
+  .ht-cab p { font-size: 16px; }
+  .ht-destacadas ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .ht-destacada { padding: 16px 14px 18px; border-radius: 16px; gap: 6px; }
+  .ht-destacada h3 { font-size: 16px; }
+  .ht-destacada p { font-size: 13.5px; -webkit-line-clamp: 3; line-clamp: 3; }
 }
+@media (prefers-reduced-motion: reduce) { .ht-destacada { transition: none; } }

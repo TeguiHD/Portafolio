@@ -1,4 +1,5 @@
 "use client";
+import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { Suspense, useState, useRef, useMemo, useEffect, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { useSearchParams } from "next/navigation";
@@ -291,10 +292,7 @@ function QRStudio() {
     return (
         <div className="tool-page qr-studio">
             <main className="tool-main mx-auto max-w-7xl px-4 sm:px-8">
-                <header className="mb-6">
-                    <h1 className="text-2xl font-semibold text-white sm:text-3xl">Generador de Códigos QR</h1>
-                    <p className="mt-2 text-sm text-slate-400">Elige el contenido, dale tu estilo y descárgalo.</p>
-                </header>
+                <ToolPageHeader slug="qr" />
                 <div className="qr-workbench">
                     <aside id="qr-preview" className="qr-preview studio-panel" aria-label="Vista previa y descarga">
                         <div className="qr-preview-heading">

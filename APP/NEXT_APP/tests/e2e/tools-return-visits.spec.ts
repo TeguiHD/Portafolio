@@ -73,3 +73,11 @@ test("los proyectos están en el HTML inicial con destinos reales y sin métrica
     await expect(page.locator('a[href="/projects"]')).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Ver las 29/ })).toHaveAttribute("href", "/herramientas");
 });
+
+test("el catálogo de /herramientas no repite «Todas, por nombre» y su índice conserva un título para lectores de pantalla", async ({ page }) => {
+    await page.goto("/herramientas");
+    await expect(page.getByText("Todas, por nombre")).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Todas las herramientas" })).toBeAttached();
+    // Sin la esfera de la portada arriba, ya no hace falta el atajo «Ver las N ↓» hacia el índice.
+    await expect(page.getByRole("link", { name: /^Ver las \d+ ↓$/ })).toHaveCount(0);
+});
