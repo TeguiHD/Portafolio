@@ -152,7 +152,7 @@ export default function IcoConverterPage() {
 
     const estadosPasos: EstadoPaso[] = !sourceImage ? ["activo", "pendiente", "pendiente"] : resultUrl ? ["listo", "listo", "listo"] : error ? ["listo", "error", "pendiente"] : !selectedSizes.length ? ["listo", "pendiente", "pendiente"] : ["listo", "activo", "pendiente"];
 
-    return <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+    return <div className="tool-page"><main className="tool-main pb-12">
         <ToolPageHeader slug="convertir-ico" />
         {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o imagen" /> : <section aria-label="Editor de iconos ICO" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
             <MesaCabecera nombre={sourceFile?.name ?? "Imagen"}>

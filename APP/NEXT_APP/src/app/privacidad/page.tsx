@@ -17,7 +17,7 @@ export default function PrivacyPage() {
                 <p>Esta política de privacidad describe cómo se maneja la información en el sitio web y las herramientas de <strong>Nicoholas Lopetegui</strong> (en adelante «el Sitio»). Mi compromiso es la transparencia técnica y el respeto absoluto por tus datos.</p>
             ) },
             { id: "herramientas", titulo: "Herramientas y procesamiento de datos", contenido: (<>
-                <p>La mayoría de las herramientas disponibles en este Sitio (como el Generador de QR, Regex Tester, Conversor de Unidades, etc.) están diseñadas para funcionar del lado del cliente.</p>
+                <p>La mayoría de las herramientas disponibles en este Sitio (como el generador de QR, el probador de regex o el conversor de unidades) están diseñadas para funcionar del lado del cliente.</p>
                 <ul>
                     <li><strong>Procesamiento local:</strong> los datos que ingresas (texto para QR, contraseñas generadas, cadenas regex) se procesan directamente en tu navegador y <strong>no se envían</strong> a mis servidores para su almacenamiento.</li>
                     <li><strong>Sin persistencia:</strong> no guardo registros de las contraseñas generadas ni del contenido de tus códigos QR.</li>

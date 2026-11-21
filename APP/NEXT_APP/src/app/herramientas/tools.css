@@ -1,8 +1,15 @@
 .tools-workspace { color-scheme: dark; --studio-accent: #5eead4; }
 /* Sin fondo propio: el del sitio (con la materia en el marco) llega hasta la herramienta. Antes era una franja de borde duro. */
 .tools-workspace .tool-page { background: transparent; min-width: 0; }
-.tools-workspace .tool-main { padding-top: 1.25rem; padding-bottom: 3rem; }
-.tools-workspace nav[aria-label="Ruta de navegación"] { max-width: 80rem; padding-top: 1.25rem; }
+.tools-workspace .tool-main { padding-top: 18px; padding-bottom: 3rem; } /* el mismo en las 29 (DNS no cuelga de .tool-page) */
+/* Un marco para las 29 (ronda 2): las migas y Buscar/★ van al ancho del sitio (el de la barra de arriba); la herramienta,
+   su guía y las relacionadas, al ancho que dice el catálogo (data-ancho). Antes había cinco anchos y el título saltaba. */
+.tools-workspace { --ancho-sitio: min(1180px, 100% - 2 * var(--margen, 24px)); --ancho-h: var(--ancho-sitio); }
+.tools-workspace[data-ancho="estrecha"] { --ancho-h: min(56rem, 100% - 2 * var(--margen, 24px)); }
+.tools-workspace :is(.tool-main, .tool-seo, .hc-relacionadas) { box-sizing: border-box; width: var(--ancho-h); max-width: none; margin-inline: auto; padding-inline: 0; }
+/* Solo las migas de cada herramienta (hijas directas del contenido): las del catálogo van alineadas con su título. Los 150 px
+   de la derecha para Buscar/★ los pone carcasa.css dentro de .hc-marco. */
+.tools-workspace .hc-contenido > nav[aria-label="Ruta de navegación"] { box-sizing: border-box; width: var(--ancho-sitio); max-width: none; margin-inline: auto; padding-left: 0; padding-top: 1.25rem; }
 .tools-workspace .tool-main h1 { letter-spacing: -0.035em; }
 .tools-workspace :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 3px; }
 .tools-workspace button:not(:disabled), .tools-workspace select { cursor: pointer; }
@@ -60,7 +67,6 @@
 @keyframes tool-lines { from { opacity: .35; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
 /* The document is the only scrolling ancestor, so previews can stick. */
 body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !important; }
-.tools-workspace nav[aria-label="Ruta de navegación"] { padding-inline: 1rem; }
 .qr-workbench { display: grid; align-items: start; gap: 16px; }
 .qr-preview { position: sticky; top: 72px; z-index: 20; display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px 12px; padding: 12px; box-shadow: 0 12px 28px #0003; }
 .qr-preview-image { grid-column: 1; grid-row: 1 / 3; width: 96px; }
@@ -77,7 +83,6 @@ body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !i
 .qr-shape-button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .qr-export-options[open] > summary > svg:last-child, .tool-guide[open] > summary > svg:last-child { transform: rotate(180deg); }
 :is(.qr-export-options, .tool-guide) > summary::-webkit-details-marker { display: none; }
-@media (min-width: 640px) { .tools-workspace nav[aria-label="Ruta de navegación"] { padding-inline: 2rem; } }
 @media (min-width: 1024px) {
     .qr-workbench { grid-template-columns: minmax(0, 1fr) minmax(280px, .65fr); column-gap: 24px; }
     .qr-editor { grid-column: 1; grid-row: 1; }
@@ -86,15 +91,17 @@ body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !i
     .qr-preview-actions .studio-button { padding: 10px; }
     .qr-editor :is(input, textarea, select, button, summary) { scroll-margin-top: 100px; }
 }
-@media (max-width: 639px) { .tools-workspace .tool-main { padding-top: 1.5rem; } .tools-workspace :is(input, select, textarea) { font-size: 16px; } }
+@media (max-width: 639px) { .tools-workspace :is(input, select, textarea) { font-size: 16px; } }
 @media (prefers-reduced-motion: reduce) { .tools-workspace *, .tools-workspace *::before, .tools-workspace *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } .tools-workspace :is(.tool-glyph svg, .art-crop, .art-code, .art-divider, .dropzone-glyph, .tools-sidebar-link svg) { transform: none !important; } }
 
 @media (min-width: 1280px) { .tools-workspace .studio-icon-button.tools-nav-toggle { display: none; } }
 
 /* Cabecera común (ToolPageHeader), con el lenguaje del sitio: título grande, una línea y el ícono en el color de su familia. */
-/* El ícono va a la altura del título (con descripción y «dónde» debajo, centrado quedaba flotando a media altura). */
-.th { display: flex; align-items: flex-start; gap: 16px; margin: 0 0 18px; }
-.th-icono { margin-top: 2px; }
+/* Centrada (ronda 2): ícono y título en una fila, descripción y «dónde» debajo. Con cinco anchos de herramienta, alineada a
+   la izquierda el título saltaba de lugar al pasar de una a otra. */
+.th { display: flex; flex-direction: column; align-items: center; text-align: center; margin: 0 0 22px; }
+.th-titulo { display: flex; align-items: center; justify-content: center; gap: 14px; max-width: 100%; }
+.th-titulo h1 { min-width: 0; text-wrap: balance; }
 .th-icono { display: grid; place-items: center; width: 50px; height: 50px; flex: none; border-radius: 16px; color: var(--c);
   background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--c) 26%, transparent), color-mix(in srgb, var(--c) 6%, transparent));
   border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); box-shadow: 0 18px 40px -22px var(--c); }
@@ -102,7 +109,8 @@ body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !i
 /* Alturas de línea en píxeles enteros (round): con 28 × 1,02 = 28,56 px todo lo de abajo quedaba en medio píxel y Chrome
    recortaba una fracción de la vista previa del QR (overflow hidden). Sin round(), queda el valor de siempre. */
 .th h1 { margin: 0; font-size: clamp(28px, 3.4vw, 42px); font-weight: 780; letter-spacing: -.045em; line-height: 1.02; line-height: round(up, 1.02em, 1px); color: var(--txt); }
-.th p { margin: 6px 0 0; max-width: 60ch; color: var(--mut); font-size: clamp(15px, 1.4vw, 17.5px); line-height: 1.5; line-height: round(1.5em, 1px); }
+.th p { margin: 10px 0 0; max-width: 60ch; text-wrap: pretty; color: var(--mut); font-size: clamp(15px, 1.4vw, 17.5px); line-height: 1.5; line-height: round(1.5em, 1px); }
 /* Dónde se procesa: la promesa concreta junto a la herramienta (lo hacen los sitios grandes), sin caja de aviso. */
 .th p.th-donde { margin-top: 4px; font-size: 13.5px; line-height: 20px; color: color-mix(in srgb, var(--mut) 85%, var(--acento)); }
-@media (max-width: 640px) { .th { gap: 14px; } .th-icono { width: 46px; height: 46px; border-radius: 13px; } .th-icono svg { width: 22px; height: 22px; } }
+/* En el celular el ícono va encima: al lado, un título de dos líneas quedaba centrado lejos de él. */
+@media (max-width: 640px) { .th-titulo { flex-direction: column; gap: 10px; } .th-icono { width: 42px; height: 42px; border-radius: 13px; } .th-icono svg { width: 22px; height: 22px; } }

@@ -9,7 +9,6 @@ import {
 } from "@/lib/tools/claves";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 
@@ -170,7 +169,7 @@ export default function PasswordGeneratorPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de Claves"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de contraseñas"} />;
     }
 
     const currentScenario = ATTACK_SCENARIOS[attackScenario];
@@ -181,7 +180,7 @@ export default function PasswordGeneratorPage() {
 
     return (
         <div className="tool-page">
-            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+            <main className="tool-main pt-20 pb-12 sm:pt-24 sm:pb-16">
                 {/* Header */}
                 <ToolPageHeader slug="claves" />
 
@@ -492,9 +491,6 @@ export default function PasswordGeneratorPage() {
                     </div>
                 </div>
 
-                <div className="mt-6 text-center">
-                    <Link href="/herramientas" className="text-xs text-neutral-500 hover:text-white">← Volver a herramientas</Link>
-                </div>
             </main>
         </div>
     );

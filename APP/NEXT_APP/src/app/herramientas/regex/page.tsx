@@ -3,7 +3,6 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { useToast } from "@/components/ui/Toast";
 
@@ -279,12 +278,12 @@ export default function RegexTesterPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Tester Regex"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Probador de regex"} />;
     }
 
     return (
         <div className="tool-page">
-            <main className="tool-main max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+            <main className="tool-main pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
                 <ToolPageHeader slug="regex" />
 
@@ -638,9 +637,6 @@ export default function RegexTesterPage() {
                     </div>
                 </div>
 
-                <div className="mt-6 text-center">
-                    <Link href="/herramientas" className="text-xs text-neutral-500 hover:text-white">← Volver a herramientas</Link>
-                </div>
             </main>
         </div>
     );

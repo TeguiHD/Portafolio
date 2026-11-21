@@ -3,7 +3,6 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useState, useCallback, useMemo } from "react";
-import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { useCopiar } from "@/lib/tools/copiar";
@@ -362,7 +361,7 @@ export default function NginxConfigPage() {
 
     return (
         <div className="tool-page">
-            <main className="tool-main max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+            <main className="tool-main pt-20 pb-12 sm:pt-24 sm:pb-16">
                 <ToolPageHeader slug="nginx" />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -508,14 +507,6 @@ export default function NginxConfigPage() {
                     </div>
                 </div>
 
-                <div className="mt-8 text-center">
-                    <Link href="/herramientas" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
             </main>
         </div>
     );

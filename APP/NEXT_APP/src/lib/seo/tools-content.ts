@@ -34,7 +34,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Generador de Códigos QR Gratis Online | Sin Registro",
         description:
             "Crea códigos QR personalizados para URL, texto, WiFi o contacto. Descarga en PNG o SVG en alta resolución, sin marcas de agua, sin registro y totalmente gratis.",
-        h1: "Generador de Códigos QR",
+        h1: "Generador de códigos QR",
         primaryKeyword: "generador de códigos qr",
         secondaryKeywords: [
             "crear código qr gratis",
@@ -52,7 +52,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Generador de Contraseñas Aleatorias Online y Gratis",
         description:
             "Genera contraseñas aleatorias con la longitud y los caracteres que elijas, o frases de palabras en español fáciles de teclear. Todo ocurre en tu navegador.",
-        h1: "Generador de Contraseñas Seguras",
+        h1: "Generador de contraseñas seguras",
         primaryKeyword: "generador de contraseñas seguras",
         secondaryKeywords: [
             "crear contraseña aleatoria",
@@ -86,7 +86,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Formatear JSON Online: Validar, Minificar y Ver Árbol",
         description:
             "Formatea, valida y minifica JSON en tu navegador. Ubica el error por línea y columna, lo muestra en árbol y avisa de claves repetidas y enteros que cambian.",
-        h1: "Formateador y Validador de JSON",
+        h1: "Formateador y validador de JSON",
         primaryKeyword: "formatear json online",
         secondaryKeywords: [
             "validar json online",
@@ -122,7 +122,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Probar Expresiones Regulares Online en el Navegador",
         description:
             "Prueba expresiones regulares de JavaScript: resalta coincidencias y grupos, explica cada parte del patrón y prueba reemplazos con $1 o $<nombre> en vivo.",
-        h1: "Probador de Expresiones Regulares",
+        h1: "Probador de expresiones regulares",
         primaryKeyword: "probar expresiones regulares online",
         secondaryKeywords: [
             "regex tester online",
@@ -157,7 +157,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Calculadora de Subredes IPv4 e IPv6 y Planificador VLSM",
         description:
             "Calcula red, máscara, broadcast y hosts de una subred IPv4, o el rango de un prefijo IPv6. Planifica VLSM según los hosts de cada subred y exporta a CSV.",
-        h1: "Calculadora de Subredes IPv4 e IPv6",
+        h1: "Calculadora de subredes IPv4 e IPv6",
         primaryKeyword: "calculadora de subredes",
         secondaryKeywords: [
             "calculadora vlsm",
@@ -175,7 +175,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Conversor de Unidades Online con Tabla de Equivalencias",
         description:
             "Convierte longitud, masa, temperatura, volumen, presión, energía, consumo y más, con el factor en ambos sentidos y la tabla de equivalencias para copiar.",
-        h1: "Conversor de Unidades",
+        h1: "Conversor de unidades",
         primaryKeyword: "conversor de unidades",
         secondaryKeywords: [
             "convertir unidades online",
@@ -193,7 +193,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Convertir Texto a Binario Online: Traductor Gratis",
         description:
             "Convierte texto a código binario y viceversa al instante, byte a byte, en UTF-8. Útil para aprender cómo funciona la codificación digital, sin instalar nada.",
-        h1: "Traductor de Texto a Binario",
+        h1: "Traductor de texto a binario",
         primaryKeyword: "convertir texto a binario",
         secondaryKeywords: [
             "convertir binario a texto",
@@ -210,7 +210,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Ruleta para Sorteos Online: Elige Uno o Varios Ganadores",
         description:
             "Sortea uno o varios ganadores sin repetir con una ruleta que gira una vez por cada uno, o reparte una lista en los grupos que elijas. Hasta 1.000 nombres.",
-        h1: "Ruleta de Sorteos y Generador Aleatorio",
+        h1: "Ruleta de sorteos y generador aleatorio",
         primaryKeyword: "ruleta para sorteos",
         secondaryKeywords: [
             "ruleta de la suerte online",
@@ -228,7 +228,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Generar un Enlace de WhatsApp Sin Guardar el Número",
         description:
             "Genera enlaces directos de WhatsApp, correo o eventos de calendario sin necesidad de guardar el número en tu agenda. Comparte el link y empieza a chatear.",
-        h1: "Generador de Enlaces Rápidos",
+        h1: "Generador de enlaces rápidos",
         primaryKeyword: "generar enlace de whatsapp",
         secondaryKeywords: [
             "link de whatsapp sin agregar contacto",
@@ -245,7 +245,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Verificar Propagación DNS en Seis Resolvedores Públicos",
         description:
             "Consulta un dominio en seis resolvedores públicos, como Google, Cloudflare y Quad9, y compara sus respuestas. Revisa A, MX, TXT y más, y también SPF y DMARC.",
-        h1: "Verificador de Propagación DNS",
+        h1: "Verificador de propagación DNS",
         primaryKeyword: "verificar propagación dns",
         secondaryKeywords: [
             "dns checker online",
@@ -263,7 +263,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Generador de Configuración Nginx y .htaccess Online",
         description:
             "Genera configuraciones de Nginx y .htaccess para redirecciones, HTTPS, cabeceras de seguridad y reglas comunes. Copia el bloque listo para tu servidor.",
-        h1: "Generador de Configuración Nginx",
+        h1: "Generador de configuración Nginx",
         primaryKeyword: "generador de configuración nginx",
         secondaryKeywords: [
             "nginx config generator",
@@ -280,7 +280,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Generador de Favicon Online: PNG, favicon.ico y Manifest",
         description:
             "Sube tu logo y descarga un ZIP con ocho PNG de 16 a 512 px, favicon.ico, site.webmanifest y las etiquetas HTML para el head. Se genera en tu navegador.",
-        h1: "Generador de Favicon",
+        h1: "Generador de favicon",
         primaryKeyword: "generador de favicon",
         secondaryKeywords: [
             "crear favicon online",
@@ -315,7 +315,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Convertir Imagen a WebP, PNG o JPG Online y Gratis",
         description:
             "Convierte imágenes PNG, JPG, WebP, AVIF, GIF o BMP a WebP, PNG o JPG directamente en tu navegador. Hasta 20 a la vez, con descarga en ZIP y sin subir archivos.",
-        h1: "Conversor de Formatos de Imagen",
+        h1: "Conversor de formatos de imagen",
         primaryKeyword: "convertir imagen a webp",
         secondaryKeywords: [
             "convertir jpg a webp",
@@ -333,7 +333,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Comprimir Imagen Online Sin Perder Calidad Visible",
         description:
             "Reduce el peso de tus imágenes ajustando la calidad o fijando un peso objetivo en KB. Comprime hasta 20 a la vez y bájalas en un ZIP, sin subir ningún archivo.",
-        h1: "Compresor de Imágenes",
+        h1: "Compresor de imágenes",
         primaryKeyword: "comprimir imagen online",
         secondaryKeywords: [
             "comprimir imagen sin perder calidad",
@@ -351,7 +351,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Redimensionar Imagen Online con Presets para Redes",
         description:
             "Cambia el tamaño de tus imágenes con medidas exactas o presets para Instagram, YouTube, Facebook y LinkedIn. Hasta 20 a la vez, en tu navegador y sin subirlas.",
-        h1: "Redimensionador de Imágenes",
+        h1: "Redimensionador de imágenes",
         primaryKeyword: "redimensionar imagen online",
         secondaryKeywords: [
             "cambiar tamaño de imagen online",
@@ -369,7 +369,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Recortar Imagen Online: Proporciones y Ajuste al Sujeto",
         description:
             "Recorta, gira y encuadra tus imágenes con proporciones para redes, o ajusta el recorte al sujeto con detección automática. Descarga en PNG, JPG o WebP.",
-        h1: "Recortador de Imágenes",
+        h1: "Recortador de imágenes",
         primaryKeyword: "recortar imagen online",
         secondaryKeywords: [
             "recortar foto online",
@@ -387,7 +387,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Quitar el Fondo de una Imagen Online con IA Gratis",
         description:
             "Elimina el fondo de cualquier foto automáticamente con inteligencia artificial, sin marcas de agua ni registro. El procesamiento ocurre en tu navegador.",
-        h1: "Quitafondos con Inteligencia Artificial",
+        h1: "Quitafondos con inteligencia artificial",
         primaryKeyword: "quitar fondo de imagen",
         secondaryKeywords: [
             "quitar fondo blanco a una foto",
@@ -404,7 +404,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Poner una Marca de Agua a una Imagen Online y Gratis",
         description:
             "Añade texto o un logo como marca de agua en una esquina, al centro o en mosaico, con tamaño, opacidad y giro. Se descarga a tamaño completo y en su formato.",
-        h1: "Generador de Marca de Agua",
+        h1: "Generador de marca de agua",
         primaryKeyword: "poner marca de agua a imagen",
         secondaryKeywords: [
             "poner watermark a fotos",
@@ -422,7 +422,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Extraer la Paleta de Colores Dominantes de una Imagen",
         description:
             "Extrae los colores dominantes de cualquier imagen en formato HEX, RGB y HSL para tus diseños. Sube una foto y obtén su paleta al instante, sin registro.",
-        h1: "Extractor de Paleta de Colores",
+        h1: "Extractor de paleta de colores",
         primaryKeyword: "extraer paleta de colores de imagen",
         secondaryKeywords: [
             "obtener colores de una imagen",
@@ -439,7 +439,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Ver los Metadatos EXIF de una Foto Online y Gratis",
         description:
             "Analiza los metadatos EXIF ocultos en tus fotos: ubicación GPS, cámara usada y fecha de captura. Permite limpiarlos antes de publicar y proteger tu privacidad.",
-        h1: "Extractor de Metadatos EXIF",
+        h1: "Extractor de metadatos EXIF",
         primaryKeyword: "ver metadatos exif de una foto",
         secondaryKeywords: [
             "ver ubicación gps de una foto",
@@ -456,7 +456,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Convertir una Foto en Imagen ASCII Art Online Gratis",
         description:
             "Convierte una imagen en arte ASCII con varios juegos de caracteres, color y ajustes de brillo y contraste. Copia el texto o descárgalo en TXT, PNG o HTML.",
-        h1: "Conversor de Imagen a ASCII Art",
+        h1: "Conversor de imagen a ASCII art",
         primaryKeyword: "convertir imagen a ascii art",
         secondaryKeywords: [
             "convertir foto a ascii",
@@ -474,7 +474,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Generador de Banner ASCII para Terminal, MOTD y SSH",
         description:
             "Crea banners de texto ASCII para la terminal, el MOTD de un servidor o el mensaje de bienvenida SSH. Elige la tipografía y exporta como script .sh listo.",
-        h1: "Generador de Banners ASCII",
+        h1: "Generador de banners ASCII",
         primaryKeyword: "generador de banner ascii para terminal",
         secondaryKeywords: [
             "ascii art para terminal",
@@ -491,7 +491,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Ocultar un Mensaje en Emoji: Esteganografía Online",
         description:
             "Oculta mensajes en emojis con caracteres invisibles y decodifícalos. También detecta y limpia invisibles en cualquier texto, como instrucciones ocultas para IA.",
-        h1: "Esteganografía en Emojis",
+        h1: "Esteganografía en emojis",
         primaryKeyword: "ocultar mensaje en emoji",
         secondaryKeywords: [
             "ocultar texto en un emoji",
@@ -509,7 +509,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Ocultar un Mensaje en una Imagen Online: Técnica LSB",
         description:
             "Oculta texto secreto dentro de los píxeles de una imagen PNG usando la técnica LSB del bit menos significativo. Decodifica el mensaje sin dejar rastro.",
-        h1: "Esteganografía en Imágenes PNG",
+        h1: "Esteganografía en imágenes PNG",
         primaryKeyword: "ocultar mensaje en imagen",
         secondaryKeywords: [
             "ocultar texto en una foto",
@@ -526,7 +526,7 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         title: "Generador de Reverse Shells para Pentesting Online",
         description:
             "Genera payloads de shell reversa listos para pentesting en Bash, Python, PHP, PowerShell y más lenguajes. Para pruebas de seguridad autorizadas y aprendizaje.",
-        h1: "Generador de Reverse Shells",
+        h1: "Generador de reverse shells",
         primaryKeyword: "generador de reverse shell",
         secondaryKeywords: [
             "reverse shell bash",

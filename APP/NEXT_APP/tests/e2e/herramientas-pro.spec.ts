@@ -26,7 +26,7 @@ test.describe("Herramientas profesionales", () => {
 
     test("sin frases de relleno ni emojis decorativos", async ({ page }) => {
         const vetadas: Record<string, string[]> = {
-            "quitar-fondo": ["cambia todo", "perfecto", "Sin marca de agua"],
+            "quitar-fondo": ["cambia todo", "perfecto"],
             claves: ["profesionales", "benchmarks", "Benchmarks"],
             regex: ["✨", "🤖"],
         };
@@ -35,6 +35,11 @@ test.describe("Herramientas profesionales", () => {
             const texto = await page.locator("#tools-content").innerText();
             for (const f of frases) expect(texto, `${slug}: «${f}»`).not.toContain(f);
         }
+    });
+
+    test("quitar fondo dice que la descarga no lleva marca de agua (diferencia real frente a la competencia)", async ({ page }) => {
+        await page.goto("/herramientas/quitar-fondo");
+        await expect(page.locator("#tools-content")).toContainText(/sin marca de agua/i);
     });
 
     test("contraseñas e IVA usan los colores del sitio, sin verde neón ni degradados", async ({ page }) => {

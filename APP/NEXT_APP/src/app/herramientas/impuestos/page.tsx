@@ -5,7 +5,6 @@ import { numeroCL } from "@/lib/tools/numeros";
 import { useCopiar } from "@/lib/tools/copiar";
 
 import { useState, useCallback, useMemo, useRef } from "react";
-import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 
@@ -15,7 +14,7 @@ const TAX_PRESETS = [
     { code: "AR", name: "Argentina", rate: 21 },
     { code: "MX", name: "México", rate: 16 },
     { code: "ES", name: "España", rate: 21 },
-    { code: "US", name: "EE. UU. (impuesto a las ventas, aprox.; varía por estado)", rate: 8 },
+    { code: "US", name: "EE. UU.", rate: 8 },
     { code: "CUSTOM", name: "Personalizado", rate: 0 },
 ] as const;
 
@@ -158,14 +157,14 @@ export default function TaxCalculatorPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Calculadora de Impuestos"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Calculadora de IVA"} />;
     }
 
     const inputClass = "w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-lg focus:outline-none focus:border-[color-mix(in_srgb,var(--acento)_50%,transparent)] placeholder-neutral-500";
 
     return (
         <div className="tool-page">
-            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+            <main className="tool-main pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
                 <ToolPageHeader slug="impuestos" />
 
@@ -242,6 +241,7 @@ export default function TaxCalculatorPage() {
                                         key={preset.code}
                                         type="button"
                                         aria-pressed={selectedPreset === preset.code}
+                                        aria-describedby={preset.code === "US" && selectedPreset === "US" ? "impuestos-nota-us" : undefined}
                                         onClick={() => handlePresetChange(preset.code)}
                                         className={`min-h-11 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedPreset === preset.code
                                             ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] border border-[color-mix(in_srgb,var(--acento)_55%,transparent)] text-white"
@@ -252,6 +252,8 @@ export default function TaxCalculatorPage() {
                                     </button>
                                 ))}
                             </div>
+                            {/* La aclaración va a la vista al elegirla (en un botón de dos líneas desarmaba la fila). */}
+                            {selectedPreset === "US" && <p id="impuestos-nota-us" className="mb-3 text-xs text-neutral-400">En EE. UU. es el impuesto a las ventas: varía por estado y ciudad; el 8 % es un promedio aproximado.</p>}
 
                             {/* Custom Rate Input */}
                             {selectedPreset === "CUSTOM" && (
@@ -368,18 +370,6 @@ export default function TaxCalculatorPage() {
                     </div>
                 </div>
 
-                {/* Back Link */}
-                <div className="mt-8 text-center pb-8">
-                    <Link
-                        href="/herramientas"
-                        className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
             </main>
         </div>
     );

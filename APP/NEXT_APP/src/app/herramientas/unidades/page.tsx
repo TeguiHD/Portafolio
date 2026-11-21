@@ -3,7 +3,6 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useState, useEffect, useMemo, type CSSProperties, type MouseEvent } from "react";
-import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { useCopiar } from "@/lib/tools/copiar";
@@ -149,7 +148,7 @@ export default function UnitConverterPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor de Unidades"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Conversor de unidades"} />;
     }
 
     const color = activeCategory.color;
@@ -157,7 +156,7 @@ export default function UnitConverterPage() {
 
     return (
         <div className="tool-page">
-            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
+            <main className="tool-main pt-20 pb-12 sm:pt-24 sm:pb-16">
                 {/* Header - Simplified */}
                 <ToolPageHeader slug="unidades" />
 
@@ -543,18 +542,6 @@ export default function UnitConverterPage() {
                     <p className="mt-3 text-[11px] text-neutral-500">Hasta 12 cifras significativas. Los factores siguen las definiciones oficiales; las cifras con «≈», «unos» o «cerca de» en la explicación están redondeadas.</p>
                 </div>
 
-                {/* Back Link */}
-                <div className="mt-8 text-center">
-                    <Link
-                        href="/herramientas"
-                        className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
             </main>
         </div>
     );

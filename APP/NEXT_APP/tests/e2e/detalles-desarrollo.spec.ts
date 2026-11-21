@@ -13,7 +13,7 @@ test.describe("Catálogo de herramientas", () => {
     test("al volver desde una herramienta, el filtro sigue puesto", async ({ page }) => {
         await page.goto("/herramientas");
         await page.getByRole("group", { name: "Filtrar por categoría" }).getByRole("button", { name: /^Redes/ }).click();
-        await page.getByRole("link", { name: "Calculadora de Subredes", exact: true }).click();
+        await page.getByRole("link", { name: "Calculadora de subredes", exact: true }).click();
         await expect(page).toHaveURL(/\/herramientas\/subredes$/);
         await page.goBack();
         await expect(page.getByRole("group", { name: "Filtrar por categoría" }).getByRole("button", { name: /^Redes/ })).toHaveAttribute("aria-pressed", "true");

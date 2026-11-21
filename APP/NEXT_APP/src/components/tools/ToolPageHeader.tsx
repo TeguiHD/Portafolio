@@ -9,7 +9,7 @@ const NAVEGADOR = "Funciona en tu navegador: lo que escribes o subes no sale de 
 
 /**
  * La misma cabecera en las 29: el ícono de su familia, el nombre y la línea del catálogo, y dónde se procesa.
- * Antes cada página traía su título y su subtítulo, y no coincidían con el catálogo ni entre sí.
+ * Centrada, como en las herramientas sueltas de la competencia: el título queda en el mismo lugar con cualquier ancho.
  */
 export function ToolPageHeader({ slug }: { slug: string }) {
     const t = CATALOGO.get(slug);
@@ -17,12 +17,12 @@ export function ToolPageHeader({ slug }: { slug: string }) {
     const color = COLOR_CATEGORIA[t?.publicCategory ?? ""] ?? "#5eead4";
     return (
         <header className="tool-page-heading th" style={{ "--c": color } as CSSProperties}>
-            {Icon && <span className="th-icono"><Icon aria-hidden="true" /></span>}
-            <div className="min-w-0">
+            <div className="th-titulo">
+                {Icon && <span className="th-icono"><Icon aria-hidden="true" /></span>}
                 <h1>{t?.name ?? slug}</h1>
-                {t ? <p>{t.description}</p> : null}
-                <p className="th-donde">{t?.donde ?? NAVEGADOR}</p>
             </div>
+            {t ? <p>{t.description}</p> : null}
+            <p className="th-donde">{t?.donde ?? NAVEGADOR}</p>
         </header>
     );
 }

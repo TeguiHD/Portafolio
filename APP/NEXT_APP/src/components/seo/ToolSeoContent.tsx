@@ -26,7 +26,7 @@ export function ToolSeoContent({ slug }: ToolSeoContentProps) {
     return (
         <section
             aria-label={`Guía de ${entry.h1}`}
-            className="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-8"
+            className="tool-seo pb-8"
         >
             <details className="tool-guide rounded-xl border border-white/10 bg-white/[0.02]">
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-center gap-2 px-4 py-3 text-center text-sm font-medium text-white"><BookOpen size={16} aria-hidden="true" />Guía de uso y preguntas frecuentes<ChevronDown size={16} aria-hidden="true" className="shrink-0" /></summary>
@@ -34,7 +34,7 @@ export function ToolSeoContent({ slug }: ToolSeoContentProps) {
             <p className="text-sm leading-relaxed text-neutral-300">{copy.intro}</p>
 
             <h2 className="mt-8 text-lg font-semibold text-white">
-                Cómo usar {entry.h1.toLowerCase()}
+                {entry.h1}, paso a paso
             </h2>
             <ol className="mt-4 space-y-4">
                 {copy.steps.map((step, index) => (

@@ -5,9 +5,8 @@
 .hc-marco { position: relative; display: block; }
 /* Las acciones van sobre la línea de las migas, alineadas a su derecha (mismo ancho que el contenido de la herramienta). */
 .hc-riel { position: absolute; z-index: 5; top: 8px; left: 0; right: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px;
-  max-width: 64rem; margin-inline: auto; padding-inline: 16px; pointer-events: none; } /* el ancho de las migas (max-w-5xl) */
+  width: var(--ancho-sitio); margin-inline: auto; pointer-events: none; } /* el ancho de las migas (tools.css) */
 .hc-riel > * { pointer-events: auto; }
-@media (min-width: 640px) { .hc-riel { padding-inline: 24px; } }
 /* Las migas dejan sitio a las dos acciones de la derecha. */
 .hc-marco nav[aria-label="Ruta de navegación"] { min-height: 52px; display: flex; align-items: center; padding-top: 8px; padding-right: 150px; }
 .hc-volver { display: none; }

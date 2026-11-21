@@ -267,7 +267,7 @@ export default function ColorPalettePage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Extractor de Paleta"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Extractor de paleta"} />;
     }
 
     const activeColor = palette[selectedColorIndex] || null;
@@ -277,7 +277,7 @@ export default function ColorPalettePage() {
 
     return (
         <div className="tool-page">
-            <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
+            <main className="tool-main pb-12 pt-20 sm:pt-24">
                 <ToolPageHeader slug="paleta-colores" />
                 {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra una imagen para extraer su paleta" /> : (
                     <section aria-label="Estudio de color" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>

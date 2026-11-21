@@ -3,7 +3,6 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useState, useCallback, useMemo, useRef } from "react";
-import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
@@ -136,14 +135,14 @@ export default function BinaryTranslatorPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Traductor Binario"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Traductor binario"} />;
     }
 
     const inputLimit = mode === "text-to-binary" ? MAX_TEXT_LENGTH : MAX_BINARY_LENGTH;
 
     return (
         <div className="tool-page">
-            <main className="tool-main max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+            <main className="tool-main pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
                 <ToolPageHeader slug="binario" />
 
@@ -317,18 +316,6 @@ export default function BinaryTranslatorPage() {
                     </p>
                 </div>
 
-                {/* Back Link */}
-                <div className="mt-8 text-center">
-                    <Link
-                        href="/herramientas"
-                        className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
             </main>
         </div>
     );

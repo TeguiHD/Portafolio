@@ -7,6 +7,10 @@ const nextConfig = {
   // Caché en memoria de respuestas (por defecto 50 MB): la VM tiene 2 GB y la web un tope de 640 MB.
   cacheMaxMemorySize: 16 * 1024 * 1024,
 
+  // Compilar en el PC sin pegarlo: NEXT_BUILD_CPUS limita los procesos que recogen datos de las páginas (por defecto uno
+  // por núcleo − 1 = 15, cada uno con su memoria; con un tope de 2,6 GB la compilación moría ahí). Sin la variable, lo de siempre.
+  ...(process.env.NEXT_BUILD_CPUS ? { experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) } } : {}),
+
   // experimental.cssChunking 'graph' (20-11-2026) no juntó ninguna hoja: cada una va en combinaciones distintas por página.
   // experimental.inlineCss se probó y se descartó: el CSS de la aplicación pesa 358 KB
   // y meterlo en cada HTML hundía el móvil (89 → 83 en Lighthouse). En fichero se

@@ -12,7 +12,7 @@ export default function TermsPage() {
     return (
         <PaginaLegal titulo="Términos de uso" actualizado="18 de noviembre de 2026" secciones={[
             { id: "aceptacion", titulo: "Aceptación de los términos", contenido: (
-                <p>Al acceder y utilizar este sitio web y sus herramientas (como el Generador de QR, Generador de Contraseñas, etc.), aceptas cumplir con estos términos y condiciones. Si no estás de acuerdo con alguna parte de estos términos, te rogamos no utilizar nuestros servicios.</p>
+                <p>Al acceder y utilizar este sitio web y sus herramientas (como el generador de QR o el de contraseñas), aceptas cumplir con estos términos y condiciones. Si no estás de acuerdo con alguna parte de estos términos, te rogamos no utilizar nuestros servicios.</p>
             ) },
             { id: "uso", titulo: "Uso de las herramientas", contenido: (<>
                 <p><strong>Licencia de uso:</strong> se concede permiso para utilizar las herramientas proporcionadas en este sitio web para fines personales o comerciales, de forma gratuita y sin atribución obligatoria (aunque se agradece).</p>

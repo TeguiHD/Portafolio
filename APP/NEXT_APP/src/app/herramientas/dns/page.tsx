@@ -3,7 +3,6 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useCallback, useRef, useState } from "react";
-import Link from "next/link";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { StudioCard, StudioChip, StudioMetric } from "@/components/tools/ImageStudio";
@@ -303,7 +302,7 @@ export default function DnsCheckerPage() {
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,#17345c_0%,#0F1724_35%,#08111f_100%)]">
-            <main className="tool-main mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
+            <main className="tool-main pb-16 pt-20 sm:pb-20 sm:pt-24">
                 <ToolPageHeader slug="dns" />
 
                 <StudioCard
@@ -536,14 +535,6 @@ export default function DnsCheckerPage() {
                     </StudioCard>
                 )}
 
-                <div className="mt-8 text-center">
-                    <Link href="/herramientas" className="inline-flex items-center gap-2 text-sm text-neutral-400 transition-colors hover:text-white">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
             </main>
         </div>
     );

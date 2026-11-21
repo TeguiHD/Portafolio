@@ -291,7 +291,7 @@ function QRStudio() {
 
     return (
         <div className="tool-page qr-studio">
-            <main className="tool-main mx-auto max-w-7xl px-4 sm:px-8">
+            <main className="tool-main">
                 <ToolPageHeader slug="qr" />
                 <div className="qr-workbench">
                     <aside id="qr-preview" className="qr-preview studio-panel" aria-label="Vista previa y descarga">

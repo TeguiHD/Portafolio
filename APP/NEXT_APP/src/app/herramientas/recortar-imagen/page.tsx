@@ -342,7 +342,7 @@ export default function ImageCropperPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Recortador de Imágenes"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Recortador de imágenes"} />;
     }
 
     const estadosPasos: EstadoPaso[] = !imageDimensions ? ["activo", "pendiente", "pendiente"]
@@ -354,7 +354,7 @@ export default function ImageCropperPage() {
 
     return (
         <div className="tool-page">
-            <main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
+            <main className="tool-main pb-12 pt-20 sm:pt-24">
                 <ToolPageHeader slug="recortar-imagen" />
                 {!sourceImage ? (
                     <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a recortar" sublabel="PNG, JPG o WebP · procesamiento local" />

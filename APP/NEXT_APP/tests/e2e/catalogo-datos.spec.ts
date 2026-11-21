@@ -92,3 +92,37 @@ test("el ranking deja fuera navegadores automatizados, robots y clientes de lín
     expect(re.test("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36")).toBe(false);
     expect(re.test("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1")).toBe(false);
 });
+
+/* Ronda 2: ancho de cada herramienta y nombres en español correcto. */
+const ANCHAS = ["qr", "ascii", "quitar-fondo", "comprimir-imagen", "convertir-imagen", "redimensionar", "recortar-imagen", "marca-agua", "favicon", "convertir-ico", "paleta-colores", "base64", "dns", "nginx", "json", "regex", "aleatorio"];
+const SIGLAS = new Set(["QR", "IVA", "JSON", "JWT", "DNS", "EXIF", "ASCII", "ICO", "PNG", "IPv4", "IPv6", "Base64", "Nginx"]);
+/** Los nombres de fábrica que cambian (la migración solo los toca si nadie los editó en el panel). */
+const ANTES: Record<string, string> = {
+    "convertir-imagen": "Conversor de Imágenes", "recortar-imagen": "Recortador de Imágenes", "quitar-fondo": "Quitar Fondo",
+    "comprimir-imagen": "Compresor de Imágenes", redimensionar: "Redimensionar Imágenes", "paleta-colores": "Extractor de Paleta",
+    "marca-agua": "Marca de Agua", favicon: "Generador de Favicons", claves: "Generador de Contraseñas", ascii: "Generador ASCII Art",
+    enlaces: "Generador de Links", aleatorio: "Sorteos y Ruleta", unidades: "Conversor de Unidades", binario: "Traductor Binario",
+    regex: "Regex Tester", esteganografia: "Esteganografía Emoji", "esteganografia-imagen": "Esteganografía en Imágenes",
+    metadatos: "Extractor de Metadatos EXIF", "reverse-shell": "Generador de Reverse Shells", "banner-ascii": "Generador de Banners ASCII",
+    subredes: "Calculadora de Subredes",
+};
+const enEspanol = (nombre: string) => nombre.split(/\s+/).slice(1).filter((p) => /^\p{Lu}/u.test(p) && !SIGLAS.has(p));
+
+test("cada herramienta dice su ancho: anchas las de estudio y dos paneles, estrechas las de formulario", () => {
+    for (const t of DEFAULT_TOOL_REGISTRY) expect(t.ancho, t.slug).toBe(ANCHAS.includes(t.slug) ? "ancha" : "estrecha");
+});
+
+test("los nombres van con mayúscula solo al inicio y en siglas (también los del contenido SEO)", async () => {
+    const { TOOLS_SEO } = await import("../../src/lib/seo/tools-content");
+    for (const t of DEFAULT_TOOL_REGISTRY) expect(enEspanol(t.name), t.name).toEqual([]);
+    for (const [slug, s] of Object.entries(TOOLS_SEO)) expect(enEspanol(s.h1), `${slug}: ${s.h1}`).toEqual([]);
+});
+
+test("la migración renombra en la base solo lo que sigue con el nombre de fábrica", () => {
+    const sql = readFileSync("prisma/migrations/20261121130000_nombres_herramientas/migration.sql", "utf8");
+    for (const [slug, viejo] of Object.entries(ANTES)) {
+        const nuevo = DEFAULT_TOOL_REGISTRY.find((t) => t.slug === slug)!.name;
+        expect(nuevo, slug).not.toBe(viejo);
+        expect(sql, slug).toContain(`UPDATE "Tool" SET name = '${nuevo}' WHERE slug = '${slug}' AND name = '${viejo}';`);
+    }
+});

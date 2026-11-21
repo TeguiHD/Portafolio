@@ -312,7 +312,7 @@ export default function WatermarkPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Marca de Agua"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Marca de agua"} />;
     }
 
     const field = "studio-field";
@@ -321,7 +321,7 @@ export default function WatermarkPage() {
     const mismoFormato = formatoSalida(sourceFile?.type).tipo === sourceFile?.type;
     const pista = comparando ? "Original" : !fuente ? "Abriendo imagen" : !marcaValida ? "Escribe tu marca o añade un logo" : `Se descarga a tamaño completo · ${formato.nombre}`;
     return <div className="tool-page">
-        <main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+        <main className="tool-main pb-12">
             <ToolPageHeader slug="marca-agua" />
             {!sourceImage ? <ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra la imagen a proteger" /> : <section aria-label="Editor de marca de agua" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
                 <MesaCabecera nombre={sourceFile?.name ?? "Imagen"} detalle={fuente ? `${fuente.image.naturalWidth} × ${fuente.image.naturalHeight} px` : undefined}>

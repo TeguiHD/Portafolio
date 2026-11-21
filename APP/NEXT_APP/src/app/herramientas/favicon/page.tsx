@@ -201,14 +201,14 @@ export default function FaviconGeneratorPage() {
     };
 
     if (isLoading) return <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="Cargando herramienta"><LoaderCircle className="h-6 w-6 text-slate-400 motion-safe:animate-spin" /></div>;
-    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de Favicons"} />;
+    if (!isAuthorized) return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de favicons"} />;
 
     const estadosPasos: EstadoPaso[] = !source ? ["activo", "pendiente", "pendiente"] : previews.length ? ["listo", "listo", "listo"] : error ? ["listo", "error", "pendiente"] : ["listo", "activo", "pendiente"];
     const pista = copiado === "html" ? "Etiquetas copiadas"
         : fallo === "html" ? "No se pudo copiar · cópialas desde «Ver etiquetas HTML»"
         : previews.length ? "8 PNG, favicon.ico, manifest y etiquetas HTML" : error ? undefined : "Generando tamaños";
 
-    return <div className="tool-page"><main className="tool-main mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6 sm:pt-24">
+    return <div className="tool-page"><main className="tool-main pb-12 pt-20 sm:pt-24">
         <ToolPageHeader slug="favicon" />
         {!source ? <><ImageDropzone onImageLoad={handleImageLoad} accentColor={ACCENT} label="Arrastra tu logo o icono" sublabel="PNG, JPG o WebP · conserva la proporción original" />{decoding && <p role="status" className="mt-4 text-center text-sm text-slate-400">Abriendo imagen…</p>}</> : <section aria-label="Estudio de favicons" className="studio-panel mesa overflow-hidden" style={{ "--mesa-acento": ACCENT } as CSSProperties}>
             <MesaCabecera nombre={source.file.name} detalle={`${source.image.naturalWidth} × ${source.image.naturalHeight} px`}>

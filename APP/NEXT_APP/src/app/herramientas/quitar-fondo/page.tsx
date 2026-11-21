@@ -428,7 +428,7 @@ export default function BackgroundRemoverPage() {
 
     return (
         <div className="tool-page min-h-screen">
-            <main className="tool-main mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+            <main className="tool-main pb-12">
                 <ToolPageHeader slug="quitar-fondo" />
 
                 {!source ? (
@@ -436,7 +436,7 @@ export default function BackgroundRemoverPage() {
                         <div className="grid md:grid-cols-[1.05fr_1fr]">
                             <div className={`${styles.stage} relative flex flex-col items-center justify-center px-6 py-5 sm:px-10 sm:py-8`}>
                                 <BackgroundIllustration />
-                                <p className="text-center text-xs text-slate-400">Del original a un PNG transparente.</p>
+                                <p className="text-center text-xs text-slate-400">Del original a un PNG transparente, sin marca de agua.</p>
                             </div>
                             <div className="flex flex-col justify-center gap-5 p-5 sm:p-8">
                                 <ImageDropzone onImageLoad={(file, url) => { void processImage(file, url); }} accept={["image/png", "image/jpeg", "image/webp"]} maxSize={20 * 1024 * 1024} accentColor={ACCENT} label="Suelta tu imagen aquí" sublabel="JPG, PNG o WebP · Empezamos al subirla" />

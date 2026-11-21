@@ -23,6 +23,8 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
     const ruta = usePathname();
     const slug = ruta.split("/")[2];
     const actual = tools.find((t) => t.slug === slug);
+    /* El ancho lo dice el catálogo: la herramienta, su guía y las relacionadas lo comparten (tools.css). */
+    const ancho = actual?.ancho;
     const { favorites, ready, sessionOnly, toggleFavorite } = useToolFavorites();
     useRecentTools(actual?.slug);
     // Una visita por herramienta y sesión, en las 29 por igual: con esto se ordenan «Las más usadas» del catálogo
@@ -66,7 +68,7 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
     const contenido = (
         <>
             {actual ? (
-                <div className="hc-riel ancho">
+                <div className="hc-riel">
                     {/* Solo en celular: la vuelta al catálogo reemplaza a las migas visibles (no caben junto a las acciones). */}
                     <Link className="hc-volver" href="/herramientas">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
@@ -89,7 +91,7 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
             {/* Al terminar, las que suelen venir antes o después en el mismo trabajo: así las menos conocidas aparecen
                 justo cuando vienen al caso. Llegan del servidor ya filtradas a las visibles. */}
             {sugeridas.length ? (
-                <nav className="hc-relacionadas ancho" aria-labelledby="hc-rel-t">
+                <nav className="hc-relacionadas" aria-labelledby="hc-rel-t">
                     <h2 id="hc-rel-t">También te puede servir</h2>
                     <ul>
                         {sugeridas.map((t) => (
@@ -106,7 +108,7 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
     );
 
     return (
-        <div className="tools-workspace hc">
+        <div className="tools-workspace hc" data-ancho={ancho}>
             {/* En cada herramienta la materia se queda en el marco (quieta: se duerme y no le resta a la herramienta).
                 El catálogo trae sus propias secciones. */}
             {actual ? <section className="hc-marco" data-forma="marco" aria-label={actual.name}>{contenido}</section> : contenido}

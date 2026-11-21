@@ -14,6 +14,8 @@ export interface ToolRegistryEntry {
     publicada?: string;
     /** Dónde se procesa, solo si no es todo en el navegador (la cabecera lo dice tal cual). Verificado en el código. */
     donde?: string;
+    /** Ancho de la herramienta en el PC: «estrecha» (56rem, formularios) o «ancha» (el del sitio, estudios y dos paneles). */
+    ancho: "estrecha" | "ancha";
 }
 
 export interface PublicToolCatalogEntry {
@@ -24,12 +26,15 @@ export interface PublicToolCatalogEntry {
     icon: string;
     category: string;
     sortOrder: number;
+    /** Ancho en el PC (del registro): la carcasa lo usa sin cargar el registro completo en el navegador. */
+    ancho?: "estrecha" | "ancha";
 }
 
 export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "convertir-imagen",
-        name: "Conversor de Imágenes",
+        name: "Conversor de imágenes",
+        ancho: "ancha",
         description: "Convierte imágenes PNG, JPG, WebP, AVIF, GIF o BMP a WebP, PNG o JPG, de a una o en lote.",
         icon: "convertir-imagen",
         category: "images",
@@ -41,7 +46,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "recortar-imagen",
-        name: "Recortador de Imágenes",
+        name: "Recortador de imágenes",
+        ancho: "ancha",
         description: "Recorta una imagen en proporciones fijas (1:1, 16:9, 4:5…), gírala y descárgala en PNG, JPG o WebP.",
         icon: "recortar-imagen",
         category: "images",
@@ -53,7 +59,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "quitar-fondo",
-        name: "Quitar Fondo",
+        name: "Quitar fondo",
+        ancho: "ancha",
         description: "Quita el fondo de una foto en tu navegador, retoca el borde y descarga un PNG transparente o con color.",
         icon: "quitar-fondo",
         category: "images",
@@ -66,6 +73,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "convertir-ico",
         name: "Conversor a ICO",
+        ancho: "ancha",
         description: "Convierte una imagen en un archivo .ico con varios tamaños, de 16 a 256 px.",
         icon: "convertir-ico",
         category: "images",
@@ -77,7 +85,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "comprimir-imagen",
-        name: "Compresor de Imágenes",
+        name: "Compresor de imágenes",
+        ancho: "ancha",
         description: "Reduce el peso de una o varias imágenes eligiendo la calidad o un tamaño máximo en KB.",
         icon: "comprimir-imagen",
         category: "images",
@@ -89,7 +98,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "redimensionar",
-        name: "Redimensionar Imágenes",
+        name: "Redimensionar imágenes",
+        ancho: "ancha",
         description: "Cambia el ancho y alto de imágenes, con medidas listas para Instagram, YouTube, LinkedIn y Full HD.",
         icon: "redimensionar",
         category: "images",
@@ -101,7 +111,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "paleta-colores",
-        name: "Extractor de Paleta",
+        name: "Extractor de paleta",
+        ancho: "ancha",
         description: "Saca los colores principales de una imagen en HEX, RGB y HSL, y los exporta como variables CSS.",
         icon: "paleta-colores",
         category: "images",
@@ -113,7 +124,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "marca-agua",
-        name: "Marca de Agua",
+        name: "Marca de agua",
+        ancho: "ancha",
         description: "Pone un texto o un logo sobre tus imágenes, en una esquina, al centro o repetido, con la opacidad que elijas.",
         icon: "marca-agua",
         category: "images",
@@ -125,7 +137,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "favicon",
-        name: "Generador de Favicons",
+        name: "Generador de favicons",
+        ancho: "ancha",
         description: "Genera desde un logo los íconos de tu sitio (16 a 512 px), el favicon.ico y el manifest, en un ZIP.",
         icon: "favicon",
         category: "images",
@@ -138,6 +151,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "qr",
         name: "Generador de QR",
+        ancho: "ancha",
         description: "Crea un código QR para un enlace, texto, Wi-Fi, contacto o WhatsApp y descárgalo en PNG o SVG.",
         icon: "qr",
         category: "utility",
@@ -149,7 +163,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "claves",
-        name: "Generador de Contraseñas",
+        name: "Generador de contraseñas",
+        ancho: "estrecha",
         description: "Genera contraseñas o frases de paso al azar, con la longitud y los caracteres que elijas.",
         icon: "lock",
         category: "security",
@@ -161,7 +176,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "ascii",
-        name: "Generador ASCII Art",
+        name: "Generador de arte ASCII",
+        ancho: "ancha",
         description: "Convierte una imagen en arte ASCII y descárgalo como texto, HTML o PNG.",
         icon: "ascii",
         category: "utility",
@@ -173,7 +189,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "enlaces",
-        name: "Generador de Links",
+        name: "Generador de links",
+        ancho: "estrecha",
         description: "Crea enlaces de WhatsApp con mensaje, de correo con asunto y de eventos para Google Calendar u Outlook.",
         icon: "link",
         category: "utility",
@@ -185,7 +202,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "aleatorio",
-        name: "Sorteos y Ruleta",
+        name: "Sorteos y ruleta",
+        ancho: "ancha",
         description: "Sortea ganadores con una ruleta o reparte una lista de nombres en grupos al azar.",
         icon: "dice",
         category: "utility",
@@ -197,7 +215,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "unidades",
-        name: "Conversor de Unidades",
+        name: "Conversor de unidades",
+        ancho: "estrecha",
         description: "Convierte unidades de 12 magnitudes: longitud, masa, temperatura, velocidad, datos, energía y más.",
         icon: "scale",
         category: "utility",
@@ -210,6 +229,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "base64",
         name: "Conversor Base64",
+        ancho: "ancha",
         description: "Codifica y decodifica texto en Base64 y convierte imágenes a data URL.",
         icon: "image",
         category: "dev",
@@ -221,7 +241,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "binario",
-        name: "Traductor Binario",
+        name: "Traductor binario",
+        ancho: "estrecha",
         description: "Traduce texto a código binario y de vuelta a texto.",
         icon: "binary",
         category: "dev",
@@ -234,6 +255,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "impuestos",
         name: "Calculadora de IVA",
+        ancho: "estrecha",
         description: "Agrega o quita el IVA de un monto, con la tasa de Chile (19 %), la de otros países o la que indiques.",
         icon: "calculator",
         category: "finance",
@@ -245,7 +267,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "regex",
-        name: "Regex Tester",
+        name: "Probador de regex",
+        ancho: "ancha",
         description: "Prueba una expresión regular sobre un texto, ve cada coincidencia y reemplaza.",
         icon: "code",
         category: "dev",
@@ -259,6 +282,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "jwt",
         name: "Decodificador JWT",
+        ancho: "estrecha",
         description: "Decodifica un JWT, revisa sus fechas y verifica la firma con tu secreto o tu clave pública.",
         icon: "jwt",
         category: "dev",
@@ -271,6 +295,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "json",
         name: "Formateador JSON",
+        ancho: "ancha",
         description: "Formatea, minifica y valida JSON, con vista de árbol y aviso de claves duplicadas.",
         icon: "json",
         category: "dev",
@@ -283,6 +308,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "dns",
         name: "Verificador DNS",
+        ancho: "ancha",
         description: "Compara la respuesta DNS de tu dominio en seis resolvedores públicos y revisa su SPF y DMARC.",
         icon: "dns",
         category: "dev",
@@ -296,6 +322,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     {
         slug: "nginx",
         name: "Generador Nginx",
+        ancho: "ancha",
         description: "Arma la configuración de Nginx o .htaccess: HTTPS, redirecciones, proxy, caché y cabeceras de seguridad.",
         icon: "nginx",
         category: "dev",
@@ -307,7 +334,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "esteganografia",
-        name: "Esteganografía Emoji",
+        name: "Esteganografía con emojis",
+        ancho: "estrecha",
         description: "Esconde un mensaje en emojis o texto con caracteres invisibles, y detecta los que ya trae un texto.",
         icon: "esteganografia",
         category: "security",
@@ -319,7 +347,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "esteganografia-imagen",
-        name: "Esteganografía en Imágenes",
+        name: "Esteganografía en imágenes",
+        ancho: "estrecha",
         description: "Esconde un mensaje dentro de los píxeles de una imagen PNG y léelo de vuelta.",
         icon: "esteganografia-imagen",
         category: "security",
@@ -331,7 +360,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "metadatos",
-        name: "Extractor de Metadatos EXIF",
+        name: "Extractor de metadatos EXIF",
+        ancho: "estrecha",
         description: "Muestra los datos ocultos de una foto (cámara, fecha, GPS) y descarga una copia sin ellos.",
         icon: "metadatos",
         category: "security",
@@ -343,7 +373,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "reverse-shell",
-        name: "Generador de Reverse Shells",
+        name: "Generador de reverse shells",
+        ancho: "estrecha",
         description: "Arma comandos de shell reversa para pruebas de penetración en Bash, Python, PHP, PowerShell y más.",
         icon: "reverse-shell",
         category: "security",
@@ -355,7 +386,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "banner-ascii",
-        name: "Generador de Banners ASCII",
+        name: "Generador de banners ASCII",
+        ancho: "estrecha",
         description: "Convierte un texto en un banner ASCII para la terminal y descárgalo como script o MOTD.",
         icon: "banner-ascii",
         category: "networking",
@@ -367,7 +399,8 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     {
         slug: "subredes",
-        name: "Calculadora de Subredes",
+        name: "Calculadora de subredes",
+        ancho: "estrecha",
         description: "Calcula red, broadcast, máscara y rango de hosts en IPv4 o IPv6, y planifica subredes VLSM.",
         icon: "subredes",
         category: "networking",
@@ -380,7 +413,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
 ];
 
 // Lo que va a la tabla Tool: sin los datos que solo usa el sitio (familia pública, relacionadas, fecha de publicación).
-export const DEFAULT_TOOL_SEEDS = DEFAULT_TOOL_REGISTRY.map(({ publicCategory: _publicCategory, relacionadas: _relacionadas, publicada: _publicada, donde: _donde, ...tool }) => tool);
+export const DEFAULT_TOOL_SEEDS = DEFAULT_TOOL_REGISTRY.map(({ publicCategory: _publicCategory, relacionadas: _relacionadas, publicada: _publicada, donde: _donde, ancho: _ancho, ...tool }) => tool);
 
 function normalizePublicCategory(category?: string | null) {
     switch (category) {
@@ -419,6 +452,7 @@ export function getDefaultPublicToolCatalog(): PublicToolCatalogEntry[] {
             icon: tool.icon,
             category: tool.publicCategory,
             sortOrder: tool.sortOrder,
+            ancho: tool.ancho,
         }))
         .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, "es"));
 }
@@ -450,6 +484,7 @@ export function mergePublicToolCatalog(
             icon: tool.icon ?? existing?.icon ?? "default",
             category: existing?.category ?? normalizePublicCategory(tool.category),
             sortOrder: tool.sortOrder ?? existing?.sortOrder ?? Number.MAX_SAFE_INTEGER,
+            ancho: existing?.ancho,
         });
     });
 

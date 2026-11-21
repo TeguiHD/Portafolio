@@ -81,6 +81,9 @@ test("esteganografía: un PNG con transparencia guarda el mensaje y se vuelve a 
 
     await page.getByRole("button", { name: /Extraer Mensaje/ }).first().click();
     await page.getByLabel("Seleccionar imagen", { exact: true }).setInputFiles({ name: "logo_stego.png", mimeType: "image/png", buffer: archivo });
+    // La pestaña y el botón se llaman igual; el botón aparece al terminar de leer la imagen. Sin esperar, .last() podía
+    // ser la pestaña y la prueba fallaba a veces (2 de 3 con el PC cargado).
+    await expect(page.getByRole("button", { name: /Extraer Mensaje/ })).toHaveCount(2);
     await page.getByRole("button", { name: /Extraer Mensaje/ }).last().click();
     await expect(page.locator("main")).toContainText(mensaje);
 });

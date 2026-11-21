@@ -1,0 +1,22 @@
+-- Nombres en español correcto (mayúscula solo al inicio y en siglas). Solo si nadie los editó en el panel.
+UPDATE "Tool" SET name = 'Conversor de imágenes' WHERE slug = 'convertir-imagen' AND name = 'Conversor de Imágenes';
+UPDATE "Tool" SET name = 'Recortador de imágenes' WHERE slug = 'recortar-imagen' AND name = 'Recortador de Imágenes';
+UPDATE "Tool" SET name = 'Quitar fondo' WHERE slug = 'quitar-fondo' AND name = 'Quitar Fondo';
+UPDATE "Tool" SET name = 'Compresor de imágenes' WHERE slug = 'comprimir-imagen' AND name = 'Compresor de Imágenes';
+UPDATE "Tool" SET name = 'Redimensionar imágenes' WHERE slug = 'redimensionar' AND name = 'Redimensionar Imágenes';
+UPDATE "Tool" SET name = 'Extractor de paleta' WHERE slug = 'paleta-colores' AND name = 'Extractor de Paleta';
+UPDATE "Tool" SET name = 'Marca de agua' WHERE slug = 'marca-agua' AND name = 'Marca de Agua';
+UPDATE "Tool" SET name = 'Generador de favicons' WHERE slug = 'favicon' AND name = 'Generador de Favicons';
+UPDATE "Tool" SET name = 'Generador de contraseñas' WHERE slug = 'claves' AND name = 'Generador de Contraseñas';
+UPDATE "Tool" SET name = 'Generador de arte ASCII' WHERE slug = 'ascii' AND name = 'Generador ASCII Art';
+UPDATE "Tool" SET name = 'Generador de links' WHERE slug = 'enlaces' AND name = 'Generador de Links';
+UPDATE "Tool" SET name = 'Sorteos y ruleta' WHERE slug = 'aleatorio' AND name = 'Sorteos y Ruleta';
+UPDATE "Tool" SET name = 'Conversor de unidades' WHERE slug = 'unidades' AND name = 'Conversor de Unidades';
+UPDATE "Tool" SET name = 'Traductor binario' WHERE slug = 'binario' AND name = 'Traductor Binario';
+UPDATE "Tool" SET name = 'Probador de regex' WHERE slug = 'regex' AND name = 'Regex Tester';
+UPDATE "Tool" SET name = 'Esteganografía con emojis' WHERE slug = 'esteganografia' AND name = 'Esteganografía Emoji';
+UPDATE "Tool" SET name = 'Esteganografía en imágenes' WHERE slug = 'esteganografia-imagen' AND name = 'Esteganografía en Imágenes';
+UPDATE "Tool" SET name = 'Extractor de metadatos EXIF' WHERE slug = 'metadatos' AND name = 'Extractor de Metadatos EXIF';
+UPDATE "Tool" SET name = 'Generador de reverse shells' WHERE slug = 'reverse-shell' AND name = 'Generador de Reverse Shells';
+UPDATE "Tool" SET name = 'Generador de banners ASCII' WHERE slug = 'banner-ascii' AND name = 'Generador de Banners ASCII';
+UPDATE "Tool" SET name = 'Calculadora de subredes' WHERE slug = 'subredes' AND name = 'Calculadora de Subredes';

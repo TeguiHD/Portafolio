@@ -2,7 +2,6 @@
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
 
@@ -349,19 +348,19 @@ export default function AsciiArtPage() {
     }
 
     if (!isAuthorized) {
-        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "ASCII Art"} />;
+        return <ToolAccessBlocked accessType={accessType} toolName={toolName || "Generador de arte ASCII"} />;
     }
 
     return (
         <div className="tool-page">
             <canvas ref={canvasRef} className="hidden" />
 
-            <main className="tool-main max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-12 sm:pt-28 sm:pb-16">
+            <main className="tool-main pt-24 pb-12 sm:pt-28 sm:pb-16">
                 {/* Header */}
+                {/* La cabecera va sola y centrada (como en las 29); «Nueva imagen» queda en su propia fila. */}
                 <div className="mb-4 sm:mb-6">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1"><ToolPageHeader slug="ascii" /></div>
-
+                    <ToolPageHeader slug="ascii" />
+                    <div className="flex justify-end">
                         {imageUrl && (
                             <button
                                 type="button"
@@ -940,18 +939,6 @@ export default function AsciiArtPage() {
                     </div>
                 )}
 
-                {/* Back Link */}
-                <div className="mt-8 text-center">
-                    <Link
-                        href="/herramientas"
-                        className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Volver a herramientas
-                    </Link>
-                </div>
             </main>
 
             <style jsx>{`
