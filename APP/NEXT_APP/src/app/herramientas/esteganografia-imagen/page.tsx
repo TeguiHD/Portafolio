@@ -247,14 +247,14 @@ export default function ImageSteganographyPage() {
                             className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === m ? "text-white" : "text-neutral-400"}`}
                             style={mode === m ? { background: `${ACCENT}20`, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
                         >
-                            {m === "encode" ? "🔒 Ocultar Mensaje" : "🔓 Extraer Mensaje"}
+                            {m === "encode" ? "Ocultar Mensaje" : "Extraer Mensaje"}
                         </button>
                     ))}
                 </div>
 
                 {error && (
                     <div role="alert" className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                        ❌ {error}
+                        {error}
                     </div>
                 )}
 
@@ -332,10 +332,9 @@ export default function ImageSteganographyPage() {
                                 type="button"
                                 onClick={handleEncode}
                                 disabled={!message.trim() || isProcessing || noCabe}
-                                className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
-                                style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
+                                className="w-full py-3 rounded-xl font-medium bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50"
                             >
-                                {isProcessing ? "Procesando..." : "🔒 Ocultar en Imagen"}
+                                {isProcessing ? "Procesando..." : "Ocultar en Imagen"}
                             </button>
                         )}
 
@@ -350,7 +349,7 @@ export default function ImageSteganographyPage() {
                                         className="min-h-11 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
                                         style={{ background: `${ACCENT}30` }}
                                     >
-                                        ⬇️ Descargar PNG
+                                        Descargar PNG
                                     </button>
                                 </div>
                                 <div className="bg-[#0F1724] rounded-lg p-2 flex justify-center">
@@ -405,10 +404,9 @@ export default function ImageSteganographyPage() {
                                 type="button"
                                 onClick={handleDecode}
                                 disabled={isProcessing}
-                                className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
-                                style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
+                                className="w-full py-3 rounded-xl font-medium bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50"
                             >
-                                {isProcessing ? "Analizando píxeles..." : "🔓 Extraer Mensaje"}
+                                {isProcessing ? "Analizando píxeles..." : "Extraer Mensaje"}
                             </button>
                         )}
 
@@ -455,15 +453,12 @@ export default function ImageSteganographyPage() {
                     <h3 className="text-sm font-semibold text-white mb-3">Cómo funciona la ocultación LSB</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-neutral-400">
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">📝</span>
                             <p>El mensaje se convierte a bytes UTF-8 y luego a bits individuales (0 y 1)</p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">🎨</span>
                             <p>Cada bit reemplaza el bit menos significativo de un canal de color (R/G/B) de un píxel</p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">👁️</span>
                             <p>El cambio de ±1 en un valor de 0-255 es imperceptible para el ojo humano</p>
                         </div>
                     </div>

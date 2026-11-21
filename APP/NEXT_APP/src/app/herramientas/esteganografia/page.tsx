@@ -11,9 +11,9 @@ import { analizarInvisibles, codigoU, nombreInvisible, NOMBRE_TIPO, TIPOS_INVISI
 const ACCENT = "#10B981";
 type Modo = "encode" | "decode" | "detect";
 const MODOS: { valor: Modo; texto: string }[] = [
-    { valor: "encode", texto: "🔒 Codificar" },
-    { valor: "decode", texto: "🔓 Decodificar" },
-    { valor: "detect", texto: "🔍 Detectar" },
+    { valor: "encode", texto: "Codificar" },
+    { valor: "decode", texto: "Decodificar" },
+    { valor: "detect", texto: "Detectar" },
 ];
 // Grupos que se listan; con mensajes largos puede haber miles.
 const MAX_HALLAZGOS_VISIBLES = 100;
@@ -228,7 +228,7 @@ export default function SteganographyPage() {
 
                 {error && (
                     <div role="alert" className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                        ❌ {error}
+                        {error}
                     </div>
                 )}
 
@@ -394,9 +394,8 @@ export default function SteganographyPage() {
 
                         <button type="button" onClick={handleEncode}
                             disabled={!secret.trim()}
-                            className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
-                            style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}>
-                            🔒 Ocultar Mensaje
+                            className="w-full py-3 rounded-xl font-medium bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50">
+                            Ocultar Mensaje
                         </button>
 
                         {/* Encoded Result */}
@@ -452,9 +451,8 @@ export default function SteganographyPage() {
 
                         <button type="button" onClick={handleDecode}
                             disabled={!decodeInput.trim()}
-                            className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
-                            style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}>
-                            🔓 Revelar Mensaje
+                            className="w-full py-3 rounded-xl font-medium bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50">
+                            Revelar Mensaje
                         </button>
 
                         {/* Decoded Result */}
@@ -482,16 +480,13 @@ export default function SteganographyPage() {
                     <h3 className="text-sm font-semibold text-white mb-3">Cómo se oculta el texto</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-neutral-400">
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">📝</span>
                             <p>Cada byte del mensaje (en UTF-8) se escribe como 8 bits</p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">👻</span>
                             <p>Los bits van en caracteres invisibles de ancho cero (U+200B = 0, U+200C = 1), tras una marca U+2060</p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">🔒</span>
-                            <p>Se reparten entre los emojis del portador sin partir los compuestos (👩‍💻, banderas)</p>
+                            <p>Se reparten entre los emojis del portador sin partir los compuestos (<kbd>👩‍💻</kbd>, banderas)</p>
                         </div>
                     </div>
                 </div>

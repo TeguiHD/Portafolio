@@ -2,7 +2,7 @@
 
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
-import { useState, useEffect, useMemo, type CSSProperties, type MouseEvent } from "react";
+import { useState, useEffect, useMemo, type MouseEvent } from "react";
 import { useToolAccess } from "@/hooks/useToolAccess";
 import { ToolAccessBlocked } from "@/components/tools/ToolAccessBlocked";
 import { useCopiar } from "@/lib/tools/copiar";
@@ -35,7 +35,8 @@ export default function UnitConverterPage() {
     const [category, setCategory] = useState<MagnitudId>("longitud");
     const [fromUnit, setFromUnit] = useState(MAGNITUDES[0].porDefecto[0]);
     const [toUnit, setToUnit] = useState(MAGNITUDES[0].porDefecto[1]);
-    const [value, setValue] = useState<string>("");
+    // Abre con 1 ya convertido (resultado de entrada); la URL compartida con ?valor= lo reemplaza al montar.
+    const [value, setValue] = useState<string>("1");
     const [urlLeida, setUrlLeida] = useState(false);
     const { copiado, fallo, copiar } = useCopiar();
 
@@ -169,19 +170,12 @@ export default function UnitConverterPage() {
                             aria-pressed={category === cat.id}
                             aria-label={cat.nombre}
                             onClick={() => elegirMagnitud(cat.id)}
+                            style={category === cat.id ? { background: `${cat.color}1f`, borderColor: `${cat.color}80` } : undefined}
                             className={`relative flex min-h-11 flex-col items-center justify-center p-2 sm:p-3 rounded-xl transition-all duration-200 motion-reduce:transition-none ${category === cat.id
-                                ? "text-white motion-safe:scale-[1.02] ring-2"
+                                ? "border"
                                 : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white border border-white/10"
                                 }`}
-                            style={category === cat.id ? {
-                                background: `linear-gradient(135deg, ${cat.color}20, ${cat.color}10)`,
-                                borderColor: cat.color,
-                                boxShadow: `0 4px 20px ${cat.color}25, 0 0 0 2px ${cat.color}`,
-                            } as CSSProperties : {}}
                         >
-                            {/* Emoji - Universal & Instantly Recognizable */}
-                            <span className="text-xl sm:text-2xl mb-1" aria-hidden="true">{cat.emoji}</span>
-
                             {/* Short name on mobile, full on desktop */}
                             <span
                                 className="text-[11px] font-medium sm:hidden"
@@ -198,13 +192,6 @@ export default function UnitConverterPage() {
                                 {cat.id === "consumo" ? "Consumo" : cat.nombre}
                             </span>
 
-                            {/* Selected indicator */}
-                            {category === cat.id && (
-                                <div
-                                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full"
-                                    style={{ background: cat.color }}
-                                />
-                            )}
                         </button>
                     ))}
                 </div>
@@ -217,7 +204,6 @@ export default function UnitConverterPage() {
                         border: `1px solid ${color}30`,
                     }}
                 >
-                    <span className="text-lg" aria-hidden="true">{activeCategory.emoji}</span>
                     <span className="text-sm font-medium" style={{ color }}>
                         Convirtiendo {activeCategory.nombre.toLowerCase()}
                     </span>

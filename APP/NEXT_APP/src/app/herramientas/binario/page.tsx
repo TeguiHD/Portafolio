@@ -80,14 +80,14 @@ export default function BinaryTranslatorPage() {
             return textToBinary(inputText);
         } else {
             if (!isValidBinary(inputText)) {
-                return "⚠️ Entrada inválida: solo se permiten 0, 1 y espacios";
+                return "Entrada inválida: solo se permiten 0, 1 y espacios";
             }
             return binaryToText(inputText);
         }
     }, [inputText, mode]);
 
     const aviso = useMemo(
-        () => (mode === "binary-to-text" && output && !output.startsWith("⚠️") ? avisoBinario(inputText, output) : null),
+        () => (mode === "binary-to-text" && output && !output.startsWith("Entrada inválida") ? avisoBinario(inputText, output) : null),
         [mode, inputText, output],
     );
 
@@ -101,7 +101,7 @@ export default function BinaryTranslatorPage() {
 
     // Copy to clipboard with throttled tracking
     const copyToClipboard = useCallback(async () => {
-        if (!output || output.startsWith("⚠️")) return;
+        if (!output || output.startsWith("Entrada inválida")) return;
         if (!(await copiar(output, "salida"))) return;
         const now = Date.now();
         if (now - lastTrackRef.current > 2000) {
@@ -112,7 +112,7 @@ export default function BinaryTranslatorPage() {
 
     // Swap mode and content
     const swapMode = useCallback(() => {
-        if (output && !output.startsWith("⚠️")) {
+        if (output && !output.startsWith("Entrada inválida")) {
             setInputText(output);
         } else {
             setInputText("");
@@ -157,7 +157,6 @@ export default function BinaryTranslatorPage() {
                             : "text-neutral-400 hover:text-white"
                             }`}
                     >
-                        <span aria-hidden="true">📝</span>
                         Texto → Binario
                     </button>
                     <button
@@ -169,7 +168,6 @@ export default function BinaryTranslatorPage() {
                             : "text-neutral-400 hover:text-white"
                             }`}
                     >
-                        <span aria-hidden="true">🔢</span>
                         Binario → Texto
                     </button>
                 </div>
@@ -204,7 +202,7 @@ export default function BinaryTranslatorPage() {
                             <button
                                 type="button"
                                 onClick={swapMode}
-                                disabled={!output || output.startsWith("⚠️")}
+                                disabled={!output || output.startsWith("Entrada inválida")}
                                 className="flex min-h-11 items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 disabled:opacity-50 transition-all text-sm"
                                 title="Intercambiar entrada/salida"
                             >
@@ -232,7 +230,7 @@ export default function BinaryTranslatorPage() {
                             <p id="binario-salida-titulo" className="text-sm text-neutral-400">
                                 {mode === "text-to-binary" ? "Resultado en binario" : "Resultado en texto"}
                             </p>
-                            {output && !output.startsWith("⚠️") && (
+                            {output && !output.startsWith("Entrada inválida") && (
                                 <span className="text-xs text-neutral-500" aria-live="polite">
                                     {mode === "text-to-binary"
                                         ? `${((output.length + 1) / 9).toLocaleString("es-CL")} bytes`
@@ -245,7 +243,7 @@ export default function BinaryTranslatorPage() {
                             <div
                                 role="region"
                                 aria-labelledby="binario-salida-titulo"
-                                className={`w-full min-h-[200px] px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-sm font-mono overflow-auto whitespace-pre-wrap break-all ${output.startsWith("⚠️") ? "text-yellow-400" : "text-cyan-400"
+                                className={`w-full min-h-[200px] px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-sm font-mono overflow-auto whitespace-pre-wrap break-all ${output.startsWith("Entrada inválida") ? "text-yellow-400" : "text-cyan-400"
                                     }`}
                             >
                                 {output || (
@@ -259,7 +257,7 @@ export default function BinaryTranslatorPage() {
                             </div>
 
                             {/* Copy Button */}
-                            {output && !output.startsWith("⚠️") && (
+                            {output && !output.startsWith("Entrada inválida") && (
                                 <button
                                     type="button"
                                     onClick={() => { void copyToClipboard(); }}
@@ -290,8 +288,7 @@ export default function BinaryTranslatorPage() {
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10">
                         <h3 className="text-sm font-medium text-white mb-2 flex items-center gap-2">
-                            <span aria-hidden="true">📝</span>
-                            Texto a Binario
+                                Texto a Binario
                         </h3>
                         <p className="text-xs text-neutral-400">
                             Cada carácter se convierte a sus bytes en UTF-8, de 8 bits cada uno: «A» es un byte; «ñ», dos; un emoji, cuatro.
@@ -299,8 +296,7 @@ export default function BinaryTranslatorPage() {
                     </div>
                     <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10">
                         <h3 className="text-sm font-medium text-white mb-2 flex items-center gap-2">
-                            <span aria-hidden="true">🔢</span>
-                            Binario a Texto
+                                Binario a Texto
                         </h3>
                         <p className="text-xs text-neutral-400">
                             Lee bytes separados por espacios (de hasta 8 bits) o una tira seguida, de a 8 bits, y los decodifica como UTF-8.
@@ -310,7 +306,7 @@ export default function BinaryTranslatorPage() {
 
                 {/* Example */}
                 <div className="mt-4 p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
-                    <p className="text-xs text-cyan-400 mb-2">💡 Ejemplo:</p>
+                    <p className="text-xs text-cyan-400 mb-2">Ejemplo:</p>
                     <p className="text-xs text-neutral-400 font-mono">
                         <span className="text-white">Hola</span> → <span className="text-cyan-400">01001000 01101111 01101100 01100001</span>
                     </p>

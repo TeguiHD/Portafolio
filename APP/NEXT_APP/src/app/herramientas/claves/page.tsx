@@ -34,28 +34,24 @@ const ATTACK_SCENARIOS = {
     online_throttled: {
         speed: 100,
         label: "En línea (protegido)",
-        icon: "🌐",
         desc: "Con captcha y límite de intentos",
         detail: "~100 intentos/s",
     },
     online_api: {
         speed: 1000,
         label: "API sin protección",
-        icon: "🔌",
         desc: "Servicio sin límite de intentos",
         detail: "~1.000 intentos/s",
     },
     credential_stuffing: {
         speed: 1e5,
         label: "Botnet",
-        icon: "🤖",
         desc: "Muchos equipos probando contra un servicio",
         detail: "~100 mil intentos/s",
     },
     bcrypt_gpu: {
         speed: 184000, // 184 kH/s per RTX 4090 (bcrypt cost 5)
         label: "Bcrypt (GPU)",
-        icon: "🔐",
         desc: "Hash lento con sal",
         detail: "~184 mil H/s con costo 5 (RTX 4090)",
         isSecure: true,
@@ -63,35 +59,30 @@ const ATTACK_SCENARIOS = {
     sha256_gpu: {
         speed: 21.6e9, // 21.6 GH/s per RTX 4090
         label: "SHA-256 (GPU)",
-        icon: "🎮",
         desc: "Hash rápido sin sal",
         detail: "~21,6 GH/s (RTX 4090)",
     },
     md5_gpu: {
         speed: 164e9, // 164 GH/s per RTX 4090
         label: "MD5 (GPU)",
-        icon: "⚡",
         desc: "Hash débil y antiguo",
         detail: "~164 GH/s (RTX 4090)",
     },
     gpu_cluster: {
         speed: 164e9 * 12,
         label: "12 GPU",
-        icon: "🖥️",
         desc: "Equipo profesional contra MD5",
         detail: "~2 TH/s (12 RTX 4090)",
     },
     nation_state: {
         speed: 1e18,
         label: "Estado-nación",
-        icon: "🏛️",
         desc: "Estimación gruesa, sin respaldo público",
         detail: "~1 EH/s supuesto",
     },
     quantum_grover: {
         speed: 0,
         label: "Cuántico (Grover)",
-        icon: "⚛️",
         desc: "Computador cuántico hipotético a 10⁹ pasos/s",
         detail: "Entropía efectiva ÷ 2",
         isQuantum: true,
@@ -187,11 +178,11 @@ export default function PasswordGeneratorPage() {
                 {/* Password Display */}
                 <div className="bg-[#0a0e17] rounded-2xl p-4 sm:p-5 border border-white/10 mb-4">
                     <h2 className="sr-only">Clave generada</h2>
-                    <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-stretch">
+                    <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start">
                         <div id="clave-generada" className={`font-mono text-base sm:text-lg text-white flex-1 select-all bg-black/40 rounded-lg p-3 min-h-[52px] ${modo === "palabras" ? "break-words" : "break-all"}`}>
                             {showPassword ? password : "•".repeat(password.length)}
                         </div>
-                        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-col">
+                        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-row">
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className={`${iconButton} bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white`} aria-label={showPassword ? "Ocultar clave" : "Mostrar clave"}>
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} /></svg>
                             </button>
@@ -303,7 +294,6 @@ export default function PasswordGeneratorPage() {
                     <div className="p-4 sm:p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-                                <span className="w-6 h-6 rounded-lg bg-orange-500/20 flex items-center justify-center text-xs" aria-hidden="true">⏱️</span>
                                 Tiempo para descifrar
                             </h2>
                             <a href="https://hashcat.net/wiki/" target="_blank" rel="noopener noreferrer" className="text-[11px] text-neutral-500 hover:text-white">Hashcat 2024 →</a>
@@ -311,9 +301,8 @@ export default function PasswordGeneratorPage() {
 
                         <div role="group" aria-label="Escenario de ataque" className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mb-4">
                             {(Object.entries(ATTACK_SCENARIOS) as [AttackKey, typeof ATTACK_SCENARIOS[AttackKey]][]).map(([key, s]) => (
-                                <button key={key} type="button" aria-pressed={attackScenario === key} onClick={() => setAttackScenario(key)} className={`min-h-11 p-2 rounded-lg text-left transition-all motion-reduce:transition-none ${attackScenario === key ? "bg-orange-500/20 border-orange-500/50 ring-1 ring-orange-500/30" : "bg-white/5 border-white/10 hover:bg-white/10"} border`}>
-                                    <div className="text-sm mb-0.5" aria-hidden="true">{s.icon}</div>
-                                    <div className={`text-[11px] font-medium leading-tight ${attackScenario === key ? "text-orange-400" : "text-neutral-400"}`}>{s.label}</div>
+                                <button key={key} type="button" aria-pressed={attackScenario === key} onClick={() => setAttackScenario(key)} className={`min-h-11 p-2 rounded-lg text-left transition-all motion-reduce:transition-none ${attackScenario === key ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] border-[color-mix(in_srgb,var(--acento)_55%,transparent)]" : "bg-white/5 border-white/10 hover:bg-white/10"} border`}>
+                                    <div className={`text-[11px] font-medium leading-tight ${attackScenario === key ? "text-white" : "text-neutral-400"}`}>{s.label}</div>
                                 </button>
                             ))}
                         </div>
@@ -325,17 +314,17 @@ export default function PasswordGeneratorPage() {
                             {modo === "palabras" && <p className="text-[11px] text-neutral-500 mt-2">Supone que el atacante conoce la lista y el formato: la fuerza sale solo del azar.</p>}
 
                             {"isQuantum" in currentScenario && currentScenario.isQuantum && (
-                                <div className="mt-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 text-left">
-                                    <p className="text-[11px] text-purple-300 leading-relaxed">
+                                <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10 text-left">
+                                    <p className="text-[11px] text-neutral-300 leading-relaxed">
                                         <strong>Algoritmo de Grover (1996):</strong> reduce la búsqueda de O(N) a O(√N) pasos.
                                         Tu entropía efectiva ante un ataque cuántico: <strong>{entero.format(entropy / 2)} bits</strong>. Hoy no existe un computador cuántico capaz de esto; la velocidad es un supuesto.
-                                        <br /><span className="text-purple-400">Ref: Grover, «A fast quantum mechanical algorithm for database search», 1996</span>
+                                        <br /><span className="text-neutral-400">Ref: Grover, «A fast quantum mechanical algorithm for database search», 1996</span>
                                     </p>
                                 </div>
                             )}
                             {"isSecure" in currentScenario && currentScenario.isSecure && (
                                 <p className="text-[11px] text-teal-400 mt-2 bg-teal-500/10 rounded-lg p-2">
-                                    🔐 Bcrypt es lento a propósito: su factor de costo multiplica el trabajo por intento y frena a las GPU. No exige mucha memoria, a diferencia de Argon2 o scrypt.
+                                    Bcrypt es lento a propósito: su factor de costo multiplica el trabajo por intento y frena a las GPU. No exige mucha memoria, a diferencia de Argon2 o scrypt.
                                 </p>
                             )}
                         </div>
@@ -346,7 +335,6 @@ export default function PasswordGeneratorPage() {
                 <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
                     <button type="button" onClick={() => setShowTips(!showTips)} aria-expanded={showTips} aria-controls="clave-consejos" className="w-full min-h-11 p-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-sm" aria-hidden="true">💡</span>
                             <div className="text-left">
                                 <div className="text-white font-medium text-sm">Mejores prácticas de seguridad</div>
                                 <div className="text-[11px] text-neutral-500">Recomendaciones</div>
@@ -363,15 +351,14 @@ export default function PasswordGeneratorPage() {
                     >
                         <div className="px-4 pb-4 grid gap-2 text-xs">
                             {[
-                                { icon: "🔄", title: "Cambia solo con motivo", desc: "NIST SP 800-63B pide no forzar cambios periódicos: empujan a variaciones predecibles. Cámbiala si se filtró o sospechas que alguien la vio." },
-                                { icon: "📲", title: "2FA con apps dedicadas", desc: "Usa Authy, Google Authenticator o llaves FIDO2/WebAuthn. Evita SMS (vulnerable a SIM swapping)." },
-                                { icon: "🔐", title: "Gestor de contraseñas", desc: "KeePass (offline, open-source), Bitwarden, o 1Password con cifrado AES-256. Nunca guardes en navegadores." },
-                                { icon: "🚨", title: "Monitorea filtraciones", desc: "Registra tu email en HaveIBeenPwned.com, activa alertas en Google One o Firefox Monitor para breaches." },
-                                { icon: "🚫", title: "Una por servicio", desc: "Nunca reutilices. Los ataques de credential stuffing usan bases de datos filtradas para probar en múltiples sitios." },
-                                { icon: "🎯", title: "Verifica URLs", desc: "Revisa el dominio completo antes de ingresar credenciales. Los ataques de phishing clonan sitios con URLs similares." },
+                                { title: "Cambia solo con motivo", desc: "NIST SP 800-63B pide no forzar cambios periódicos: empujan a variaciones predecibles. Cámbiala si se filtró o sospechas que alguien la vio." },
+                                { title: "2FA con apps dedicadas", desc: "Usa Authy, Google Authenticator o llaves FIDO2/WebAuthn. Evita SMS (vulnerable a SIM swapping)." },
+                                { title: "Gestor de contraseñas", desc: "KeePass (offline, open-source), Bitwarden, o 1Password con cifrado AES-256. Nunca guardes en navegadores." },
+                                { title: "Monitorea filtraciones", desc: "Registra tu email en HaveIBeenPwned.com, activa alertas en Google One o Firefox Monitor para breaches." },
+                                { title: "Una por servicio", desc: "Nunca reutilices. Los ataques de credential stuffing usan bases de datos filtradas para probar en múltiples sitios." },
+                                { title: "Verifica URLs", desc: "Revisa el dominio completo antes de ingresar credenciales. Los ataques de phishing clonan sitios con URLs similares." },
                             ].map((t) => (
                                 <div key={t.title} className="flex gap-2 p-2.5 rounded-lg bg-white/5">
-                                    <span className="text-sm flex-shrink-0" aria-hidden="true">{t.icon}</span>
                                     <div><span className="text-white font-medium">{t.title}:</span> <span className="text-neutral-400">{t.desc}</span></div>
                                 </div>
                             ))}
@@ -383,7 +370,6 @@ export default function PasswordGeneratorPage() {
                 <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden mt-4">
                     <button type="button" onClick={() => setShowGlossary(!showGlossary)} aria-expanded={showGlossary} aria-controls="clave-glosario" className="w-full min-h-11 p-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-sm" aria-hidden="true">📖</span>
                             <div className="text-left">
                                 <div className="text-white font-medium text-sm">Glosario de términos</div>
                                 <div className="text-[11px] text-neutral-500">Explicación de conceptos técnicos</div>
@@ -401,7 +387,7 @@ export default function PasswordGeneratorPage() {
                         <div className="px-4 pb-4 space-y-3 text-xs">
                             {/* Brute force explanation */}
                             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                <p className="text-amber-300 font-medium mb-1">⚠️ Sobre los tiempos de crackeo</p>
+                                <p className="text-amber-300 font-medium mb-1">Sobre los tiempos de crackeo</p>
                                 <p className="text-neutral-400 leading-relaxed">
                                     Los tiempos mostrados asumen <strong className="text-white">fuerza bruta pura</strong>: probar cada combinación posible contra un hash robado.
                                     Los ataques de <strong className="text-white">diccionario</strong> son más rápidos pero <strong className="text-amber-300">no aplican a contraseñas aleatorias</strong>.
@@ -411,7 +397,7 @@ export default function PasswordGeneratorPage() {
 
                             {/* Other attack vectors - IMPORTANT */}
                             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                                <p className="text-red-400 font-medium mb-2">🚨 Otros vectores de ataque (tu contraseña NO te protege)</p>
+                                <p className="text-red-400 font-medium mb-2">Otros vectores de ataque (tu contraseña NO te protege)</p>
                                 <div className="space-y-2 text-neutral-400">
                                     <div><strong className="text-red-300">Nivel Usuario:</strong></div>
                                     <ul className="list-disc list-inside space-y-1 ml-2">
@@ -421,7 +407,7 @@ export default function PasswordGeneratorPage() {
                                         <li><strong className="text-white">Shoulder surfing</strong> — Observación física de tu pantalla</li>
                                     </ul>
 
-                                    <div className="pt-2"><strong className="text-orange-300">Nivel Aplicación/Frontend:</strong></div>
+                                    <div className="pt-2"><strong className="text-white">Nivel Aplicación/Frontend:</strong></div>
                                     <ul className="list-disc list-inside space-y-1 ml-2">
                                         <li><strong className="text-white">XSS (Cross-Site Scripting)</strong> — Inyección de scripts maliciosos</li>
                                         <li><strong className="text-white">CSRF</strong> — Peticiones falsificadas desde otro sitio</li>
@@ -429,7 +415,7 @@ export default function PasswordGeneratorPage() {
                                         <li><strong className="text-white">Man-in-the-Middle</strong> — Intercepción de comunicaciones</li>
                                     </ul>
 
-                                    <div className="pt-2"><strong className="text-purple-300">Nivel Servidor/Base de datos:</strong></div>
+                                    <div className="pt-2"><strong className="text-white">Nivel Servidor/Base de datos:</strong></div>
                                     <ul className="list-disc list-inside space-y-1 ml-2">
                                         <li><strong className="text-white">SQL Injection</strong> — Acceso directo a la base de datos</li>
                                         <li><strong className="text-white">Data Breaches</strong> — Filtraciones masivas de datos</li>
@@ -457,7 +443,7 @@ export default function PasswordGeneratorPage() {
                                 { term: "SIM Swapping", def: "Ataque donde un atacante convence a tu operador telefónico de transferir tu número a su SIM. Permite interceptar códigos SMS de 2FA." },
                             ].map((g) => (
                                 <div key={g.term} className="flex gap-2">
-                                    <span className="text-purple-400 font-medium min-w-[140px] sm:min-w-[180px]">{g.term}:</span>
+                                    <span className="text-white font-medium min-w-[140px] sm:min-w-[180px]">{g.term}:</span>
                                     <span className="text-neutral-400">{g.def}</span>
                                 </div>
                             ))}
@@ -468,7 +454,6 @@ export default function PasswordGeneratorPage() {
                 {/* Sources Section */}
                 <div className="bg-white/5 rounded-2xl border border-white/10 p-4 mt-4">
                     <h2 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-cyan-500/20 flex items-center justify-center text-xs" aria-hidden="true">📚</span>
                         Fuentes y referencias
                     </h2>
                     <div className="grid gap-2 text-xs">
@@ -482,7 +467,7 @@ export default function PasswordGeneratorPage() {
                         ].map((s) => (
                             <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group">
                                 <div>
-                                    <span className="text-cyan-400 group-hover:text-cyan-300">{s.name}</span>
+                                    <span className="text-teal-400 group-hover:text-teal-300">{s.name}</span>
                                     <span className="text-neutral-500 ml-2">— {s.desc}</span>
                                 </div>
                                 <svg className="w-3 h-3 text-neutral-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>

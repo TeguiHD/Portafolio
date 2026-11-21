@@ -317,7 +317,7 @@ export default function RegexTesterPage() {
                             type="button"
                             onClick={generateWithAI}
                             disabled={!aiPrompt.trim() || isGenerating}
-                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-w-[120px]"
+                            className="px-5 py-2.5 rounded-xl bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50 text-sm font-medium disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[120px]"
                         >
                             {isGenerating ? (
                                 <>
@@ -460,7 +460,6 @@ export default function RegexTesterPage() {
                 {/* Common Patterns */}
                 <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
                     <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center text-xs">📋</span>
                         Patrones comunes
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -534,7 +533,6 @@ export default function RegexTesterPage() {
                 <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
                     <button type="button" onClick={() => setShowCheatsheet(!showCheatsheet)} aria-expanded={showCheatsheet} aria-controls="regex-cheatsheet" className="w-full p-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-sm">📖</span>
                             <div className="text-left">
                                 <div className="text-white font-medium text-sm">Cheatsheet de Regex</div>
                                 <div className="text-[11px] text-neutral-500">Referencia rápida de sintaxis</div>
@@ -571,7 +569,7 @@ export default function RegexTesterPage() {
                 {/* Security Notice */}
                 <div className="mt-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
                     <p className="text-[10px] text-amber-400/80">
-                        <strong>🛡️ Seguridad:</strong> La expresión, sus grupos y el reemplazo se calculan en un Web Worker, fuera del hilo de la página.
+                        <strong>Seguridad:</strong> La expresión, sus grupos y el reemplazo se calculan en un Web Worker, fuera del hilo de la página.
                         Si tardan más de {EXECUTION_TIMEOUT_MS} ms (posible retroceso catastrófico) el worker se termina y la pestaña no se congela.
                         Límite de texto: {(MAX_TEXT_LENGTH / 1000).toFixed(0)} KB. La explicación del patrón solo lo lee, no lo ejecuta.
                     </p>
@@ -580,7 +578,6 @@ export default function RegexTesterPage() {
                 {/* How to Use Guide */}
                 <div className="bg-gradient-to-br from-blue-500/5 to-cyan-500/5 rounded-2xl border border-blue-500/20 p-5 mt-4">
                     <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-                        <span className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center">❓</span>
                         ¿Cómo usar esta herramienta?
                     </h3>
 
@@ -633,7 +630,7 @@ export default function RegexTesterPage() {
 
                         {/* Example */}
                         <div className="bg-black/20 rounded-xl p-3">
-                            <p className="text-white font-medium mb-2">💡 Ejemplo rápido</p>
+                            <p className="text-white font-medium mb-2">Ejemplo rápido</p>
                             <p className="text-neutral-400 mb-2">Para validar un email, usa el patrón de &quot;Patrones comunes&quot; → Email:</p>
                             <code className="text-purple-400 text-[10px] block bg-black/30 p-2 rounded">[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]&#123;2,&#125;</code>
                             <p className="text-neutral-500 mt-2 text-[10px]">Esto encontrará textos como: usuario@ejemplo.com, test.email@dominio.cl</p>

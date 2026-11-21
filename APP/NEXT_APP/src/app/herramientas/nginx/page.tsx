@@ -499,7 +499,7 @@ export default function NginxConfigPage() {
                         {/* Security Note */}
                         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
                             <p className="text-xs text-amber-300">
-                                <strong>⚠️ Nota de seguridad:</strong> Revisa siempre la configuración antes de usarla en producción. 
+                                <strong>Nota de seguridad:</strong> Revisa siempre la configuración antes de usarla en producción. 
                                 Ajusta los headers de Content-Security-Policy según las necesidades de tu aplicación. 
                                 Las rutas de certificados SSL deben coincidir con tu servidor.
                             </p>

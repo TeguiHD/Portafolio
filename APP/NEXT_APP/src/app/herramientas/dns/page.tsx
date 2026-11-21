@@ -342,8 +342,7 @@ export default function DnsCheckerPage() {
                                 <button
                                     type="submit"
                                     disabled={isChecking || !domain.trim()}
-                                    className="rounded-2xl px-6 py-3 text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:scale-100"
-                                    style={{ background: `linear-gradient(135deg, ${ACCENT}, #60A5FA)` }}
+                                    className="rounded-2xl px-6 py-3 text-sm font-semibold bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none"
                                 >
                                     {isChecking ? "Consultando..." : "Verificar propagación"}
                                 </button>

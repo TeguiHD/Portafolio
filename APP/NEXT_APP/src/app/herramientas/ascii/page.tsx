@@ -394,13 +394,12 @@ export default function AsciiArtPage() {
                         {/* How it works */}
                         <div className="grid grid-cols-3 gap-3 sm:gap-4">
                             {[
-                                { num: "1", icon: "📤", title: "Sube", desc: "Tu imagen" },
-                                { num: "2", icon: "⚙️", title: "Ajusta", desc: "El estilo" },
-                                { num: "3", icon: "📥", title: "Descarga", desc: "Tu arte" },
+                                { num: "1", title: "Sube", desc: "Tu imagen" },
+                                { num: "2", title: "Ajusta", desc: "El estilo" },
+                                { num: "3", title: "Descarga", desc: "Tu arte" },
                             ].map((step) => (
                                 <div key={step.num} className="p-3 sm:p-4 bg-white/5 border border-white/10 rounded-xl text-center">
-                                    <span className="text-2xl sm:text-3xl">{step.icon}</span>
-                                    <p className="font-medium text-white text-sm sm:text-base mt-2">{step.title}</p>
+                                    <p className="font-medium text-white text-sm sm:text-base">{step.title}</p>
                                     <p className="text-xs text-neutral-500 mt-0.5">{step.desc}</p>
                                 </div>
                             ))}
@@ -891,7 +890,7 @@ export default function AsciiArtPage() {
                                     onClick={handleDownloadTxt}
                                     disabled={!hecho}
                                     aria-label="Descargar TXT"
-                                    className="flex min-h-11 items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-accent-1 to-accent-2 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-accent-1/20"
+                                    className="flex min-h-11 items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <DownloadIcon />
                                     <span>TXT</span>
@@ -932,7 +931,7 @@ export default function AsciiArtPage() {
                 {imageUrl && hecho && (
                     <div className="mt-4 sm:mt-6 p-3 bg-accent-1/5 border border-accent-1/10 rounded-xl">
                         <p className="text-xs text-neutral-400 text-center sm:text-left">
-                            <span className="text-accent-1 font-medium">💡 Tip:</span>{" "}
+                            <span className="text-accent-1 font-medium">Tip:</span>{" "}
                             Usa el modo &quot;Bloques&quot; para logos e iconos, y &quot;Detallado&quot; para fotos con más definición.
                             El PNG sale tal como se ve: en color si el modo color está activo y con fondo transparente si eliges «Transparente».
                         </p>

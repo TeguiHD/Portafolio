@@ -793,24 +793,23 @@ All activities are monitored and logged.
                         <button
                             type="button"
                             onClick={handleDownloadScript}
-                            className="py-3 px-4 rounded-xl text-sm font-medium text-white transition-all motion-safe:hover:scale-[1.005]"
-                            style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}CC)` }}
+                            className="py-3 px-4 rounded-xl text-sm font-medium bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 transition disabled:opacity-50"
                         >
-                            📥 Descargar .sh (MOTD)
+                            Descargar .sh (MOTD)
                         </button>
                         <button
                             type="button"
                             onClick={handleDownloadConf}
                             className="py-3 px-4 rounded-xl text-sm font-medium text-white bg-white/10 hover:bg-white/15 transition-all"
                         >
-                            📄 Descargar motd (conf)
+                            Descargar motd (conf)
                         </button>
                         <button
                             type="button"
                             onClick={() => { void copiar(generateShScript(banner, text), "script"); }}
                             className="py-3 px-4 rounded-xl text-sm font-medium text-white bg-white/10 hover:bg-white/15 transition-all"
                         >
-                            {copiado === "script" ? "✓ Copiado" : fallo === "script" ? "No se pudo copiar" : "📋 Copiar Script .sh"}
+                            {copiado === "script" ? "✓ Copiado" : fallo === "script" ? "No se pudo copiar" : "Copiar Script .sh"}
                         </button>
                     </div>
                 )}
@@ -844,7 +843,7 @@ All activities are monitored and logged.
 
                 {/* Installation Guide */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <h3 className="text-sm font-semibold text-white mb-3">📖 Cómo instalar</h3>
+                    <h3 className="text-sm font-semibold text-white mb-3">Cómo instalar</h3>
                     <div className="space-y-3 text-xs text-neutral-400">
                         <div className="bg-[#0F1724] rounded-lg p-3">
                             <p className="text-neutral-500 mb-1"># Opción 1: Como MOTD (se muestra al iniciar sesión)</p>
@@ -873,7 +872,7 @@ All activities are monitored and logged.
                 {/* Security Notice */}
                 <div className="mt-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-3">
                     <p className="text-xs text-cyan-300">
-                        <strong>🛡️ NIST SP 800-123:</strong> Los banners legales en sistemas son una práctica
+                        <strong>NIST SP 800-123:</strong> Los banners legales en sistemas son una práctica
                         recomendada por NIST para advertir a usuarios no autorizados antes del acceso.
                         Todo se genera localmente en tu navegador.
                     </p>

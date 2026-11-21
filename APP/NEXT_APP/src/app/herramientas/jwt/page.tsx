@@ -71,7 +71,7 @@ function formatTimestamp(ts: unknown, claim: "iat" | "exp" | "nbf" = "exp"): str
         else if (hours > 0) relStr = `${relative}${hours}h ${minutes % 60}m`;
         else relStr = `${relative}${minutes}m`;
 
-        const aviso = claim === "exp" && expired ? "⚠️ expirado · " : claim === "nbf" && !expired ? "⚠️ aún no válido · " : claim === "iat" && !expired ? "⚠️ emitido en el futuro · " : "";
+        const aviso = claim === "exp" && expired ? "expirado · " : claim === "nbf" && !expired ? "aún no válido · " : claim === "iat" && !expired ? "emitido en el futuro · " : "";
         return `${date.toLocaleString("es-CL")} (${aviso}${relStr})`;
     } catch {
         return String(ts);
@@ -152,7 +152,7 @@ export default function JwtDecoderPage() {
                 {/* Security Notice */}
                 <div className="mb-6 p-3 rounded-xl bg-[#6366F1]/10 border border-[#6366F1]/20 text-center">
                     <p className="text-xs text-[#6366F1]">
-                        🔒 El token se decodifica localmente. Nunca se envía a ningún servidor.
+                        El token se decodifica localmente. Nunca se envía a ningún servidor.
                     </p>
                 </div>
 
@@ -182,7 +182,7 @@ export default function JwtDecoderPage() {
                     <div className="mt-6 space-y-4">
                         {decoded.error ? (
                             <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
-                                ❌ {decoded.error}
+                                {decoded.error}
                             </div>
                         ) : (
                             <>
@@ -346,7 +346,7 @@ export default function JwtDecoderPage() {
                                                 </div>
                                             </form>
                                         )}
-                                        <p className="text-[11px] text-neutral-500">🔒 La clave nunca sale de tu navegador: la firma se verifica con WebCrypto en esta pestaña.</p>
+                                        <p className="text-[11px] text-neutral-500">La clave nunca sale de tu navegador: la firma se verifica con WebCrypto en esta pestaña.</p>
                                     </div>
                                 </section>
                             </>

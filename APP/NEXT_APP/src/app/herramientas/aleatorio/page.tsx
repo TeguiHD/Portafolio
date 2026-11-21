@@ -63,7 +63,8 @@ export default function RandomPickerPage() {
     const { trackImmediate } = useToolTracking("aleatorio", { trackViewOnMount: true, debounceMs: 2000 });
 
     const [mode, setMode] = useState<ModeType>("roulette");
-    const [inputText, setInputText] = useState("");
+    // De ejemplo, como en las ruletas de la competencia: se puede girar al entrar y se reemplazan al escribir.
+    const [inputText, setInputText] = useState("Ana\nBenjamín\nCamila\nDiego\nElena\nFelipe");
     const [groupCount, setGroupCount] = useState(2);
     const [isSpinning, setIsSpinning] = useState(false);
     const [ganadores, setGanadores] = useState<string[]>([]);
@@ -355,11 +356,10 @@ export default function RandomPickerPage() {
                         disabled={isSpinning}
                         onClick={() => { setMode("roulette"); setGroups(null); }}
                         className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "roulette"
-                            ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                            ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-white border border-[color-mix(in_srgb,var(--acento)_55%,transparent)]"
                             : "text-neutral-400 hover:text-white"
                             }`}
                     >
-                        <span aria-hidden="true">🎡</span>
                         Ruleta
                     </button>
                     <button
@@ -368,11 +368,10 @@ export default function RandomPickerPage() {
                         disabled={isSpinning}
                         onClick={() => { setMode("groups"); setGanadores([]); setFuera([]); }}
                         className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${mode === "groups"
-                            ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                            ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] text-white border border-[color-mix(in_srgb,var(--acento)_55%,transparent)]"
                             : "text-neutral-400 hover:text-white"
                             }`}
                     >
-                        <span aria-hidden="true">👥</span>
                         Grupos
                     </button>
                 </div>
@@ -389,7 +388,7 @@ export default function RandomPickerPage() {
                                 value={inputText}
                                 readOnly={isSpinning}
                                 onChange={(e) => setInputText(e.target.value)}
-                                placeholder={"Ingresa nombres separados por comas o líneas nuevas:\n\nJuan\nMaría\nPedro\nAna"}
+                                placeholder="Un nombre por línea, o separados por comas"
                                 rows={8}
                                 className="w-full px-4 py-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-sm focus:outline-none focus:border-[#FF8A00]/50 placeholder-neutral-500 resize-none font-mono"
                             />
@@ -551,7 +550,7 @@ export default function RandomPickerPage() {
                                         onClick={spinWheel}
                                         disabled={names.length < 2}
                                         aria-disabled={isSpinning || undefined}
-                                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:cursor-default transition-all motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
+                                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 font-semibold disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:cursor-default transition-all motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
                                     >
                                         {isSpinning ? (
                                             <>
@@ -560,7 +559,6 @@ export default function RandomPickerPage() {
                                             </>
                                         ) : (
                                             <>
-                                                <span aria-hidden="true">🎡</span>
                                                 Girar ruleta
                                             </>
                                         )}
@@ -582,7 +580,7 @@ export default function RandomPickerPage() {
                                             className="min-w-11 px-4 py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 disabled:opacity-50 transition-all"
                                             title="Sortear sin animación"
                                         >
-                                            <span aria-hidden="true">⚡</span>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                                         </button>
                                     )}
                                 </div>
@@ -592,7 +590,6 @@ export default function RandomPickerPage() {
                                 {/* Groups Display */}
                                 <div className="mb-4 flex items-center justify-between gap-2">
                                     <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                                        <span aria-hidden="true">👥</span>
                                         Generador de Grupos
                                     </h2>
                                     {groups && (
@@ -633,9 +630,6 @@ export default function RandomPickerPage() {
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-12 text-center mb-4">
-                                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
-                                            <span className="text-3xl">👥</span>
-                                        </div>
                                         <p className="text-neutral-400 text-sm">
                                             {names.length < groupCount
                                                 ? `Necesitas al menos ${groupCount} participantes`
@@ -648,9 +642,8 @@ export default function RandomPickerPage() {
                                     type="button"
                                     onClick={generateGroups}
                                     disabled={names.length < groupCount || isGenerating}
-                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold disabled:opacity-50 transition-all motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--boton)] text-[var(--boton-tinta)] hover:brightness-110 font-semibold disabled:opacity-50 transition-all motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
                                 >
-                                    <span aria-hidden="true">🎲</span>
                                     {groups ? "Regenerar Grupos" : "Generar Grupos"}
                                 </button>
                             </>

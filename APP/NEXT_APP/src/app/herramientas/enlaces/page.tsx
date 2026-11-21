@@ -243,9 +243,9 @@ export default function LinkGeneratorPage() {
     };
 
     const tabConfig = {
-        whatsapp: { icon: "💬", label: "WhatsApp", color: "green" },
-        email: { icon: "📧", label: "Email", color: "blue" },
-        calendar: { icon: "📅", label: "Calendario", color: "purple" },
+        whatsapp: { label: "WhatsApp", color: "green" },
+        email: { label: "Email", color: "blue" },
+        calendar: { label: "Calendario", color: "purple" },
     };
 
     return (
@@ -268,7 +268,6 @@ export default function LinkGeneratorPage() {
                                 : "text-neutral-400 hover:text-white"
                                 }`}
                         >
-                            <span aria-hidden="true">{tabConfig[tab].icon}</span>
                             <span className="hidden sm:inline" aria-hidden="true">{tabConfig[tab].label}</span>
                         </button>
                     ))}
@@ -543,9 +542,6 @@ export default function LinkGeneratorPage() {
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
-                                    <span className="text-3xl">{tabConfig[activeTab].icon}</span>
-                                </div>
                                 <p className="text-neutral-400 text-sm">
                                     {activeTab === "whatsapp" && "Ingresa un número de teléfono"}
                                     {activeTab === "email" && "Ingresa un correo electrónico"}
