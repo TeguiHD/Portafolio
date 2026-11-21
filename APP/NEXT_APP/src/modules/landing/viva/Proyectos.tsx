@@ -149,7 +149,7 @@ export function Proyectos() {
                     <div className="pr-marco">
                         <div className="pr-barra" aria-hidden="true"><i /><i /><i /><span className="pr-url" id="pr-url">{c.direccion}</span></div>
                         <div className="pr-lienzo" id="ancla-imagen" onPointerDown={bajar} onPointerUp={subir}>
-                            <img className="pr-foto" id="pr-foto" ref={foto} src={origen || undefined} srcSet={variantes(origen, [800, 1440])} sizes="(max-width: 760px) 100vw, 900px" alt={alt} decoding="async" onLoad={alCargar} onError={() => { rota.current = true; revelar(turno.current); }} draggable={false} />
+                            <img className="pr-foto" id="pr-foto" ref={foto} src={origen || undefined} srcSet={variantes(origen, [800, 1440])} sizes="(max-width: 760px) calc(100vw - 40px), 710px" alt={alt} decoding="async" onLoad={alCargar} onError={() => { rota.current = true; revelar(turno.current); }} draggable={false} />
                             {/* Sin JavaScript no hay materia que arme la captura: se muestra la del primer proyecto. */}
                             <noscript><img className="pr-foto" src={casos[0].vistas[0].escritorio} alt={`Captura real de ${casos[0].corto}.`} /></noscript>
                         </div>

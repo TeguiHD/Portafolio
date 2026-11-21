@@ -1,4 +1,4 @@
-import { PaginaError } from "@/modules/errores/PaginaError";
+import { PaginaErrorDiferida as PaginaError } from "@/modules/errores/PaginaErrorDiferida";
 import { VolverAtras } from "@/modules/errores/VolverAtras";
 import { getToolSeo } from "@/lib/seo/tools-content";
 

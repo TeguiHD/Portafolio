@@ -137,9 +137,9 @@ export async function notifySubscribersAboutNews(items: PulseNewsItem[]) {
       title: item.title,
       body: item.excerpt || `${item.source} reporta una nueva actualización.`,
       url: item.url || "/blog",
-      icon: "/icon-192.png?v=4",
-      badge: "/badge-72.png?v=4",
-      image: item.imageUrl || "/icon-512.png?v=4",
+      icon: "/icon-192.png?v=5",
+      badge: "/badge-72.png?v=5",
+      image: item.imageUrl || "/icon-512.png?v=5",
       tag: item.id,
       source: item.source,
     });

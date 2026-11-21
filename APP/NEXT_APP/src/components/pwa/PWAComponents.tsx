@@ -92,7 +92,7 @@ export function PWARegister() {
         // v4: la v3 quedó cacheada 30 días en el borde con la versión rota que no
         // llegaba a instalarse (ver `public/sw.js`). Cambiar la consulta estrena clave de
         // caché y los navegadores piden el fichero nuevo sin esperar a que caduque.
-        const swVersion = "v6"; // v6: cachés con poda (v5: sin RSC, panel, portal ni APIs privadas)
+        const swVersion = "v7"; // v7: íconos ?v=5. v6: cachés con poda (v5: sin RSC, panel, portal ni APIs privadas)
         const idleWindow = window as IdleWindow;
 
         const registerServiceWorker = () => {

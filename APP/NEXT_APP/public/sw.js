@@ -4,9 +4,10 @@
 // Handles offline functionality and caching
 
 // v6 (19-11-2026): las cachés se podan (antes crecían con cada despliegue); al activarse borra las anteriores.
-const CACHE_NAME = "portfolio-pwa-v6";
-const STATIC_CACHE = "portfolio-static-v6";
-const DYNAMIC_CACHE = "portfolio-dynamic-v6";
+// v7 (20-11-2026): íconos ?v=5 (los ?v=4 viejos y pesados seguían en la caché de Cloudflare).
+const CACHE_NAME = "portfolio-pwa-v7";
+const STATIC_CACHE = "portfolio-static-v7";
+const DYNAMIC_CACHE = "portfolio-dynamic-v7";
 // Entradas máximas por caché: los paquetes de Next cambian de nombre en cada despliegue y sin tope se acumulan.
 const MAX_STATIC = 150;
 const MAX_DYNAMIC = 40;
@@ -30,8 +31,8 @@ const STATIC_ASSETS = [
     "/blog",
     "/herramientas",
     "/manifest.json",
-    "/icon-192.png?v=4",
-    "/icon-512.png?v=4",
+    "/icon-192.png?v=5",
+    "/icon-512.png?v=5",
     "/offline.html",
 ];
 
@@ -314,9 +315,9 @@ self.addEventListener("push", (event) => {
 
     const options = {
         body: data.body || "Tienes una nueva notificación",
-        icon: data.icon || "/icon-192.png?v=4",
-        badge: data.badge || "/badge-72.png?v=4",
-        image: data.image || "/icon-512.png?v=4",
+        icon: data.icon || "/icon-192.png?v=5",
+        badge: data.badge || "/badge-72.png?v=5",
+        image: data.image || "/icon-512.png?v=5",
         tag: data.tag || "digital-pulse-news",
         renotify: true,
         vibrate: [100, 50, 100],

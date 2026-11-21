@@ -48,7 +48,7 @@ test.describe("La app instalable (PWA)", () => {
         const apple = await page.locator('head link[rel="apple-touch-icon"]').first().getAttribute("href");
         expect(apple).toMatch(/\?v=\d+/);
         expect(await medidas(request, apple!)).toEqual({ ancho: 180, alto: 180 });
-        expect(await medidas(request, "/badge-72.png?v=4")).toEqual({ ancho: 72, alto: 72 });
+        expect(await medidas(request, "/badge-72.png?v=5")).toEqual({ ancho: 72, alto: 72 });
     });
 
     test("sin conexión aparece la página propia del sitio, no la del panel de finanzas", async ({ request }) => {

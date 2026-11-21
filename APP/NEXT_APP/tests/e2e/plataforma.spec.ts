@@ -25,7 +25,7 @@ test.describe("Plataforma", () => {
         const r = await request.get("/sw.js");
         expect(r.status()).toBe(200);
         const js = await r.text();
-        expect(js).toContain("portfolio-static-v6");
+        expect(js).toContain("portfolio-static-v7");
         expect(js).toContain("podar(STATIC_CACHE, MAX_STATIC)");
     });
 });

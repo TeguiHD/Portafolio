@@ -72,12 +72,12 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "nicoholas.dev", statusBarStyle: "black-translucent" },
   icons: {
     icon: [
-      { url: "/icon.svg?v=4", type: "image/svg+xml" },
+      { url: "/icon.svg?v=5", type: "image/svg+xml" },
       // Para la pestaña basta uno chico; los de 192 y 512 los pide el manifest (antes cada visita bajaba el de 192: 35 KB).
-      { url: "/icon-32.png?v=4", type: "image/png", sizes: "32x32" },
+      { url: "/icon-32.png?v=5", type: "image/png", sizes: "32x32" },
     ],
     apple: [
-      { url: "/apple-icon.png?v=4", type: "image/png", sizes: "180x180" },
+      { url: "/apple-icon.png?v=5", type: "image/png", sizes: "180x180" },
     ],
   },
 };

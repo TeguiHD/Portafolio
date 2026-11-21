@@ -9,6 +9,10 @@ import "./blog.css";
 export interface Titular { titulo: string; fuente: string; hace: string; categoria: string; foto: string; ingles: boolean; url?: string }
 export interface Dato { nombre: string; valor: string }
 
+/** Donde se ve el tambor (blog.css lo oculta hasta 760 px). En el celular sus fotos se cambian por un píxel: no se descargan. */
+const ANCHO = "(min-width: 761px)";
+const PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
 /** Posición de cada línea respecto de la del centro: 0 la actual, ±1 las vecinas, y el resto fuera de vista. */
 function lugar(i: number, centro: number, n: number): string {
     let j = i - centro;
@@ -26,7 +30,8 @@ export function BlogTambor({ titulares, ahora, pagina = false, acciones, extra }
     // En la portada el tambor queda muy abajo: sus fotos se piden recién cuando la sección se acerca (en /blog, ya).
     const [cerca, setCerca] = useState(pagina);
     // En /blog la foto del centro es lo más grande de la primera pantalla (el LCP): se anuncia en el <head> con prioridad alta.
-    if (pagina && titulares[0]?.foto) preload(titulares[0].foto, { as: "image", fetchPriority: "high", referrerPolicy: "no-referrer" });
+    // Solo en pantallas anchas: en el celular el tambor no se muestra.
+    if (pagina && titulares[0]?.foto) preload(titulares[0].foto, { as: "image", fetchPriority: "high", referrerPolicy: "no-referrer", media: ANCHO });
     const escena = useRef<HTMLDivElement>(null), encima = useRef(false), conFoco = useRef(false), visible = useRef(false), reinicio = useRef(0);
     const paso = (d: number) => { reinicio.current++; setCentro((c) => (c + d + N) % N); };
 
@@ -111,24 +116,38 @@ export function BlogTambor({ titulares, ahora, pagina = false, acciones, extra }
                         <div className="bg-fotos" id="bg-fotos" aria-hidden="true">
                             {titulares.map((t, i) => {
                                 const j = lugar(i, centro, N);
-                                return (
-                                    <figure key={t.titulo} className="bg-foto" data-j={j}>
+                                const imagen = (
+                                    <>
                                         {/* Debajo de la foto, el medio en grande: si la foto tarda o no llega, el marco no queda vacío. */}
                                         <span className="bg-placa"><b>{t.fuente}</b><i>{t.categoria}</i></span>
                                         {/* La actual y sus vecinas se piden ya: al llegarles el turno, la foto está (antes, la perezosa
-                                            empezaba a bajar recién en pantalla y se veía el marco vacío mientras llegaba). */}
-                                        <img src={t.foto} alt="" loading={cerca && j !== "x" && j !== "-x" ? "eager" : "lazy"} fetchPriority={pagina && j === "0" ? "high" : undefined} decoding="async" referrerPolicy="no-referrer"
-                                            onError={(e) => { e.currentTarget.dataset.rota = ""; }} />
+                                            empezaba a bajar recién en pantalla y se veía el marco vacío mientras llegaba). Las que esperan
+                                            su turno van con prioridad baja: no le quitan ancho de banda a la del centro. */}
+                                        <picture>
+                                            <source media="(max-width: 760px)" srcSet={PIXEL} />
+                                            <img src={t.foto} alt="" loading={cerca && j !== "x" && j !== "-x" ? "eager" : "lazy"} fetchPriority={j !== "0" ? "low" : pagina ? "high" : undefined} decoding="async" referrerPolicy="no-referrer"
+                                                onError={(e) => { e.currentTarget.dataset.rota = ""; }} />
+                                        </picture>
+                                    </>
+                                );
+                                return (
+                                    <figure key={t.titulo} className="bg-foto" data-j={j}>
+                                        {/* La foto del frente abre la misma nota que su titular (antes el clic movía el tambor).
+                                            Fuera del orden del teclado: el titular ya es ese enlace, y este bloque va oculto al lector. */}
+                                        {j === "0" && t.url
+                                            ? <a className="bg-foto-ir" href={t.url} target="_blank" rel="noopener noreferrer" tabIndex={-1}>{imagen}</a>
+                                            : imagen}
                                     </figure>
                                 );
                             })}
                         </div>
                     </div>
                 )}
-                {/* Celular: el tambor (3D, con foto grande) no cabía bien; aquí va una lista sobria de titulares, cada uno con su enlace. */}
-                {N > 0 ? (
+                {/* Celular: el tambor (3D, con foto grande) no cabía bien; aquí va una lista sobria de titulares, cada uno con su enlace.
+                    En /blog no: justo debajo está «Todo lo de hoy» con todos, y se veían repetidos. */}
+                {N > 0 && !pagina ? (
                     <ol className="bg-lista" aria-label="Titulares de hoy">
-                        {titulares.slice(0, pagina ? 3 : 4).map((t) => (
+                        {titulares.slice(0, 4).map((t) => (
                             <li key={t.titulo}>
                                 <a href={t.url ?? "/blog"} {...(t.url ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
                                     <img src={t.foto} alt="" width={76} height={76} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.dataset.rota = ""; }} />

@@ -1,6 +1,16 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Enlaces y 404", () => {
+    test("una página normal no descarga las piezas del 404 ni del error (van diferidas)", async ({ page }) => {
+        const cuerpos: Promise<string>[] = [];
+        page.on("response", (r) => { if (r.url().endsWith(".js")) cuerpos.push(r.text().catch(() => "")); });
+        await page.goto("/blog");
+        await page.waitForTimeout(2500);
+        const textos = await Promise.all(cuerpos);
+        expect(textos.length).toBeGreaterThan(3);
+        expect(textos.filter((t) => t.includes("Quizás buscabas:")).length).toBe(0);
+    });
+
     test("una URL inexistente devuelve 404 con enlaces de salida", async ({ page, request }) => {
         const response = await page.goto("/esta-ruta-no-existe-jamas");
         expect(response?.status()).toBe(404);

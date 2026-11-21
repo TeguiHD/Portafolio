@@ -22,6 +22,23 @@ test.describe("Sobre mí, legales y errores con el lenguaje del sitio", () => {
             await expect(page.getByText("IMPORTANTE", { exact: true })).toHaveCount(0);
             await expect(page.locator(".viva.solo-oscuro")).toHaveCount(0);
         });
+
+        for (const ancho of [1440, 390]) {
+            test(`${ruta}: al final no queda un bloque vacío antes del pie (${ancho} px)`, async ({ page }) => {
+                await page.setViewportSize({ width: ancho, height: 900 });
+                await page.goto(ruta);
+                const medida = await page.evaluate(() => {
+                    const ultimo = document.querySelector(".lg-texto")!.lastElementChild as HTMLElement;
+                    // Lo último que se lee: el cierre, o el último párrafo de la última sección.
+                    const texto = (ultimo.matches("section") ? ultimo.lastElementChild : ultimo) as HTMLElement;
+                    const pie = document.querySelector("footer")!.getBoundingClientRect().top;
+                    return { hueco: Math.round(pie - texto.getBoundingClientRect().bottom), raya: getComputedStyle(ultimo).borderBottomWidth };
+                });
+                // Sin separador colgando tras la última sección, y solo el aire normal antes del pie.
+                expect(medida.raya).toBe("0px");
+                expect(medida.hueco).toBeLessThanOrEqual(130);
+            });
+        }
     }
 
     test("el 404 lleva la barra del sitio una sola vez, sus salidas y la materia escribiendo el código", async ({ page }) => {

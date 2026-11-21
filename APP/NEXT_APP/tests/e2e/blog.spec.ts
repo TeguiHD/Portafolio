@@ -109,6 +109,27 @@ test("a 390 px el blog no desborda y las filas se apilan", async ({ page }) => {
   expect(derecha).toBeLessThanOrEqual(390);
 });
 
+test("a 390 px los titulares no se repiten: la cabecera no trae su lista corta y no baja las fotos del tambor oculto", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const fotos: string[] = [];
+  page.on("request", (r) => { if (r.resourceType() === "image" && /^https?:/.test(r.url()) && !r.url().includes("localhost")) fotos.push(r.url()); });
+  await page.goto("/blog");
+  await expect(page.locator(".bp-fila").first()).toBeVisible();
+  await expect(page.locator(".bg-lista")).toHaveCount(0);
+  await expect(page.locator(".bg-escena")).toBeHidden();
+  await page.waitForTimeout(1500);
+  const delTambor = await page.locator(".bg-foto img").evaluateAll((els) => els.map((e) => (e as HTMLImageElement).getAttribute("src")));
+  expect(fotos.filter((u) => delTambor.includes(u))).toEqual([]);
+});
+
+test("en la portada a 390 px sigue la lista corta de titulares", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const lista = page.locator("#blog .bg-lista");
+  if (await page.locator("#blog .bg-vacio").count()) return; // sin titulares no hay lista
+  await expect(lista).toHaveCount(1);
+});
+
 for (const [ancho, alto] of [[390, 844], [820, 1180], [1440, 900]] as const) {
   test(`el panel del clima cabe entero en la pantalla (${ancho} px)`, async ({ page }) => {
     await page.setViewportSize({ width: ancho, height: alto });
@@ -172,6 +193,33 @@ test("en tema claro se leen el cielo de la cápsula, las posturas del radar y lo
   });
   expect(peores.dibujo, "contraste del cielo dibujado").toBeGreaterThanOrEqual(3);
   expect(peores.texto, "contraste de posturas y avisos").toBeGreaterThanOrEqual(4.5);
+});
+
+test("en el computador, la foto del frente abre la misma nota que su titular y no mueve el tambor", async ({ page, context }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // sin avance solo: el titular no cambia entre leerlo y hacer clic
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const enlace = page.locator('#blog .bg-linea[data-j="0"] h3 a');
+  test.skip(!(await enlace.count()), "sin titulares con enlace");
+  const titulo = (await enlace.textContent()) ?? "";
+  const href = new URL((await enlace.getAttribute("href")) ?? "").href;
+  await context.route((u) => u.href === href, (r) => r.fulfill({ body: "nota" })); // no sale a internet
+  const foto = page.locator('#blog .bg-foto[data-j="0"]');
+  await page.locator("#bg-escena").evaluate((e) => e.scrollIntoView({ block: "center" }));
+  // Toda la foto lleva a la nota: las vecinas, invisibles, no atajan el clic en ninguna parte.
+  const huecos = await foto.evaluate((f) => {
+    const q = f.getBoundingClientRect(), fuera: string[] = [];
+    for (let i = 1; i < 10; i++) for (let k = 1; k < 10; k++) {
+      const el = document.elementFromPoint(q.left + (q.width * i) / 10, q.top + (q.height * k) / 10);
+      if (!el?.closest('.bg-foto[data-j="0"] a')) fuera.push(`${i},${k}`);
+    }
+    return fuera;
+  });
+  expect(huecos).toEqual([]);
+  const caja = (await foto.boundingBox())!;
+  const [nota] = await Promise.all([page.waitForEvent("popup"), page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height * 0.85)]);
+  expect(nota.url()).toBe(href);
+  await expect(page.locator('#blog .bg-linea[data-j="0"] h3')).toHaveText(titulo);
 });
 
 test("si la foto de un titular no llega, el marco muestra el medio en vez de quedar vacío", async ({ page }) => {

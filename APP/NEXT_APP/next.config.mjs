@@ -7,6 +7,7 @@ const nextConfig = {
   // Caché en memoria de respuestas (por defecto 50 MB): la VM tiene 2 GB y la web un tope de 640 MB.
   cacheMaxMemorySize: 16 * 1024 * 1024,
 
+  // experimental.cssChunking 'graph' (20-11-2026) no juntó ninguna hoja: cada una va en combinaciones distintas por página.
   // experimental.inlineCss se probó y se descartó: el CSS de la aplicación pesa 358 KB
   // y meterlo en cada HTML hundía el móvil (89 → 83 en Lighthouse). En fichero se
   // descarga una vez y queda en caché para el resto de la visita.
