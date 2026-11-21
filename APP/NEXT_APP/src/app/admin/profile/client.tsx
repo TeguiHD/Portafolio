@@ -1,18 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useId, type KeyboardEvent } from "react";
+import { useState, useCallback, useRef, useEffect, useId } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import { confirmar } from "@/modules/admin/confirmar/confirmar";
 import { copiarTexto } from "@/lib/tools/copiar";
 import {
-    User, Shield, Activity, Monitor, Clock, Key, FileText,
-    Briefcase, Users, BarChart3, Edit3, Save, X, LogOut,
-    Lock, Download, Eye, EyeOff, CheckCircle, AlertTriangle,
-    Globe, Fingerprint, RefreshCw, Copy, Check, Smartphone,
-    ChevronDown, Loader2, QrCode, ShieldCheck, ShieldOff, MapPin,
-    Laptop, Tablet, ChevronRight
+    Shield, Activity, Monitor, Clock, Key, Edit3, Save, X, LogOut, Lock, Download, Eye, EyeOff, CheckCircle, AlertTriangle, Globe, RefreshCw, Copy, Check, Smartphone, ChevronDown, Loader2, QrCode, ShieldCheck, ShieldOff, MapPin, Laptop, Tablet
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -27,12 +22,7 @@ interface ProfileUser {
     sharingCode: string | null;
     dataExportedAt: string | null;
     mfaEnabled: boolean;
-    stats: {
-        quotations: number;
-        contracts: number;
-        clients: number;
-        connections: number;
-    };
+    passwordChangedAt: string | null;
 }
 
 interface SessionInfo {
@@ -61,15 +51,8 @@ interface ActivityInfo {
     createdAt: string;
 }
 
-type Tab = "general" | "security" | "sessions" | "permissions" | "activity";
-
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "general", label: "General", icon: <User size={16} aria-hidden="true" /> },
-    { id: "security", label: "Seguridad", icon: <Shield size={16} aria-hidden="true" /> },
-    { id: "sessions", label: "Sesiones", icon: <Monitor size={16} aria-hidden="true" /> },
-    { id: "permissions", label: "Permisos", icon: <Key size={16} aria-hidden="true" /> },
-    { id: "activity", label: "Actividad", icon: <Activity size={16} aria-hidden="true" /> },
-];
+/** Una sola página (sin pestañas): el índice baja a cada sección. ?tab= de los enlaces viejos (notificaciones) lleva a su sección. */
+const SECCION_DE_TAB: Record<string, string> = { general: "datos", security: "seguridad", sessions: "sesiones", permissions: "permisos", activity: "actividad" };
 
 // ─── Estilos (tokens del tema: valen en claro y oscuro) ────────────
 const FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]";
@@ -96,6 +79,20 @@ const ROLES: Record<string, string> = {
 const nombreRol = (rol: string) => ROLES[rol] ?? rol;
 
 // ─── Helpers ───────────────────────────────────────────────────────
+/** Los detalles de la auditoría llegan como JSON: se muestran en palabras (navegador, sistema, equipo, lugar), nunca crudos. */
+function resumenDetalle(detalle: string | null): string | null {
+    if (!detalle || detalle === "{}" || detalle === "null") return null;
+    let d: unknown;
+    try { d = JSON.parse(detalle); } catch { return /[{}"]/.test(detalle) ? null : detalle.slice(0, 120); }
+    if (typeof d === "string") return d.slice(0, 120);
+    if (!d || typeof d !== "object") return null;
+    const o = d as Record<string, unknown>;
+    const t = (k: string) => (typeof o[k] === "string" && o[k] ? String(o[k]) : null);
+    const lugar = [t("city"), t("country")].filter(Boolean).join(", ") || null;
+    const partes = [t("newBrowser") ?? t("browser"), t("os"), t("newDevice") ?? t("device"), lugar].filter(Boolean);
+    return partes.length ? partes.join(" · ") : null;
+}
+
 function timeAgo(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -204,7 +201,6 @@ export function ProfilePageClient({
     recentActivity: ActivityInfo[];
     totalActivityCount: number;
 }) {
-    const [activeTab, setActiveTab] = useState<Tab>("general");
     const [isEditing, setIsEditing] = useState(false);
     const router = useRouter();
     const idNombre = useId();
@@ -212,13 +208,10 @@ export function ProfilePageClient({
     // Handle ?tab= query parameter from URL (e.g., from notification links)
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const tab = params.get("tab") as Tab | null;
-        if (tab && TABS.some(t => t.id === tab)) {
-            setActiveTab(tab);
-        }
+        const destino = !user.mfaEnabled ? "seguridad" : SECCION_DE_TAB[params.get("tab") ?? ""];
+        if (destino) document.getElementById(destino)?.scrollIntoView({ block: "start" });
 
         if (!user.mfaEnabled) {
-            setActiveTab("security");
             toast.warning("Configuración de 2FA obligatoria", {
                 description: "Debes configurar la autenticación de dos factores para poder acceder al panel de administración.",
                 duration: 10000,
@@ -279,30 +272,16 @@ export function ProfilePageClient({
         }
     }, [router]);
 
-    // Pestañas con flechas: la selección sigue al foco (guía «tabs» de modern-web-guidance).
-    const moverPestana = (e: KeyboardEvent<HTMLButtonElement>, actual: number) => {
-        let siguiente: number | null = null;
-        if (e.key === "ArrowRight") siguiente = (actual + 1) % TABS.length;
-        else if (e.key === "ArrowLeft") siguiente = (actual - 1 + TABS.length) % TABS.length;
-        else if (e.key === "Home") siguiente = 0;
-        else if (e.key === "End") siguiente = TABS.length - 1;
-        if (siguiente === null) return;
-        e.preventDefault();
-        const destino = TABS[siguiente];
-        if (!destino) return;
-        setActiveTab(destino.id);
-        document.getElementById(`perfil-tab-${destino.id}`)?.focus();
-    };
-
-    const cifras = [
-        { label: "Clientes", value: user.stats.clients },
-        { label: "Propuestas", value: user.stats.quotations },
-        { label: "Contratos", value: user.stats.contracts },
-        { label: "Conexiones", value: user.stats.connections },
+    const secciones = [
+        { id: "seguridad", label: "Seguridad" },
+        { id: "sesiones", label: "Sesiones" },
+        { id: "actividad", label: "Actividad" },
+        ...(user.role !== "SUPERADMIN" ? [{ id: "permisos", label: "Permisos" }] : []),
+        { id: "datos", label: "Tus datos" },
     ];
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-10">
             {/* Cabecera */}
             <header className="space-y-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
@@ -369,6 +348,7 @@ export function ProfilePageClient({
                                 <Shield size={12} aria-hidden="true" />
                                 {nombreRol(user.role)}
                             </span>
+                            {user.role === "SUPERADMIN" && <span>Acceso a todo el panel</span>}
                             <span>Miembro desde {formatDate(user.createdAt)}</span>
                             {user.lastLoginAt && (
                                 <span>Último acceso {timeAgo(user.lastLoginAt)}</span>
@@ -377,158 +357,30 @@ export function ProfilePageClient({
                     </div>
                 </div>
 
-                {/* Cifras */}
-                <dl className="grid grid-cols-2 md:grid-cols-4 border-y border-[var(--linea)]">
-                    {cifras.map((stat, i) => (
-                        <div
-                            key={stat.label}
-                            className={`flex flex-col-reverse px-4 py-4 border-[var(--linea)] ${i > 0 ? "md:border-l" : ""} ${i % 2 === 1 ? "max-md:border-l" : ""} ${i > 1 ? "max-md:border-t" : ""}`}
-                        >
-                            <dt className="text-[13.5px] text-[var(--mut)]">{stat.label}</dt>
-                            <dd className="text-[28px] font-bold tracking-tight tabular-nums text-[var(--txt)]">{stat.value}</dd>
-                        </div>
-                    ))}
-                </dl>
             </header>
 
-            {/* Pestañas */}
-            <div
-                role="tablist"
-                aria-label="Secciones del perfil"
-                className="flex gap-1 overflow-x-auto border-b border-[var(--linea)] [scrollbar-width:thin]"
-            >
-                {TABS.map((tab, i) => {
-                    const activa = activeTab === tab.id;
-                    return (
-                        <button
-                            key={tab.id}
-                            id={`perfil-tab-${tab.id}`}
-                            type="button"
-                            role="tab"
-                            aria-selected={activa}
-                            tabIndex={activa ? 0 : -1}
-                            onClick={() => setActiveTab(tab.id)}
-                            onKeyDown={(e) => moverPestana(e, i)}
-                            className={`-mb-px flex shrink-0 items-center gap-2 min-h-11 px-3 sm:px-4 border-b-2 border-transparent text-sm font-medium whitespace-nowrap text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] aria-selected:border-[var(--acento)] aria-selected:text-[var(--txt)] motion-reduce:transition-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]`}
-                        >
-                            {tab.icon}
-                            {tab.label}
-                        </button>
-                    );
-                })}
-            </div>
+            {/* Índice de la página (enlaces a cada sección, sin JavaScript). */}
+            <nav aria-label="Secciones del perfil" className="-mt-4 flex gap-1 max-sm:gap-0 overflow-x-auto border-b border-[var(--linea)] [scrollbar-width:none]">
+                {secciones.map((sec) => (
+                    <a key={sec.id} href={`#${sec.id}`} className={`-mb-px inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-3 max-sm:px-2 text-sm font-medium text-[var(--mut)] transition-colors duration-150 hover:border-[var(--linea-2)] hover:text-[var(--txt)] motion-reduce:transition-none ${FOCO}`}>
+                        {sec.label}
+                    </a>
+                ))}
+            </nav>
 
-            {/* Contenido de la pestaña */}
-            <div
-                role="tabpanel"
-                id={`perfil-panel-${activeTab}`}
-                aria-labelledby={`perfil-tab-${activeTab}`}
-                tabIndex={activeTab === "permissions" ? 0 : undefined}
-                className="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--acento)] rounded-sm"
-            >
-                {activeTab === "general" && <GeneralTab user={user} />}
-                {activeTab === "security" && <SecurityTab mfaEnabled={user.mfaEnabled} />}
-                {activeTab === "sessions" && <SessionsTab sessions={sessions} onRevoke={handleRevokeSession} />}
-                {activeTab === "permissions" && <PermissionsTab permissions={permissions} role={user.role} />}
-                {activeTab === "activity" && <ActivityTab initialActivities={recentActivity} totalCount={totalActivityCount} />}
-            </div>
+            <div id="seguridad" className="scroll-mt-24"><SecurityTab mfaEnabled={user.mfaEnabled} passwordChangedAt={user.passwordChangedAt} /></div>
+            <div id="sesiones" className="scroll-mt-24"><SessionsTab sessions={sessions} onRevoke={handleRevokeSession} /></div>
+            <div id="actividad" className="scroll-mt-24"><ActivityTab initialActivities={recentActivity} totalCount={totalActivityCount} /></div>
+            {user.role !== "SUPERADMIN" && <div id="permisos" className="scroll-mt-24"><PermissionsTab permissions={permissions} role={user.role} /></div>}
+            <div id="datos" className="scroll-mt-24"><TusDatos user={user} /></div>
         </div>
     );
 }
 
-// ─── General Tab ───────────────────────────────────────────────────
-function GeneralTab({ user }: { user: ProfileUser }) {
-    const [copia, setCopia] = useState<"ok" | "fallo" | null>(null);
-
-    const handleCopyCode = async () => {
-        if (user.sharingCode) {
-            const ok = await copiarTexto(user.sharingCode);
-            setCopia(ok ? "ok" : "fallo");
-            if (ok) toast.success("Código copiado al portapapeles");
-            setTimeout(() => setCopia(null), 2000);
-        }
-    };
-
-    return (
-        <div className="grid gap-10 md:grid-cols-2">
-            {/* Cuenta */}
-            <section aria-labelledby="perfil-cuenta" className="min-w-0">
-                <h2 id="perfil-cuenta" className={SECCION}>
-                    <User size={16} aria-hidden="true" />
-                    Información de la cuenta
-                </h2>
-                <dl className="mt-2 border-t border-[var(--linea)]">
-                    <InfoRow label="Nombre" value={user.name || "—"} />
-                    <InfoRow label="Correo" value={user.email} wrap />
-                    <InfoRow label="Rol" value={nombreRol(user.role)} badge />
-                    <div className="flex items-center justify-between gap-3 py-3 border-b border-[var(--linea)]">
-                        <dt className="text-sm text-[var(--mut)] shrink-0">Código de conexión</dt>
-                        <dd className="flex min-w-0 items-center gap-1">
-                            <span className="truncate font-mono text-xs text-[var(--txt)]">
-                                {user.sharingCode || "No generado"}
-                            </span>
-                            {user.sharingCode && (
-                                <button
-                                    type="button"
-                                    onClick={handleCopyCode}
-                                    className={BTN_ICONO}
-                                    aria-label={copia === "ok" ? "Código copiado" : copia === "fallo" ? "No se pudo copiar" : "Copiar código de conexión"}
-                                    title="Copiar código"
-                                >
-                                    {copia === "ok" ? <Check size={16} className="text-emerald-400" aria-hidden="true" />
-                                        : copia === "fallo" ? <AlertTriangle size={16} className="text-red-400" aria-hidden="true" />
-                                            : <Copy size={16} aria-hidden="true" />}
-                                </button>
-                            )}
-                        </dd>
-                    </div>
-                    <InfoRow label="Cuenta creada" value={formatDate(user.createdAt)} />
-                    <InfoRow
-                        label="Último acceso"
-                        value={user.lastLoginAt ? `${timeAgo(user.lastLoginAt)} (${formatDateTime(user.lastLoginAt)})` : "—"}
-                    />
-                </dl>
-                <p className="sr-only" aria-live="polite">{copia === "fallo" ? "No se pudo copiar" : ""}</p>
-            </section>
-
-            {/* Accesos y exportación */}
-            <div className="min-w-0 space-y-10">
-                <section aria-labelledby="perfil-accesos">
-                    <h2 id="perfil-accesos" className={SECCION}>
-                        <Globe size={16} aria-hidden="true" />
-                        Accesos directos
-                    </h2>
-                    <ul className="mt-2 border-t border-[var(--linea)]">
-                        <QuickLink icon={FileText} label="Cotizaciones" href="/admin/cotizaciones" />
-                        <QuickLink icon={Briefcase} label="Contratos" href="/admin/gestion-comercial/contratos" />
-                        <QuickLink icon={Users} label="Clientes" href="/admin/clientes" />
-                        <QuickLink icon={BarChart3} label="Finanzas" href="/admin/finance" />
-                    </ul>
-                </section>
-
-                <DataExportCard user={user} />
-            </div>
-        </div>
-    );
-}
-
-function QuickLink({ icon: Icon, label, href }: { icon: typeof User; label: string; href: string }) {
-    return (
-        <li className="border-b border-[var(--linea)]">
-            <a
-                href={href}
-                className="flex min-h-11 items-center gap-3 px-1 py-3 text-sm font-medium text-[var(--txt)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--txt)_4%,transparent)] motion-reduce:transition-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--acento)]"
-            >
-                <Icon size={16} className="text-[var(--mut)]" aria-hidden="true" />
-                <span className="flex-1">{label}</span>
-                <ChevronRight size={16} className="text-[var(--mut)]" aria-hidden="true" />
-            </a>
-        </li>
-    );
-}
-
-function DataExportCard({ user }: { user: ProfileUser }) {
+// ─── Tus datos ─────────────────────────────────────────────────────
+function TusDatos({ user }: { user: ProfileUser }) {
     const [exporting, setExporting] = useState(false);
+    const [copia, setCopia] = useState<"ok" | "fallo" | null>(null);
 
     const handleExport = async () => {
         setExporting(true);
@@ -544,45 +396,58 @@ function DataExportCard({ user }: { user: ProfileUser }) {
             a.download = `datos-perfil-${new Date().toISOString().slice(0, 10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            toast.success("Datos exportados correctamente");
+            toast.success("Datos exportados");
         } catch {
-            toast.error("Error al exportar datos");
+            toast.error("No se pudieron exportar los datos");
         } finally {
             setExporting(false);
         }
     };
 
+    const handleCopyCode = async () => {
+        if (!user.sharingCode) return;
+        const ok = await copiarTexto(user.sharingCode);
+        setCopia(ok ? "ok" : "fallo");
+        if (ok) toast.success("Código copiado");
+        setTimeout(() => setCopia(null), 2000);
+    };
+
     return (
-        <section aria-labelledby="perfil-exportar" className="space-y-3">
-            <h2 id="perfil-exportar" className={SECCION}>
+        <section aria-labelledby="perfil-datos" className="space-y-3">
+            <h2 id="perfil-datos" className={SECCION}>
                 <Download size={16} aria-hidden="true" />
-                Exportar mis datos
+                Tus datos
             </h2>
             <p className="text-sm leading-relaxed text-[var(--mut)]">
-                Descarga todos tus datos personales en un archivo JSON (derecho a la portabilidad, art. 20 del RGPD).
+                Descarga en un archivo JSON todo lo que el panel guarda de tu cuenta.
+                {user.dataExportedAt ? ` Última descarga: ${formatDateTime(user.dataExportedAt)}.` : ""}
             </p>
-            {user.dataExportedAt && (
-                <p className="text-sm text-[var(--mut)]">
-                    Última exportación: {formatDateTime(user.dataExportedAt)}
-                </p>
-            )}
-            <button
-                type="button"
-                onClick={handleExport}
-                disabled={exporting}
-                className={BTN_SEC}
-            >
+            <button type="button" onClick={handleExport} disabled={exporting} className={BTN_SEC}>
                 {exporting ? <RefreshCw size={16} className={GIRO} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-                {exporting ? "Exportando..." : "Descargar mis datos"}
+                {exporting ? "Descargando…" : "Descargar mis datos"}
             </button>
+            {user.sharingCode && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-[var(--linea)] pt-4 text-sm">
+                    <span className="text-[var(--mut)]">Código para conectar cuentas:</span>
+                    <span className="font-mono text-[var(--txt)]">{user.sharingCode}</span>
+                    <button
+                        type="button"
+                        onClick={handleCopyCode}
+                        className={BTN_ICONO}
+                        aria-label={copia === "ok" ? "Código copiado" : copia === "fallo" ? "No se pudo copiar" : "Copiar código para conectar cuentas"}
+                    >
+                        {copia === "ok" ? <Check size={16} aria-hidden="true" /> : copia === "fallo" ? <AlertTriangle size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                    </button>
+                </div>
+            )}
         </section>
     );
 }
 
 // ─── Security Tab ──────────────────────────────────────────────────
-function SecurityTab({ mfaEnabled: initialMfaEnabled }: { mfaEnabled: boolean }) {
+function SecurityTab({ mfaEnabled: initialMfaEnabled, passwordChangedAt }: { mfaEnabled: boolean; passwordChangedAt: string | null }) {
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             {/* 2FA obligatoria */}
             {!initialMfaEnabled && (
                 <div className="flex items-start gap-3">
@@ -597,96 +462,22 @@ function SecurityTab({ mfaEnabled: initialMfaEnabled }: { mfaEnabled: boolean })
                 </div>
             )}
 
-            <div className="grid gap-8 md:grid-cols-2 items-start">
-                <ChangePasswordCard />
-
-                <div className="space-y-8 min-w-0">
-                    <MFASetupCard initialMfaEnabled={initialMfaEnabled} />
-
-                    <section aria-labelledby="perfil-estado-seguridad">
-                        <h2 id="perfil-estado-seguridad" className={SECCION}>
-                            <Shield size={16} aria-hidden="true" />
-                            Estado de seguridad
-                        </h2>
-                        <ul className="mt-2 border-t border-[var(--linea)]">
-                            <SecurityRow
-                                icon={Fingerprint}
-                                label="Clave cifrada"
-                                sublabel="Argon2id (NIST SP 800-63B)"
-                                status="active"
-                                statusText="Activo"
-                            />
-                            <SecurityRow
-                                icon={Monitor}
-                                label="Sesiones vigiladas"
-                                sublabel="Detección de sesiones concurrentes"
-                                status="active"
-                                statusText="Activo"
-                            />
-                            <SecurityRow
-                                icon={Lock}
-                                label="Bloqueo por intentos"
-                                sublabel="Se bloquea sola tras 5 intentos fallidos"
-                                status="active"
-                                statusText="Activo"
-                            />
-                            <SecurityRow
-                                icon={Activity}
-                                label="Auditoría completa"
-                                sublabel="NIST SP 800-53 AU-3"
-                                status="active"
-                                statusText="Registrando"
-                            />
-                        </ul>
-                    </section>
-
-                    <section aria-labelledby="perfil-politica">
-                        <h2 id="perfil-politica" className={SECCION}>
-                            <Key size={16} aria-hidden="true" />
-                            Política de sesiones
-                        </h2>
-                        <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-[var(--mut)] marker:text-[var(--linea-2)]">
-                            <li>Las sesiones expiran automáticamente tras 7 días o al cerrar sesión.</li>
-                            <li>Se notifica en caso de acceso desde un nuevo dispositivo.</li>
-                            <li>Todas las acciones quedan registradas en la auditoría.</li>
-                        </ul>
-                    </section>
-                </div>
+            <div className="grid gap-6 md:grid-cols-2 items-start">
+                <ChangePasswordCard ultimoCambio={passwordChangedAt} />
+                <MFASetupCard initialMfaEnabled={initialMfaEnabled} />
             </div>
+
+            {/* Hechos del código (auth.ts y session-manager.ts), sin insignias ni normas. */}
+            <ul className="space-y-1.5 text-sm text-[var(--mut)]">
+                <li>Cada sesión dura 7 días; si cierras sesión, termina antes.</li>
+                <li>Si se abre otra sesión con tu cuenta, te avisamos en Notificaciones.</li>
+                <li>Tras 5 intentos fallidos, el ingreso con tu correo se pausa 15 minutos.</li>
+            </ul>
         </div>
     );
 }
 
-function SecurityRow({ icon: Icon, label, sublabel, status, statusText }: {
-    icon: typeof Shield;
-    label: string;
-    sublabel: string;
-    status: "active" | "coming" | "warning";
-    statusText: string;
-}) {
-    const colors = {
-        active: { bg: "bg-emerald-500/10", text: "text-emerald-400" },
-        coming: { bg: "bg-amber-500/10", text: "text-amber-400" },
-        warning: { bg: "bg-red-500/10", text: "text-red-400" },
-    }[status];
-
-    return (
-        <li className="flex items-center justify-between gap-3 py-3 border-b border-[var(--linea)]">
-            <div className="flex min-w-0 items-center gap-3">
-                <Icon size={16} className="shrink-0 text-[var(--mut)]" aria-hidden="true" />
-                <div className="min-w-0">
-                    <p className="text-sm font-medium text-[var(--txt)]">{label}</p>
-                    <p className="text-sm text-[var(--mut)]">{sublabel}</p>
-                </div>
-            </div>
-            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}>
-                {statusText}
-            </span>
-        </li>
-    );
-}
-
-function ChangePasswordCard() {
+function ChangePasswordCard({ ultimoCambio }: { ultimoCambio: string | null }) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
     const [showCurrent, setShowCurrent] = useState(false);
@@ -757,13 +548,13 @@ function ChangePasswordCard() {
         <section aria-labelledby={`${id}-t`} className={`${TARJETA} space-y-4 min-w-0`}>
             <h2 id={`${id}-t`} className={TITULO_TARJETA}>
                 <Lock size={18} className="text-[var(--mut)]" aria-hidden="true" />
-                Cambiar contraseña
+                Contraseña
             </h2>
 
             {!isOpen ? (
                 <div className="space-y-4">
                     <p className="text-sm text-[var(--mut)]">
-                        Tu contraseña está protegida con Argon2id, el estándar recomendado por OWASP y NIST SP 800-63B.
+                        {ultimoCambio ? `Último cambio ${timeAgo(ultimoCambio)}.` : "Es la misma desde que se creó la cuenta."} Solo se guarda su huella (Argon2id): nadie puede leerla.
                     </p>
                     <button
                         type="button"
@@ -1025,7 +816,7 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Error");
-            toast.success(data.message);
+            toast.success("Listo: ahora configura tu app nueva aquí mismo");
             setMfaEnabled(false);
             setShowDisable(false);
             setDisableCode("");
@@ -1079,7 +870,7 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
         <section aria-labelledby={`${id}-t`} className={`${TARJETA} space-y-4`}>
             <h2 id={`${id}-t`} className={TITULO_TARJETA}>
                 <Smartphone size={18} className="text-[var(--mut)]" aria-hidden="true" />
-                Verificación en dos pasos (2FA)
+                Verificación en dos pasos
             </h2>
 
             {mfaEnabled && step === "idle" ? (
@@ -1088,15 +879,15 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
                     <div className="flex items-start gap-3">
                         <ShieldCheck size={18} className="mt-0.5 shrink-0 text-emerald-400" aria-hidden="true" />
                         <div>
-                            <p className="text-sm font-medium text-emerald-400">Dos pasos activos</p>
-                            <p className="text-sm text-[var(--mut)]">Tu cuenta está protegida con autenticación de dos factores.</p>
+                            <p className="text-sm font-medium text-emerald-400">Activa</p>
+                            <p className="text-sm text-[var(--mut)]">Cada ingreso pide un código de tu app autenticadora.</p>
                         </div>
                     </div>
 
                     {showDisable ? (
                         <div className="space-y-3">
-                            <label htmlFor={`${id}-desactivar`} className="block text-sm text-red-400">
-                                Escribe el código actual de tu app para desactivar la verificación en dos pasos:
+                            <label htmlFor={`${id}-desactivar`} className="block text-sm text-[var(--txt)]">
+                                Escribe el código de tu app actual. Después escaneas un código QR nuevo con la otra.
                             </label>
                             <input
                                 id={`${id}-desactivar`}
@@ -1106,7 +897,7 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
                                 maxLength={6}
                                 value={disableCode}
                                 onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                                className={`${CAMPO_CODIGO} border-red-500/30`}
+                                className={CAMPO_CODIGO}
                                 placeholder="000000"
                                 autoFocus
                             />
@@ -1115,10 +906,10 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
                                     type="button"
                                     onClick={handleDisable}
                                     disabled={disabling}
-                                    className={`${BTN_PELIGRO} flex-1`}
+                                    className={`${BTN_PRI} flex-1`}
                                 >
-                                    {disabling ? <Loader2 size={16} className={GIRO} aria-hidden="true" /> : <ShieldOff size={16} aria-hidden="true" />}
-                                    Desactivar
+                                    {disabling ? <Loader2 size={16} className={GIRO} aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}
+                                    Continuar
                                 </button>
                                 <button
                                     type="button"
@@ -1133,10 +924,10 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
                         <button
                             type="button"
                             onClick={() => setShowDisable(true)}
-                            className={`${BTN_PELIGRO} w-full`}
+                            className={`${BTN_SEC} w-full`}
                         >
-                            <ShieldOff size={16} aria-hidden="true" />
-                            Desactivar 2FA
+                            <RefreshCw size={16} aria-hidden="true" />
+                            Cambiar de app autenticadora
                         </button>
                     )}
                 </div>
@@ -1645,9 +1436,9 @@ function ActivityTab({ initialActivities, totalCount }: { initialActivities: Act
                                             </>
                                         )}
                                     </p>
-                                    {activity.details && activity.details !== "{}" && activity.details !== "null" && (
+                                    {resumenDetalle(activity.details) && (
                                         <p className="mt-0.5 truncate text-sm text-[var(--mut)] max-w-md">
-                                            {activity.details.substring(0, 120)}
+                                            {resumenDetalle(activity.details)}
                                         </p>
                                     )}
                                     <p className="mt-1 text-xs text-[var(--mut)]">
@@ -1712,19 +1503,3 @@ function ActivityTab({ initialActivities, totalCount }: { initialActivities: Act
 }
 
 // ─── Shared Components ─────────────────────────────────────────────
-function InfoRow({ label, value, badge, mono, wrap }: { label: string; value: string; badge?: boolean; mono?: boolean; wrap?: boolean }) {
-    return (
-        <div className="flex items-start justify-between gap-3 py-3 border-b border-[var(--linea)]">
-            <dt className="text-sm text-[var(--mut)] shrink-0">{label}</dt>
-            {badge ? (
-                <dd className="truncate rounded-full bg-[color-mix(in_srgb,var(--acento)_13%,transparent)] px-2.5 py-0.5 text-xs font-semibold text-[var(--acento)]">
-                    {value}
-                </dd>
-            ) : (
-                <dd className={`min-w-0 flex-1 text-right text-sm font-medium text-[var(--txt)] ${mono ? "font-mono text-xs" : ""} ${wrap ? "break-all whitespace-normal" : "truncate"}`} title={value}>
-                    {value}
-                </dd>
-            )}
-        </div>
-    );
-}

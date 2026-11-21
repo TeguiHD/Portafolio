@@ -29,31 +29,18 @@ export default async function ProfilePage() {
             sharingCode: true,
             dataExportedAt: true,
             mfaEnabled: true,
+            passwordChangedAt: true,
         },
     });
 
     if (!user) return null;
 
     const [
-        quotationCountResult,
-        contractCountResult,
-        clientCountResult,
-        sentConnectionsCountResult,
-        receivedConnectionsCountResult,
         activeSessionsResult,
         permissionsResult,
         recentAuditResult,
         totalActivityCountResult,
     ] = await Promise.allSettled([
-        prisma.quotation.count({ where: { userId: session.user.id } }),
-        prisma.contract.count({ where: { userId: session.user.id } }),
-        prisma.quotationClient.count({ where: { userId: session.user.id } }),
-        prisma.userConnection.count({
-            where: { requesterId: session.user.id, status: "ACCEPTED" },
-        }),
-        prisma.userConnection.count({
-            where: { addresseeId: session.user.id, status: "ACCEPTED" },
-        }),
         prisma.userSession.findMany({
             where: {
                 userId: session.user.id,
@@ -102,11 +89,6 @@ export default async function ProfilePage() {
     const recentAudit = settledValue(recentAuditResult, [], "recent audit");
     const totalActivityCount = settledValue(totalActivityCountResult, 0, "activity count");
 
-    const quotationCount = settledValue(quotationCountResult, 0, "quotation count");
-    const contractCount = settledValue(contractCountResult, 0, "contract count");
-    const clientCount = settledValue(clientCountResult, 0, "client count");
-    const sentConnectionsCount = settledValue(sentConnectionsCountResult, 0, "sent connections count");
-    const receivedConnectionsCount = settledValue(receivedConnectionsCountResult, 0, "received connections count");
 
     const missingSessionGeoIPs = activeSessions
         .filter((sessionItem) => sessionItem.ipAddress && (!sessionItem.city || !sessionItem.country || !sessionItem.countryCode))
@@ -118,8 +100,6 @@ export default async function ProfilePage() {
             return new Map();
         })
         : new Map();
-
-    const totalConnections = sentConnectionsCount + receivedConnectionsCount;
 
     return (
         <ProfilePageClient
@@ -134,12 +114,7 @@ export default async function ProfilePage() {
                 sharingCode: user.sharingCode,
                 dataExportedAt: user.dataExportedAt?.toISOString() || null,
                 mfaEnabled: user.mfaEnabled,
-                stats: {
-                    quotations: quotationCount,
-                    contracts: contractCount,
-                    clients: clientCount,
-                    connections: totalConnections,
-                },
+                passwordChangedAt: user.passwordChangedAt?.toISOString() || null,
             }}
             sessions={activeSessions.map((s) => {
                 const geo = s.ipAddress ? sessionGeoMap.get(s.ipAddress) : undefined;
