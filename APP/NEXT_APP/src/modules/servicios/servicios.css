@@ -1,0 +1,56 @@
+/* Servicios (prefijo sv-), con el lenguaje de /sobre-mi (sm-) y de la portada. */
+.sv-cab h1 { font-size: clamp(40px, 7vw, 104px); letter-spacing: -.055em; line-height: .95; max-width: 16ch; }
+.sv-pregunta { margin: 0 0 14px; color: var(--mut); font-size: clamp(17px, 1.6vw, 21px); }
+.sv-respuesta { margin: 26px 0 0; max-width: 62ch; color: var(--txt); font-size: clamp(18px, 1.7vw, 22px); line-height: 1.55; }
+.sv-acciones { margin: 28px 0 0; }
+.sv .sv-bloque { padding-block: 56px; }
+.sv h2 { font-size: clamp(30px, 4vw, 52px); }
+.sv-lista { display: grid; gap: 0; margin: 22px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.sv-lista li { position: relative; padding: 16px 4px 16px 30px; border-bottom: 1px solid var(--linea); max-width: 80ch; font-size: 17px; line-height: 1.55; color: var(--txt); }
+.sv-lista li::before { content: ""; position: absolute; left: 6px; top: 1.45em; width: 10px; height: 2px; border-radius: 2px; background: var(--acento); }
+.sv-no { margin: 22px 0 0; max-width: 80ch; color: var(--mut); font-size: 16.5px; line-height: 1.6; }
+.sv-no strong { color: var(--txt); font-weight: 600; }
+.sv-paso { color: var(--mut); font-weight: 450; }
+.sv-tabla { margin: 6px 0 16px; }
+.sv-corto { display: none; }
+.sv-tabla table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
+.sv-tabla caption { caption-side: bottom; padding-top: 8px; text-align: left; color: var(--mut); font-size: 13.5px; }
+.sv-tabla th, .sv-tabla td { padding: 9px 10px; border-bottom: 1px solid var(--linea); text-align: right; }
+.sv-tabla thead th { color: var(--mut); font-weight: 500; font-size: 13.5px; }
+.sv-tabla tbody th { text-align: left; font-weight: 600; color: var(--txt); }
+.sv-tabla tbody th small { display: block; font-weight: 400; color: var(--mut); }
+.sv-tabla th:first-child { text-align: left; }
+.sv-faq { display: grid; margin-top: 22px; border-top: 1px solid var(--linea); }
+.sv-faq details { border-bottom: 1px solid var(--linea); }
+.sv-faq summary { display: flex; justify-content: space-between; gap: 16px; padding: 18px 4px; cursor: pointer; list-style: none; font-size: 18px; font-weight: 600; color: var(--txt); }
+.sv-faq summary::-webkit-details-marker { display: none; }
+.sv-faq summary::after { content: "+"; color: var(--acento); font-weight: 400; transition: rotate .25s var(--curva); }
+.sv-faq details[open] summary::after { rotate: 45deg; }
+.sv-faq summary:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 8px; }
+.sv-faq p { margin: 0 4px 18px; max-width: 78ch; color: var(--mut); font-size: 16.5px; line-height: 1.65; }
+.sv-otros { margin-top: 28px; color: var(--mut); font-size: 15px; }
+.sv-otros a { color: var(--txt); text-decoration: underline; text-underline-offset: 3px; }
+.sv-servicios { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.sv-servicios li { padding: 26px 4px; border-bottom: 1px solid var(--linea); }
+.sv-servicios h2 { margin: 0; font-size: clamp(24px, 3vw, 38px); letter-spacing: -.03em; }
+.sv-servicios h2 a { color: var(--txt); text-decoration: none; }
+.sv-servicios h2 a:hover { color: var(--acento); }
+.sv-servicios h2 a:focus-visible { outline: 2px solid var(--acento); outline-offset: 4px; border-radius: 6px; }
+.sv-servicios p { margin: 8px 0 0; color: var(--mut); font-size: 17px; }
+@media (max-width: 760px) {
+  .sv .sv-bloque { padding-block: 40px; }
+  .sv-tabla table { font-size: 14px; }
+  .sv-tabla thead th { font-size: 12px; }
+  .sv-tabla th, .sv-tabla td { padding: 8px 5px; }
+  .sv-largo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .sv-corto { display: inline; }
+}
+/* Muy angosto (Fold cerrado): cada fila es un bloque, con la etiqueta sobre cada cifra; los encabezados quedan para el lector. */
+@media (max-width: 420px) {
+  .sv-tabla table, .sv-tabla tbody, .sv-tabla caption { display: block; }
+  .sv-tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .sv-tabla tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--linea); padding: 6px 0; }
+  .sv-tabla tbody th { grid-column: 1 / -1; border: 0; padding: 4px 2px; }
+  .sv-tabla td { border: 0; padding: 4px 2px; text-align: left; font-size: 16px; font-weight: 600; }
+  .sv-tabla td::before { content: attr(data-etiqueta); display: block; font-size: 11.5px; font-weight: 400; color: var(--mut); }
+}

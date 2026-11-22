@@ -1,6 +1,7 @@
 import { TOOLS_SEO } from "@/lib/seo/tools-content";
 import { SITE_URL, SITE_NAME } from "@/lib/seo/metadata";
 import { casos } from "@/modules/landing/portada/datos/casos";
+import { SERVICIOS } from "@/lib/servicios";
 
 /**
  * /llms.txt — mapa del sitio legible por modelos de lenguaje.
@@ -30,11 +31,9 @@ export function GET() {
 
 ## Qué se puede contratar
 
-Desarrollo web a medida, en Chile y a distancia:
+Desarrollo web a medida, en Chile y a distancia. Cada servicio tiene su página, con su caso real:
 
-- Tiendas en línea y sitios web.
-- Sistemas internos e intranets (por ejemplo, gestión de cursos y certificados).
-- Herramientas web y automatizaciones.
+${SERVICIOS.map((s) => `- [${s.nombre}](${SITE_URL}/servicios/${s.slug}): ${s.respuesta}`).join("\n")}
 
 Contacto: contacto@nicoholas.dev o el formulario «Conversemos» en ${SITE_URL}/#contacto.
 

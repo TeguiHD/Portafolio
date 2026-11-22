@@ -7,7 +7,7 @@ import { BotonInstalar } from "@/components/pwa/BotonInstalar";
 import "./pie.css";
 
 const ENLACES = [
-    ["/#proyectos", "Proyectos"], ["/herramientas", "Herramientas"], ["/blog", "Blog"], ["/sobre-mi", "Sobre mí"],
+    ["/servicios", "Servicios"], ["/#proyectos", "Proyectos"], ["/herramientas", "Herramientas"], ["/blog", "Blog"], ["/sobre-mi", "Sobre mí"],
     ["/cotizacion", "Portal de clientes"], ["/privacidad", "Privacidad"], ["/terminos", "Términos"],
 ] as const;
 

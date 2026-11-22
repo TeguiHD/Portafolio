@@ -11,6 +11,7 @@ import "./barra.css";
 export interface EnlaceBarra { href: string; texto: string }
 
 const ENLACES: EnlaceBarra[] = [
+    { href: "/servicios", texto: "Servicios" },
     { href: "/#proyectos", texto: "Proyectos" },
     { href: "/herramientas", texto: "Herramientas" },
     { href: "/blog", texto: "Blog" },

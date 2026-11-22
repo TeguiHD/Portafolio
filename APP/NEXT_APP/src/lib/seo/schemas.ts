@@ -10,6 +10,7 @@ import { DEFAULT_TOOL_REGISTRY } from "@/lib/tool-registry";
 import { getToolSeo } from "./tools-content";
 import { SITE_URL, SITE_NAME } from "./metadata";
 import { getToolCopy } from "./tools-copy";
+import { SERVICIOS } from "@/lib/servicios";
 
 export type JsonLdObject = Record<string, unknown>;
 
@@ -89,6 +90,12 @@ export function professionalServiceSchema(): JsonLdObject {
         availableLanguage: "es",
         sameAs: SAME_AS,
         // Lo que ofrece la portada (el selector «Tiendas y sitios / Sistemas internos / Herramientas») y lo que ya figuraba.
+        // Las páginas de servicio (src/lib/servicios.ts), enlazadas por su @id.
+        hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: "Servicios",
+            itemListElement: SERVICIOS.map((s) => ({ "@type": "Offer", itemOffered: { "@id": `${SITE_URL}/servicios/${s.slug}#servicio`, "@type": "Service", name: s.nombre, url: `${SITE_URL}/servicios/${s.slug}` } })),
+        },
         serviceType: [
             "Tiendas en línea y sitios web a medida",
             "Sistemas internos e intranets",
@@ -241,6 +248,31 @@ export function softwareApplicationSchema(slug: string): JsonLdObject {
  * con `mainEntity: []` es schema inválido, y emitirlo vacío es peor que no
  * emitirlo.
  */
+/** Preguntas frecuentes de cualquier página (las de herramientas usan faqPageSchema). */
+export function faqSchema(items: { question: string; answer: string }[]): JsonLdObject {
+    return {
+        "@context": CONTEXT,
+        "@type": "FAQPage",
+        mainEntity: items.map((item) => ({ "@type": "Question", name: item.question, acceptedAnswer: { "@type": "Answer", text: item.answer } })),
+    };
+}
+
+/** Un servicio de /servicios/<slug>: lo presta la persona del sitio, en Chile. */
+export function serviceSchema(s: { slug: string; nombre: string; respuesta: string }): JsonLdObject {
+    return {
+        "@context": CONTEXT,
+        "@type": "Service",
+        "@id": `${SITE_URL}/servicios/${s.slug}#servicio`,
+        name: s.nombre,
+        serviceType: s.nombre,
+        description: s.respuesta,
+        url: `${SITE_URL}/servicios/${s.slug}`,
+        provider: { "@id": `${SITE_URL}/#person` },
+        areaServed: { "@type": "Country", name: "Chile" },
+        availableLanguage: "es",
+    };
+}
+
 export function faqPageSchema(slug: string): JsonLdObject | null {
     const copy = getToolCopy(slug);
     if (!copy || copy.faq.length === 0) return null;

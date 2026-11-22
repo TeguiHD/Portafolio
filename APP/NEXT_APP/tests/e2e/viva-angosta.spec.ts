@@ -93,7 +93,7 @@ for (const ancho of [258, 300, 320, 360, 390]) {
 }
 
 // Las demás páginas públicas, con la misma regla: las familias del catálogo y los temas del blog tampoco se deslizan.
-for (const ruta of ["/herramientas", "/blog", "/sobre-mi", "/herramientas/qr", "/herramientas/sueldo-liquido", "/herramientas/rut", "/herramientas/uf-utm", "/herramientas/boleta-honorarios"]) {
+for (const ruta of ["/servicios", "/servicios/tienda-online", "/servicios/sistemas-internos", "/servicios/herramientas-web", "/herramientas", "/blog", "/sobre-mi", "/herramientas/qr", "/herramientas/sueldo-liquido", "/herramientas/rut", "/herramientas/uf-utm", "/herramientas/boleta-honorarios"]) {
     for (const ancho of [258, 360]) {
         test(`${ruta} a ${ancho} px: nada cortado a los lados`, async ({ browser }) => {
             const ctx = await browser.newContext({ viewport: { width: ancho, height: 800 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });

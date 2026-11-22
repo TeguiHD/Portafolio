@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { TOOLS_SEO } from "@/lib/seo/tools-content";
 import { SITE_URL } from "@/lib/seo/metadata";
+import { SERVICIOS } from "@/lib/servicios";
 
 export default function sitemap(): MetadataRoute.Sitemap {
     // Use editorial dates only when a significant content update is known.
@@ -29,10 +30,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.8,
     }));
 
+    // Páginas de servicio (22-11-2026): responden la pregunta de quien busca contratar.
+    const servicios: MetadataRoute.Sitemap = [
+        { url: `${SITE_URL}/servicios`, lastModified: new Date("2026-11-22"), changeFrequency: "monthly", priority: 0.8 },
+        ...SERVICIOS.map((s) => ({ url: `${SITE_URL}/servicios/${s.slug}`, lastModified: new Date("2026-11-22"), changeFrequency: "monthly" as const, priority: 0.9 })),
+    ];
+
     const legal: MetadataRoute.Sitemap = [
         { url: `${SITE_URL}/privacidad`, changeFrequency: "yearly", priority: 0.3 },
         { url: `${SITE_URL}/terminos`, changeFrequency: "yearly", priority: 0.3 },
     ];
 
-    return [...core, ...tools, ...legal];
+    return [...core, ...servicios, ...tools, ...legal];
 }
