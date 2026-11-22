@@ -135,8 +135,8 @@ a.bp-lectura:focus-visible { outline: 2px solid var(--acento); outline-offset: 6
   .bg-pagina .bg-acc { width: 100%; }
   .bp-cab { grid-template-columns: minmax(0, 1fr); } /* sin minmax, la fila de temas ensanchaba la columna */
   #indice #ancla-texto { height: 84px; order: -1; }
-  .bp-temas { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--margen, 24px)); padding-inline: var(--margen, 24px); gap: 2px 22px; }
-  .bp-temas button { flex: none; }
+  /* Todos los temas a la vista, en varias líneas: la fila deslizable dejaba los últimos cortados al borde. */
+  .bp-temas { gap: 0 20px; }
   /* Objetivos de 44 px para el dedo: temas, orden y el cierre de la ficha. */
   .bp-temas button { padding-block: 12px; }
   .bp-orden button { padding-block: 12px; }
