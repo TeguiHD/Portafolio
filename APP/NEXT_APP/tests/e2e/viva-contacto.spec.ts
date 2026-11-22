@@ -16,6 +16,23 @@ async function llenar(page: Page) {
 }
 
 test.describe("Materia viva: contacto", () => {
+    // El correo va en una sola línea (no se corta): en celulares angostos la píldora se salía por la derecha.
+    for (const ancho of [320, 360, 390, 412]) {
+        test(`a ${ancho} px la píldora del correo cabe entera y centrada, con el correo completo`, async ({ page }) => {
+            await page.setViewportSize({ width: ancho, height: 800 });
+            await page.goto(URL, { waitUntil: "domcontentloaded" });
+            await page.evaluate(() => document.fonts.ready);
+            const m = await page.locator("#copiar").evaluate((b) => {
+                const r = b.getBoundingClientRect(), texto = b.querySelector("span")!;
+                return { izq: r.left, der: innerWidth - r.right, cortado: texto.scrollWidth > texto.clientWidth + 1 };
+            });
+            expect(m.izq, "margen izquierdo").toBeGreaterThanOrEqual(12);
+            expect(m.der, "margen derecho").toBeGreaterThanOrEqual(12);
+            expect(Math.abs(m.izq - m.der), "centrada").toBeLessThanOrEqual(2);
+            expect(m.cortado).toBe(false);
+        });
+    }
+
     test("copiar el correo", async ({ page, context }) => {
         await context.grantPermissions(["clipboard-read", "clipboard-write"]);
         await page.goto(URL, { waitUntil: "domcontentloaded" });

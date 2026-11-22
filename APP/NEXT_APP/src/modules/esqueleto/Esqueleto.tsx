@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { InvitacionInstalar } from "@/components/pwa/InvitacionInstalar";
 import { Materia } from "@/modules/materia/Materia";
 import { Barra, type EnlaceBarra } from "./Barra";
 import { Pie } from "./Pie";
@@ -22,6 +23,7 @@ export function Esqueleto({ children, portada = false, soloOscuro = false, enlac
                 <div id="contenido" tabIndex={-1}>{children}</div>
                 <Pie />
                 <div className="avisos" popover="manual" role="status" aria-live="polite" />
+                <InvitacionInstalar />
             </div>
         </Materia>
     );

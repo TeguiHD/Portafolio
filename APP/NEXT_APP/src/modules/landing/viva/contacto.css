@@ -7,6 +7,11 @@
 .ct-correo { display: inline-flex; align-items: center; gap: 16px; padding: 18px 20px 18px 28px; border-radius: 999px; border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 70%, transparent);
   font: 500 clamp(16px, 2vw, 24px) var(--mono); color: var(--txt); transition: border-color .3s, background .3s; }
 .ct-correo i { font: 500 13.5px var(--font-inter, Inter), sans-serif; font-style: normal; color: var(--mut); padding: 6px 12px; border-radius: 999px; background: var(--linea); transition: color .3s, background .3s; }
+/* En celulares angostos el correo (una sola línea, monoespaciado: 13,2 em) más «copiar» no cabían y la píldora se salía por la derecha. */
+@media (max-width: 480px) {
+  .ct-correo { gap: 10px; padding: 14px 12px 14px 20px; font-size: clamp(12px, 4vw, 16px); }
+  .ct-correo i { padding: 6px 10px; }
+}
 .ct-correo:hover { border-color: var(--acento); } .ct-correo:hover i { color: var(--boton-tinta); background: var(--boton); }
 .ct-ir { width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; background: var(--boton); color: var(--boton-tinta); transition: scale .35s var(--curva); }
 .ct-ir svg { transition: rotate .45s var(--curva); } .ct-ir:hover { scale: 1.08; } .ct-ir:hover svg { rotate: 45deg; }
