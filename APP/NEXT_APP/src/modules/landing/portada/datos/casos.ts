@@ -56,14 +56,15 @@ export const casos = [
     cta: "Probar herramientas",
     external: false,
     image: "/images/projects/herramientas.webp",
-    imageAlt: "Interfaz real del catálogo de herramientas con acceso a QR y realidad aumentada.",
+    imageAlt: "Interfaz real del catálogo de herramientas, con las destacadas arriba.",
     visualLabel: "Captura del producto",
     fondo: "linear-gradient(135deg,#1e1b4b,#0f172a)",
     corto: "Herramientas",
     tipo: "Producto propio",
     direccion: "nicoholas.dev/herramientas",
     esquema: false,
-    vistas: [{ nombre: "Catálogo", escritorio: "/images/projects/viva/py-tools-catalogo-escritorio.jpg", celular: "/images/projects/viva/py-tools-catalogo-celular.jpg" }, { nombre: "Código QR", escritorio: "/images/projects/viva/py-tools-qr-escritorio.jpg", celular: "/images/projects/viva/py-tools-qr-celular.jpg" }, { nombre: "Recortar", escritorio: "/images/projects/viva/py-tools-recortar-escritorio.jpg", celular: "/images/projects/viva/py-tools-recortar-celular.jpg" }],
+    // Capturas del diseño de noviembre de 2026 (catálogo con destacadas). Nombres nuevos para que ningún caché sirva las anteriores.
+    vistas: [{ nombre: "Catálogo", escritorio: "/images/projects/viva/py-herramientas-catalogo-escritorio.jpg", celular: "/images/projects/viva/py-herramientas-catalogo-celular.jpg" }, { nombre: "Código QR", escritorio: "/images/projects/viva/py-herramientas-qr-escritorio.jpg", celular: "/images/projects/viva/py-herramientas-qr-celular.jpg" }, { nombre: "Contraseñas", escritorio: "/images/projects/viva/py-herramientas-claves-escritorio.jpg", celular: "/images/projects/viva/py-herramientas-claves-celular.jpg" }],
   },
 ] as const;
 

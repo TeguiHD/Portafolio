@@ -1,5 +1,30 @@
 import { expect, test, type Page } from "@playwright/test";
+import { existsSync, statSync } from "node:fs";
+import sharp from "sharp";
+import { casos } from "../../src/modules/landing/portada/datos/casos";
 import { PORTADA } from "./viva-utils";
+
+// Cada captura de la portada: el JPEG de respaldo con su medida y las WebP por ancho que usa el srcset (Proyectos.tsx),
+// livianas para que la sección no pese en el celular. Peso máximo por variante, en KB.
+const VARIANTES = { escritorio: { medida: [1440, 900], anchos: { 800: 40, 1440: 90 } }, celular: { medida: [560, 1212], anchos: { 200: 15, 400: 40 } } } as const;
+
+test.describe("capturas de proyectos (sin navegador)", () => {
+    for (const caso of casos) for (const vista of caso.vistas) for (const tipo of ["escritorio", "celular"] as const) {
+        test(`${caso.corto} · ${vista.nombre} · ${tipo}: existe con su medida y sus WebP`, async () => {
+            const ruta = `public${vista[tipo]}`, { medida, anchos } = VARIANTES[tipo];
+            expect(existsSync(ruta), ruta).toBe(true);
+            const m = await sharp(ruta).metadata();
+            expect([m.width, m.height]).toEqual(medida);
+            for (const [ancho, kb] of Object.entries(anchos)) {
+                const webp = `${ruta.slice(0, -4)}-${ancho}.webp`;
+                expect(existsSync(webp), webp).toBe(true);
+                expect((await sharp(webp).metadata()).width, webp).toBe(Number(ancho));
+                expect(statSync(webp).size / 1024, webp).toBeLessThanOrEqual(kb);
+            }
+        });
+    }
+});
+
 
 const escena = (page: Page) => page.locator("#pr-escena");
 const alCentro = (page: Page, sel: string) => page.evaluate((s) => {
