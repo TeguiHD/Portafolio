@@ -81,7 +81,7 @@
   .bg-lista b { display: block; margin-top: 3px; font-size: 16.5px; font-weight: 650; line-height: 1.32; letter-spacing: -.01em; }
   .bg-lista em { display: block; margin-top: 6px; font: 500 12.5px var(--mono); font-style: normal; color: var(--acento); }
   .bg-lista a:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 12px; }
-  .bg-ahora { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-top: 22px; padding: 16px 0 0; font-size: 14.5px; border-top: 1px solid var(--linea); }
+  .bg-ahora { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 10px 18px; margin-top: 22px; padding: 16px 0 0; font-size: 14.5px; border-top: 1px solid var(--linea); }
   .bg-ahora span { display: flex; justify-content: space-between; gap: 8px; }
   .bg-ahora b { font-size: 14.5px; margin-left: 0; }
 }

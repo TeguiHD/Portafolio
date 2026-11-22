@@ -66,6 +66,8 @@
   .nb-menu { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 12px; border-radius: 999px; border: 1px solid var(--linea-2);
     color: var(--txt); font: 600 15px var(--font-inter, Inter), sans-serif; background: color-mix(in srgb, var(--sup) 60%, transparent); cursor: pointer; }
   .nb-menu svg path { transition: translate .3s var(--curva), rotate .3s var(--curva); transform-origin: 12px 12px; }
+  @media (max-width: 339px) { .nb .nb-marca span, .nb.nb-baja .nb-marca span { max-width: 0; opacity: 0; } }
+  @media (max-width: 299px) { .nb-menu { padding: 0 11px; } .nb-menu span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
   .nb-menu[aria-expanded="true"] .nb-menu-a { translate: 0 4px; rotate: 45deg; }
   .nb-menu[aria-expanded="true"] .nb-menu-b { translate: 0 -4px; rotate: -45deg; }
   /* Antes de hidratar (sin el atributo popover todavía) la lista no se ve; sin JavaScript va en fila bajo la barra (abajo). */

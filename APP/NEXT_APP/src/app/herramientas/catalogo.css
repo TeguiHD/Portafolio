@@ -27,9 +27,9 @@
 .ht-nueva { display: inline-block; margin-left: 10px; padding: 1px 9px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--acento) 55%, transparent); color: var(--acento); font: 500 12px var(--mono); vertical-align: 3px; }
 .ht-destacada .ht-nueva { position: absolute; top: 18px; right: 18px; margin: 0; }
 .ht-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
-.ht-buscar { display: flex; flex: 1 1 300px; align-items: center; gap: 10px; max-width: 520px; padding: 10px 2px; border-bottom: 1px solid var(--linea-2); color: var(--mut); transition: border-color .25s; }
+.ht-buscar { display: flex; flex: 1 1 300px; min-width: 0; align-items: center; gap: 10px; max-width: 520px; padding: 10px 2px; border-bottom: 1px solid var(--linea-2); color: var(--mut); transition: border-color .25s; }
 .ht-buscar:focus-within { border-color: var(--acento); color: var(--txt); }
-.ht-buscar input { flex: 1; min-width: 0; min-height: 30px; border: 0; background: none; color: var(--txt); font: inherit; font-size: 17px; outline: none; }
+.ht-buscar input { flex: 1; min-width: 0; width: 100%; min-height: 30px; border: 0; background: none; color: var(--txt); font: inherit; font-size: 17px; outline: none; }
 .ht-buscar input::placeholder { color: var(--mut); }
 .ht-favoritas { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--linea-2); color: var(--txt); font-size: 15px; transition: border-color .25s, color .25s; }
 .ht-favoritas span { color: #fbbf24; }
@@ -94,6 +94,7 @@
 /* Celular: destacadas de a dos, más compactas. */
 @media (max-width: 760px) {
   .viva-portada .ht-cab { padding-top: 16px; }
+  .viva-portada .ht-cab h1 { font-size: clamp(28px, 12.5vw, 46px); } /* «Herramientas.» mide 6,5 em: a 46 px fijos se cortaba bajo 340 px */
   .ht-cab p { font-size: 16px; }
   .ht-destacadas ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .ht-destacada { padding: 16px 14px 18px; border-radius: 16px; gap: 6px; }

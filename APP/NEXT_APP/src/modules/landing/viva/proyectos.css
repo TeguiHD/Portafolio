@@ -26,7 +26,7 @@
 
 .pr-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 30px; margin-top: 30px; padding-right: clamp(0px, 14vw, 190px); }
 .pr-tipo { color: var(--mut); font-size: 17px; }
-.pr-vistas { display: flex; gap: 22px; }
+.pr-vistas { display: flex; flex-wrap: wrap; gap: 0 22px; }
 .pr-vistas button { color: var(--mut); font-size: 15.5px; padding: 4px 0; border-bottom: 2px solid transparent; transition: color .25s, border-color .25s; }
 .pr-vistas button[aria-pressed="true"] { color: var(--txt); border-color: var(--acento); }
 .pr-vistas:empty { display: none; }
@@ -38,14 +38,19 @@
 }
 .pr-escena { max-width: calc(56svh * 1.6); margin-inline: auto; }
 
-/* Celular: los tres proyectos en una fila deslizable (antes el tercero caía solo a otra línea) y título más contenido. */
+/* Celular: los tres proyectos en una sola fila pareja. Ni el tercero cae solo a otra línea ni queda cortado al borde
+   (la fila deslizable mostraba «Herr…»). */
 @media (max-width: 760px) {
   #proyectos { padding-block: 72px; }
-  .pr-nombres { flex-wrap: nowrap; gap: 26px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; padding: 4px 2px 12px; margin-inline: -2px;
-    mask-image: linear-gradient(90deg, #000 85%, transparent); }
-  .pr-nombres::-webkit-scrollbar { display: none; }
-  .pr-nombres button { flex: none; font-size: 22px; scroll-snap-align: start; }
+  /* Una fila pareja con la letra que sigue a la pantalla: cada nombre entero en una línea (en columnas iguales «Herramientas»
+     se partía con guion). */
+  .pr-nombres { flex-wrap: nowrap; justify-content: space-between; align-items: flex-end; gap: 0 12px; padding: 4px 0 12px; }
+  /* min-width: min-content y no los 44 px globales de los botones: con 44 px el botón se achicaba más que su palabra y la letra se salía. */
+  .pr-nombres button { min-width: min-content; font-size: clamp(12px, 4.3vw, 22px); letter-spacing: -.02em; text-align: left; white-space: nowrap; }
   /* Objetivos táctiles de 44 px: los nombres medían ~25 px de alto y las vistas ~31 px. */
   .pr-nombres button, .pr-vistas button { min-height: 44px; }
+  /* Los tres nombres suman 18 em: a 4,3vw caben en una fila hasta 300 px. Más angosto (Fold cerrado) van en dos filas. */
+  @media (max-width: 339px) { .pr-nombres { gap: 0 10px; } }
+  @media (max-width: 299px) { .pr-nombres { flex-wrap: wrap; justify-content: flex-start; gap: 2px 16px; } .pr-nombres button { font-size: max(11.5px, 4.3vw); } }
   .pr-nombres button::after { bottom: 3px; } /* el subrayado sigue pegado al nombre, no al borde de la caja más alta */
 }

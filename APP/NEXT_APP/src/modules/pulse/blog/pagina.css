@@ -35,9 +35,9 @@
 .bp-temas button:hover, .bp-temas button[aria-pressed="true"] { color: var(--txt); }
 .bp-temas button[aria-pressed="true"]::after { scale: 1 1; }
 .bp-herramientas { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 26px; margin-top: 14px; }
-.bp-buscar { display: flex; flex: 1 1 280px; align-items: center; gap: 10px; max-width: 460px; padding: 10px 2px; border-bottom: 1px solid var(--linea-2); color: var(--mut); transition: border-color .25s; }
+.bp-buscar { display: flex; flex: 1 1 280px; min-width: 0; align-items: center; gap: 10px; max-width: 460px; padding: 10px 2px; border-bottom: 1px solid var(--linea-2); color: var(--mut); transition: border-color .25s; }
 .bp-buscar:focus-within { border-color: var(--acento); color: var(--txt); }
-.bp-buscar input { flex: 1; min-width: 0; border: 0; background: none; color: var(--txt); font: inherit; font-size: 16px; outline: none; }
+.bp-buscar input { flex: 1; min-width: 0; width: 100%; border: 0; background: none; color: var(--txt); font: inherit; font-size: 16px; outline: none; }
 .bp-buscar input::placeholder { color: var(--mut); }
 .bp-orden { display: flex; gap: 16px; font-size: 14.5px; }
 .bp-orden button { padding: 6px 0; color: var(--mut); transition: color .25s; }

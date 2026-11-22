@@ -12,6 +12,9 @@
   .ct-correo { gap: 10px; padding: 14px 12px 14px 20px; font-size: clamp(12px, 4vw, 16px); }
   .ct-correo i { padding: 6px 10px; }
 }
+@media (max-width: 299px) {
+  .ct-correo { flex-wrap: wrap; justify-content: center; gap: 8px; padding: 14px 16px; border-radius: 24px; font-size: clamp(11px, 4.6vw, 13px); }
+}
 .ct-correo:hover { border-color: var(--acento); } .ct-correo:hover i { color: var(--boton-tinta); background: var(--boton); }
 .ct-ir { width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; background: var(--boton); color: var(--boton-tinta); transition: scale .35s var(--curva); }
 .ct-ir svg { transition: rotate .45s var(--curva); } .ct-ir:hover { scale: 1.08; } .ct-ir:hover svg { rotate: 45deg; }

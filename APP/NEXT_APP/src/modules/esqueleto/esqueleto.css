@@ -136,12 +136,16 @@ html:has(.viva.solo-oscuro), .viva.solo-oscuro { --fondo: #08090d; --fondo-2: #0
 
 /* --- Celular: lectura primero. Sin cifras fantasma detrás de los títulos, secciones más compactas y sin el acercar/alejar
    por scroll (en pantallas chicas dejaba el contenido desteñido y achicado mientras se leía). --- */
+@media (max-width: 299px) { .viva .vivo { border-radius: 18px; } } /* ahí la etiqueta ocupa dos líneas */
 @media (max-width: 760px) {
   .viva-portada section { padding: 72px 0; }
   .viva-portada .fantasma { display: none; }
   .viva-portada h2 { font-size: clamp(32px, 9vw, 40px); }
   .viva { --margen: 20px; }
-  .viva-portada .acciones { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 28px; }
+  .viva-portada .acciones { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 28px; }
+  /* «soluciones.» mide 5,25 em y no se parte: bajo 360 px el título se achica con la pantalla (antes, mínimo 54 px: se cortaba). */
+  .viva-portada h1 { font-size: clamp(34px, 15vw, 54px); }
+  .viva .vivo { max-width: 100%; font-size: clamp(12.5px, 3.9vw, 14.5px); text-wrap: balance; }
   .viva-portada .acciones .boton { justify-content: center; width: 100%; padding: 15px 20px; }
 }
 

@@ -41,11 +41,11 @@
 #ancla-marca { height: min(52vh, 470px); }
 @media (max-width: 820px) {
   #inicio { flex-direction: column; align-items: stretch; justify-content: center; padding-bottom: 72px; min-height: auto; padding-top: 112px; }
-  .heroe { grid-template-columns: 1fr; }
+  .heroe { grid-template-columns: minmax(0, 1fr); }
   #ancla-marca { height: min(34svh, 280px); }
   /* Las tres opciones en una fila pareja (antes se partían en dos líneas). */
-  .elige { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 4px; }
-  .elige button { white-space: normal; font-size: 13.5px; line-height: 1.25; padding: 10px 6px 14px; text-align: center; }
+  .elige { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-top: 4px; }
+  .elige button { white-space: normal; font-size: clamp(12px, 4.2vw, 13.5px); line-height: 1.25; padding: 10px 4px 14px; text-align: center; hyphens: auto; overflow-wrap: anywhere; }
   .elige button::before, .elige button::after { left: 8px; right: 8px; }
   .marcas { position: static; margin: 44px auto 0; gap: 12px; padding: 0 24px; } .marcas button { width: 48px; height: 48px; border-radius: 14px; } .marcas svg { width: 24px; height: 24px; }
 }
