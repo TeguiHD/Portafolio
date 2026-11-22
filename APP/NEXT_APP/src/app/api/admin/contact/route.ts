@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
                     isSpam: true,
                     spamScore: true,
                     spamReason: true,
+                    origen: true,
                     createdAt: true,
                     respondedAt: true,
                     // Sin esto, al abrir un mensaje ya respondido la respuesta guardada no aparecía.

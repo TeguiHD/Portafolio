@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/redis";
 import { SecurityLogger } from "@/lib/security-logger";
 import { logger } from "@/lib/logger";
 import crypto from "crypto";
+import { normalizarOrigen } from "@/lib/contacto-origen";
 
 // Rate limit: 3 messages per hour per IP
 const RATE_LIMIT = 3;
@@ -246,6 +247,7 @@ export async function POST(request: NextRequest) {
                 ipHash,
                 userAgent,
                 source: "landing",
+                origen: normalizarOrigen(body.origen), // solo las opciones del formulario; cualquier otra cosa, null
                 isSpam,
                 spamScore,
                 spamReason: spamReasons.length > 0 ? spamReasons.join(", ") : null,

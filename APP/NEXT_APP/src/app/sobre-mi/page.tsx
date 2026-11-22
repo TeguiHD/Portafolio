@@ -5,8 +5,8 @@
  * como identidad canónica del autor — esta ruta es lo que hace que esa
  * declaración apunte a algo real en vez de a un 404.
  *
- * Todo el contenido factual sale de fuentes verificadas: nombre, cargo y
- * descripción de `personSchema()`; GitHub y LinkedIn de su `sameAs`; el stack
+ * Todo el contenido factual sale de fuentes verificadas: nombre y cargo de
+ * `personSchema()`; los servicios, de la portada y llms.txt; GitHub y LinkedIn de su `sameAs`; el stack
  * técnico de `defaultTechnologies` en
  * `src/modules/landing/sections/AboutSection.tsx`.
  *
@@ -28,7 +28,7 @@ import { StackVivo } from "@/modules/sobre-mi/StackVivo";
 import "@/modules/sobre-mi/sobre-mi.css";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { personSchema, breadcrumbSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
+import { personSchema, profilePageSchema, breadcrumbSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
 import { SITE_NAME } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = {
@@ -78,23 +78,24 @@ const TIMELINE = [
  * y el contacto dentro del anillo.
  */
 export default function SobreMiPage() {
-    const person = personSchema();
-    const jobTitle = person.jobTitle as string;
-    const description = person.description as string;
 
     return (
         <Esqueleto portada>
-            <JsonLd schema={[personSchema(), breadcrumbSchema(trail)]} />
+            <JsonLd schema={[profilePageSchema(), personSchema(), breadcrumbSchema(trail)]} />
             <main id="main-content" className="sm">
                 <div className="ancho sm-migas"><Breadcrumbs trail={trail} /></div>
 
                 <section id="inicio" className="sm-cab" data-forma="firma" data-ancla="#ancla-firma" aria-labelledby="sm-titulo">
                     <Vista className="ancho">
                         <h1 id="sm-titulo"><span className="linea-r"><span>Sobre mí<i>.</i></span></span></h1>
+                        {/* La respuesta a «¿quién es?» va primero y en el HTML del servidor: es lo que leen y repiten las IA. */}
                         <p className="sm-lead" data-sube="" style={{ "--i": 1 } as CSSProperties}>
-                            Soy <strong>{SITE_NAME}</strong>, ingeniero en informática y {jobTitle.toLowerCase()}.
+                            Soy <strong>{SITE_NAME}</strong>, ingeniero en informática y desarrollador full stack en Chile.
                         </p>
-                        <p className="sm-desc" data-sube="" style={{ "--i": 2 } as CSSProperties}>{description}</p>
+                        <p className="sm-desc" data-sube="" style={{ "--i": 2 } as CSSProperties}>
+                            Hago tiendas en línea, sistemas internos e intranets y herramientas web a medida, en Chile y a distancia,
+                            con Next.js, TypeScript, Node.js y PostgreSQL.
+                        </p>
                         <div id="ancla-firma" aria-hidden="true" />
                     </Vista>
                 </section>
@@ -151,7 +152,7 @@ export default function SobreMiPage() {
                         <p data-sube="" style={{ "--i": 1 } as CSSProperties}>Los canales verificables son estos dos perfiles públicos, o el formulario de la portada.</p>
                         <div className="sm-redes" data-sube="" style={{ "--i": 2 } as CSSProperties}>
                             <a className="enlace-ir" href="https://github.com/TeguiHD" target="_blank" rel="noopener noreferrer me">GitHub ↗</a>
-                            <a className="enlace-ir" href="https://linkedin.com/in/nicoholas-lopetegui" target="_blank" rel="noopener noreferrer me">LinkedIn ↗</a>
+                            <a className="enlace-ir" href="https://www.linkedin.com/in/nicoholas-lopetegui/" target="_blank" rel="noopener noreferrer me">LinkedIn ↗</a>
                             <a className="boton lleno" href="/#contacto">Escribirme</a>
                         </div>
                     </Vista>

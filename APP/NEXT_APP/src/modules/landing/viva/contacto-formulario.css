@@ -29,6 +29,11 @@
   background: linear-gradient(var(--acento), var(--acento)) left bottom / 0% 2px no-repeat, linear-gradient(var(--linea-2), var(--linea-2)) left bottom / 100% 1px no-repeat;
   transition: background-size .45s var(--curva); }
 .ct-campo textarea { min-height: 4lh; }
+.ct-campo select { width: 100%; padding: 8px 0 10px; border: 0; border-radius: 0; outline: 0; color: var(--txt); font: inherit; font-size: 17px; cursor: pointer;
+  background: linear-gradient(var(--acento), var(--acento)) left bottom / 0% 2px no-repeat, linear-gradient(var(--linea-2), var(--linea-2)) left bottom / 100% 1px no-repeat;
+  transition: background-size .45s var(--curva); }
+.ct-campo select:focus-visible { background-size: 100% 2px, 100% 1px; }
+.ct-campo select option { background: var(--sup); color: var(--txt); }
 .ct-campo input:focus-visible, .ct-campo textarea:focus-visible { background-size: 100% 2px, 100% 1px; }
 .ct-campo :is(input, textarea):user-invalid { background-image: linear-gradient(var(--error), var(--error)), linear-gradient(var(--error), var(--error)); background-size: 100% 2px, 100% 1px; }
 .ct-campo :is(input, textarea):autofill { -webkit-text-fill-color: var(--txt); transition: background-color 9999s; }

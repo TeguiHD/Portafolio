@@ -18,7 +18,7 @@ const CONTEXT = "https://schema.org";
 /** Perfiles públicos verificables del autor. */
 const SAME_AS = [
     "https://github.com/TeguiHD",
-    "https://linkedin.com/in/nicoholas-lopetegui",
+    "https://www.linkedin.com/in/nicoholas-lopetegui/",
 ];
 
 export function personSchema(): JsonLdObject {
@@ -30,8 +30,10 @@ export function personSchema(): JsonLdObject {
         // La página de autor es el ancla E-A-T: Person apunta ahí, no a la home.
         url: `${SITE_URL}/sobre-mi`,
         jobTitle: "Desarrollador Full Stack",
+        // Hechos ya publicados en el sitio (servicios de la portada, llms.txt y el stack de /sobre-mi), dichos como una respuesta
+        // directa a «¿quién es?»: es lo que las IA leen y repiten.
         description:
-            "Desarrollador Full Stack que transforma problemas complejos en productos funcionales. Plataformas, automatizaciones y datos con impacto real.",
+            "Desarrollador full stack e ingeniero en informática en Chile. Hace tiendas en línea, sistemas internos e intranets y herramientas web a medida, en Chile y a distancia, con Next.js, TypeScript, Node.js y PostgreSQL.",
         // Credencial confirmada por el titular el 2026-08-05. Sin institución
         // declarada: no se afirma alma mater porque no fue verificada.
         hasCredential: {
@@ -145,6 +147,25 @@ export interface BreadcrumbCrumb {
 }
 
 export type BreadcrumbTrail = BreadcrumbCrumb[];
+
+/**
+ * /sobre-mi como página de perfil: Google la usa para reconocer a la persona como entidad. `dateModified` se cambia a mano
+ * cuando cambia lo que la página dice de la persona.
+ */
+export const PERFIL_ACTUALIZADO = "2026-11-22";
+export function profilePageSchema(): JsonLdObject {
+    return {
+        "@context": CONTEXT,
+        "@type": "ProfilePage",
+        "@id": `${SITE_URL}/sobre-mi#pagina`,
+        url: `${SITE_URL}/sobre-mi`,
+        name: `Sobre mí | ${SITE_NAME}`,
+        inLanguage: "es",
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        dateModified: PERFIL_ACTUALIZADO,
+        mainEntity: { "@id": `${SITE_URL}/#person` },
+    };
+}
 
 export function breadcrumbSchema(trail: BreadcrumbTrail): JsonLdObject {
     if (trail.length === 0) {

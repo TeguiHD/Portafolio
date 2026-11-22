@@ -33,6 +33,18 @@ test.describe("Materia viva: contacto", () => {
         });
     }
 
+    test("«¿Cómo llegaste?» es opcional y viaja con el mensaje", async ({ page }) => {
+        const cuerpos: Record<string, unknown>[] = [];
+        await page.route("**/api/contact", (r) => { cuerpos.push(r.request().postDataJSON()); return r.fulfill({ json: { success: true } }); });
+        await abrir(page);
+        await expect(page.getByLabel(/¿Cómo llegaste/)).toHaveValue("");
+        await llenar(page);
+        await page.getByLabel(/¿Cómo llegaste/).selectOption({ label: "Me lo recomendó una IA (ChatGPT, Gemini, Claude…)" });
+        await page.locator("#ct-enviar").click();
+        await expect(page.locator(".avisos .aviso")).toContainText("Mensaje enviado");
+        expect(cuerpos[0]!.origen).toBe("ia");
+    });
+
     test("copiar el correo", async ({ page, context }) => {
         await context.grantPermissions(["clipboard-read", "clipboard-write"]);
         await page.goto(URL, { waitUntil: "domcontentloaded" });

@@ -43,7 +43,7 @@ export function AuthorBio() {
                         GitHub
                     </a>
                     <a
-                        href="https://linkedin.com/in/nicoholas-lopetegui"
+                        href="https://www.linkedin.com/in/nicoholas-lopetegui/"
                         target="_blank"
                         rel="noopener noreferrer me"
                         className="text-neutral-400 transition hover:text-white"

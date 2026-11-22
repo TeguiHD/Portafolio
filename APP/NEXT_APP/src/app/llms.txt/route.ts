@@ -46,7 +46,7 @@ ${proyectos}
 
 - [Sobre mí](${SITE_URL}/sobre-mi): biografía, stack y trayectoria.
 - GitHub: https://github.com/TeguiHD
-- LinkedIn: https://linkedin.com/in/nicoholas-lopetegui
+- LinkedIn: https://www.linkedin.com/in/nicoholas-lopetegui/
 
 ## Herramientas
 

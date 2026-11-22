@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { textoOrigen } from "@/lib/contacto-origen";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { confirmar } from "@/modules/admin/confirmar/confirmar";
@@ -32,6 +33,7 @@ interface ContactMessage {
     isSpam: boolean;
     spamScore: number;
     spamReason?: string;
+    origen?: string | null;
     response?: string;
     respondedAt?: string;
     respondedBy?: string;
@@ -472,6 +474,7 @@ export default function ContactPageClient() {
                                 <p className="break-all text-sm text-[var(--acento)]">{selectedMessage.email}</p>
                                 <p className="mt-1 text-xs text-[var(--mut)]">
                                     {new Date(selectedMessage.createdAt).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" })}
+                                    {textoOrigen(selectedMessage.origen) && <> · Llegó por: {textoOrigen(selectedMessage.origen)}</>}
                                 </p>
                             </div>
 

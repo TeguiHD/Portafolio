@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type S
 import { useMateria } from "@/modules/materia/Materia";
 import { avisar } from "@/modules/esqueleto/avisos";
 import { copiarTexto } from "@/lib/tools/copiar";
+import { ORIGENES } from "@/lib/contacto-origen";
 import { Vista } from "./Vista";
 import "./contacto.css";
 import "./contacto-formulario.css";
@@ -90,7 +91,7 @@ export function Contacto() {
             if (falta > 0) await new Promise((r) => setTimeout(r, falta));
             const r = await fetch("/api/contact", {
                 method: "POST", headers: { "Content-Type": "application/json" }, signal: corte.signal,
-                body: JSON.stringify({ name: texto("name") || undefined, email: texto("email"), message: texto("message"), website: String(datos.get("website") ?? ""), formStartTime: Math.round(abierto.current + desfase.current - MARGEN_RELOJ) }),
+                body: JSON.stringify({ name: texto("name") || undefined, email: texto("email"), message: texto("message"), origen: texto("origen") || undefined, website: String(datos.get("website") ?? ""), formStartTime: Math.round(abierto.current + desfase.current - MARGEN_RELOJ) }),
             });
             const cuerpo: { success?: boolean; error?: string } = await r.json().catch(() => ({}));
             if (r.ok && cuerpo.success) {
@@ -116,8 +117,8 @@ export function Contacto() {
                     </button>
                 </div>
                 <div className="ct-redes" data-sube="" style={{ "--i": 3 } as CSSProperties}>
-                    <a href="https://linkedin.com/in/nicoholas-lopetegui" target="_blank" rel="noopener">LinkedIn ↗</a>
-                    <a href="https://github.com/TeguiHD" target="_blank" rel="noopener">GitHub ↗</a>
+                    <a href="https://www.linkedin.com/in/nicoholas-lopetegui/" target="_blank" rel="noopener me">LinkedIn ↗</a>
+                    <a href="https://github.com/TeguiHD" target="_blank" rel="noopener me">GitHub ↗</a>
                 </div>
             </Vista>
 
@@ -154,6 +155,14 @@ export function Contacto() {
                         ) : null}
                         {/* Solo el tope se anuncia: contar en voz alta cada tecla de las últimas 200 sería ruido. */}
                         <span className="sr-only" role="status">{largo >= MAX_MENSAJE ? "Llegaste al máximo de 2.000 caracteres." : ""}</span>
+                    </p>
+                    {/* Selector nativo a propósito: en el celular abre la rueda del sistema (base-select la reemplazaría). */}
+                    <p className="ct-campo">
+                        <label htmlFor="ct-origen">¿Cómo llegaste? <small>opcional</small></label>
+                        <select id="ct-origen" name="origen" defaultValue="">
+                            <option value="">Elige una opción</option>
+                            {ORIGENES.map((o) => <option key={o.valor} value={o.valor}>{o.texto}</option>)}
+                        </select>
                     </p>
                     <p className="ct-fallo" id="ct-fallo" role="alert">{fallo}</p>
                     <footer>
