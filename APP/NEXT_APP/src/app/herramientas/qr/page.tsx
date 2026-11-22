@@ -3,7 +3,7 @@ import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { Suspense, useState, useRef, useMemo, useEffect, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { useSearchParams } from "next/navigation";
-import { Box, QrCode, Download, Check, Upload, X, ArrowUpRight, LoaderCircle, AlertCircle, Palette, ChevronDown, SlidersHorizontal, Link2 } from "lucide-react";
+import { Box, QrCode, Download, Check, Upload, X, ArrowUpRight, LoaderCircle, AlertCircle, Palette, ChevronDown, SlidersHorizontal, Link2, LocateFixed, Contact, ScanLine } from "lucide-react";
 import { QrColorField, QrShapePicker } from "@/components/qr/QrDesignControls";
 import { useToolTracking } from "@/hooks/useDebounce";
 import { useToolAccess } from "@/hooks/useToolAccess";
@@ -19,6 +19,7 @@ import {
 } from "@/utils/qr-data-formats";
 import { vcardQr, mecardQr, eventoQr, validarEvento, bitcoinQr } from "@/lib/tools/qr-formatos";
 import { descargarBlob, nombreArchivo } from "@/lib/tools/descargar";
+import { leerQrDeImagen, leerWifi, separarNombre } from "@/lib/tools/qr-autorrelleno";
 import { getTypeIconDataURL } from "@/utils/qr-type-icons";
 import { QR_TYPE_ICONS, MAP_FORMAT_ICONS } from "@/components/qr/QRIcons";
 
@@ -75,6 +76,66 @@ function QRStudio() {
     const [eventData, setEventData] = useState<EventData>({ title: "", startDate: "" });
     const [bitcoinData, setBitcoinData] = useState<BitcoinData>({ address: "" });
     const [arData, setArData] = useState<ARData>({ title: "", glb: "", usdz: "", poster: "" });
+
+    // ─── Autorrelleno: ubicación actual, un contacto del teléfono y el QR de la red Wi-Fi ───
+    const [ubicando, setUbicando] = useState(false);
+    const [precision, setPrecision] = useState<number | null>(null);
+    const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
+    const [coordsAbiertas, setCoordsAbiertas] = useState(false);
+    const usarUbicacion = () => {
+        if (!("geolocation" in navigator)) { setErrorUbicacion("Este navegador no entrega la ubicación. Escribe la dirección."); return; }
+        setUbicando(true); setErrorUbicacion(null); setPrecision(null);
+        navigator.geolocation.getCurrentPosition((pos) => {
+            setLocationData((d) => ({ ...d, latitude: Number(pos.coords.latitude.toFixed(6)), longitude: Number(pos.coords.longitude.toFixed(6)) }));
+            setPrecision(Math.round(pos.coords.accuracy));
+            setCoordsAbiertas(true);
+            setUbicando(false);
+        }, (err) => {
+            setUbicando(false);
+            setErrorUbicacion(err.code === err.PERMISSION_DENIED
+                ? "No hay permiso para usar tu ubicación. Actívalo en el candado de la barra de direcciones, o escribe la dirección."
+                : err.code === err.TIMEOUT ? "Tu ubicación tardó demasiado. Inténtalo otra vez o escribe la dirección." : "No se pudo obtener tu ubicación. Escribe la dirección.");
+        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    };
+
+    // Selector de contactos del teléfono (Chrome en Android). En el PC no existe: el botón no aparece.
+    const [puedeContactos, setPuedeContactos] = useState(false);
+    useEffect(() => { setPuedeContactos("contacts" in navigator && "ContactsManager" in window); }, []);
+    const elegirContacto = async (para: "vcard" | "mecard" | "phone" | "sms" | "whatsapp") => {
+        type Selector = { select(p: string[], o: { multiple: boolean }): Promise<{ name?: string[]; tel?: string[]; email?: string[] }[]>; getProperties?(): Promise<string[]> };
+        const contactos = (navigator as unknown as { contacts: Selector }).contacts;
+        try {
+            const disponibles = (await contactos.getProperties?.()) ?? ["name", "tel", "email"];
+            const [c] = await contactos.select(["name", "tel", "email"].filter((x) => disponibles.includes(x)), { multiple: false });
+            if (!c) return;
+            const nombre = c.name?.[0]?.trim() ?? "", tel = c.tel?.[0]?.trim() ?? "", correo = c.email?.[0]?.trim() ?? "";
+            if (para === "vcard") { const n = separarNombre(nombre); setVcardData((d) => ({ ...d, firstName: n.nombre || d.firstName, lastName: n.apellido || d.lastName, cellPhone: tel || d.cellPhone, email: correo || d.email })); }
+            else if (para === "mecard") setMecardData((d) => ({ ...d, name: nombre || d.name, phone: tel || d.phone, email: correo || d.email }));
+            else if (para === "phone") setPhoneData((d) => tel || d);
+            else if (para === "sms") setSmsData((d) => ({ ...d, phone: tel || d.phone }));
+            else setWhatsappData((d) => ({ ...d, phone: tel || d.phone }));
+        } catch { /* la persona cerró el selector */ }
+    };
+    const botonContactos = (para: Parameters<typeof elegirContacto>[0]) => puedeContactos
+        ? <button type="button" className="studio-button" onClick={() => { void elegirContacto(para); }}><Contact className="h-4 w-4" aria-hidden="true" />Elegir de mis contactos</button>
+        : null;
+
+    // Wi-Fi: ninguna web puede leer la clave de tu red; tu celular sí la muestra como QR al «Compartir» la red.
+    const [wifiLeida, setWifiLeida] = useState<string | null>(null);
+    const [errorWifi, setErrorWifi] = useState<string | null>(null);
+    const [leyendoWifi, setLeyendoWifi] = useState(false);
+    const leerQrWifi = async (archivo: File | undefined) => {
+        if (!archivo) return;
+        setLeyendoWifi(true); setErrorWifi(null); setWifiLeida(null);
+        try {
+            const texto = await leerQrDeImagen(archivo);
+            const red = texto ? leerWifi(texto) : null;
+            if (!texto) setErrorWifi("No encontramos un QR en la imagen. Prueba con una captura más nítida.");
+            else if (!red) setErrorWifi("Ese QR no es de una red Wi-Fi.");
+            else { setWifiData(red); setWifiLeida(red.ssid); }
+        } catch { setErrorWifi("No se pudo abrir la imagen."); }
+        finally { setLeyendoWifi(false); }
+    };
 
     const [size, setSize] = useState(1024);
     const [fgColor, setFgColor] = useState("#000000");
@@ -250,12 +311,12 @@ function QRStudio() {
             case "url": return <QrInput label="Enlace" type="url" inputMode="url" value={urlData} onChange={(e) => { setUrlData(e.target.value); }} placeholder="https://ejemplo.com" className={inputClass} />;
             case "text": return <QrTextarea label="Texto" value={textData} onChange={(e) => { setTextData(e.target.value); }} placeholder="Escribe cualquier texto…" className={`${inputClass} h-24 resize-none`} />;
             case "email": return (<div className="space-y-2"><QrInput label="Correo de destino *" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={emailData.to} onChange={(e) => { setEmailData({ ...emailData, to: e.target.value }); }} /><QrInput label="Asunto" type="text" className={inputClass} value={emailData.subject || ""} onChange={(e) => { setEmailData({ ...emailData, subject: e.target.value }); }} /><QrTextarea label="Mensaje" className={`${inputClass} h-16 resize-none`} value={emailData.body || ""} onChange={(e) => { setEmailData({ ...emailData, body: e.target.value }); }} /></div>);
-            case "phone": return <QrInput label="Teléfono" type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); }} placeholder="+56 9 1234 5678" className={inputClass} />;
-            case "sms": return (<div className="space-y-2"><QrInput label="Teléfono" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); }} /><QrTextarea label="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); }} /></div>);
-            case "whatsapp": return (<div className="space-y-2"><QrInput label="Número con código de país" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); }} /><QrTextarea label="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); }} /></div>);
-            case "wifi": return (<div className="space-y-2"><QrInput label="Nombre de la red (SSID)" type="text" autoComplete="off" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><QrInput label="Contraseña" type="password" autoComplete="off" disabled={wifiData.encryption === "nopass"} aria-describedby={wifiData.ssid && wifiData.encryption !== "nopass" && !wifiData.password ? "qr-wifi-clave" : undefined} className={`${inputClass} disabled:opacity-50`} value={wifiData.encryption === "nopass" ? "" : wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} />{wifiData.ssid && wifiData.encryption !== "nopass" && !wifiData.password && <p id="qr-wifi-clave" className="text-[11px] text-slate-400">Falta la contraseña. Si la red es abierta, elige «Sin contraseña».</p>}<label className="studio-field">Seguridad<select className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></label><label className="flex min-h-11 items-center gap-3 text-xs text-slate-300"><input type="checkbox" checked={!!wifiData.hidden} onChange={(e) => { setWifiData({ ...wifiData, hidden: e.target.checked }); }} className="h-4 w-4 accent-teal-300" />Red oculta (no aparece en la lista de redes)</label></div>);
-            case "vcard": return (<div className="space-y-2"><label className="studio-field">Versión<select className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (recomendada)</option><option value="2.1">vCard 2.1 (lectores antiguos)</option></select></label><div className="grid grid-cols-2 gap-2"><QrInput label="Nombre *" type="text" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><QrInput label="Apellido" type="text" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><QrInput label="Teléfono" type="tel" placeholder="+56 2 2345 6789" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><QrInput label="Celular" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><QrInput label="Correo" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><div className="grid grid-cols-2 gap-2"><QrInput label="Empresa" type="text" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /><QrInput label="Cargo" type="text" className={inputClass} value={vcardData.title || ""} onChange={(e) => { setVcardData({ ...vcardData, title: e.target.value }); }} /></div><QrInput label="Sitio web" type="text" inputMode="url" placeholder="ejemplo.cl" className={inputClass} value={vcardData.website || ""} onChange={(e) => { setVcardData({ ...vcardData, website: e.target.value }); }} /><QrInput label="Dirección" type="text" placeholder="Calle 123, comuna, ciudad" className={inputClass} value={vcardData.address || ""} onChange={(e) => { setVcardData({ ...vcardData, address: e.target.value }); }} /></div>);
-            case "mecard": return (<div className="space-y-2"><QrInput label="Nombre completo *" type="text" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><QrInput label="Teléfono" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><QrInput label="Correo" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /><QrInput label="Sitio web" type="text" inputMode="url" placeholder="ejemplo.cl" className={inputClass} value={mecardData.url || ""} onChange={(e) => { setMecardData({ ...mecardData, url: e.target.value }); }} /><QrInput label="Dirección" type="text" className={inputClass} value={mecardData.address || ""} onChange={(e) => { setMecardData({ ...mecardData, address: e.target.value }); }} /></div>);
+            case "phone": return (<div className="space-y-2">{botonContactos("phone")}<QrInput label="Teléfono" type="tel" value={phoneData} onChange={(e) => { setPhoneData(e.target.value); }} placeholder="+56 9 1234 5678" className={inputClass} /></div>);
+            case "sms": return (<div className="space-y-2">{botonContactos("sms")}<QrInput label="Teléfono" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={smsData.phone} onChange={(e) => { setSmsData({ ...smsData, phone: e.target.value }); }} /><QrTextarea label="Mensaje" className={`${inputClass} h-16 resize-none`} value={smsData.message || ""} onChange={(e) => { setSmsData({ ...smsData, message: e.target.value }); }} /></div>);
+            case "whatsapp": return (<div className="space-y-2">{botonContactos("whatsapp")}<QrInput label="Número con código de país" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={whatsappData.phone} onChange={(e) => { setWhatsappData({ ...whatsappData, phone: e.target.value }); }} /><QrTextarea label="Mensaje predefinido" className={`${inputClass} h-16 resize-none`} value={whatsappData.message || ""} onChange={(e) => { setWhatsappData({ ...whatsappData, message: e.target.value }); }} /></div>);
+            case "wifi": return (<div className="space-y-2"><div className="flex flex-wrap items-center gap-x-3 gap-y-1"><label className={`studio-button cursor-pointer ${leyendoWifi ? "opacity-60" : ""}`}>{leyendoWifi ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <ScanLine className="h-4 w-4" aria-hidden="true" />}Leer el QR de tu red<input type="file" accept="image/*" className="sr-only" disabled={leyendoWifi} onChange={(e) => { void leerQrWifi(e.target.files?.[0]); e.target.value = ""; }} /></label><span className="text-[11px] text-slate-400">Tu celular lo muestra en Ajustes → Wi-Fi → Compartir: sube una captura o tómale una foto.</span></div>{wifiLeida && <p role="status" className="text-[11px] text-teal-300">Red leída: {wifiLeida}. Revisa los datos y personaliza tu QR.</p>}{errorWifi && <p role="alert" className="text-[11px] text-amber-300">{errorWifi}</p>}<QrInput label="Nombre de la red (SSID)" type="text" autoComplete="off" className={inputClass} value={wifiData.ssid} onChange={(e) => { setWifiData({ ...wifiData, ssid: e.target.value }); }} /><QrInput label="Contraseña" type="password" autoComplete="off" disabled={wifiData.encryption === "nopass"} aria-describedby={wifiData.ssid && wifiData.encryption !== "nopass" && !wifiData.password ? "qr-wifi-clave" : undefined} className={`${inputClass} disabled:opacity-50`} value={wifiData.encryption === "nopass" ? "" : wifiData.password || ""} onChange={(e) => { setWifiData({ ...wifiData, password: e.target.value }); }} />{wifiData.ssid && wifiData.encryption !== "nopass" && !wifiData.password && <p id="qr-wifi-clave" className="text-[11px] text-slate-400">Falta la contraseña. Si la red es abierta, elige «Sin contraseña».</p>}<label className="studio-field">Seguridad<select className={inputClass} value={wifiData.encryption} onChange={(e) => { setWifiData({ ...wifiData, encryption: e.target.value as WiFiData["encryption"] }); }}><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">Sin contraseña</option></select></label><label className="flex min-h-11 items-center gap-3 text-xs text-slate-300"><input type="checkbox" checked={!!wifiData.hidden} onChange={(e) => { setWifiData({ ...wifiData, hidden: e.target.checked }); }} className="h-4 w-4 accent-teal-300" />Red oculta (no aparece en la lista de redes)</label></div>);
+            case "vcard": return (<div className="space-y-2">{botonContactos("vcard")}<label className="studio-field">Versión<select className={inputClass} value={vcardData.version} onChange={(e) => { setVcardData({ ...vcardData, version: e.target.value as VCardData["version"] }); }}><option value="3.0">vCard 3.0 (recomendada)</option><option value="2.1">vCard 2.1 (lectores antiguos)</option></select></label><div className="grid grid-cols-2 gap-2"><QrInput label="Nombre *" type="text" className={inputClass} value={vcardData.firstName} onChange={(e) => { setVcardData({ ...vcardData, firstName: e.target.value }); }} /><QrInput label="Apellido" type="text" className={inputClass} value={vcardData.lastName || ""} onChange={(e) => { setVcardData({ ...vcardData, lastName: e.target.value }); }} /></div><div className="grid grid-cols-2 gap-2"><QrInput label="Teléfono" type="tel" placeholder="+56 2 2345 6789" className={inputClass} value={vcardData.phone || ""} onChange={(e) => { setVcardData({ ...vcardData, phone: e.target.value }); }} /><QrInput label="Celular" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={vcardData.cellPhone || ""} onChange={(e) => { setVcardData({ ...vcardData, cellPhone: e.target.value }); }} /></div><QrInput label="Correo" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={vcardData.email || ""} onChange={(e) => { setVcardData({ ...vcardData, email: e.target.value }); }} /><div className="grid grid-cols-2 gap-2"><QrInput label="Empresa" type="text" className={inputClass} value={vcardData.organization || ""} onChange={(e) => { setVcardData({ ...vcardData, organization: e.target.value }); }} /><QrInput label="Cargo" type="text" className={inputClass} value={vcardData.title || ""} onChange={(e) => { setVcardData({ ...vcardData, title: e.target.value }); }} /></div><QrInput label="Sitio web" type="text" inputMode="url" placeholder="ejemplo.cl" className={inputClass} value={vcardData.website || ""} onChange={(e) => { setVcardData({ ...vcardData, website: e.target.value }); }} /><QrInput label="Dirección" type="text" placeholder="Calle 123, comuna, ciudad" className={inputClass} value={vcardData.address || ""} onChange={(e) => { setVcardData({ ...vcardData, address: e.target.value }); }} /></div>);
+            case "mecard": return (<div className="space-y-2">{botonContactos("mecard")}<QrInput label="Nombre completo *" type="text" className={inputClass} value={mecardData.name} onChange={(e) => { setMecardData({ ...mecardData, name: e.target.value }); }} /><QrInput label="Teléfono" type="tel" placeholder="+56 9 1234 5678" className={inputClass} value={mecardData.phone || ""} onChange={(e) => { setMecardData({ ...mecardData, phone: e.target.value }); }} /><QrInput label="Correo" type="email" placeholder="correo@ejemplo.com" className={inputClass} value={mecardData.email || ""} onChange={(e) => { setMecardData({ ...mecardData, email: e.target.value }); }} /><QrInput label="Sitio web" type="text" inputMode="url" placeholder="ejemplo.cl" className={inputClass} value={mecardData.url || ""} onChange={(e) => { setMecardData({ ...mecardData, url: e.target.value }); }} /><QrInput label="Dirección" type="text" className={inputClass} value={mecardData.address || ""} onChange={(e) => { setMecardData({ ...mecardData, address: e.target.value }); }} /></div>);
             case "ar": return <ArModelEditor data={arData} onChange={setArData} />;
             case "location":
                 return (
@@ -266,15 +327,24 @@ function QRStudio() {
                                 const labels = { google: "Google Maps", apple: "Apple Maps", waze: "Waze", geo: "Universal" };
                                 return (
                                     <button key={f} type="button" aria-pressed={locationData.format === f} onClick={() => { setLocationData({ ...locationData, format: f }); }}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${locationData.format === f ? "bg-[#FF8A00]/20 border border-[#FF8A00] text-white" : "bg-white/5 border border-white/10 text-neutral-400"}`}>
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${locationData.format === f ? "bg-[color-mix(in_srgb,var(--acento)_14%,transparent)] border border-[color-mix(in_srgb,var(--acento)_55%,transparent)] text-white" : "bg-white/5 border border-white/10 text-neutral-400"}`}>
                                         <Icon className="w-4 h-4" />
                                         <span>{labels[f]}</span>
                                     </button>
                                 );
                             })}
                         </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <button type="button" className="studio-button" onClick={usarUbicacion} disabled={ubicando}>
+                                {ubicando ? <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <LocateFixed className="h-4 w-4" aria-hidden="true" />}
+                                Usar mi ubicación actual
+                            </button>
+                            <span className="text-[11px] text-slate-400">Tu navegador te pedirá permiso. Las coordenadas no salen de tu equipo.</span>
+                        </div>
+                        {precision !== null && <p role="status" className="text-[11px] text-teal-300">Ubicación lista (±{precision} m).</p>}
+                        {errorUbicacion && <p role="alert" className="text-[11px] text-amber-300">{errorUbicacion}</p>}
                         <QrInput label="Dirección o nombre del lugar" type="text" placeholder="Plaza Prat, Iquique" className={inputClass} value={locationData.query || ""} onChange={(e) => { setLocationData({ ...locationData, query: e.target.value }); }} />
-                        <details className="text-xs">
+                        <details className="text-xs" open={coordsAbiertas} onToggle={(e) => { setCoordsAbiertas(e.currentTarget.open); }}>
                             <summary className="text-neutral-500 cursor-pointer hover:text-neutral-300">Coordenadas exactas (opcional)</summary>
                             <div className="grid grid-cols-2 gap-2 mt-2">
                                 <QrInput label="Latitud" type="number" step="any" min={-90} max={90} placeholder="-33.4489" className={inputClass} value={locationData.latitude ?? ""} onChange={(e) => { setLocationData({ ...locationData, latitude: e.target.value === "" ? undefined : Number(e.target.value) }); }} />

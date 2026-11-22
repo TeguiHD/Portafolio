@@ -20,8 +20,9 @@ test.describe("Materia viva: hero", () => {
 
     test("muestra las tecnologías reales y la materia dibuja la que se señala", async ({ page }) => {
         await page.goto(PORTADA);
-        const fichas = page.locator(".marcas li");
+        const fichas = page.getByRole("group", { name: "Tecnologías con las que trabajo" }).getByRole("button");
         await expect(fichas).toHaveCount(10);
+        await expect(page.locator(".marcas [role=button]")).toHaveCount(0); // botones nativos, no <li role="button">
         await expect(fichas.first()).toHaveAttribute("aria-label", "Next.js");
         // Hasta que la materia toma su forma, la página aún no atiende al cursor.
         await expect(page.locator("canvas#materia")).toHaveAttribute("data-forma-activa", "figuras");

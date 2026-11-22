@@ -929,6 +929,10 @@ export async function proxy(request: NextRequest) {
     // La vista previa se incrusta desde el editor del mismo origen. El resto
     // del sitio mantiene DENY.
     if (pathname === '/ar/preview') response.headers.set('X-Frame-Options', 'SAMEORIGIN')
+    // El QR puede llenar la ubicación actual (con el permiso del navegador): solo esa página la pide; el resto la bloquea.
+    if (pathname === '/herramientas/qr') {
+        response.headers.set('Permissions-Policy', staticSecurityHeaders['Permissions-Policy'].replace('geolocation=()', 'geolocation=(self)'))
+    }
 
     // Pass request ID to client for support/debug correlation.
     // The CSP nonce is intentionally kept request-side only (server components read it via headers()).

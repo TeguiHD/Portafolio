@@ -1,7 +1,7 @@
 /* Hero de la portada. Copiado de la maqueta aprobada. */
 #inicio { min-height: 100svh; position: relative; }
 .heroe > .escenario { min-width: 0; }
-:root[data-tema="claro"] .marcas li { background: #fff; box-shadow: 0 2px 6px rgb(13 40 60 / .12); }
+:root[data-tema="claro"] .marcas button { background: #fff; box-shadow: 0 2px 6px rgb(13 40 60 / .12); }
 .elige { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
 .elige button { position: relative; white-space: nowrap; padding: 10px 14px 12px; color: var(--mut); font-size: 15.5px; font-weight: 500; transition: color .3s; }
 .elige button::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--linea-2); }
@@ -20,20 +20,20 @@
 .elige button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 8px; }
 @keyframes llena { to { transform: scaleX(1); } }
 .marcas { position: absolute; left: 0; right: 0; bottom: 30px; display: flex; justify-content: center; flex-wrap: wrap; gap: 14px 30px; list-style: none; padding: 0 24px; margin: 0; }
-.marcas li { position: relative; width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; color: var(--c); cursor: pointer;
+.marcas button { position: relative; padding: 0; font: inherit; width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; color: var(--c); cursor: pointer;
   border: 1px solid color-mix(in srgb, var(--c) 26%, var(--linea)); background: color-mix(in srgb, var(--c) 9%, var(--sup));
   box-shadow: 0 1px 0 #ffffff1f inset;
   animation: flota 5s ease-in-out infinite alternate; animation-delay: calc(var(--k) * -0.7s); transition: border-color .3s; }
-.marcas li::before { content: ""; position: absolute; inset: -18px; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 48%, transparent), transparent); opacity: 0; transition: opacity .35s; pointer-events: none; }
-.marcas li:hover::before, .marcas li:focus-visible::before, .marcas li.activa::before { opacity: 1; }
-.marcas li:nth-child(odd) { animation-duration: 6.4s; }
+.marcas button::before { content: ""; position: absolute; inset: -18px; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 48%, transparent), transparent); opacity: 0; transition: opacity .35s; pointer-events: none; }
+.marcas button:hover::before, .marcas button:focus-visible::before, .marcas button.activa::before { opacity: 1; }
+.marcas button:nth-child(odd) { animation-duration: 6.4s; }
 @keyframes flota { from { translate: 0 5px; } to { translate: 0 -7px; } }
 .marcas svg { width: 30px; height: 30px; fill: currentColor; display: block; transition: scale .35s var(--curva); }
-.marcas li:hover, .marcas li:focus-visible, .marcas li.activa { border-color: var(--c); outline: none; }
-.marcas li:hover svg, .marcas li:focus-visible svg, .marcas li.activa svg { scale: 1.22; }
-@media (prefers-reduced-motion: reduce) { .marcas li { animation: none; } }
-.marcas li::after { content: attr(data-n); position: absolute; left: 50%; bottom: calc(100% + 10px); translate: -50% 4px; padding: 5px 10px; border-radius: 8px; background: var(--sup); border: 1px solid var(--linea-2); color: var(--txt); font-size: 13px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, translate .2s; }
-.marcas li:hover::after { opacity: 1; translate: -50% 0; }
+.marcas button:hover, .marcas button:focus-visible, .marcas button.activa { border-color: var(--c); outline: none; }
+.marcas button:hover svg, .marcas button:focus-visible svg, .marcas button.activa svg { scale: 1.22; }
+@media (prefers-reduced-motion: reduce) { .marcas button { animation: none; } }
+.marcas button::after { content: attr(data-n); position: absolute; left: 50%; bottom: calc(100% + 10px); translate: -50% 4px; padding: 5px 10px; border-radius: 8px; background: var(--sup); border: 1px solid var(--linea-2); color: var(--txt); font-size: 13px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, translate .2s; }
+.marcas button:hover::after { opacity: 1; translate: -50% 0; }
 #inicio { padding-bottom: 150px; }
 #ancla-marca { position: relative; }
 #ancla-marca::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: -4%; height: 46px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--acento) 32%, transparent), transparent); filter: blur(14px); }
@@ -47,7 +47,7 @@
   .elige { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 4px; }
   .elige button { white-space: normal; font-size: 13.5px; line-height: 1.25; padding: 10px 6px 14px; text-align: center; }
   .elige button::before, .elige button::after { left: 8px; right: 8px; }
-  .marcas { position: static; margin: 44px auto 0; gap: 12px; padding: 0 24px; } .marcas li { width: 48px; height: 48px; border-radius: 14px; } .marcas svg { width: 24px; height: 24px; }
+  .marcas { position: static; margin: 44px auto 0; gap: 12px; padding: 0 24px; } .marcas button { width: 48px; height: 48px; border-radius: 14px; } .marcas svg { width: 24px; height: 24px; }
 }
 
 /* La entrada del hero (sin esperar al JavaScript) vive en esqueleto.css: vale para toda sección que está arriba al cargar. */

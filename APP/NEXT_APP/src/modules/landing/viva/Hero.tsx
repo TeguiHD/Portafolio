@@ -87,16 +87,17 @@ export function Hero() {
                     </p>
                 </div>
             </Vista>
-            <ul className="marcas" role="group" aria-label="Tecnologías con las que trabajo">
+            {/* Botones nativos (antes <li role="button">, un rol que no le corresponde a un ítem de lista: lo marcaban
+                Lighthouse y los lectores de pantalla). Enter y espacio ya los maneja el navegador. */}
+            <div className="marcas" role="group" aria-label="Tecnologías con las que trabajo">
                 {MARCAS.map((t, k) => (
-                    <li key={t.name} role="button" tabIndex={0} aria-label={t.name} data-n={t.name} className={k === logo ? "activa" : undefined}
+                    <button key={t.name} type="button" aria-label={t.name} aria-pressed={k === logo} data-n={t.name} className={k === logo ? "activa" : undefined}
                         style={{ "--c": t.color.toUpperCase() === "#FFFFFF" ? "var(--txt)" : t.color, "--k": k } as CSSProperties}
-                        onPointerEnter={() => verLogo(k)} onFocus={() => verLogo(k)} onClick={() => verLogo(k)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); verLogo(k); } }}>
+                        onPointerEnter={() => verLogo(k)} onFocus={() => verLogo(k)} onClick={() => verLogo(k)}>
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.path} /></svg>
-                    </li>
+                    </button>
                 ))}
-            </ul>
+            </div>
         </section>
     );
 }
