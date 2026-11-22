@@ -143,6 +143,50 @@ export const TOOLS_SEO: Record<string, ToolSeoEntry> = {
         lastModified: "2026-11-20",
     },
 
+    rut: {
+        slug: "rut",
+        title: "Validador de RUT: Dígito Verificador y RUT de Prueba",
+        description:
+            "Valida un RUT chileno o una lista, calcula el dígito verificador con el módulo 11 y genera RUT de prueba válidos. Gratis, sin registro y en tu navegador.",
+        h1: "Validador de RUT",
+        primaryKeyword: "validar rut",
+        secondaryKeywords: ["calcular dígito verificador rut", "generador de rut de prueba", "validador de rut online", "validar lista de rut"],
+        lastModified: "2026-11-22",
+    },
+
+    "uf-utm": {
+        slug: "uf-utm",
+        title: "Valor UF y UTM de Hoy: Conversor a Pesos y Dólares",
+        description:
+            "Convierte UF, UTM, dólares y euros a pesos chilenos y al revés con los valores de hoy del Banco Central y el SII. Gratis, sin registro y listo para copiar.",
+        h1: "Conversor UF, UTM y dólar",
+        primaryKeyword: "valor uf hoy",
+        secondaryKeywords: ["convertir uf a pesos", "valor utm del mes", "dólar observado hoy", "pesos a uf"],
+        lastModified: "2026-11-22",
+    },
+
+    "sueldo-liquido": {
+        slug: "sueldo-liquido",
+        title: "Calculadora de Sueldo Líquido en Chile: de Bruto a Líquido",
+        description:
+            "Calcula tu sueldo líquido desde el bruto, o el bruto que necesitas, con AFP, Fonasa o Isapre, seguro de cesantía e impuesto único. Con la UF y la UTM de hoy.",
+        h1: "Calculadora de sueldo líquido",
+        primaryKeyword: "calcular sueldo líquido",
+        secondaryKeywords: ["sueldo bruto a líquido", "calculadora sueldo líquido chile", "descuentos afp fonasa isapre", "impuesto único segunda categoría"],
+        lastModified: "2026-11-22",
+    },
+
+    "boleta-honorarios": {
+        slug: "boleta-honorarios",
+        title: "Calculadora de Boleta de Honorarios 2026: Bruto y Líquido",
+        description:
+            "Calcula el líquido de una boleta de honorarios o cuánto cobrar para recibir un monto, con la retención de 2026 (15,25 %) y de los años siguientes. Gratis.",
+        h1: "Calculadora de boleta de honorarios",
+        primaryKeyword: "calcular boleta de honorarios",
+        secondaryKeywords: ["retención boleta de honorarios 2026", "boleta de honorarios bruto a líquido", "cuánto cobrar boleta de honorarios", "retención 15,25"],
+        lastModified: "2026-11-22",
+    },
+
     subredes: {
         slug: "subredes",
         title: "Calculadora de Subredes IPv4 e IPv6 y Planificador VLSM",

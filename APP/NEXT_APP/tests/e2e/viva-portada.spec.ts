@@ -54,11 +54,11 @@ test.describe("Materia viva: la portada completa", () => {
             const proyectos = page.locator("#proyectos");
             for (const nombre of await proyectos.locator("[role=tab]").allTextContents()) expect(nombre.trim().length).toBeGreaterThan(2);
             await expect(proyectos.locator("[role=tab]")).toHaveCount(3);
-            await expect(page.locator("#herramientas")).toContainText("Ver las 29");
+            await expect(page.locator("#herramientas")).toContainText("Ver las 33");
             await expect(page.locator("#contacto")).toContainText("contacto@nicoholas.dev");
             // Sin scripts nada se queda esperando a que lo revelen.
             await expect(page.locator("#contacto .ct-pre")).toHaveCSS("opacity", "1");
-            expect(await page.locator('.sin-js a[href^="/herramientas/"]').count()).toBe(29);
+            expect(await page.locator('.sin-js a[href^="/herramientas/"]').count()).toBe(33);
         });
     });
 });

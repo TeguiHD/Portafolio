@@ -62,11 +62,6 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
-          // Prevent clickjacking
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
           // Prevent MIME sniffing
           {
             key: 'X-Content-Type-Options',
@@ -90,6 +85,11 @@ const nextConfig = {
           // Content Security Policy is now set dynamically by middleware.ts
           // with per-request nonces for improved security (no unsafe-inline)
         ],
+      },
+      // Prevent clickjacking: todo menos /insertar/<herramienta>, que se ofrece para incrustar (botón «Insertar»).
+      {
+        source: '/:path((?!insertar/).*)',
+        headers: [{ key: 'X-Frame-Options', value: 'DENY' }],
       },
     ];
   },

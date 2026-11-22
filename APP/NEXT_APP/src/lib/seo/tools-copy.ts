@@ -392,6 +392,91 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         ],
     },
 
+    rut: {
+        intro:
+            "El RUT chileno termina en un dígito verificador que se calcula con el resto de los números: si uno está mal escrito, el dígito no calza. Esta herramienta revisa un RUT o una lista entera, te dice cuál debería ser el dígito cuando no calza, lo entrega con o sin puntos y genera RUT de prueba para probar formularios. Todo ocurre en tu navegador: los RUT que pegas no se envían a ningún servidor.",
+        steps: [
+            { title: "Escribe o pega el RUT", body: "Con o sin puntos, con guion o sin él, con la K en mayúscula o minúscula: se lee igual. El resultado aparece mientras escribes." },
+            { title: "Revisa una lista si tienes varios", body: "En «Revisar una lista», pega un RUT por línea (hasta 2.000). Verás cuáles son válidos y, en los que no, el dígito que les correspondería." },
+            { title: "Copia en el formato que necesitas", body: "Con puntos y guion para mostrarlo, o sin nada para guardarlo en una base de datos. Los válidos de una lista se copian de una vez." },
+        ],
+        useCases: [
+            { title: "Limpiar una planilla", body: "Antes de cargar clientes o trabajadores a un sistema, encontrar los RUT mal digitados de una lista sin revisarlos uno por uno." },
+            { title: "Probar un formulario", body: "Generar RUT que pasan la validación para probar un registro o un pago sin usar datos de personas que conoces." },
+            { title: "Completar un dígito perdido", body: "Recuperar el dígito verificador cuando solo tienes los números, por ejemplo en un documento antiguo o una lista mal exportada." },
+        ],
+        faq: [
+            { question: "¿Cómo se calcula el dígito verificador del RUT?", answer: "Con el módulo 11: se multiplican los dígitos de derecha a izquierda por 2, 3, 4, 5, 6 y 7 (y se vuelve a empezar), se suman, y al 11 se le resta el resto de dividir esa suma por 11. Si da 11 el dígito es 0, y si da 10 es K." },
+            { question: "¿Que el RUT sea válido significa que existe?", answer: "No. Válido quiere decir que el dígito verificador calza con los números, que es lo que se puede revisar sin consultar ninguna base de datos. Para saber a quién pertenece un RUT hay que consultar al SII o al Registro Civil." },
+            { question: "¿Los RUT de prueba son de personas reales?", answer: "Son números al azar que cumplen el cálculo del dígito, entre 1.000.000 y 29.999.999. Pueden coincidir con el RUT de alguien, así que úsalos solo para probar sistemas, nunca para identificar a una persona." },
+            { question: "¿Se envían los RUT que pego?", answer: "No. La validación es un cálculo que hace tu navegador; la página no guarda ni envía lo que escribes." },
+        ],
+    },
+
+    "uf-utm": {
+        intro:
+            "La UF cambia todos los días y la UTM una vez al mes, así que convertir un arriendo, una multa o una cotización a pesos exige el valor del día. Esta herramienta muestra la UF, la UTM, el dólar observado y el euro de hoy, y convierte cualquier monto en los dos sentidos: de UF a pesos, de pesos a UTM o de dólares a UF. Los valores vienen de mindicador.cl, que toma los del Banco Central de Chile y el SII.",
+        steps: [
+            { title: "Mira los valores de hoy", body: "Arriba están la UF del día, la UTM del mes, el dólar observado y el euro, cada uno con su fecha." },
+            { title: "Escribe el monto y su unidad", body: "Por ejemplo, 12,5 en UF o 1.250.000 en pesos chilenos. Se aceptan puntos de miles y coma decimal." },
+            { title: "Copia el equivalente", body: "Verás el monto en las otras unidades; cada una tiene su botón para copiar. Los pesos van sin decimales, como se pagan." },
+        ],
+        useCases: [
+            { title: "Arriendos y créditos en UF", body: "Saber cuánto se paga este mes por un arriendo, un dividendo o un plan de salud pactado en UF." },
+            { title: "Multas y trámites en UTM", body: "Pasar a pesos una multa o un arancel fijado en UTM, con el valor del mes en curso." },
+            { title: "Cotizar en dólares", body: "Convertir una cotización o una compra en dólares a pesos con el dólar observado del día." },
+        ],
+        faq: [
+            { question: "¿De dónde salen los valores?", answer: "De mindicador.cl, un servicio público y gratuito que publica los indicadores del Banco Central de Chile (UF, dólar observado y euro) y del SII (UTM). El sitio los consulta cada 30 minutos." },
+            { question: "¿Por qué la UF de hoy es distinta a la de ayer?", answer: "Porque la UF se reajusta cada día según la inflación (IPC) del mes anterior. Entre el día 10 de un mes y el 9 del siguiente sube o baja de a poco, hasta completar esa variación." },
+            { question: "¿El dólar observado es el que me cobra el banco?", answer: "No exactamente. El dólar observado es un promedio que publica el Banco Central con las operaciones del día hábil anterior; bancos y casas de cambio cobran su propio precio, normalmente algo mayor." },
+            { question: "¿Qué pasa si la fuente no responde?", answer: "La herramienta lo dice y te deja escribir los valores a mano, así el conversor funciona igual. Nunca muestra un valor inventado." },
+        ],
+    },
+
+    "sueldo-liquido": {
+        intro:
+            "El sueldo líquido es lo que llega a tu cuenta después de los descuentos legales: AFP, salud, seguro de cesantía e impuesto único. Esta calculadora hace la liquidación de un mes normal con la UF y la UTM de hoy y los parámetros vigentes (comisión de cada AFP, topes imponibles y tabla del impuesto), y también va al revés: te dice qué bruto pedir para recibir un líquido. Cada descuento aparece por separado, con su porcentaje.",
+        steps: [
+            { title: "Escribe el bruto o el líquido", body: "«Tengo el bruto» calcula lo que recibes; «Quiero un líquido de» calcula el bruto que hay que pactar. Usa el sueldo imponible, sin colación ni movilización." },
+            { title: "Elige AFP, salud y contrato", body: "Cada AFP cobra una comisión distinta. En Isapre escribe el precio de tu plan en UF: se descuenta el plan si es mayor que el 7 %. A plazo fijo o por obra, el seguro de cesantía lo paga solo el empleador." },
+            { title: "Suma lo no imponible", body: "La colación y la movilización no pagan AFP, salud ni impuesto: se suman tal cual al líquido." },
+        ],
+        useCases: [
+            { title: "Negociar una oferta", body: "Saber cuánto bruto pedir para llegar al líquido que necesitas, antes de aceptar un trabajo." },
+            { title: "Revisar tu liquidación", body: "Comparar cada descuento de tu liquidación con el cálculo legal y encontrar diferencias." },
+            { title: "Comparar AFP o Isapre", body: "Ver cuánto cambia tu líquido si te cambias a una AFP con menor comisión o a otro plan de salud." },
+        ],
+        faq: [
+            { question: "¿Qué se le descuenta al sueldo bruto?", answer: "El 10 % para tu cuenta de la AFP más la comisión de tu AFP; el 7 % de salud (o el plan de tu Isapre si cuesta más); el 0,6 % del seguro de cesantía si tu contrato es indefinido, y el impuesto único si tu sueldo pasa de 13,5 UTM después de esos descuentos." },
+            { question: "¿Qué es el tope imponible?", answer: "Es el máximo sobre el que se calculan la AFP y la salud: 90 UF al mes desde febrero de 2026 (135,2 UF para el seguro de cesantía). Lo que ganes por sobre ese monto no paga cotizaciones, pero sí impuesto." },
+            { question: "¿Cómo se calcula el impuesto único?", answer: "Al bruto se le restan la AFP, la salud (hasta 6,3 UF) y el seguro de cesantía. Esa base se ubica en la tabla del SII, que va de exento hasta 13,5 UTM a un 40 % sobre 310 UTM; se multiplica por el factor del tramo y se resta la cantidad a rebajar." },
+            { question: "¿El SIS o la reforma de pensiones bajan mi líquido?", answer: "No. El seguro de invalidez y sobrevivencia y el aporte de la reforma de pensiones (Ley 21.735) los paga el empleador, además de tu sueldo." },
+            { question: "¿Por qué mi liquidación no calza exacto?", answer: "Porque puede incluir gratificación, horas extra, bonos, APV, préstamos o un anticipo, que esta calculadora no considera. También cambia si tu empleador usa otra UF para el plan de la Isapre." },
+        ],
+    },
+
+    "boleta-honorarios": {
+        intro:
+            "Al emitir una boleta de honorarios, una parte del bruto queda retenida para el SII: en 2026 es el 15,25 %, y sube a 16 % en 2027 y a 17 % en 2028 (Ley 21.133). Esta calculadora te dice cuánto recibes de una boleta y, al revés, qué bruto poner para recibir un monto exacto, al peso. Sirve para cotizar un trabajo sin perder la retención y para revisar lo que te pagaron.",
+        steps: [
+            { title: "Elige qué monto tienes", body: "«Tengo el bruto» si ya sabes el total de la boleta; «Quiero recibir» si sabes cuánto quieres que te llegue." },
+            { title: "Escribe el monto", body: "En pesos, con o sin puntos de miles. El resultado aparece al instante." },
+            { title: "Revisa el año", body: "Viene con la retención del año en curso. Cámbialo para revisar una boleta antigua o para cotizar un trabajo del próximo año." },
+        ],
+        useCases: [
+            { title: "Cotizar un trabajo", body: "Pedir el bruto que, después de la retención, deja el monto que de verdad quieres cobrar." },
+            { title: "Revisar un pago", body: "Comprobar que lo que llegó a tu cuenta corresponde al bruto de la boleta menos la retención." },
+            { title: "Planificar el año", body: "Ver cuánto de lo facturado queda retenido para la Operación Renta, donde se pagan tus cotizaciones." },
+        ],
+        faq: [
+            { question: "¿Cuál es la retención de las boletas de honorarios en 2026?", answer: "El 15,25 % del bruto, desde el 1 de enero de 2026. La Ley 21.133 la sube a 16 % en 2027 y a 17 % desde 2028." },
+            { question: "¿Cómo calculo el bruto para recibir un monto?", answer: "Se divide el líquido por 0,8475 (que es 1 menos 15,25 %). Por ejemplo, para recibir $500.000 la boleta debe ser de $589.971. La calculadora lo ajusta al peso para que el líquido calce exacto." },
+            { question: "¿Quién paga la retención?", answer: "Si la boleta es para una empresa, ella retiene el monto y lo paga al SII. Si es para una persona, que no retiene, la pagas tú como pago provisional al mes siguiente." },
+            { question: "¿Para qué se usa lo retenido?", answer: "En la Operación Renta de abril, la retención paga primero tus cotizaciones de salud, pensión y seguros sociales; lo que sobre se descuenta de tu impuesto o se devuelve." },
+        ],
+    },
+
     impuestos: {
         intro:
             "Calcular IVA a mano se equivoca en la dirección: sumar el 19% a un precio y luego restarle el 19% al resultado no devuelve el precio original. Esta calculadora resuelve los dos sentidos por separado — añadir impuesto a un valor neto y extraerlo de un valor bruto — con la tasa que configures, para que la cifra que entregues al cliente cuadre con la que declares.",

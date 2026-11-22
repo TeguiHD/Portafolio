@@ -38,6 +38,14 @@ test.describe("Materia viva: herramientas", () => {
         await expect(page.locator("#he-nombre")).toHaveText(catalogo[4].name);
     });
 
+    test("cada herramienta tiene su lugar en la órbita, aunque el catálogo crezca", async ({ page }) => {
+        await page.goto(PORTADA);
+        await page.locator("#herramientas").scrollIntoViewIfNeeded();
+        await page.waitForTimeout(600);
+        const sinLugar = await page.locator(".he-nodo").evaluateAll((ns) => ns.filter((n) => !(n as HTMLElement).style.transform).map((n) => n.getAttribute("aria-label")));
+        expect(sinLugar).toEqual([]);
+    });
+
     test("filtrar por categoría deja solo las suyas", async ({ page }) => {
         await page.goto(PORTADA);
         await expect(page.locator("canvas#materia")).toHaveAttribute("data-forma-activa", "figuras");

@@ -262,11 +262,11 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
         description: "Agrega o quita el IVA de un monto, con la tasa de Chile (19 %), la de otros países o la que indiques.",
         icon: "calculator",
         category: "finance",
-        publicCategory: "conversión",
+        publicCategory: "chile",
         isPublic: true,
         isActive: true,
         sortOrder: 18,
-        relacionadas: ["unidades", "enlaces", "aleatorio"],
+        relacionadas: ["boleta-honorarios", "uf-utm", "sueldo-liquido"],
     },
     {
         slug: "regex",
@@ -414,6 +414,67 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
         sortOrder: 29,
         relacionadas: ["dns", "nginx", "binario"],
     },
+    // Familia «Chile» (22-11-2026): respuestas únicas para Chile, con «Insertar en tu sitio» (src/lib/chile/incrustables.ts).
+    {
+        slug: "rut",
+        name: "Validador de RUT",
+        ancho: "estrecha",
+        alias: "rut dígito verificador digito validar rut generar rut",
+        description: "Valida un RUT o una lista entera, calcula el dígito verificador y genera RUT de prueba para formularios.",
+        icon: "rut",
+        category: "chile",
+        publicCategory: "chile",
+        isPublic: true,
+        isActive: true,
+        sortOrder: 30,
+        relacionadas: ["boleta-honorarios", "impuestos", "uf-utm"],
+        publicada: "2026-11-22",
+    },
+    {
+        slug: "uf-utm",
+        name: "Conversor UF, UTM y dólar",
+        ancho: "estrecha",
+        alias: "valor uf hoy utm dolar observado euro pesos chilenos",
+        description: "Convierte UF, UTM, dólares y euros a pesos chilenos y al revés, con los valores de hoy.",
+        icon: "uf-utm",
+        category: "chile",
+        publicCategory: "chile",
+        isPublic: true,
+        isActive: true,
+        sortOrder: 31,
+        relacionadas: ["sueldo-liquido", "impuestos", "unidades"],
+        publicada: "2026-11-22",
+    },
+    {
+        slug: "sueldo-liquido",
+        name: "Calculadora de sueldo líquido",
+        ancho: "ancha",
+        alias: "sueldo bruto liquido remuneracion afp fonasa isapre impuesto unico",
+        description: "Calcula el sueldo líquido desde el bruto, o el bruto que necesitas, con AFP, salud, cesantía e impuesto.",
+        icon: "sueldo-liquido",
+        category: "chile",
+        publicCategory: "chile",
+        isPublic: true,
+        isActive: true,
+        sortOrder: 32,
+        relacionadas: ["boleta-honorarios", "uf-utm", "impuestos"],
+        publicada: "2026-11-22",
+    },
+    {
+        slug: "boleta-honorarios",
+        name: "Calculadora de boleta de honorarios",
+        ancho: "estrecha",
+        alias: "boleta honorarios retencion sii bruto liquido independiente",
+        description: "Calcula cuánto recibes de una boleta de honorarios, o cuánto cobrar, con la retención de este año.",
+        icon: "boleta-honorarios",
+        category: "chile",
+        publicCategory: "chile",
+        isPublic: true,
+        isActive: true,
+        sortOrder: 33,
+        relacionadas: ["sueldo-liquido", "impuestos", "rut"],
+        publicada: "2026-11-22",
+    },
 ];
 
 // Lo que va a la tabla Tool: sin los datos que solo usa el sitio (familia pública, relacionadas, fecha de publicación).
@@ -429,6 +490,8 @@ function normalizePublicCategory(category?: string | null) {
             return "redes";
         case "finance":
             return "conversión";
+        case "chile":
+            return "chile";
         case "utility":
             return "generación";
         case "dev":

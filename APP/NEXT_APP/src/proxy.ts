@@ -298,7 +298,7 @@ function generateRequestId(): string {
  * - Development keeps unsafe-inline/unsafe-eval because dev tooling needs them.
  * - Production script-src removes unsafe-inline and blocks inline event handlers.
  */
-function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false): string {
+function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false, incrustable = false): string {
     // Detect if running in development/localhost
     const isDev = process.env.NODE_ENV !== 'production' ||
         process.env.NEXTAUTH_URL?.includes('localhost') ||
@@ -363,7 +363,8 @@ function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false)
         "base-uri 'self'",
 
         // Frame ancestors: prevent clickjacking (allow self in dev for iframe testing)
-        (isDev || embeddedPreview) ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
+        // /insertar/<herramienta> se ofrece para incrustar en cualquier sitio (botón «Insertar»): solo esas rutas.
+        incrustable ? "frame-ancestors *" : (isDev || embeddedPreview) ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
 
         // Object/Embed: block all plugins (Flash, Java, etc)
         "object-src 'none'",
@@ -729,7 +730,8 @@ export async function proxy(request: NextRequest) {
     const isArViewer = pathname === '/ar' || pathname === '/ar/preview'
     const arModel = isArViewer ? parseArParams(Object.fromEntries(request.nextUrl.searchParams)) : null
     const modelOrigin = arModel?.glb ? new URL(arModel.glb).origin : undefined
-    const csp = buildCSP(nonce, modelOrigin, pathname === '/ar/preview')
+    const incrustable = pathname.startsWith('/insertar/')
+    const csp = buildCSP(nonce, modelOrigin, pathname === '/ar/preview', incrustable)
     const earlySecurityHeaders = {
         ...staticSecurityHeaders,
         'Content-Security-Policy': csp,
@@ -929,6 +931,8 @@ export async function proxy(request: NextRequest) {
     // La vista previa se incrusta desde el editor del mismo origen. El resto
     // del sitio mantiene DENY.
     if (pathname === '/ar/preview') response.headers.set('X-Frame-Options', 'SAMEORIGIN')
+    // Incrustable: sin X-Frame-Options (la CSP frame-ancestors * manda; con ella el navegador ignora ese encabezado).
+    if (incrustable) response.headers.delete('X-Frame-Options')
     // El QR puede llenar la ubicación actual (con el permiso del navegador): solo esa página la pide; el resto la bloquea.
     if (pathname === '/herramientas/qr') {
         response.headers.set('Permissions-Policy', staticSecurityHeaders['Permissions-Policy'].replace('geolocation=()', 'geolocation=(self)'))

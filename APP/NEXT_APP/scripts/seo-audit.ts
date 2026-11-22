@@ -6,6 +6,7 @@ import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TOOLS_SEO, type ToolSeoEntry } from "../src/lib/seo/tools-content";
 import { TOOL_COUNT } from "../src/lib/tool-count";
+import { getDefaultToolBySlug } from "../src/lib/tool-registry";
 
 const TOOLS_DIR = join(process.cwd(), "src/app/herramientas");
 const TITLE_MIN = 50;
@@ -99,7 +100,9 @@ function checkLayouts(routes: string[]) {
 }
 
 function checkEntry(key: string, entry: ToolSeoEntry) {
-    const { slug, title, description, h1, primaryKeyword, related } = entry;
+    const { slug, title, description, h1, primaryKeyword } = entry;
+    // Las relacionadas viven en el registro desde la ronda 2 de herramientas (antes, `related` en tools-content).
+    const related = getDefaultToolBySlug(slug)?.relacionadas ?? [];
 
     if (key !== slug) fail(`clave del registro "${key}" no coincide con entry.slug "${slug}"`);
     if (title.length < TITLE_MIN || title.length > TITLE_MAX) {

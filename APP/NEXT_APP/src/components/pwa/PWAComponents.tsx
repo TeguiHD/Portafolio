@@ -83,6 +83,8 @@ export function usePWA() {
 export function PWARegister() {
     useEffect(() => {
         if (!("serviceWorker" in navigator)) return;
+        // Dentro de un iframe en otro sitio (/insertar/…) no se instala nada.
+        if (window.top !== window.self) return;
 
         type IdleWindow = Window & {
             requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;

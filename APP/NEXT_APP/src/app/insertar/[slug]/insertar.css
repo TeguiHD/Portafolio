@@ -1,0 +1,8 @@
+/* La herramienta dentro del iframe de otro sitio: sin márgenes del sitio, ancho completo y la firma con el enlace de vuelta. */
+body:has(.insertado) { background: var(--fondo); }
+.insertado { box-sizing: border-box; display: grid; gap: 14px; width: 100%; max-width: 720px; margin: 0 auto; padding: 16px; color: var(--txt); font-family: var(--font-inter, Inter), system-ui, sans-serif; }
+.insertado-titulo { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+.insertado-firma { justify-self: end; padding: 6px 2px; color: var(--mut); font-size: 13px; text-decoration: none; }
+.insertado-firma b { color: var(--txt); font-weight: 600; }
+.insertado-firma:hover, .insertado-firma:focus-visible { color: var(--txt); }
+.insertado-firma:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 6px; }

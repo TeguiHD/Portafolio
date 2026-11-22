@@ -1,15 +1,16 @@
 import { expect, test } from "@playwright/test";
+import { DEFAULT_TOOL_REGISTRY } from "../../src/lib/tool-registry";
 
 test.describe("Herramientas con el lenguaje del sitio", () => {
-    test("el catálogo: cabecera sobria, destacadas y las 29 por familia, sin esfera", async ({ page }) => {
+    test("el catálogo: cabecera sobria, destacadas y las 33 por familia, sin esfera", async ({ page }) => {
         await page.goto("/herramientas");
         await expect(page.locator("h1")).toHaveCount(1);
         await expect(page.locator("h1")).toHaveText("Herramientas.");
         await expect(page.locator("#he-esfera, .he-nodo")).toHaveCount(0);
         const destacadas = page.getByRole("region", { name: /^(Destacadas|Las más usadas)$/ });
         await expect(destacadas.locator(".ht-destacada")).toHaveCount(6);
-        await expect(page.locator(".ht-grupo")).toHaveCount(6);
-        await expect(page.locator(".ht-fila")).toHaveCount(29);
+        await expect(page.locator(".ht-grupo")).toHaveCount(7); // seis familias + Chile
+        await expect(page.locator(".ht-fila")).toHaveCount(33);
         await expect(page.locator(".tool-tile, .tools-catalog-search")).toHaveCount(0);
         await expect(page.locator("canvas#materia")).toHaveAttribute("data-forma-activa", "marco");
     });
@@ -19,7 +20,9 @@ test.describe("Herramientas con el lenguaje del sitio", () => {
         await page.goto("/herramientas");
         const destacadas = page.getByRole("region", { name: "Destacadas" });
         await expect(destacadas.locator(".ht-destacada a")).toHaveText([/QR/, /Fondo/i, /Compres/i, /Contraseñas/i, /JSON/, /IVA/]);
-        await expect(page.locator(".ht-nueva")).toHaveCount(0); // ninguna se publicó en los últimos 60 días
+        // «Nueva» solo en las publicadas hace menos de 60 días (las chilenas, desde el 22-11-2026).
+        const nuevas = DEFAULT_TOOL_REGISTRY.filter((t) => t.publicada && Date.now() - Date.parse(t.publicada) < 60 * 86_400_000).length;
+        await expect(page.locator(".ht-nueva")).toHaveCount(nuevas);
     });
 
     test("al buscar o filtrar, las destacadas se ocultan", async ({ page }) => {

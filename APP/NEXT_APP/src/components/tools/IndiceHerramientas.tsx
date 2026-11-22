@@ -10,7 +10,7 @@ import type { PublicToolCatalogEntry } from "@/lib/tool-registry";
 import type { Destacadas } from "@/lib/tool-destacadas";
 import { coincide } from "./buscar-herramientas";
 
-const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes"];
+const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"];
 const mayuscula = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
 const color = (f: string) => COLOR_CATEGORIA[f] ?? "var(--acento)";
 

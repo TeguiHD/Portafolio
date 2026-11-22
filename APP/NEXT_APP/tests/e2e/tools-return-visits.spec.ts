@@ -18,7 +18,7 @@ test("las favoritas persisten, se sincronizan entre pestañas y se pueden quitar
     await expect(page.locator("a.tools-tile-enter")).toHaveCount(0);
     await expect(page.getByText(/Aún no tienes favoritas/)).toBeVisible();
     await page.getByRole("button", { name: "Limpiar filtros", exact: true }).click();
-    await expect(page.locator("a.tools-tile-enter")).toHaveCount(29);
+    await expect(page.locator("a.tools-tile-enter")).toHaveCount(33);
 });
 
 test("búsqueda sin tildes y diseño adaptable con controles independientes", async ({ page }) => {
@@ -26,7 +26,7 @@ test("búsqueda sin tildes y diseño adaptable con controles independientes", as
     await page.getByRole("searchbox", { name: "Buscar herramientas" }).fill("imagenes");
     expect(await page.locator("a.tools-tile-enter").count()).toBeGreaterThan(0);
     await page.getByRole("searchbox", { name: "Buscar herramientas" }).fill("");
-    await expect(page.locator("a.tools-tile-enter")).toHaveCount(29);
+    await expect(page.locator("a.tools-tile-enter")).toHaveCount(33);
     await expect(page.locator("a button")).toHaveCount(0);
     await page.emulateMedia({ reducedMotion: "reduce" });
   for (const width of [375, 768, 1024, 1440]) {
@@ -58,7 +58,7 @@ test("datos locales dañados no rompen el catálogo", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("nicoholas:tool-favorites:v1", "{invalid"));
     await page.goto("/herramientas");
     await expect(page.getByRole("button", { name: /Mis favoritas 0/ })).toBeEnabled();
-    await expect(page.locator("a.tools-tile-enter")).toHaveCount(29);
+    await expect(page.locator("a.tools-tile-enter")).toHaveCount(33);
 });
 
 test("los proyectos están en el HTML inicial con destinos reales y sin métricas sin fuente", async ({ page }) => {
@@ -71,7 +71,7 @@ test("los proyectos están en el HTML inicial con destinos reales y sin métrica
     await expect(projects.locator("#pr-ir")).toHaveAttribute("href", "https://floresdyd.cl");
     await expect(projects).not.toContainText(/200%|92%|850\+|Auditado/);
     await expect(page.locator('a[href="/projects"]')).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /Ver las 29/ })).toHaveAttribute("href", "/herramientas");
+    await expect(page.getByRole("link", { name: /Ver las 33/ })).toHaveAttribute("href", "/herramientas");
 });
 
 test("el catálogo de /herramientas no repite «Todas, por nombre» y su índice conserva un título para lectores de pantalla", async ({ page }) => {

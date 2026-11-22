@@ -9,7 +9,7 @@ import { TOOL_ICONS, CATEGORY_CONFIG, CATEGORY_ICONS } from "./ToolIcons";
 import { useToolFavorites } from "@/hooks/useToolFavorites";
 import type { PublicToolCatalogEntry } from "@/lib/tool-registry";
 
-const CATEGORY_ORDER = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes"];
+const CATEGORY_ORDER = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"];
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const FEATURED = ["quitar-fondo", "recortar-imagen", "qr", "json"];

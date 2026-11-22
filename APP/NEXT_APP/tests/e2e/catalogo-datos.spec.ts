@@ -63,8 +63,12 @@ test("las descripciones dicen qué hace cada herramienta, sin relleno", () => {
 
 test("la migración trae la descripción de cada herramienta, igual a la del registro", () => {
     const sql = readFileSync("prisma/migrations/20261121120000_descripciones_herramientas/migration.sql", "utf8");
+    // Las chilenas (22-11-2026) llegan con su descripción en la migración que las crea.
+    const nuevas = readFileSync("prisma/migrations/20261122130000_herramientas_chile/migration.sql", "utf8");
     for (const t of DEFAULT_TOOL_REGISTRY) {
-        expect(sql, t.slug).toContain(`SET description = '${t.description.replaceAll("'", "''")}' WHERE slug = '${t.slug}';`);
+        const d = t.description.replaceAll("'", "''");
+        if (t.category === "chile") expect(nuevas, t.slug).toMatch(new RegExp(`'${t.slug}', '${t.name}', '${d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}'`));
+        else expect(sql, t.slug).toContain(`SET description = '${d}' WHERE slug = '${t.slug}';`);
     }
 });
 
@@ -94,8 +98,8 @@ test("el ranking deja fuera navegadores automatizados, robots y clientes de lín
 });
 
 /* Ronda 2: ancho de cada herramienta y nombres en español correcto. */
-const ANCHAS = ["qr", "ascii", "quitar-fondo", "comprimir-imagen", "convertir-imagen", "redimensionar", "recortar-imagen", "marca-agua", "favicon", "convertir-ico", "paleta-colores", "base64", "dns", "nginx", "json", "regex", "aleatorio"];
-const SIGLAS = new Set(["QR", "IVA", "JSON", "JWT", "DNS", "EXIF", "ASCII", "ICO", "PNG", "IPv4", "IPv6", "Base64", "Nginx"]);
+const ANCHAS = ["qr", "ascii", "quitar-fondo", "comprimir-imagen", "convertir-imagen", "redimensionar", "recortar-imagen", "marca-agua", "favicon", "convertir-ico", "paleta-colores", "base64", "dns", "nginx", "json", "regex", "aleatorio", "sueldo-liquido"];
+const SIGLAS = new Set(["QR", "IVA", "JSON", "JWT", "DNS", "EXIF", "ASCII", "ICO", "PNG", "IPv4", "IPv6", "Base64", "Nginx", "RUT", "UF", "UTM"]);
 /** Los nombres de fábrica que cambian (la migración solo los toca si nadie los editó en el panel). */
 const ANTES: Record<string, string> = {
     "convertir-imagen": "Conversor de Imágenes", "recortar-imagen": "Recortador de Imágenes", "quitar-fondo": "Quitar Fondo",
@@ -106,7 +110,7 @@ const ANTES: Record<string, string> = {
     metadatos: "Extractor de Metadatos EXIF", "reverse-shell": "Generador de Reverse Shells", "banner-ascii": "Generador de Banners ASCII",
     subredes: "Calculadora de Subredes",
 };
-const enEspanol = (nombre: string) => nombre.split(/\s+/).slice(1).filter((p) => /^\p{Lu}/u.test(p) && !SIGLAS.has(p));
+const enEspanol = (nombre: string) => nombre.split(/\s+/).slice(1).map((p) => p.replace(/[,.;:]$/, "")).filter((p) => /^\p{Lu}/u.test(p) && !SIGLAS.has(p));
 
 test("cada herramienta dice su ancho: anchas las de estudio y dos paneles, estrechas las de formulario", () => {
     for (const t of DEFAULT_TOOL_REGISTRY) expect(t.ancho, t.slug).toBe(ANCHAS.includes(t.slug) ? "ancha" : "estrecha");

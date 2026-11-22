@@ -20,6 +20,10 @@ export const SIGLAS: Record<string, string> = {
     "base64": "Conversor",
     "binario": "0101",
     "impuestos": "Calculadora",
+    "rut": "12.345.678-5",
+    "uf-utm": "UF → $",
+    "sueldo-liquido": "Líquido",
+    "boleta-honorarios": "Retención",
     "regex": "/^\\d+$/",
     "jwt": "eyJ…",
     "json": "{ }",
@@ -53,6 +57,10 @@ export const ICONOS: Record<string, string> = {
     "base64": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><path d=\"M21 15l-5-5L5 21\"/><path d=\"M14 14l1 1\"/><path d=\"M17 11l2 2\"/><text x=\"16\" y=\"8\" font-size=\"5\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">01</text>",
     "binario": "<text x=\"3\" y=\"10\" font-size=\"8\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">01</text><text x=\"3\" y=\"20\" font-size=\"8\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">10</text><path d=\"M14 6l4-4m0 0l4 4m-4-4v12\"/><path d=\"M14 18l4 4m0 0l4-4m-4 4V10\"/>",
     "impuestos": "<rect x=\"4\" y=\"2\" width=\"16\" height=\"20\" rx=\"2\"/><rect x=\"6\" y=\"4\" width=\"12\" height=\"4\" rx=\"1\"/><path d=\"M7 10h2m4 0h2m4 0h2M7 14h2m4 0h2m4 0h2M7 18h2m4 0h6\"/>",
+    "rut": "<rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><circle cx=\"8.5\" cy=\"11\" r=\"2\"/><path d=\"M5.8 16c.6-1.3 1.6-2 2.7-2s2.1.7 2.7 2M14 10h4M14 13h4\"/>",
+    "uf-utm": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 10h8l-3-3M16 14H8l3 3\"/>",
+    "sueldo-liquido": "<path d=\"M4 7V6a2 2 0 0 1 2-2h11v3\"/><rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M16 13.5h2\"/>",
+    "boleta-honorarios": "<path d=\"M6 3h12v18l-3-2-3 2-3-2-3 2z\"/><path d=\"M9 8h6M9 12h6M9 16h3\"/>",
     "regex": "<path d=\"M16 18l6-6-6-6\"/><path d=\"M8 6l-6 6 6 6\"/><path d=\"M14.5 4l-5 16\"/>",
     "jwt": "<path d=\"M12 2L2 7l10 5 10-5-10-5z\"/><path d=\"M2 17l10 5 10-5\"/><path d=\"M2 12l10 5 10-5\"/><circle cx=\"12\" cy=\"12\" r=\"2\" fill=\"currentColor\" stroke=\"none\"/>",
     "json": "<path d=\"M8 3H6a2 2 0 00-2 2v2M8 21H6a2 2 0 01-2-2v-2M16 3h2a2 2 0 012 2v2M16 21h2a2 2 0 002-2v-2\"/><text x=\"6\" y=\"14\" font-size=\"10\" fill=\"currentColor\" font-family=\"monospace\" stroke=\"none\">{}</text>",
@@ -68,5 +76,5 @@ export const ICONOS: Record<string, string> = {
 
 /** Un color por categoría pública del catálogo. */
 export const COLOR_CATEGORIA: Record<string, string> = {
-    "imágenes": "#60a5fa", "generación": "#5eead4", "conversión": "#fbbf24", "productividad": "#a78bfa", "seguridad": "#fb7185", "redes": "#34d399",
+    "imágenes": "#60a5fa", "generación": "#5eead4", "conversión": "#fbbf24", "productividad": "#a78bfa", "seguridad": "#fb7185", "redes": "#34d399", "chile": "#f87171",
 };

@@ -11,6 +11,16 @@ import "./herramientas.css";
 
 // Tres órbitas inclinadas, cada una a su ritmo: el centro queda libre para que la materia escriba.
 const ORBITAS = [{ n: 8, r: 0.56, inc: 0.40, giro: 1, des: -0.10 }, { n: 10, r: 0.79, inc: 0.36, giro: -0.72, des: 0.10 }, { n: 11, r: 1, inc: 0.33, giro: 0.55, des: -0.04 }];
+/**
+ * Cuántas van en cada órbita para `total` herramientas, en la misma proporción 8 : 10 : 11 (las de afuera, más largas,
+ * llevan más). Antes eran puestos fijos para 29: al sumar las chilenas, las cuatro últimas quedaban sin lugar.
+ */
+function puestosPorOrbita(total: number): number[] {
+    const base = ORBITAS.reduce((s, o) => s + o.n, 0);
+    const n = ORBITAS.map((o) => Math.floor((o.n * total) / base));
+    for (let k = ORBITAS.length - 1; n.reduce((s, x) => s + x, 0) < total; k = (k + ORBITAS.length - 1) % ORBITAS.length) n[k]!++;
+    return n;
+}
 /** Tras elegir una a mano, la elección se respeta este tiempo (ms): alcanza para leer el nombre y llegar a «Abrir», también en pantallas táctiles. */
 const SOSTENER = 12_000;
 const mayuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -40,7 +50,7 @@ export function Herramientas() {
     useEffect(() => {
         const caja = esfera.current; if (!caja) return;
         const nodos = [...caja.querySelectorAll<HTMLElement>(".he-nodo")];
-        const P: [number, number][] = []; ORBITAS.forEach((o, k) => { for (let j = 0; j < o.n; j++) P.push([k, (j / o.n) * 6.2832]); });
+        const P: [number, number][] = []; puestosPorOrbita(nodos.length).forEach((n, k) => { for (let j = 0; j < n; j++) P.push([k, (j / n) * 6.2832]); });
         const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
         let ry = 0, vy = quieto ? 0 : 0.0022, R = 400, RY = 1, visible = false, arrastra: { x: number } | null = null, vivo = true, id = 0, ultimaVoz = 0;
         const medir = () => { const b = caja.getBoundingClientRect(); R = Math.min(b.width * 0.47, 520); RY = Math.min(1, (b.height * 0.46) / (R * 0.40)); };

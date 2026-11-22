@@ -10,7 +10,7 @@ import type { PublicToolCatalogEntry } from "@/lib/tool-registry";
 import { coincide } from "./buscar-herramientas";
 import "./carcasa.css";
 
-const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes"];
+const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"];
 const mayuscula = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
 
 /**

@@ -329,6 +329,40 @@ export const SubnetIcon: FC<IconProps> = (props) => (
     </svg>
 );
 
+// Herramientas chilenas (22-11-2026)
+export const RutIcon: FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <circle cx="8.5" cy="11" r="2" />
+        <path d="M5.8 16c.6-1.3 1.6-2 2.7-2s2.1.7 2.7 2M14 10h4M14 13h4" />
+    </svg>
+);
+export const IndicadoresIcon: FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8 10h8l-3-3M16 14H8l3 3" />
+    </svg>
+);
+export const SueldoIcon: FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M4 7V6a2 2 0 0 1 2-2h11v3" />
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M16 13.5h2" />
+    </svg>
+);
+export const BoletaIcon: FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+        <path d="M9 8h6M9 12h6M9 16h3" />
+    </svg>
+);
+// Chile Category Icon (la estrella de la bandera)
+export const ChileIcon: FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5l-5.4 3 1.2-6-4.5-4.2 6.1-.7z" />
+    </svg>
+);
+
 // Redes (Networking) Category Icon
 export const RedesIcon: FC<IconProps> = (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -396,6 +430,10 @@ export const TOOL_ICONS: Record<string, FC<IconProps>> = {
     "aleatorio": DiceIcon,
     "impuestos": CalculatorIcon,
     "binario": BinaryIcon,
+    "rut": RutIcon,
+    "uf-utm": IndicadoresIcon,
+    "sueldo-liquido": SueldoIcon,
+    "boleta-honorarios": BoletaIcon,
     // Image tools
     "convertir-imagen": ImageConverterIcon,
     "recortar-imagen": CropIcon,
@@ -429,6 +467,7 @@ export const CATEGORY_ICONS: Record<string, FC<IconProps>> = {
     "imágenes": ImagenesIcon,
     "seguridad": SeguridadIcon,
     "redes": RedesIcon,
+    "chile": ChileIcon,
 };
 
 // Category display config - NEW CATEGORIES
@@ -480,5 +519,12 @@ export const CATEGORY_CONFIG: Record<string, {
         bgColor: "from-[#F97316]/20 to-[#F97316]/5",
         borderColor: "border-[#F97316]/30",
         iconBg: "from-[#F97316]/20 to-[#F97316]/10",
+    },
+    "chile": {
+        name: "Chile",
+        color: "#F87171",
+        bgColor: "from-[#F87171]/20 to-[#F87171]/5",
+        borderColor: "border-[#F87171]/30",
+        iconBg: "from-[#F87171]/20 to-[#F87171]/10",
     },
 };
