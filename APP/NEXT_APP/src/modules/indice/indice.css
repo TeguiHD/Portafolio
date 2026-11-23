@@ -132,7 +132,7 @@
 .ix-metricas div { padding: 18px 16px 18px 0; border-bottom: 1px solid var(--linea); }
 .ix-metricas dt { color: var(--mut); font-size: 14.5px; }
 .ix-metricas dd { margin: 6px 0 4px; font-size: clamp(26px, 2.6vw, 34px); font-weight: 800; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
-.ix-metricas small { color: var(--mut); font-size: 13px; }
+.ix-metricas dd small { display: block; margin-top: 4px; color: var(--mut); font-size: 13px; font-weight: 400; letter-spacing: 0; }
 .ix-controles { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
 .ix-controles li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 14px; padding: 16px 4px; border-bottom: 1px solid var(--linea); }
 .ix-controles p { margin: 0; }

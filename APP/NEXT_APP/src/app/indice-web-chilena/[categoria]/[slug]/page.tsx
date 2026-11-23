@@ -86,11 +86,11 @@ export default async function SitioIndice({ params }: Props) {
                                     <p className="sv-fuente">Medido el {fechaCorta(s.fecha)} con Lighthouse {EDICION.lighthouse}, emulando un celular, una corrida. Lighthouse considera bueno de 90 a 100.</p>
                                 </div>
                                 <dl className="ix-metricas" data-sube="">
-                                    <div><dt>Lo principal se ve a los</dt><dd>{segundos(s.lcp)}</dd><small>Mediana de {c.articulo}: {segundos(r.mediana.lcp)}</small></div>
-                                    <div><dt>Tiempo bloqueado</dt><dd>{s.tbt === null ? "—" : `${s.tbt.toLocaleString("es-CL")} ms`}</dd><small>Lo que la página no responde mientras carga</small></div>
-                                    <div><dt>Saltos de diseño</dt><dd>{s.cls === null ? "—" : s.cls.toLocaleString("es-CL")}</dd><small>Bueno: 0,1 o menos</small></div>
-                                    <div><dt>Peso de la portada</dt><dd>{peso(s.peso)}</dd><small>Mediana de {c.articulo}: {peso(r.mediana.peso)}</small></div>
-                                    <div><dt>Archivos que descarga</dt><dd>{s.pedidos ?? "—"}</dd><small>Al abrir la portada</small></div>
+                                    <div><dt>Lo principal se ve a los</dt><dd>{segundos(s.lcp)}<small>Mediana de {c.articulo}: {segundos(r.mediana.lcp)}</small></dd></div>
+                                    <div><dt>Tiempo bloqueado</dt><dd>{s.tbt === null ? "—" : `${s.tbt.toLocaleString("es-CL")} ms`}<small>Lo que la página no responde mientras carga</small></dd></div>
+                                    <div><dt>Saltos de diseño</dt><dd>{s.cls === null ? "—" : s.cls.toLocaleString("es-CL")}<small>Bueno: 0,1 o menos</small></dd></div>
+                                    <div><dt>Peso de la portada</dt><dd>{peso(s.peso)}<small>Mediana de {c.articulo}: {peso(r.mediana.peso)}</small></dd></div>
+                                    <div><dt>Archivos que descarga</dt><dd>{s.pedidos ?? "—"}<small>Al abrir la portada</small></dd></div>
                                 </dl>
                             </Vista>
                         </section>

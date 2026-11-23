@@ -12,7 +12,9 @@ const sitiosDe = (c: IdCategoria) => EDICION.sitios.filter((s) => s.categoria ==
  */
 const RUTA = "/indice-web-chilena";
 const ld = (html: string) => [...html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)].flatMap((m) => [JSON.parse(m[1]!)].flat());
-/** Cada llamada al revisor con su propia IP de documentación: el límite es de 6 cada 10 minutos por IP. */
+/** Cada llamada al revisor con su propia IP de documentación: el límite es de 6 cada 10 minutos por IP. Solo en local:
+ *  en producción Cloudflare rechaza (403) una cf-connecting-ip puesta por el cliente, y el límite real no deja repetirlas. */
+const LOCAL = /localhost|127\.0\.0\.1/.test(process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost");
 let ip = 10;
 const otraIp = () => ({ "cf-connecting-ip": `203.0.113.${ip++}` });
 
@@ -57,6 +59,9 @@ test("la ficha de una institución: sus cuatro notas, sus controles y la fecha d
     await expect(page.locator(`progress[aria-label^="Accesibilidad"]`)).toHaveAttribute("value", String(s.notas.accesibilidad));
     await expect(page.locator(".ix-controles li")).toHaveCount(12);
     await expect(page.locator("main")).toContainText(/Medido el \d{2}-\d{2}-\d{4} con Lighthouse/);
+    // Cada grupo de la lista de métricas lleva solo <dt> y <dd> (Lighthouse bajaba la accesibilidad por un <small> suelto).
+    const etiquetas = await page.locator(".ix-metricas > div").evaluateAll((gs) => gs.flatMap((g) => [...g.children].map((h) => h.tagName)));
+    expect(new Set(etiquetas)).toEqual(new Set(["DT", "DD"]));
 });
 
 test("los datos se descargan: un CSV con una fila por sitio, sin celdas que Excel abra como fórmula", async ({ request }) => {
@@ -80,6 +85,7 @@ test("el buscador encuentra una institución aunque se escriba sin tildes", asyn
 });
 
 test.describe("el revisor", () => {
+    test.skip(!LOCAL, "en producción: probado a mano (el límite de 6 cada 10 minutos por IP no deja repetirlo)");
     test("rechaza IP, nombres locales, puertos, credenciales y dominios que apuntan a redes privadas", async ({ request }) => {
         const malos: [string, string][] = [
             ["http://127.0.0.1/", "url"], ["localhost", "url"], ["http://[::1]/", "url"], ["http://10.0.0.5", "url"],
