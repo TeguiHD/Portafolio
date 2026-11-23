@@ -27,7 +27,7 @@ export function hallazgos(sitios: Sitio[]) {
         const mejor = porCategoria[0]!, peor = porCategoria.at(-1)!;
         lista.push({ cifra: String(mejor.med), texto: `es la nota mediana de ${mejor.c.articulo}, la más alta; la de ${peor.c.articulo} es ${peor.med}, la más baja.` });
     }
-    if (r.sinRespuesta) lista.push({ cifra: String(r.sinRespuesta), texto: `sitio${r.sinRespuesta === 1 ? " quedó" : "s quedaron"} sin nota: no cargaron, bloquean las visitas automáticas, estaban en mantención o no tienen un sitio oficial confirmado. Cada uno está en la lista con su motivo.` });
+    if (r.sinRespuesta) lista.push({ cifra: String(r.sinRespuesta), texto: `${r.sinRespuesta === 1 ? "institución quedó" : "instituciones quedaron"} sin nota: su sitio no cargó, bloquea las visitas automáticas o estaba en mantención, o no tienen sitio web. Cada una está en la lista con su motivo.` });
 
     return {
         principal: {
@@ -50,7 +50,7 @@ export function conjuntoDatosSchema() {
         "@context": "https://schema.org",
         "@type": "Dataset",
         name: TITULO_INDICE,
-        description: `Medición de ${r.total} sitios públicos de Chile (municipalidades, ministerios, gobiernos regionales y universidades): notas de Lighthouse en celular, peso de la portada y doce controles de seguridad y de lo básico del HTML.`,
+        description: `Medición de los sitios web de ${r.total} instituciones de Chile (municipalidades, ministerios, gobiernos regionales y universidades): notas de Lighthouse en celular, peso de la portada y doce controles de seguridad y de lo básico del HTML.`,
         url: `${SITE_URL}${RUTA}`,
         creator: { "@id": `${SITE_URL}/#person` },
         license: "https://creativecommons.org/licenses/by/4.0/",

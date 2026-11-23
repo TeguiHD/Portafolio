@@ -40,7 +40,7 @@ export default function IndiceWebChilena() {
                             <p className="ix-edicion" data-sube="">Edición de {nombreEdicion(EDICION.edicion)}</p>
                             <h1 id="ix-titulo"><span className="linea-r"><span>Índice de la Web Chilena</span></span></h1>
                             <p className="ix-respuesta" data-sube="" style={{ "--i": 1 } as CSSProperties}>
-                                Medí uno por uno los {r.total} sitios de las municipalidades, los ministerios, los gobiernos regionales y las universidades de Chile: velocidad,
+                                Medí uno por uno los sitios de {r.total} instituciones de Chile, entre municipalidades, ministerios, gobiernos regionales y universidades: velocidad,
                                 accesibilidad y buenas prácticas con Lighthouse, y doce controles de seguridad y de lo básico. {h.principal.frase}
                             </p>
                         </div>
@@ -72,7 +72,7 @@ export default function IndiceWebChilena() {
                                 return (
                                     <article key={c.id} className="ix-categoria">
                                         <h3><Link href={`${RUTA}/${c.ruta}`}>{c.plural}</Link></h3>
-                                        <p className="ix-categoria-dato">{rc.medidos} medidos{rc.sinRespuesta ? `, ${rc.sinRespuesta} sin respuesta` : ""}. Nota mediana: <b>{rc.mediana.nota ?? "—"}</b>.</p>
+                                        <p className="ix-categoria-dato">{rc.medidos} medidos{rc.sinRespuesta ? `, ${rc.sinRespuesta} sin nota` : ""}. Nota mediana: <b>{rc.mediana.nota ?? "—"}</b>.</p>
                                         <Histograma tramos={distribucion(medidos(sitios))} titulo={`Cuántos sitios de ${c.articulo} hay en cada tramo de nota`} />
                                         <div className="ix-podio">
                                             <div>

@@ -29,7 +29,7 @@ test("la portada responde en el HTML: cuántos sitios, qué se midió y los dato
     const page = await ctx.newPage();
     await page.goto(RUTA);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Índice de la Web Chilena");
-    await expect(page.locator(".ix-respuesta")).toContainText(`${EDICION.sitios.length} sitios`);
+    await expect(page.locator(".ix-respuesta")).toContainText(`${EDICION.sitios.length} instituciones`);
     await ctx.close();
     const html = await (await request.get(RUTA)).text();
     const datos = ld(html).find((b) => b["@type"] === "Dataset");
@@ -62,6 +62,29 @@ test("la ficha de una institución: sus cuatro notas, sus controles y la fecha d
     // Cada grupo de la lista de métricas lleva solo <dt> y <dd> (Lighthouse bajaba la accesibilidad por un <small> suelto).
     const etiquetas = await page.locator(".ix-metricas > div").evaluateAll((gs) => gs.flatMap((g) => [...g.children].map((h) => h.tagName)));
     expect(new Set(etiquetas)).toEqual(new Set(["DT", "DD"]));
+});
+
+test("una institución sin sitio web queda en su ranking, sin nota, con su motivo y sin enlace", async ({ page }) => {
+    const s = EDICION.sitios.find((x) => x.url === null);
+    expect(s, "las universidades del SIES sin sitio web siguen en la edición").toBeDefined();
+    if (!s || s.estado === "medido") return;
+    const c = CATEGORIAS.find((x) => x.id === s.categoria)!;
+    await page.goto(`${RUTA}/${c.ruta}/${s.slug}`);
+    await expect(page.locator(".ix-respuesta")).toContainText(s.motivo);
+    await expect(page.locator(".ix-respuesta a")).toHaveCount(0);
+    // Sin sitio no hay nada que ofrecer arreglar, ni «nota de su sitio» que prometer en el título.
+    await expect(page.getByRole("heading", { name: "¿Trabajas aquí?" })).toHaveCount(0);
+    expect(await page.title()).not.toContain("nota de su sitio");
+    await page.goto(`${RUTA}/${c.ruta}`);
+    await expect(page.locator(".ix-tabla tr.ix-sin", { hasText: s.nombre })).toContainText(`Sin nota: ${s.motivo}.`);
+});
+
+test("quien quedó fuera de la edición no tiene ficha y la metodología dice por qué", async ({ page }) => {
+    const fuera = EDICION.excluidas ?? [];
+    expect(fuera.length, "Camiña: sin sitio oficial confirmado").toBeGreaterThan(0);
+    for (const x of fuera) expect(EDICION.sitios.some((s) => s.nombre === x.nombre), x.nombre).toBe(false);
+    await page.goto(`${RUTA}/metodologia`);
+    for (const x of fuera) await expect(page.locator("main")).toContainText(`${x.nombre}: ${x.motivo}`);
 });
 
 test("los datos se descargan: un CSV con una fila por sitio, sin celdas que Excel abra como fórmula", async ({ request }) => {

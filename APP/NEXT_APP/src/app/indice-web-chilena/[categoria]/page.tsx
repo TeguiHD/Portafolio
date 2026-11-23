@@ -77,9 +77,9 @@ export default async function Categoria({ params }: Props) {
                                 </thead>
                                 <tbody>
                                     {rk.map(({ sitio: s, puesto, nota, controles }) => (
-                                        <tr key={s.slug} data-buscar={`${s.nombre} ${s.region} ${s.comuna ?? ""}`}>
+                                        <tr key={s.slug} data-buscar={`${s.nombre} ${s.region ?? ""} ${s.comuna ?? ""}`}>
                                             <td className="ix-puesto">{puesto}</td>
-                                            <th scope="row"><Link href={`${RUTA}/${c.ruta}/${s.slug}`} title={s.nombre}>{corto(s)}</Link>{corto(s) !== s.region && <small>{s.region}</small>}</th>
+                                            <th scope="row"><Link href={`${RUTA}/${c.ruta}/${s.slug}`} title={s.nombre}>{corto(s)}</Link>{s.region && corto(s) !== s.region && <small>{s.region}</small>}</th>
                                             <td className="ix-nota-celda"><b data-nivel={nota >= 90 ? "bueno" : nota >= 50 ? "medio" : "bajo"}>{nota}</b></td>
                                             <td>{s.notas.rendimiento}</td><td>{s.notas.accesibilidad}</td><td>{s.notas.practicas}</td><td>{s.notas.seo}</td>
                                             <td>{controles === null ? "—" : `${controles}/12`}</td>
@@ -87,9 +87,9 @@ export default async function Categoria({ params }: Props) {
                                         </tr>
                                     ))}
                                     {sin.map((s) => (
-                                        <tr key={s.slug} data-buscar={`${s.nombre} ${s.region} ${s.comuna ?? ""}`} className="ix-sin">
+                                        <tr key={s.slug} data-buscar={`${s.nombre} ${s.region ?? ""} ${s.comuna ?? ""}`} className="ix-sin">
                                             <td className="ix-puesto">—</td>
-                                            <th scope="row"><Link href={`${RUTA}/${c.ruta}/${s.slug}`} title={s.nombre}>{corto(s)}</Link>{corto(s) !== s.region && <small>{s.region}</small>}</th>
+                                            <th scope="row"><Link href={`${RUTA}/${c.ruta}/${s.slug}`} title={s.nombre}>{corto(s)}</Link>{s.region && corto(s) !== s.region && <small>{s.region}</small>}</th>
                                             <td colSpan={7}>Sin nota: {s.motivo}.</td>
                                         </tr>
                                     ))}

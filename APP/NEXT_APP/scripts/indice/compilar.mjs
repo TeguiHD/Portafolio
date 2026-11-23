@@ -4,7 +4,9 @@
  * Uso: node scripts/indice/compilar.mjs <entidades.json> <carpeta-medidas> <edicion AAAA-MM> > src/data/indice/<edicion>.json
  *
  * Solo pasa lo que se publica: notas, métricas principales, peso, pedidos, los doce controles y las fallas de
- * accesibilidad. Una entidad cuyo sitio no cargó en dos intentos queda como «sin-respuesta» (también es un dato).
+ * accesibilidad. Una entidad cuyo sitio no cargó en dos intentos queda como «sin-respuesta» (también es un dato), igual
+ * que una sin sitio web («sin-sitio» en la lista, con su motivo). Una con el sitio oficial sin confirmar («dudoso») queda
+ * fuera, en «excluidas».
  */
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -32,12 +34,16 @@ function motivoLegible(error) {
 }
 
 const sitios = [];
+const excluidas = [];
 const fechas = [];
 let version = null;
 for (const e of entidades) {
-    const base = { slug: e.slug, nombre: e.nombre, categoria: e.categoria, region: e.region, ...(e.comuna ? { comuna: e.comuna } : {}), ...(e.tipo ? { tipo: e.tipo } : {}), url: e.url };
-    // Sin un sitio oficial confirmado no se mide nada: medir uno equivocado sería atribuirle notas ajenas.
-    if (e.estado === "dudoso") { sitios.push({ ...base, estado: "sin-respuesta", motivo: "no se pudo confirmar cuál es su sitio oficial", fecha: null }); continue; }
+    const base = { slug: e.slug, nombre: e.nombre, categoria: e.categoria, region: e.region ?? null, ...(e.comuna ? { comuna: e.comuna } : {}), ...(e.tipo ? { tipo: e.tipo } : {}), url: e.url ?? null };
+    // Sin un sitio oficial confirmado, la entidad queda fuera de la edición (y la metodología lo dice): medir uno
+    // equivocado sería atribuirle notas ajenas, y listarla sin nota daría a entender que su sitio falló.
+    if (e.estado === "dudoso") { excluidas.push({ nombre: e.nombre, categoria: e.categoria, motivo: "no se pudo confirmar cuál es su sitio oficial" }); continue; }
+    // Está en la lista oficial pero no tiene sitio (el SIES no indica uno, o la dirección ya no es suya): sin nota, con su motivo.
+    if (e.estado === "sin-sitio") { sitios.push({ ...base, estado: "sin-respuesta", motivo: e.motivo, fecha: e.revisado ?? null }); continue; }
     if (!archivos.has(`${e.slug}.json`)) { console.error(`sin medición: ${e.slug}`); continue; }
     const m = JSON.parse(await readFile(join(carpeta, `${e.slug}.json`), "utf8"));
     if (m.url !== e.url) { console.error(`medición con otra URL: ${e.slug} (${m.url} ≠ ${e.url})`); process.exitCode = 2; continue; }
@@ -76,6 +82,7 @@ const salida = {
     medidoDesde: fechas[0]?.slice(0, 10) ?? null,
     medidoHasta: fechas.at(-1)?.slice(0, 10) ?? null,
     sitios,
+    excluidas,
 };
 process.stdout.write(JSON.stringify(salida));
 console.error(`${sitios.length} sitios (${sitios.filter((s) => s.estado === "medido").length} medidos)`);

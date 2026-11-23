@@ -32,10 +32,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const x = await leer(params);
     if (!x) return {};
     const { c, s } = x;
-    const titulo = `${s.nombre}: nota de su sitio web | Índice Web Chilena`;
+    const titulo = s.url ? `${s.nombre}: nota de su sitio web | Índice Web Chilena` : `${s.nombre} en el Índice de la Web Chilena`;
     const desc = s.estado === "medido"
         ? `Cómo está el sitio de ${s.nombre} (${s.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}): rendimiento ${s.notas.rendimiento}, accesibilidad ${s.notas.accesibilidad}, buenas prácticas ${s.notas.practicas} y SEO ${s.notas.seo}, y sus controles de seguridad.`
-        : `El sitio de ${s.nombre} no tiene nota en el Índice de la Web Chilena (${nombreEdicion(EDICION.edicion)}): ${s.motivo}.`;
+        : `${s.url ? `El sitio de ${s.nombre}` : s.nombre} no tiene nota en el Índice de la Web Chilena (${nombreEdicion(EDICION.edicion)}): ${s.motivo}.`;
     return { title: { absolute: titulo }, description: desc, alternates: { canonical: `${RUTA}/${c.ruta}/${s.slug}` } };
 }
 
@@ -45,14 +45,14 @@ export default async function SitioIndice({ params }: Props) {
     const { c, s } = x;
     const grupo = sitiosDe(c.id), rk = ranking(medidos(grupo)), r = resumen(grupo);
     const fila = rk.find((f) => f.sitio.slug === s.slug);
-    const vecinos = grupo.filter((o) => o.region === s.region && o.slug !== s.slug).slice(0, 8);
+    const vecinos = s.region ? grupo.filter((o) => o.region === s.region && o.slug !== s.slug).slice(0, 8) : [];
     const ruta = `${RUTA}/${c.ruta}/${s.slug}`;
     const trail: BreadcrumbTrail = [{ name: "Inicio", path: "" }, { name: "Índice de la Web Chilena", path: RUTA }, { name: c.plural, path: `${RUTA}/${c.ruta}` }, { name: s.nombre, path: ruta }];
-    const dominio = s.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    const dominio = s.url?.replace(/^https?:\/\//, "").replace(/\/$/, "") ?? "";
     const pagina = {
         "@context": "https://schema.org", "@type": "WebPage", url: `${SITE_URL}${ruta}`, name: `${s.nombre} en el Índice de la Web Chilena`,
         isPartOf: { "@type": "Dataset", name: `Índice de la Web Chilena, ${nombreEdicion(EDICION.edicion)}`, url: `${SITE_URL}${RUTA}` },
-        about: { "@type": c.id === "universidad" ? "CollegeOrUniversity" : "GovernmentOrganization", name: s.nombre, url: s.url },
+        about: { "@type": c.id === "universidad" ? "CollegeOrUniversity" : "GovernmentOrganization", name: s.nombre, ...(s.url ? { url: s.url } : {}) },
     };
     return (
         <Esqueleto portada>
@@ -70,7 +70,7 @@ export default async function SitioIndice({ params }: Props) {
                             </p>
                         ) : (
                             <p className="ix-respuesta" data-sube="" style={{ "--i": 1 } as CSSProperties}>
-                                El sitio de {s.nombre} (<a href={s.url} rel="noopener nofollow" target="_blank">{dominio}</a>) no tiene nota en esta edición: {s.estado === "medido" ? "no se pudo medir" : s.motivo}{s.fecha ? ` (revisado el ${fechaCorta(s.fecha)})` : ""}.
+                                {s.url ? <>El sitio de {s.nombre} (<a href={s.url} rel="noopener nofollow" target="_blank">{dominio}</a>)</> : s.nombre} no tiene nota en esta edición: {s.estado === "medido" ? "no se pudo medir" : s.motivo}{s.fecha ? ` (revisado el ${fechaCorta(s.fecha)})` : ""}.
                             </p>
                         )}
                     </Vista>
@@ -155,7 +155,8 @@ export default async function SitioIndice({ params }: Props) {
                     </Vista>
                 </section>
 
-                <section id="contacto" className="sm-contacto ix-contacto" data-forma="anillo" data-ancla="#ancla-anillo" aria-labelledby="ix-contacto">
+                {/* Sin sitio (universidades en cierre) no hay nada que ofrecer arreglar. */}
+                {s.url && <section id="contacto" className="sm-contacto ix-contacto" data-forma="anillo" data-ancla="#ancla-anillo" aria-labelledby="ix-contacto">
                     <Vista className="ancho" id="ancla-anillo">
                         <h2 id="ix-contacto"><span className="linea-r"><span>¿Trabajas aquí?</span></span></h2>
                         <p data-sube="" style={{ "--i": 1 } as CSSProperties}>Te explico qué arreglar primero en este sitio y te mando una propuesta escrita para hacerlo.</p>
@@ -164,7 +165,7 @@ export default async function SitioIndice({ params }: Props) {
                             <Link className="enlace-ir" href="/servicios">Ver los servicios</Link>
                         </div>
                     </Vista>
-                </section>
+                </section>}
             </main>
         </Esqueleto>
     );

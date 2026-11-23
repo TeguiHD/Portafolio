@@ -15,9 +15,10 @@ export const categoriaPorRuta = (ruta: string) => CATEGORIAS.find((c) => c.ruta 
 export const categoriaPorId = (id: string) => CATEGORIAS.find((c) => c.id === id);
 
 export interface NotasSitio { rendimiento: number; accesibilidad: number; practicas: number; seo: number }
-interface SitioBase { slug: string; nombre: string; categoria: IdCategoria; region: string; comuna?: string; tipo?: string; url: string; fecha: string | null }
+/** url y region son null cuando la lista oficial no indica sitio ni sede (universidades en cierre). */
+interface SitioBase { slug: string; nombre: string; categoria: IdCategoria; region: string | null; comuna?: string; tipo?: string; url: string | null; fecha: string | null }
 export interface SitioMedido extends SitioBase {
-    estado: "medido"; urlFinal: string; notas: NotasSitio;
+    estado: "medido"; url: string; urlFinal: string; notas: NotasSitio;
     lcp: number | null; tbt: number | null; cls: number | null; peso: number | null; pedidos: number | null;
     revision: ResultadoRevision | null;
     /** [id de la auditoría, título (de Lighthouse, en español), elementos afectados] */
@@ -25,7 +26,9 @@ export interface SitioMedido extends SitioBase {
 }
 export interface SitioSinRespuesta extends SitioBase { estado: "sin-respuesta"; motivo: string }
 export type Sitio = SitioMedido | SitioSinRespuesta;
-export interface Edicion { edicion: string; lighthouse: string | null; medidoDesde: string | null; medidoHasta: string | null; sitios: Sitio[] }
+/** Quien quedó fuera de la edición, y por qué (la metodología lo nombra). */
+export interface Excluida { nombre: string; categoria: IdCategoria; motivo: string }
+export interface Edicion { edicion: string; lighthouse: string | null; medidoDesde: string | null; medidoHasta: string | null; sitios: Sitio[]; excluidas?: Excluida[] }
 
 export const RUTA = "/indice-web-chilena";
 

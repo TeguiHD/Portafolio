@@ -5,7 +5,7 @@ import { Vista } from "@/modules/landing/viva/Vista";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbSchema, faqSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
-import { CATEGORIAS, EDICION, RUTA, periodoMedicion, nombreEdicion, sitiosDe } from "@/lib/indice/datos";
+import { CATEGORIAS, EDICION, RUTA, categoriaPorId, periodoMedicion, nombreEdicion, sitiosDe } from "@/lib/indice/datos";
 import { CONTROLES } from "@/lib/indice/revision";
 import { citaIndice } from "@/lib/indice/textos";
 import { Copiar } from "@/modules/indice/Cliente";
@@ -49,8 +49,11 @@ export default function Metodologia() {
                     <Vista className="ancho ix-dos">
                         <h2 id="ix-quienes"><span className="linea-r"><span>Qué sitios entran</span></span></h2>
                         <div className="ix-texto-largo" data-sube="">
-                            <p>Todas las instituciones de cuatro grupos, sin elegir: {CATEGORIAS.map((c) => `${sitiosDe(c.id).length} ${c.plural.toLowerCase()}`).join(", ").replace(/, ([^,]*)$/, " y $1")}. La lista de sitios oficiales se armó con Wikidata y las listas oficiales de cada grupo, y cada dirección se comprobó abriéndola.</p>
-                            <p>Se mide la portada, en la dirección final después de las redirecciones. Un sitio que no cargó en dos intentos queda en la lista como «sin respuesta», sin nota: también es un dato.</p>
+                            <p>Todas las instituciones de cuatro grupos, sin elegir: {CATEGORIAS.map((c) => `${sitiosDe(c.id).length} ${c.plural.toLowerCase()}`).join(", ").replace(/, ([^,]*)$/, " y $1")}. La lista de sitios oficiales se armó con Wikidata y las listas oficiales de cada grupo (las universidades son todas las del listado de instituciones vigentes del SIES), y cada dirección se comprobó abriéndola.</p>
+                            {(EDICION.excluidas ?? []).map((x) => (
+                                <p key={x.nombre}>Quedó fuera {categoriaPorId(x.categoria)?.femenino ? "la" : "el"} {x.nombre}: {x.motivo}. Medir un sitio equivocado sería atribuirle notas ajenas.</p>
+                            ))}
+                            <p>Se mide la portada, en la dirección final después de las redirecciones. Un sitio que no cargó en dos intentos queda en la lista como «sin respuesta», sin nota: también es un dato. Lo mismo una institución sin sitio web: queda en la lista, sin nota y con su motivo.</p>
                         </div>
                     </Vista>
                 </section>
