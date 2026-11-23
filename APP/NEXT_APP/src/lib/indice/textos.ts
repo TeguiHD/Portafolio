@@ -3,7 +3,7 @@
  * si cambia la edición, cambian solas. El tono es neutro: el dato dice lo que dice, sin «solo» ni «apenas».
  */
 import { SITE_URL } from "@/lib/seo/metadata";
-import { CATEGORIAS, EDICION, RUTA, medidos, mediana, nombreEdicion, notaIndice, peso, pct, resumen, type Sitio } from "./datos";
+import { CATEGORIAS, EDICION, RUTA, medidos, mediana, nombreEdicion, notaIndice, peso, pct, resumen, urlDatos, type Sitio } from "./datos";
 
 export const TITULO_INDICE = `Índice de la Web Chilena, ${nombreEdicion(EDICION.edicion)}`;
 const porc = (n: number) => `${n} %`;
@@ -61,8 +61,8 @@ export function conjuntoDatosSchema() {
         keywords: ["accesibilidad web", "rendimiento web", "seguridad web", "Lighthouse", "sitios de gobierno de Chile", "municipalidades", "universidades"],
         variableMeasured: ["Rendimiento (Lighthouse)", "Accesibilidad (Lighthouse)", "Buenas prácticas (Lighthouse)", "SEO (Lighthouse)", "Peso de la portada", "Controles de seguridad y básicos"],
         distribution: [
-            { "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: `${SITE_URL}${RUTA}/datos/${EDICION.edicion}.csv` },
-            { "@type": "DataDownload", encodingFormat: "application/json", contentUrl: `${SITE_URL}${RUTA}/datos/${EDICION.edicion}.json` },
+            { "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: `${SITE_URL}${urlDatos("csv")}` },
+            { "@type": "DataDownload", encodingFormat: "application/json", contentUrl: `${SITE_URL}${urlDatos("json")}` },
         ],
     };
 }

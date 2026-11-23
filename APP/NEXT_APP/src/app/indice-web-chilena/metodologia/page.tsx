@@ -5,7 +5,7 @@ import { Vista } from "@/modules/landing/viva/Vista";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbSchema, faqSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
-import { CATEGORIAS, EDICION, RUTA, categoriaPorId, periodoMedicion, nombreEdicion, sitiosDe } from "@/lib/indice/datos";
+import { CATEGORIAS, EDICION, RUTA, categoriaPorId, periodoMedicion, nombreEdicion, sitiosDe, urlDatos } from "@/lib/indice/datos";
 import { CONTROLES } from "@/lib/indice/revision";
 import { citaIndice } from "@/lib/indice/textos";
 import { Copiar } from "@/modules/indice/Cliente";
@@ -92,8 +92,8 @@ export default function Metodologia() {
                         <h2 id="ix-usar"><span className="linea-r"><span>Usar los datos</span></span></h2>
                         <div data-sube="">
                             <p className="ix-enlaces">
-                                <a className="enlace-ir" href={`${RUTA}/datos/${EDICION.edicion}.csv`} download>Descargar CSV</a>
-                                <a className="enlace-ir" href={`${RUTA}/datos/${EDICION.edicion}.json`} download>Descargar JSON</a>
+                                <a className="enlace-ir" href={urlDatos("csv")} download>Descargar CSV</a>
+                                <a className="enlace-ir" href={urlDatos("json")} download>Descargar JSON</a>
                                 <a className="enlace-ir" href="https://github.com/TeguiHD/Portafolio/tree/ui/portada/APP/NEXT_APP/scripts/indice" rel="noopener" target="_blank">Código del medidor</a>
                             </p>
                             <div className="ix-cita">

@@ -87,14 +87,21 @@ test("quien quedó fuera de la edición no tiene ficha y la metodología dice po
     for (const x of fuera) await expect(page.locator("main")).toContainText(`${x.nombre}: ${x.motivo}`);
 });
 
-test("los datos se descargan: un CSV con una fila por sitio, sin celdas que Excel abra como fórmula", async ({ request }) => {
-    const r = await request.get(`${RUTA}/datos/${EDICION.edicion}.csv`);
+test("los datos se descargan: un CSV con una fila por sitio, sin celdas que Excel abra como fórmula", async ({ page, request }) => {
+    // Los enlaces llevan la huella de los datos (?v=): si la edición cambia, cambia la dirección y la caché de Cloudflare
+    // (que guarda los .csv un día) no puede servir la versión vieja.
+    await page.goto(RUTA);
+    const enlace = (texto: string) => page.locator("a[download]", { hasText: texto }).first().getAttribute("href");
+    const csvUrl = (await enlace("Descargar CSV"))!, jsonUrl = (await enlace("Descargar JSON"))!;
+    expect(csvUrl).toMatch(new RegExp(`/datos/${EDICION.edicion}\\.csv\\?v=[0-9a-f]{8}$`));
+    expect(jsonUrl).toMatch(new RegExp(`/datos/${EDICION.edicion}\\.json\\?v=[0-9a-f]{8}$`));
+    const r = await request.get(csvUrl);
     expect(r.headers()["content-type"]).toContain("text/csv");
     const lineas = (await r.text()).replace(/^﻿/, "").trim().split("\r\n");
     expect(lineas).toHaveLength(EDICION.sitios.length + 1);
     expect(lineas[0]).toContain("nota_indice");
     expect(lineas.slice(1).some((l) => /(^|,)[=+@]/.test(l))).toBe(false);
-    const json = await (await request.get(`${RUTA}/datos/${EDICION.edicion}.json`)).json();
+    const json = await (await request.get(jsonUrl)).json();
     expect(json.sitios).toHaveLength(EDICION.sitios.length);
     expect(json.licencia).toContain("CC BY 4.0");
 });

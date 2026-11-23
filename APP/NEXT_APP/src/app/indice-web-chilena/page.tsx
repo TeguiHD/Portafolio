@@ -6,7 +6,7 @@ import { Vista } from "@/modules/landing/viva/Vista";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
-import { CATEGORIAS, EDICION, RUTA, cumplimiento, distribucion, medidos, nombreEdicion, notaIndice, peso, pct, ranking, resumen, sitiosDe, periodoMedicion } from "@/lib/indice/datos";
+import { CATEGORIAS, EDICION, RUTA, cumplimiento, distribucion, medidos, nombreEdicion, notaIndice, peso, pct, ranking, resumen, sitiosDe, periodoMedicion, urlDatos } from "@/lib/indice/datos";
 import { conjuntoDatosSchema, citaIndice, hallazgos } from "@/lib/indice/textos";
 import { Buscador, Copiar, TextoMateria } from "@/modules/indice/Cliente";
 import { BarrasCumplimiento, Histograma } from "@/modules/indice/Graficos";
@@ -115,8 +115,8 @@ export default function IndiceWebChilena() {
                             </p>
                             <p className="ix-enlaces">
                                 <Link className="enlace-ir" href={`${RUTA}/metodologia`}>Cómo se midió</Link>
-                                <a className="enlace-ir" href={`${RUTA}/datos/${EDICION.edicion}.csv`} download>Descargar CSV</a>
-                                <a className="enlace-ir" href={`${RUTA}/datos/${EDICION.edicion}.json`} download>Descargar JSON</a>
+                                <a className="enlace-ir" href={urlDatos("csv")} download>Descargar CSV</a>
+                                <a className="enlace-ir" href={urlDatos("json")} download>Descargar JSON</a>
                             </p>
                         </div>
                         <div className="ix-cita" data-sube="">
