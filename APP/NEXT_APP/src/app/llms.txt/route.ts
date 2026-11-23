@@ -2,6 +2,8 @@ import { TOOLS_SEO } from "@/lib/seo/tools-content";
 import { SITE_URL, SITE_NAME } from "@/lib/seo/metadata";
 import { casos } from "@/modules/landing/portada/datos/casos";
 import { SERVICIOS } from "@/lib/servicios";
+import { EDICION, RUTA } from "@/lib/indice/datos";
+import { TITULO_INDICE, citaIndice, conjuntoDatosSchema } from "@/lib/indice/textos";
 
 /**
  * /llms.txt — mapa del sitio legible por modelos de lenguaje.
@@ -23,6 +25,7 @@ export function GET() {
         .map((c) => `- ${c.title} (${c.category}): ${c.description}${c.external ? ` ${c.href}` : c.href.startsWith("/herramientas") ? ` ${SITE_URL}${c.href}` : " Sistema privado."}`)
         .join("\n");
 
+    const conjunto = conjuntoDatosSchema();
     const body = `# ${SITE_NAME}
 
 > Portafolio y conjunto de ${Object.keys(TOOLS_SEO).length} herramientas web gratuitas
@@ -36,6 +39,15 @@ Desarrollo web a medida, en Chile y a distancia. Cada servicio tiene su página,
 ${SERVICIOS.map((s) => `- [${s.nombre}](${SITE_URL}/servicios/${s.slug}): ${s.respuesta}`).join("\n")}
 
 Contacto: contacto@nicoholas.dev o el formulario «Conversemos» en ${SITE_URL}/#contacto.
+
+## Índice de la Web Chilena
+
+${conjunto.description} Datos abiertos (CC BY 4.0), con metodología pública:
+
+- [${TITULO_INDICE}](${SITE_URL}${RUTA}): hallazgos, ranking por tipo de institución y una ficha por sitio.
+- [Metodología](${SITE_URL}${RUTA}/metodologia) · [CSV](${SITE_URL}${RUTA}/datos/${EDICION.edicion}.csv) · [JSON](${SITE_URL}${RUTA}/datos/${EDICION.edicion}.json)
+- [Revisa tu sitio](${SITE_URL}${RUTA}/revisa-tu-sitio): los mismos doce controles sobre cualquier sitio.
+- Cómo citarlo: ${citaIndice()}
 
 ## Proyectos
 

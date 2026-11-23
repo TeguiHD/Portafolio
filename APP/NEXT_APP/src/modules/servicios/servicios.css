@@ -1,56 +1,185 @@
-/* Servicios (prefijo sv-), con el lenguaje de /sobre-mi (sm-) y de la portada. */
-.sv-cab h1 { font-size: clamp(40px, 7vw, 104px); letter-spacing: -.055em; line-height: .95; max-width: 16ch; }
-.sv-pregunta { margin: 0 0 14px; color: var(--mut); font-size: clamp(17px, 1.6vw, 21px); }
-.sv-respuesta { margin: 26px 0 0; max-width: 62ch; color: var(--txt); font-size: clamp(18px, 1.7vw, 22px); line-height: 1.55; }
-.sv-acciones { margin: 28px 0 0; }
-.sv .sv-bloque { padding-block: 56px; }
-.sv h2 { font-size: clamp(30px, 4vw, 52px); }
-.sv-lista { display: grid; gap: 0; margin: 22px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
-.sv-lista li { position: relative; padding: 16px 4px 16px 30px; border-bottom: 1px solid var(--linea); max-width: 80ch; font-size: 17px; line-height: 1.55; color: var(--txt); }
-.sv-lista li::before { content: ""; position: absolute; left: 6px; top: 1.45em; width: 10px; height: 2px; border-radius: 2px; background: var(--acento); }
-.sv-no { margin: 22px 0 0; max-width: 80ch; color: var(--mut); font-size: 16.5px; line-height: 1.6; }
-.sv-no strong { color: var(--txt); font-weight: 600; }
-.sv-paso { color: var(--mut); font-weight: 450; }
-.sv-tabla { margin: 6px 0 16px; }
-.sv-corto { display: none; }
-.sv-tabla table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
+/* Servicios (prefijo sv-) y anillos de notas (an-), con el lenguaje de la portada.
+   Lo memorable va en un solo lugar: la materia dibuja lo que se construye y el caso real muestra sus notas en anillos.
+   Lo demás, quieto: tipografía grande, líneas finas y nada de cajas repetidas. */
+
+@property --valor { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+.sv { --an-medio: #fbbf24; --an-bajo: #f87171; }
+:root[data-tema="claro"] .viva:not(.solo-oscuro) .sv { --an-medio: #b45309; --an-bajo: #dc2626; }
+.sv h2 { margin: 0; font-size: clamp(32px, 4.4vw, 58px); font-weight: 800; letter-spacing: -.045em; line-height: 1; }
+.sv h3 { margin: 0; letter-spacing: -.025em; }
+.sv .sv-bloque { padding-block: 80px; }
+
+/* --- Cabecera: la pregunta como se la hacen a un buscador, la respuesta primero, y la materia dibujando al lado --- */
+#inicio.sv-cab { padding-block: 22px 64px; min-height: auto; }
+.sv-cab-rejilla { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, .7fr); align-items: center; gap: 24px 40px; }
+.sv-escena { position: relative; height: min(50vh, 430px); }
+.sv-escena::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: -2%; height: 40px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--acento) 30%, transparent), transparent); filter: blur(14px); }
+.sv-consulta { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin: 0 0 28px; padding: 11px 20px 11px 15px; border-radius: 999px;
+  border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 72%, transparent); color: var(--txt); font-size: clamp(15px, 1.35vw, 17px); line-height: 1.35; }
+.sv-consulta svg { flex: none; color: var(--acento); }
+.sv-consulta span { min-width: 0; }
+/* El cursor que parpadea al final: la pregunta está «escrita», esperando respuesta. */
+.sv-consulta span::after { content: ""; display: inline-block; width: 2px; height: 1.05em; margin-left: 4px; vertical-align: -.16em; border-radius: 1px; background: var(--acento); animation: sv-cursor 1.1s steps(1) infinite; }
+@keyframes sv-cursor { 50% { opacity: 0; } }
+.sv-cab h1 { margin: 0; font-size: clamp(42px, 6.4vw, 94px); font-weight: 800; letter-spacing: -.055em; line-height: .95; max-width: 13ch; text-wrap: balance; }
+.sv-respuesta { margin: 28px 0 0; max-width: 60ch; color: var(--txt); font-size: clamp(17px, 1.55vw, 20px); line-height: 1.6; }
+.sv-acciones { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 0; }
+.sv-cab-indice h1 { max-width: none; font-size: clamp(40px, 16vw, 150px); letter-spacing: -.065em; line-height: .9; }
+.sv-cab-indice h1 i { color: var(--acento); font-style: normal; }
+.sv-cab-indice .sv-respuesta { max-width: 46ch; }
+#inicio.sv-cab-indice { padding-bottom: 8px; }
+.sv #sv-lista.sv-bloque { padding-top: 24px; }
+
+/* --- Dos columnas: el título se queda mientras se lee la lista --- */
+.sv-dos { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px 64px; align-items: start; }
+.sv-dos > h2 { position: sticky; top: 112px; }
+.sv-incluye { list-style: none; margin: 0; padding: 0; }
+.sv-incluye li { padding: 20px 0; border-bottom: 1px solid var(--linea); font-size: clamp(19px, 1.8vw, 23px); font-weight: 600; letter-spacing: -.018em; line-height: 1.38; text-wrap: pretty; }
+.sv-incluye li:first-child { padding-top: 4px; }
+
+/* --- ¿Te conviene?: el sí lleno, el no apenas trazado --- */
+.sv-balanza { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; margin-top: 34px; }
+.sv-si, .sv-no { padding: clamp(22px, 3vw, 38px); border-radius: 26px; }
+.sv-si { background: color-mix(in srgb, var(--acento) 8%, var(--sup)); border: 1px solid color-mix(in srgb, var(--acento) 28%, var(--linea)); }
+.sv-no { border: 1px dashed var(--linea-2); }
+.sv-si h3, .sv-no h3 { margin-bottom: 18px; font-size: clamp(21px, 2vw, 26px); }
+.sv-si ul { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.sv-si li { position: relative; padding-left: 34px; font-size: 17px; line-height: 1.55; }
+.sv-si li::before { content: ""; position: absolute; left: 0; top: .2em; width: 20px; height: 20px; background: var(--acento);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5 9.5 18 20 6.5'/%3E%3C/svg%3E") center / contain no-repeat; }
+.sv-no p { margin: 0; color: var(--mut); font-size: 17px; line-height: 1.6; }
+
+/* --- Cómo trabajo: es una secuencia, así que va numerada; la línea entre pasos se traza al bajar --- */
+.sv-pasos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 36px; margin: 40px 0 0; padding: 0; list-style: none; }
+.sv-paso-n { display: flex; align-items: center; gap: 18px; font: 800 clamp(58px, 7vw, 100px)/1 var(--font-inter, Inter), sans-serif; letter-spacing: -.06em; color: transparent;
+  -webkit-text-stroke: 1.4px color-mix(in srgb, var(--acento) 78%, transparent); }
+.sv-paso-n::after { content: ""; flex: 1; height: 1.5px; border-radius: 2px; background: linear-gradient(90deg, var(--acento), color-mix(in srgb, var(--acento) 0%, transparent)); transform-origin: left; }
+.sv-pasos li:last-child .sv-paso-n::after { opacity: .35; }
+.sv-pasos h3 { margin-top: 18px; font-size: clamp(20px, 1.9vw, 24px); }
+.sv-pasos p { margin: 10px 0 0; max-width: 40ch; color: var(--mut); font-size: 16.5px; line-height: 1.6; }
+@supports ((animation-timeline: view()) and (animation-range: entry)) { @media (prefers-reduced-motion: no-preference) {
+  .sv-paso-n::after { animation: sv-traza linear both; animation-timeline: view(); animation-range: entry 30% cover 50%; }
+} }
+@keyframes sv-traza { from { scale: 0 1; } }
+
+/* --- Caso real: el texto a un lado, las notas en anillos al otro --- */
+.sv-caso-cuerpo { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 32px 56px; margin-top: 36px; align-items: start; }
+.sv-caso-cuerpo:not(:has(.sv-cifras)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sv-caso-texto h3 { font-size: clamp(28px, 3.2vw, 44px); letter-spacing: -.04em; }
+.sv-caso-texto p { margin: 14px 0 22px; max-width: 60ch; color: var(--mut); font-size: 17px; line-height: 1.65; }
+.sv-otro-caso { padding-left: clamp(0px, 3vw, 40px); border-left: 1px solid var(--linea); }
+.sv-cifras { min-width: 0; }
+.sv-marcador { padding: clamp(18px, 3vw, 34px); border-radius: 28px; border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 74%, transparent); }
+.sv-dispositivo { display: inline-flex; gap: 2px; padding: 4px; border-radius: 999px; border: 1px solid var(--linea-2); }
+.sv-dispositivo button { min-width: min-content; padding: 8px 16px; border-radius: 999px; color: var(--mut); font-weight: 600; font-size: 14.5px; transition: background .25s, color .25s; }
+.sv-dispositivo button:hover { color: var(--txt); }
+.sv-dispositivo button[aria-pressed="true"] { background: var(--txt); color: var(--fondo); }
+.sv-dispositivo button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.sv-pagina-nombre { margin: 24px 0 16px; color: var(--mut); font-size: 15px; }
+.sv-pagina + .sv-pagina { margin-top: 26px; border-top: 1px solid var(--linea); }
+.sv-fuente { margin: 14px 4px 0; color: var(--mut); font-size: 14px; line-height: 1.5; }
+.sv-tabla { margin: 10px 4px 0; }
+.sv-tabla summary { width: fit-content; padding: 6px 0; color: var(--txt); font-size: 14.5px; font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: var(--linea-2); text-underline-offset: 4px; }
+.sv-tabla summary:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; border-radius: 6px; }
+.sv-tabla table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 14.5px; font-variant-numeric: tabular-nums; }
 .sv-tabla caption { caption-side: bottom; padding-top: 8px; text-align: left; color: var(--mut); font-size: 13.5px; }
-.sv-tabla th, .sv-tabla td { padding: 9px 10px; border-bottom: 1px solid var(--linea); text-align: right; }
+.sv-tabla th, .sv-tabla td { padding: 8px 8px; border-bottom: 1px solid var(--linea); text-align: right; }
 .sv-tabla thead th { color: var(--mut); font-weight: 500; font-size: 13.5px; }
-.sv-tabla tbody th { text-align: left; font-weight: 600; color: var(--txt); }
+.sv-tabla tbody th { text-align: left; font-weight: 600; }
 .sv-tabla tbody th small { display: block; font-weight: 400; color: var(--mut); }
 .sv-tabla th:first-child { text-align: left; }
-.sv-faq { display: grid; margin-top: 22px; border-top: 1px solid var(--linea); }
+.sv-corto { display: none; }
+
+/* --- Anillos: <progress> nativo pintado con conic-gradient y vaciado con una máscara (funciona en todos los motores) --- */
+.an-fila { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
+.an-fila li { display: grid; justify-items: center; align-content: start; gap: 12px; min-width: 0; text-align: center; }
+.an-anillo { position: relative; display: grid; place-items: center; width: 100%; max-width: 148px; aspect-ratio: 1; }
+.an-progreso { --grosor: 9px; --relleno: var(--acento); --pista: var(--linea-2); appearance: none; display: block; width: 100%; height: 100%; margin: 0; border: 0; border-radius: 50%; color: inherit;
+  background: conic-gradient(var(--relleno) calc(var(--valor) * 1%), var(--pista) 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--grosor)), #000 calc(100% - var(--grosor) + 1px));
+  transition: --valor 0s; }
+.an-progreso::-webkit-progress-bar, .an-progreso::-webkit-progress-value { display: none; background: none; }
+.an-progreso::-moz-progress-bar { background: none; }
+.an-progreso[data-nivel="medio"] { --relleno: var(--an-medio); }
+.an-progreso[data-nivel="bajo"] { --relleno: var(--an-bajo); }
+@media (prefers-reduced-motion: no-preference) { .an-progreso { transition-duration: .9s; transition-timing-function: var(--curva); } }
+/* Se llenan al entrar en pantalla (solo con JavaScript: sin él, quedan llenos desde el principio). */
+@media (scripting: enabled) { .viva-portada [data-vista]:not(.visto) .an-progreso { --valor: 0 !important; } }
+@media (forced-colors: active) { .an-progreso { forced-color-adjust: none; --relleno: CanvasText; --pista: Canvas; } }
+.an-numero { position: absolute; font: 800 clamp(26px, 3.2vw, 44px)/1 var(--font-inter, Inter), sans-serif; letter-spacing: -.05em; color: var(--txt); font-variant-numeric: tabular-nums; }
+.an-sin { color: var(--mut); font-size: 13px; }
+.an-nombre { color: var(--mut); font-size: 14px; font-weight: 500; line-height: 1.3; }
+.an-chico .an-anillo { max-width: 96px; }
+.an-chico .an-progreso { --grosor: 7px; }
+.an-chico .an-numero { font-size: clamp(22px, 2.4vw, 30px); }
+
+/* --- Preguntas frecuentes: el marcador va junto a la pregunta y el contenido se despliega a su alto natural --- */
+.sv-faq { border-top: 1px solid var(--linea); }
 .sv-faq details { border-bottom: 1px solid var(--linea); }
-.sv-faq summary { display: flex; justify-content: space-between; gap: 16px; padding: 18px 4px; cursor: pointer; list-style: none; font-size: 18px; font-weight: 600; color: var(--txt); }
+.sv-faq summary { display: flex; align-items: baseline; gap: 14px; padding: 20px 4px; cursor: pointer; list-style: none; font-size: clamp(17px, 1.6vw, 20px); font-weight: 600; letter-spacing: -.012em; line-height: 1.4; }
 .sv-faq summary::-webkit-details-marker { display: none; }
-.sv-faq summary::after { content: "+"; color: var(--acento); font-weight: 400; transition: rotate .25s var(--curva); }
-.sv-faq details[open] summary::after { rotate: 45deg; }
+.sv-faq summary::before { content: ""; flex: none; width: 14px; height: 14px; translate: 0 1px; background: var(--acento);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 4v16M4 12h16'/%3E%3C/svg%3E") center / contain no-repeat; }
+.sv-faq details[open] > summary::before { rotate: 45deg; }
+.sv-faq summary:hover { color: var(--acento); }
 .sv-faq summary:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 8px; }
-.sv-faq p { margin: 0 4px 18px; max-width: 78ch; color: var(--mut); font-size: 16.5px; line-height: 1.65; }
-.sv-otros { margin-top: 28px; color: var(--mut); font-size: 15px; }
-.sv-otros a { color: var(--txt); text-decoration: underline; text-underline-offset: 3px; }
-.sv-servicios { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
-.sv-servicios li { padding: 26px 4px; border-bottom: 1px solid var(--linea); }
-.sv-servicios h2 { margin: 0; font-size: clamp(24px, 3vw, 38px); letter-spacing: -.03em; }
-.sv-servicios h2 a { color: var(--txt); text-decoration: none; }
-.sv-servicios h2 a:hover { color: var(--acento); }
-.sv-servicios h2 a:focus-visible { outline: 2px solid var(--acento); outline-offset: 4px; border-radius: 6px; }
-.sv-servicios p { margin: 8px 0 0; color: var(--mut); font-size: 17px; }
+.sv-faq details::details-content { interpolate-size: allow-keywords; overflow: clip; contain: layout; }
+.sv-faq details:not([open])::details-content { block-size: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .sv-faq summary::before { transition: rotate .25s var(--curva); }
+  .sv-faq details::details-content { transition: block-size .32s var(--curva), content-visibility .32s allow-discrete; }
+}
+.sv-faq p { margin: 0 4px 22px 32px; max-width: 66ch; color: var(--mut); font-size: 16.5px; line-height: 1.65; }
+
+/* --- Filas de servicio (el índice y «También hago»): la pregunta, en grande; al señalarla, se enciende --- */
+.sv-indice { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr); gap: 24px 40px; align-items: center; }
+.sv-indice .sv-escena { position: sticky; top: 120px; }
+.sv-filas { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.sv-filas li { border-bottom: 1px solid var(--linea); }
+.sv-filas a { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 20px; align-items: center; padding: 28px 6px; color: var(--txt); text-decoration: none; }
+.sv-fila-nombre { grid-column: 1; font-size: clamp(26px, 3.4vw, 46px); font-weight: 800; letter-spacing: -.045em; line-height: 1.05; transition: color .3s; }
+.sv-fila-pregunta { grid-column: 1; color: var(--mut); font-size: clamp(15.5px, 1.4vw, 18px); }
+.sv-fila-ir { grid-column: 2; grid-row: 1 / span 2; color: var(--mut); transition: translate .3s var(--curva), color .3s; }
+.sv-filas li[data-activa] .sv-fila-nombre, .sv-filas a:hover .sv-fila-nombre { color: var(--acento); }
+.sv-filas li[data-activa] .sv-fila-ir, .sv-filas a:hover .sv-fila-ir { color: var(--acento); translate: 4px -4px; }
+.sv-filas a:focus-visible { outline: 2px solid var(--acento); outline-offset: 4px; border-radius: 10px; }
+.sv-filas-otros { margin-top: 30px; }
+
+/* --- Conversemos: todo centrado --- */
+.sv-contacto { text-align: center; }
+.sv-contacto h2 { font-size: clamp(32px, 11.5vw, 96px); letter-spacing: -.06em; }
+
+@media (max-width: 900px) {
+  .sv-cab-rejilla, .sv-indice { grid-template-columns: minmax(0, 1fr); }
+  .sv-cab-rejilla .sv-escena { height: min(28svh, 210px); margin-top: 12px; }
+  .sv-indice .sv-escena { position: static; order: -1; height: min(26svh, 200px); }
+  .sv-dos, .sv-caso-cuerpo, .sv-caso-cuerpo:not(:has(.sv-cifras)) { grid-template-columns: minmax(0, 1fr); }
+  .sv-dos > h2 { position: static; }
+  .sv-balanza { grid-template-columns: minmax(0, 1fr); }
+  .sv-otro-caso { padding: 22px 0 0; border-left: 0; border-top: 1px solid var(--linea); }
+}
 @media (max-width: 760px) {
-  .sv .sv-bloque { padding-block: 40px; }
-  .sv-tabla table { font-size: 14px; }
-  .sv-tabla thead th { font-size: 12px; }
+  .sv .sv-bloque { padding-block: 52px; }
+  .sv-pasos { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+  .sv-paso-n::after { display: none; }
+  .an-fila { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; }
+  .an-anillo { max-width: 128px; }
+  .sv-tabla table { font-size: 13.5px; }
   .sv-tabla th, .sv-tabla td { padding: 8px 5px; }
   .sv-largo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .sv-corto { display: inline; }
+  .sv-consulta { border-radius: 20px; align-items: flex-start; }
+  .sv-consulta svg { margin-top: 2px; }
 }
-/* Muy angosto (Fold cerrado): cada fila es un bloque, con la etiqueta sobre cada cifra; los encabezados quedan para el lector. */
+/* Muy angosto (Fold cerrado): la tabla en bloques, con la etiqueta sobre cada cifra. */
 @media (max-width: 420px) {
   .sv-tabla table, .sv-tabla tbody, .sv-tabla caption { display: block; }
   .sv-tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .sv-tabla tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--linea); padding: 6px 0; }
   .sv-tabla tbody th { grid-column: 1 / -1; border: 0; padding: 4px 2px; }
-  .sv-tabla td { border: 0; padding: 4px 2px; text-align: left; font-size: 16px; font-weight: 600; }
+  .sv-tabla td { border: 0; padding: 4px 2px; text-align: left; font-size: 15px; font-weight: 600; }
   .sv-tabla td::before { content: attr(data-etiqueta); display: block; font-size: 11.5px; font-weight: 400; color: var(--mut); }
+  .sv-acciones .boton { flex: 1 1 auto; justify-content: center; }
 }
+@media (prefers-reduced-motion: reduce) { .sv-consulta span::after { animation: none; } }

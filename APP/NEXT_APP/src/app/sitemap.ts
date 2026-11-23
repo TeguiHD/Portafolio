@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { TOOLS_SEO } from "@/lib/seo/tools-content";
 import { SITE_URL } from "@/lib/seo/metadata";
 import { SERVICIOS } from "@/lib/servicios";
+import { CATEGORIAS, EDICION, RUTA, categoriaPorId } from "@/lib/indice/datos";
 
 export default function sitemap(): MetadataRoute.Sitemap {
     // Use editorial dates only when a significant content update is known.
@@ -36,10 +37,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
         ...SERVICIOS.map((s) => ({ url: `${SITE_URL}/servicios/${s.slug}`, lastModified: new Date("2026-11-22"), changeFrequency: "monthly" as const, priority: 0.9 })),
     ];
 
+    // Índice de la Web Chilena (jugada 4): el informe, su método, el revisor, los rankings y una ficha por institución.
+    const medicion = new Date(EDICION.medidoHasta ?? "2026-11-23");
+    const indice: MetadataRoute.Sitemap = [
+        { url: `${SITE_URL}${RUTA}`, lastModified: medicion, changeFrequency: "monthly", priority: 0.9 },
+        { url: `${SITE_URL}${RUTA}/metodologia`, lastModified: medicion, changeFrequency: "yearly", priority: 0.5 },
+        { url: `${SITE_URL}${RUTA}/revisa-tu-sitio`, lastModified: medicion, changeFrequency: "yearly", priority: 0.7 },
+        ...CATEGORIAS.map((c) => ({ url: `${SITE_URL}${RUTA}/${c.ruta}`, lastModified: medicion, changeFrequency: "monthly" as const, priority: 0.7 })),
+        ...EDICION.sitios.map((x) => ({ url: `${SITE_URL}${RUTA}/${categoriaPorId(x.categoria)!.ruta}/${x.slug}`, lastModified: medicion, changeFrequency: "monthly" as const, priority: 0.4 })),
+    ];
+
     const legal: MetadataRoute.Sitemap = [
         { url: `${SITE_URL}/privacidad`, changeFrequency: "yearly", priority: 0.3 },
         { url: `${SITE_URL}/terminos`, changeFrequency: "yearly", priority: 0.3 },
     ];
 
-    return [...core, ...servicios, ...tools, ...legal];
+    return [...core, ...servicios, ...indice, ...tools, ...legal];
 }

@@ -73,7 +73,9 @@ test.describe("Materia viva: barra", () => {
         await menu.click();
         await expect(menu).toHaveAttribute("aria-expanded", "true");
         const lista = page.locator("#nb-lista");
-        for (const n of ["Proyectos", "Herramientas", "Blog", "Sobre mí", "Hablemos de tu proyecto"]) await expect(lista.getByRole("link", { name: n })).toBeVisible();
+        for (const n of ["Servicios", "Proyectos", "Herramientas", "Blog", "Sobre mí", "Hablemos de tu proyecto"]) await expect(lista.getByRole("link", { name: n })).toBeVisible();
+        // Desde la portada también se llega a los servicios (es una página aparte, no una sección).
+        await expect(lista.getByRole("link", { name: "Servicios" })).toHaveAttribute("href", "/servicios");
         await page.keyboard.press("Escape");
         await expect(lista.getByRole("link", { name: "Blog" })).toBeHidden();
         // En la portada los destinos son secciones de la misma página: elegir una cierra el menú y baja hasta ella.

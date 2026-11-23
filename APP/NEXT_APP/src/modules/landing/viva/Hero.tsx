@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useMateria, useSeccionActiva } from "@/modules/materia/Materia";
 import { tecnologias } from "@/modules/landing/portada/datos/tecnologias";
@@ -8,12 +9,13 @@ import "./hero.css";
 
 const OPCIONES = ["Tiendas y sitios", "Sistemas internos", "Herramientas"] as const;
 /** Lo que cada opción muestra en palabras (la materia lo dibuja; sin ella, o con lector de pantalla, esto es lo que cambia).
- *  Cada una apunta a su proyecto, más abajo en la misma página. */
+ *  Cada una lleva a su página de servicio, que cuenta el caso con sus cifras. */
 const EJEMPLOS = [
     "Como FloresDyD, una tienda en línea a medida.",
     "Como la intranet de una OTEC: cursos, aula virtual y certificados.",
     "Como las herramientas gratis de este mismo sitio.",
 ] as const;
+const SERVICIOS_URL = ["/servicios/tienda-online", "/servicios/sistemas-internos", "/servicios/herramientas-web"] as const;
 const MARCAS = tecnologias.filter((t) => t.path);
 
 /** "#61DAFB" → "97 218 251". El blanco no tiñe: la materia queda en su color base. */
@@ -83,7 +85,7 @@ export function Hero() {
                         ))}
                     </div>
                     <p className="elige-ejemplo" role="tabpanel" aria-labelledby={`elige-${sel}`}>
-                        <a href="#proyectos">{EJEMPLOS[sel]}</a>
+                        <Link href={SERVICIOS_URL[sel]}>{EJEMPLOS[sel]}</Link>
                     </p>
                 </div>
             </Vista>

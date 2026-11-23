@@ -7,7 +7,7 @@ import { Firma } from "./Firma";
 import type { Titular } from "./BlogTambor";
 
 /** Los enlaces de la barra en la portada: saltan a sus secciones. */
-export const ENLACES_PORTADA = [{ href: "#proyectos", texto: "Proyectos" }, { href: "#herramientas", texto: "Herramientas" }, { href: "#blog", texto: "Blog" }];
+export const ENLACES_PORTADA = [{ href: "/servicios", texto: "Servicios" }, { href: "#proyectos", texto: "Proyectos" }, { href: "#herramientas", texto: "Herramientas" }, { href: "#blog", texto: "Blog" }];
 
 /** La portada de «Materia viva», sección por sección. `titulares` solo se usa en pruebas, para fijar el blog. */
 export function Portada({ titulares }: { titulares?: Titular[] }) {

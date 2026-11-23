@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { TOOL_SEO_SLUGS } from "../../src/lib/seo/tools-content";
+import { readFileSync } from "node:fs";
+import { CATEGORIAS } from "../../src/lib/indice/calculos";
+
+const EDICION = JSON.parse(readFileSync(new URL("../../src/data/indice/2026-11.json", import.meta.url), "utf8")) as { sitios: unknown[] };
 
 const SITE_URL = "https://nicoholas.dev";
 
@@ -8,7 +12,8 @@ const SITE_URL = "https://nicoholas.dev";
 // (legal). Si se agrega o quita una de estas páginas en el sitemap, este
 // número debe actualizarse a mano junto con sitemap.ts; las herramientas, en
 // cambio, se derivan de TOOL_SEO_SLUGS y no deben tocar este archivo nunca.
-const NON_TOOL_SITEMAP_PAGES = 11; // + /servicios y sus tres páginas (22-11-2026)
+// + /servicios y sus tres páginas (22-11-2026); + el índice: portada, método, revisor, 4 rankings y una ficha por sitio.
+const NON_TOOL_SITEMAP_PAGES = 11 + 3 + CATEGORIAS.length + EDICION.sitios.length;
 const EXPECTED_SITEMAP_URL_COUNT = TOOL_SEO_SLUGS.length + NON_TOOL_SITEMAP_PAGES;
 
 test.describe("Sitemap y robots", () => {

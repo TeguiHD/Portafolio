@@ -1,0 +1,193 @@
+/* Índice de la Web Chilena (prefijo ix-). Un informe: la cifra fuerte la escribe la materia; lo demás, tablas claras.
+   Las barras de datos usan --dato (validado contra la superficie en ambos temas), no el acento brillante. */
+.ix { --dato: #0f9f91; --an-medio: #fbbf24; --an-bajo: #f87171; }
+:root[data-tema="claro"] .viva:not(.solo-oscuro) .ix { --dato: #0d9488; --an-medio: #b45309; --an-bajo: #dc2626; }
+.ix h2 { margin: 0; font-size: clamp(32px, 4.4vw, 58px); font-weight: 800; letter-spacing: -.045em; line-height: 1; }
+.ix h3 { margin: 0; letter-spacing: -.025em; }
+.ix .ix-bloque { padding-block: 72px; }
+
+/* --- Cabecera --- */
+#inicio.ix-cab { padding-block: 22px 64px; min-height: auto; }
+.ix-cab-rejilla { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); gap: 24px 48px; align-items: center; }
+.ix-edicion { margin: 0 0 18px; color: var(--mut); font-size: 16px; }
+.ix-cab h1 { margin: 0; font-size: clamp(44px, 7vw, 104px); font-weight: 800; letter-spacing: -.06em; line-height: .92; text-wrap: balance; }
+.ix-cab-chica h1 { font-size: clamp(38px, 5.6vw, 80px); max-width: 18ch; }
+.ix-respuesta { margin: 26px 0 0; max-width: 62ch; color: var(--txt); font-size: clamp(17px, 1.55vw, 20px); line-height: 1.6; }
+.ix-respuesta a { color: inherit; text-decoration: underline; text-decoration-color: var(--linea-2); text-underline-offset: 4px; }
+.ix-cifra { display: grid; gap: 12px; }
+.ix-texto { position: relative; height: clamp(130px, 15vw, 210px); }
+.ix-cifra-texto { margin: 0; color: var(--mut); font-size: 16px; line-height: 1.5; text-align: center; text-wrap: balance; }
+.ix-cifra-texto strong { color: var(--txt); }
+
+/* --- Hallazgos: la cifra a la izquierda, la frase a la derecha, en filas --- */
+.ix-hallazgos { margin: 34px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.ix-hallazgos li { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr); gap: 6px 32px; align-items: baseline; padding: 22px 4px; border-bottom: 1px solid var(--linea); }
+.ix-hallazgos b { font-size: clamp(30px, 3.6vw, 48px); font-weight: 800; letter-spacing: -.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.ix-hallazgos span { max-width: 62ch; color: var(--mut); font-size: clamp(16.5px, 1.5vw, 19px); line-height: 1.55; }
+
+/* --- Buscador --- */
+.ix-buscador { position: relative; margin-top: 44px; max-width: 720px; }
+.ix-buscador label, .ix-filtro label, .ix-revisor-form label { display: block; margin-bottom: 10px; font-weight: 600; font-size: 16px; }
+.ix-campo { display: flex; align-items: center; gap: 12px; padding: 0 18px; border-radius: 18px; border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 80%, transparent); }
+.ix-campo:focus-within { border-color: var(--acento); }
+.ix-campo svg { flex: none; color: var(--mut); }
+.ix-campo input { flex: 1; min-width: 0; height: 58px; border: 0; background: none; color: var(--txt); font: inherit; font-size: 18px; outline: none; }
+.ix-buscador-estado { min-height: 1.4em; margin: 8px 2px 0; color: var(--mut); font-size: 14px; }
+.ix-resultados { margin: 4px 0 0; padding: 6px; list-style: none; border-radius: 18px; border: 1px solid var(--linea-2); background: var(--sup); }
+.ix-resultados a { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 12px 14px; border-radius: 12px; color: var(--txt); text-decoration: none; }
+.ix-resultados a:hover, .ix-resultados a:focus-visible { background: color-mix(in srgb, var(--acento) 12%, transparent); outline: none; }
+.ix-resultados span { font-weight: 600; }
+.ix-resultados small { grid-column: 1; color: var(--mut); font-size: 13.5px; }
+.ix-resultados b { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 22px; font-variant-numeric: tabular-nums; }
+
+/* --- Categorías: cuatro bloques con su histograma y sus extremos --- */
+.ix-nota { margin: 16px 0 0; max-width: 64ch; color: var(--mut); font-size: 16px; line-height: 1.6; }
+.ix-nota a { color: var(--txt); }
+.ix-categorias { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px 48px; margin-top: 40px; }
+.ix-categoria h3 { font-size: clamp(24px, 2.6vw, 34px); letter-spacing: -.04em; }
+.ix-categoria h3 a { color: var(--txt); text-decoration: none; }
+.ix-categoria h3 a:hover { color: var(--acento); }
+.ix-categoria-dato { margin: 8px 0 18px; color: var(--mut); font-size: 15.5px; }
+.ix-categoria-dato b { color: var(--txt); }
+.ix-podio { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 18px 0 20px; }
+.ix-podio h4 { margin: 0 0 8px; color: var(--mut); font-size: 14px; font-weight: 600; }
+.ix-podio ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+.ix-podio a { color: var(--txt); text-decoration: underline; text-decoration-color: var(--linea-2); text-underline-offset: 3px; }
+.ix-podio b { color: var(--mut); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --- Histograma: columnas de 24 px como máximo, punta redondeada, base recta, sobre una línea base --- */
+.ix-histo { margin: 0; }
+.ix-histo figcaption { margin-bottom: 10px; color: var(--mut); font-size: 14px; }
+.ix-histo table { display: block; }
+.ix-histo thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.ix-histo tbody { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 2px; align-items: end; height: 150px; border-bottom: 1px solid var(--linea-2); }
+.ix-histo tr { display: flex; flex-direction: column-reverse; align-items: center; height: 100%; }
+.ix-histo th { position: relative; top: 26px; height: 0; color: var(--mut); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.ix-histo td { flex: 1; display: flex; align-items: end; justify-content: center; width: 100%; padding: 0; }
+.ix-col { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: end; width: min(24px, 100%); height: calc(var(--h) * (100% - 18px)); min-height: 0; }
+.ix-col i { display: block; width: 100%; height: 100%; border-radius: 4px 4px 0 0; background: var(--dato); }
+.ix-histo tr[style*="--h: 0;"] .ix-col i, .ix-histo tr[style*="--h:0;"] .ix-col i { display: none; }
+.ix-col b { position: absolute; bottom: calc(100% + 3px); color: var(--txt); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ix-histo th:nth-child(1) { visibility: visible; }
+.ix-histo tbody tr:nth-child(even) th { visibility: hidden; }
+.ix-histo { padding-bottom: 30px; }
+
+/* --- Barras de cumplimiento --- */
+.ix-dos { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px 64px; align-items: start; }
+.ix-dos > div:first-child, .ix-dos > h2 { position: sticky; top: 112px; }
+.ix-dos .boton { margin-top: 26px; }
+.ix-barras { width: 100%; border-collapse: collapse; }
+.ix-barras caption { caption-side: top; padding-bottom: 12px; text-align: left; color: var(--mut); font-size: 14px; }
+.ix-barras thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.ix-barras th { width: 40%; padding: 12px 16px 12px 0; text-align: left; font-weight: 600; font-size: 15.5px; border-bottom: 1px solid var(--linea); }
+.ix-barras td { padding: 12px 0; border-bottom: 1px solid var(--linea); }
+.ix-barra { display: flex; align-items: center; gap: 10px; }
+.ix-barra i { flex: none; width: calc(var(--p) * 0.62%); min-width: 2px; height: 18px; border-radius: 0 4px 4px 0; background: var(--dato); }
+.ix-barra-valor { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 15px; }
+.ix-barra-valor small { color: var(--mut); font-weight: 400; font-size: 13px; }
+
+/* --- Datos, cita y enlaces --- */
+.ix-enlaces { display: flex; flex-wrap: wrap; gap: 14px 28px; margin: 24px 0 0; }
+.ix-cita { padding: clamp(20px, 3vw, 32px); border-radius: 24px; border: 1px solid var(--linea-2); }
+.ix-cita h3 { font-size: 20px; }
+.ix-cita p { margin: 12px 0 16px; font-size: 15.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.ix-licencia { color: var(--mut); font-size: 14px !important; margin-bottom: 0 !important; }
+.ix-licencia a { color: var(--txt); }
+.ix-contacto { text-align: center; }
+.ix-texto-largo p { margin: 0 0 16px; max-width: 64ch; color: var(--mut); font-size: 17px; line-height: 1.65; }
+.ix-texto-largo p:first-child { color: var(--txt); }
+.ix-definiciones { margin: 0; border-top: 1px solid var(--linea); }
+.ix-definiciones div { padding: 16px 4px; border-bottom: 1px solid var(--linea); }
+.ix-definiciones dt { font-weight: 650; font-size: 17px; }
+.ix-definiciones dd { margin: 6px 0 0; color: var(--mut); font-size: 15.5px; line-height: 1.6; }
+
+/* --- Ranking --- */
+.ix-ranking-cab { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 18px 32px; }
+.ix-filtro { min-width: min(320px, 100%); }
+.ix-filtro input { width: 100%; height: 48px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 80%, transparent); color: var(--txt); font: inherit; }
+.ix-filtro input:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+.ix-filtro p { min-height: 1.2em; margin: 6px 2px 0; color: var(--mut); font-size: 13.5px; }
+.ix-tabla-caja { margin-top: 26px; overflow-x: auto; }
+.ix-tabla { width: 100%; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
+.ix-tabla caption { caption-side: bottom; padding-top: 12px; text-align: left; color: var(--mut); font-size: 13.5px; }
+.ix-tabla thead th { position: sticky; top: 0; padding: 10px 8px; color: var(--mut); font-weight: 500; font-size: 13.5px; text-align: right; border-bottom: 1px solid var(--linea-2); background: var(--fondo); }
+.ix-tabla thead th:nth-child(2) { text-align: left; }
+.ix-tabla abbr { text-decoration: none; }
+.ix-tabla td, .ix-tabla tbody th { padding: 11px 8px; border-bottom: 1px solid var(--linea); text-align: right; }
+.ix-tabla tbody th { text-align: left; font-weight: 600; }
+.ix-tabla tbody th a { color: var(--txt); text-decoration: none; }
+.ix-tabla tbody th a:hover { color: var(--acento); text-decoration: underline; }
+.ix-tabla tbody th small { display: block; color: var(--mut); font-weight: 400; font-size: 13px; }
+.ix-puesto { color: var(--mut); }
+.ix-nota-celda b { display: inline-block; min-width: 2.4em; padding: 3px 8px; border-radius: 999px; text-align: center; font-weight: 700; }
+.ix-nota-celda b[data-nivel="bueno"] { background: color-mix(in srgb, var(--dato) 22%, transparent); }
+.ix-nota-celda b[data-nivel="medio"] { background: color-mix(in srgb, var(--an-medio) 22%, transparent); }
+.ix-nota-celda b[data-nivel="bajo"] { background: color-mix(in srgb, var(--an-bajo) 22%, transparent); }
+.ix-sin td { color: var(--mut); text-align: left; }
+.ix-corto { display: none; }
+
+/* --- Ficha de una institución --- */
+.ix-notas { margin-top: 32px; max-width: 760px; }
+.ix-metricas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 0; margin: 40px 0 0; border-top: 1px solid var(--linea); }
+.ix-metricas div { padding: 18px 16px 18px 0; border-bottom: 1px solid var(--linea); }
+.ix-metricas dt { color: var(--mut); font-size: 14.5px; }
+.ix-metricas dd { margin: 6px 0 4px; font-size: clamp(26px, 2.6vw, 34px); font-weight: 800; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.ix-metricas small { color: var(--mut); font-size: 13px; }
+.ix-controles { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.ix-controles li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 14px; padding: 16px 4px; border-bottom: 1px solid var(--linea); }
+.ix-controles p { margin: 0; }
+.ix-controles b { font-weight: 650; }
+.ix-marca { width: 22px; height: 22px; margin-top: 1px; border-radius: 50%; }
+.ix-controles li[data-ok="si"] .ix-marca { background: var(--dato); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='white'/%3E%3Cpath d='M7 12.5l3.2 3.2L17 9' stroke='black' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; mask-mode: luminance; }
+.ix-controles li[data-ok="no"] .ix-marca { border: 2px solid var(--an-bajo); }
+.ix-estado { margin-left: 6px; color: var(--mut); font-size: 14px; }
+.ix-controles li[data-ok="no"] .ix-estado { color: var(--txt); }
+.ix-arreglo, .ix-comparado { margin-top: 6px !important; max-width: 68ch; color: var(--mut); font-size: 15px; line-height: 1.6; }
+.ix-comparado { font-size: 13.5px; }
+.ix-fallas { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.ix-fallas li { display: flex; justify-content: space-between; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--linea); font-size: 16px; }
+.ix-fallas small { flex: none; color: var(--mut); font-size: 14px; }
+.ix-vecinos-titulo { font-size: 18px; margin-bottom: 12px; }
+.ix-vecinos { margin: 0; padding: 0; list-style: none; columns: 2 220px; column-gap: 28px; }
+.ix-vecinos li { padding: 6px 0; break-inside: avoid; }
+.ix-vecinos a { color: var(--txt); text-decoration: underline; text-decoration-color: var(--linea-2); text-underline-offset: 3px; }
+
+/* --- Revisor --- */
+.ix-revisor { max-width: 860px; }
+.ix-revisor-fila { display: flex; flex-wrap: wrap; gap: 12px; }
+.ix-revisor-fila input { flex: 1 1 260px; min-width: 0; height: 56px; padding: 0 18px; border-radius: 16px; border: 1px solid var(--linea-2); background: color-mix(in srgb, var(--sup) 80%, transparent); color: var(--txt); font: inherit; font-size: 18px; }
+.ix-revisor-fila input:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+.ix-revisor-fila .boton { min-width: min-content; }
+.ix-revisor-fila .boton[disabled] { opacity: .7; cursor: progress; }
+.ix-revisor-error { min-height: 1.4em; margin: 10px 2px 0; color: var(--an-bajo); font-size: 15px; }
+.ix-revisor-resultado { margin-top: 26px; outline: none; }
+.ix-revisor-total { margin: 0; font-size: 20px; color: var(--mut); }
+.ix-revisor-total b { color: var(--txt); font-size: clamp(56px, 8vw, 96px); font-weight: 800; letter-spacing: -.06em; line-height: 1; margin-right: 6px; }
+.ix-revisor-comparado { margin: 10px 0 26px; font-size: 17px; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .ix-cab-rejilla, .ix-dos, .ix-categorias { grid-template-columns: minmax(0, 1fr); }
+  .ix-cab-rejilla .ix-cifra { order: -1; }
+  .ix-dos > div:first-child, .ix-dos > h2 { position: static; }
+}
+@media (max-width: 760px) {
+  .ix .ix-bloque { padding-block: 48px; }
+  .ix-hallazgos li { grid-template-columns: minmax(0, 1fr); }
+  .ix-barras th { width: 46%; font-size: 14.5px; }
+  .ix-barra-valor small { display: none; }
+  .ix-tabla { font-size: 14px; }
+  .ix-tabla td, .ix-tabla tbody th { padding: 10px 5px; }
+  /* En celular el ranking muestra puesto, institución, nota y controles; lo demás queda en la ficha. */
+  .ix-tabla :is(th, td):nth-child(n+4):not(:nth-child(8)) { display: none; }
+}
+@media (max-width: 420px) {
+  .ix-podio { grid-template-columns: minmax(0, 1fr); }
+  /* Muy angosto: puesto, institución y nota; los controles quedan en la ficha (nada que deslizar). */
+  .ix-tabla :is(th, td):nth-child(8) { display: none; }
+  .ix-largo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ix-corto { display: inline; }
+  .ix-tabla td, .ix-tabla tbody th, .ix-tabla thead th { padding-inline: 3px; }
+  .ix-tabla tbody th a { hyphens: auto; overflow-wrap: anywhere; }
+  .ix-nota-celda b { min-width: 2em; padding: 2px 5px; }
+  .ix-histo th { font-size: 10px; }
+}

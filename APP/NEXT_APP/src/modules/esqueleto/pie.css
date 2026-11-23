@@ -48,7 +48,7 @@
   .sl-marca { display: block; grid-area: marca; margin: 0; font: 700 19px/1 var(--mono); letter-spacing: -.03em; color: var(--txt); }
   .sl-marca i { font-style: normal; color: var(--acento); }
   .sl-subir { grid-area: subir; width: 44px; height: 44px; }
-  .sl-ir { grid-area: ir; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, auto); grid-auto-flow: column; gap: 4px 20px; justify-content: stretch; }
+  .sl-ir { grid-area: ir; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(5, auto); grid-auto-flow: column; gap: 4px 20px; justify-content: stretch; }
   .sl-ir a, .sl-instalar { padding: 8px 0; font-size: 16px; color: var(--txt); text-align: left; }
   .sl-instalar { color: var(--acento); }
   .suelo .ayuda-instalar { grid-column: 1 / -1; }

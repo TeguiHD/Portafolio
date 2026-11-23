@@ -7,6 +7,7 @@ export const ORIGENES = [
     { valor: "buscador", texto: "Google u otro buscador" },
     { valor: "linkedin", texto: "LinkedIn" },
     { valor: "persona", texto: "Me lo recomendó una persona" },
+    { valor: "indice", texto: "El Índice de la Web Chilena" },
     { valor: "otro", texto: "Otro" },
 ] as const;
 

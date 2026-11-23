@@ -218,7 +218,7 @@ model ContactMessage {
   ipHash      String
   userAgent   String?
   source      String          @default("landing")
-  /// «¿Cómo llegaste?» del formulario (src/lib/contacto-origen.ts): ia, buscador, linkedin, persona, otro. Opcional.
+  /// «¿Cómo llegaste?» del formulario (src/lib/contacto-origen.ts): ia, buscador, linkedin, persona, indice, otro. Opcional.
   origen      String?
   status      ContactStatus   @default(UNREAD)
   priority    ContactPriority @default(NORMAL)

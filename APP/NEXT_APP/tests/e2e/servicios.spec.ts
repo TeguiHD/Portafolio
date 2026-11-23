@@ -47,7 +47,34 @@ for (const s of SERVICIOS) {
 
 test("el índice de servicios lleva a los tres", async ({ page }) => {
     await page.goto("/servicios");
-    for (const s of SERVICIOS) await expect(page.getByRole("link", { name: s.nombre, exact: true })).toHaveAttribute("href", `/servicios/${s.slug}`);
+    // Cada fila es un enlace con el nombre del servicio y la pregunta que responde.
+    for (const s of SERVICIOS) await expect(page.locator(".sv-filas a", { hasText: s.nombre })).toHaveAttribute("href", `/servicios/${s.slug}`);
+});
+
+test("desde la portada: la barra lleva a Servicios y cada opción del hero a su servicio", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.locator("#nb-ir").getByRole("link", { name: "Servicios" })).toHaveAttribute("href", "/servicios");
+    const tabs = page.getByRole("tablist", { name: "Lo que construyo" });
+    for (const [k, s] of SERVICIOS.entries()) {
+        await tabs.getByRole("tab").nth(k).click();
+        await expect(page.locator(".elige-ejemplo a")).toHaveAttribute("href", `/servicios/${s.slug}`);
+    }
+});
+
+test("el caso real cambia de celular a escritorio y deja todas las cifras a mano", async ({ page }) => {
+    const s = SERVICIOS.find((x) => x.slug === "tienda-online")!;
+    await page.goto(`/servicios/${s.slug}`);
+    const caso = page.locator("#sv-caso");
+    await caso.scrollIntoViewIfNeeded();
+    const celular = s.caso.medidas.find((m) => m.dispositivo === "celular")!, escritorio = s.caso.medidas.find((m) => m.dispositivo === "escritorio")!;
+    await expect(caso.getByRole("button", { name: "En celular" })).toHaveAttribute("aria-pressed", "true");
+    await expect(caso.locator(`progress[aria-label^="Rendimiento"]`)).toHaveAttribute("value", String(celular.rendimiento));
+    await caso.getByRole("button", { name: "En escritorio" }).click();
+    await expect(caso.locator(`progress[aria-label^="Rendimiento"]`)).toHaveAttribute("value", String(escritorio.rendimiento));
+    // La tabla con todo queda en el HTML (para quien lee sin mirar los anillos).
+    await caso.getByText("Todas las cifras").click();
+    await expect(caso.locator("table tbody tr")).toHaveCount(s.caso.medidas.length);
 });
 
 test("se llega desde todo el sitio: barra, pie, sitemap y llms.txt", async ({ page, request }) => {
