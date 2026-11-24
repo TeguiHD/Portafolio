@@ -144,4 +144,59 @@ test.describe("Materia viva: barra", () => {
             }
         });
     }
+    // Recogida medía 680 px fijos y su contenido unos 800: «Hablemos» quedaba en 32 px («Ha») y el tema encima (24-11-2026).
+    for (const ancho of [1440, 1100, 900]) {
+        test(`en ${ancho} px, recogida no aplasta nada`, async ({ page }) => {
+            await page.setViewportSize({ width: ancho, height: 900 });
+            await page.goto("/herramientas");
+            await page.mouse.move(ancho / 2, 600);
+            await page.mouse.wheel(0, 400);
+            await expect(page.locator("#nb")).toHaveClass(/nb-baja/);
+            await page.waitForTimeout(900); // la cápsula termina de recogerse
+            const m = await page.evaluate(() => {
+                const caja = (s: string) => document.querySelector(s)!.getBoundingClientRect();
+                const h = document.querySelector<HTMLElement>("#nb-hablar")!;
+                const [t, b, nb] = [caja("#nb-tema"), caja("#nb-hablar"), caja("#nb")];
+                return { ancho: b.width, corta: h.scrollWidth > h.clientWidth + 1, cruce: t.right > b.left + 1, derecha: nb.right, vista: innerWidth };
+            });
+            expect(m.ancho, "ancho de «Hablemos»").toBeGreaterThanOrEqual(100);
+            expect(m.corta, "«Hablemos» cortado").toBe(false);
+            expect(m.cruce, "el tema se monta sobre «Hablemos»").toBe(false);
+            expect(m.derecha, "la cápsula cabe").toBeLessThanOrEqual(m.vista - 8);
+        });
+    }
+
+    test("los paneles abren con intención: rozar el botón no los abre, quedarse sí", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto("/herramientas");
+        const panel = page.locator("#nb-sub-herramientas");
+        await expect(panel).toHaveAttribute("popover", "auto"); // ya hidrató: el atributo lo pone el script
+        // La barra entra bajando: se mide cuando ya llegó (si no, el botón está más arriba que al volver con el cursor).
+        await page.waitForFunction(() => document.getElementById("nb")!.getAnimations({ subtree: true }).every((a) => a.playState !== "running"));
+        const b = (await page.locator("#nb-ir").getByRole("button", { name: "Herramientas" }).boundingBox())!;
+        const blog = (await page.locator("#nb-ir").getByRole("link", { name: "Blog" }).boundingBox())!;
+        // Cruzar la barra pasando por «Herramientas»: el panel no se abre en el camino.
+        await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+        await page.waitForTimeout(60);
+        expect(await panel.isVisible(), "abierto al rozar").toBe(false);
+        await page.mouse.move(blog.x + blog.width / 2, blog.y + blog.height / 2, { steps: 4 });
+        await page.waitForTimeout(400);
+        expect(await panel.isVisible(), "abierto después de pasar").toBe(false);
+        // Quedarse encima sí lo abre.
+        await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 });
+        await page.waitForTimeout(400);
+        await expect(panel).toBeVisible();
+    });
+
+    for (const ancho of [1440, 1100]) {
+        test(`en ${ancho} px, cada herramienta del panel se describe en una línea`, async ({ page }) => {
+            await page.setViewportSize({ width: ancho, height: 900 });
+            await page.goto("/herramientas");
+            await page.locator("#nb-ir").getByRole("button", { name: "Herramientas" }).click();
+            await expect(page.locator("#nb-sub-herramientas")).toBeVisible();
+            const altos = await page.locator(".nb-panel-lista span").evaluateAll((s) => s.map((e) => e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)));
+            expect(altos.length).toBe(8);
+            for (const a of altos) expect(a).toBeLessThanOrEqual(1.4);
+        });
+    }
 });

@@ -116,8 +116,12 @@ export function Barra({ enlaces = ENLACES, inicio = "/", contacto = "/#contacto"
         };
         for (const g of grupos) {
             const b = g.querySelector<HTMLButtonElement>(".nb-abre")!, p = g.querySelector<HTMLElement>(".nb-sub")!;
-            let vistaPrevia = false;
+            // Intención: el cursor que cruza la barra no abre nada; quedarse un instante sí. Salir cierra con un respiro,
+            // y volver al grupo (al botón o al panel) antes de que venza lo deja abierto.
+            let vistaPrevia = false, abrir = 0, cerrar = 0;
             const alCambiar = (e: Event) => {
+                // Abrir o cerrar (clic, Escape, otro panel) anula la espera del cursor: si no, al vencer lo volvía a abrir.
+                clearTimeout(abrir);
                 const abierto = (e as ToggleEvent).newState === "open";
                 b.setAttribute("aria-expanded", String(abierto));
                 if (!abierto) vistaPrevia = false;
@@ -129,20 +133,30 @@ export function Barra({ enlaces = ENLACES, inicio = "/", contacto = "/#contacto"
                 }
             };
             const clic = (e: MouseEvent) => {
+                clearTimeout(abrir);
                 if (angosto.matches) { p.hidden = !p.hidden; b.setAttribute("aria-expanded", String(!p.hidden)); return; }
                 // Si el cursor ya lo abrió, el clic lo deja fijo en vez de cerrarlo.
                 if (vistaPrevia) { vistaPrevia = false; e.preventDefault(); }
             };
             const entra = (e: PointerEvent) => {
-                if (angosto.matches || !conHover.matches || e.pointerType === "touch" || p.matches(":popover-open")) return;
-                // Con source, el botón queda como ancla implícita del panel (los tipos de TypeScript aún no lo traen).
-                try { (p.showPopover as (o?: { source?: HTMLElement }) => void)({ source: b }); } catch { try { p.showPopover(); } catch { return; } }
-                vistaPrevia = true;
+                if (angosto.matches || !conHover.matches || e.pointerType === "touch") return;
+                clearTimeout(cerrar);
+                if (p.matches(":popover-open")) return;
+                clearTimeout(abrir);
+                abrir = window.setTimeout(() => {
+                    if (p.matches(":popover-open")) return;
+                    // Con source, el botón queda como ancla implícita del panel (los tipos de TypeScript aún no lo traen).
+                    try { (p.showPopover as (o?: { source?: HTMLElement }) => void)({ source: b }); } catch { try { p.showPopover(); } catch { return; } }
+                    vistaPrevia = true;
+                }, 150);
             };
-            const sale = () => { if (vistaPrevia && p.matches(":popover-open")) p.hidePopover(); };
+            const sale = () => {
+                clearTimeout(abrir);
+                if (vistaPrevia && p.matches(":popover-open")) cerrar = window.setTimeout(() => { if (vistaPrevia && p.matches(":popover-open")) p.hidePopover(); }, 200);
+            };
             const foco = (e: FocusEvent) => { if (e.relatedTarget && !g.contains(e.relatedTarget as Node) && p.matches?.(":popover-open")) p.hidePopover(); };
             p.addEventListener("toggle", alCambiar); b.addEventListener("click", clic); g.addEventListener("pointerenter", entra); g.addEventListener("pointerleave", sale); g.addEventListener("focusout", foco);
-            limpiezas.push(() => { p.removeEventListener("toggle", alCambiar); b.removeEventListener("click", clic); g.removeEventListener("pointerenter", entra); g.removeEventListener("pointerleave", sale); g.removeEventListener("focusout", foco); });
+            limpiezas.push(() => { clearTimeout(abrir); clearTimeout(cerrar); p.removeEventListener("toggle", alCambiar); b.removeEventListener("click", clic); g.removeEventListener("pointerenter", entra); g.removeEventListener("pointerleave", sale); g.removeEventListener("focusout", foco); });
         }
         aplicar(); angosto.addEventListener("change", aplicar);
         return () => { angosto.removeEventListener("change", aplicar); limpiezas.forEach((f) => f()); };

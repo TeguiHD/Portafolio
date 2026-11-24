@@ -84,13 +84,16 @@ test.describe("Herramientas, ronda 2", () => {
         expect(Math.abs(migas.x - titulo.x)).toBeLessThanOrEqual(1);
     });
 
-    test("datos: el menú de la barra copia del registro las destacadas y dos de Chile", () => {
-        // El menú vive aparte para no mandar el registro entero al navegador en cada página (24-11-2026).
-        const esperado = [...DESTACADAS_RESPALDO, "sueldo-liquido", "uf-utm"].map((slug) => {
-            const t = DEFAULT_TOOL_REGISTRY.find((x) => x.slug === slug)!;
-            return { slug, nombre: t.name, que: t.description.split(/(?<=\.)\s/)[0]!.replace(/\.$/, "") };
-        });
-        expect(MENU_HERRAMIENTAS).toEqual(esperado);
+    test("datos: el menú de la barra lleva las destacadas y dos de Chile, cada una con una frase corta", () => {
+        // El menú vive aparte para no mandar el registro entero al navegador en cada página (24-11-2026). La primera frase
+        // de la descripción no cabía en el panel y quedaba cortada a media palabra: cada una lleva la suya, de una línea.
+        expect(MENU_HERRAMIENTAS.map((t) => t.slug)).toEqual([...DESTACADAS_RESPALDO, "sueldo-liquido", "uf-utm"]);
+        for (const t of MENU_HERRAMIENTAS) {
+            expect(t.nombre, t.slug).toBe(DEFAULT_TOOL_REGISTRY.find((x) => x.slug === t.slug)!.name);
+            expect(t.que.length, t.slug).toBeGreaterThanOrEqual(12);
+            expect(t.que.length, `${t.slug}: «${t.que}»`).toBeLessThanOrEqual(44);
+            expect(t.que, t.slug).not.toMatch(/\.$/);
+        }
     });
 
     test("catálogo: el registro completo no viaja al navegador", async ({ page }) => {

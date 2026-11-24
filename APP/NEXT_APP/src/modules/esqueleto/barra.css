@@ -2,11 +2,14 @@
 /* ================= Navegación (prefijo nb-): una cápsula que respira con la página ================= */
 /* Centrada con márgenes, no con translate: el anclaje CSS ubica los paneles con la caja sin transformar, y con
    translate: -50% quedaban corridos medio ancho de barra a la derecha (24-11-2026). */
-.nb { --ancho: min(1180px, 100vw - 32px); position: fixed; z-index: 30; top: 16px; left: 0; right: 0; margin-inline: auto; width: var(--ancho); display: flex; align-items: center; gap: 6px;
-  padding: 8px 8px 8px 22px; border-radius: 999px; border: 1px solid transparent; isolation: isolate;
+.nb { position: fixed; z-index: 30; top: 16px; left: 0; right: 0; margin-inline: auto; width: min(1180px, 100vw - 32px); display: flex; align-items: center; gap: 6px;
+  padding: 8px 8px 8px 22px; border-radius: 999px; border: 1px solid transparent; isolation: isolate; interpolate-size: allow-keywords;
   transition: width .7s var(--curva), padding .7s var(--curva), translate .55s var(--curva), background .5s, border-color .5s, box-shadow .5s; }
-/* Al bajar se recoge en una cápsula de vidrio; si sigues bajando se esconde, y vuelve apenas subes */
-.nb.nb-baja { --ancho: min(680px, 100vw - 32px); padding-left: 20px; background: color-mix(in srgb, var(--fondo-2) 70%, transparent); border-color: var(--linea-2);
+/* Ninguna pieza se encoge: con 680 px fijos, «Hablemos» quedaba en 32 px y el tema encima (24-11-2026). */
+.nb > * { flex-shrink: 0; white-space: nowrap; }
+/* Al bajar se recoge en una cápsula de vidrio del ancho de su contenido (la animación hacia max-content necesita
+   interpolate-size; donde no existe, cambia de golpe); si sigues bajando se esconde, y vuelve apenas subes */
+.nb.nb-baja { width: max-content; max-width: calc(100vw - 32px); padding-left: 20px; background: color-mix(in srgb, var(--fondo-2) 70%, transparent); border-color: var(--linea-2);
   backdrop-filter: blur(20px) saturate(1.5); box-shadow: 0 1px 0 #ffffff1f inset, 0 22px 60px -26px #000c; }
 .nb.nb-oculta { translate: 0 -140%; }
 /* Avance de lectura: un hilo de luz que recorre el borde inferior de la cápsula */
@@ -141,7 +144,6 @@
 .nb-panel b { font-size: 15.5px; font-weight: 600; }
 .nb-panel span { font-size: 13.5px; color: var(--mut); line-height: 1.35; }
 .nb-panel-lista, .nb-panel-grupos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; }
-.nb-panel-lista span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .nb-panel-todas { border-top: 1px solid var(--linea); border-radius: 0 0 14px 14px !important; font-weight: 600; color: var(--acento) !important; }
 .nb-panel-indice { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: start; }
 .nb-panel-grupos { grid-template-columns: 1fr; }
