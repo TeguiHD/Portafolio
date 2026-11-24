@@ -1,11 +1,15 @@
 import "server-only";
-import { crearCache, pedirJson } from "@/modules/pulse/lib/red";
+import { pedirJson } from "@/modules/pulse/lib/red";
+import { getCached, setCached } from "@/lib/redis";
+import { crearLectorIndicadores, type Guardado } from "./lector-indicadores";
 import type { Indicador, Indicadores } from "./indicadores";
 
 /**
  * UF, UTM, dólar observado y euro desde mindicador.cl (público y sin clave; toma los datos del Banco Central y del SII).
- * Caché de 30 minutos y, si la fuente falla, lo último bueno hasta 3 días: la UF cambia una vez al día y la UTM una vez
- * al mes. Si nunca respondió, null: las herramientas dejan escribir el valor a mano.
+ * Frescos 30 minutos; si la fuente falla, lo último bueno hasta 3 días (la UF cambia una vez al día y la UTM una vez al
+ * mes), guardado también en Redis para que un reinicio no lo pierda. mindicador.cl a ratos tarda hasta 12 s (24-11-2026):
+ * se le dan 15 s, pero la página espera como mucho 2,5 s y la carga sigue por detrás. Sin nada que mostrar, null: las
+ * herramientas dejan escribir el valor a mano.
  */
 type Crudo = Partial<Record<"uf" | "utm" | "dolar" | "euro", { valor?: number; fecha?: string }>>;
 
@@ -21,7 +25,7 @@ function leer(crudo: Crudo[keyof Crudo]): Indicador | null {
 }
 
 async function cargar(): Promise<Indicadores> {
-    const datos = await pedirJson<Crudo>("https://mindicador.cl/api", { plazo: 4000 });
+    const datos = await pedirJson<Crudo>("https://mindicador.cl/api", { plazo: 15_000 });
     const uf = leer(datos.uf), utm = leer(datos.utm), dolar = leer(datos.dolar), euro = leer(datos.euro);
     if (!uf || !utm || !dolar) throw new Error("mindicador.cl respondió sin UF, UTM o dólar");
     return { uf, utm, dolar, ...(euro ? { euro } : {}), fuente: "mindicador.cl (Banco Central de Chile y SII)" };
@@ -51,13 +55,19 @@ function conFinDeMes(ind: Indicadores): Indicadores {
     return finDeMes?.mes === mes && finDeMes.valor ? { ...ind, ufFinDeMes: finDeMes.valor } : ind;
 }
 
-const cache = crearCache<Indicadores>("indicadores-cl", 30 * 60_000, 3 * 24 * 60 * 60_000);
+const CLAVE = "indicadores-cl:ultimo", TRES_DIAS = 3 * 24 * 60 * 60_000;
+const lector = crearLectorIndicadores<Indicadores>({
+    cargar,
+    guardar: (v) => setCached(CLAVE, v, TRES_DIAS / 1000),
+    leerGuardado: () => getCached<Guardado<Indicadores>>(CLAVE),
+    frescoMs: 30 * 60_000,
+    rancioMs: TRES_DIAS,
+    esperaMs: 2500,
+    pausaTrasFalloMs: 60_000,
+});
 
 export async function leerIndicadores(): Promise<Indicadores | null> {
     pedirFinDeMes();
-    try {
-        return conFinDeMes((await cache.leer(cargar)).valor);
-    } catch {
-        return null;
-    }
+    const ind = await lector();
+    return ind ? conFinDeMes(ind) : null;
 }
