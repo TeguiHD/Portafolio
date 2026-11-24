@@ -1,5 +1,6 @@
 import { FIGURAS, mosaicoDeImagen, nubeDeFigura, nubeDeTexto, nubeDeTrazo, type Mosaico, type Nube } from "./figuras";
 import { radiosAnillo } from "./anillo";
+import { destinoMarco } from "./marco";
 
 /**
  * Motor de «Materia viva»: un solo cuerpo de partículas en un lienzo fijo, que cambia de forma.
@@ -222,8 +223,7 @@ export function crearMotor(lienzo: HTMLCanvasElement, op: { frente: HTMLElement;
              dest.marca = modoClima === 3 ? i < activas * 0.32 : modoClima === 5 && i < activas * 0.07; return; } // acento en un tramo seguido: un solo cambio de color por cuadro
         if (forma === "olas") { const x = (i % 140) / 139, fila = (i / 140) | 0; dest.x = x * (W + 60) - 30; dest.y = H * 0.86 + fila * 9 + Math.sin(x * 9 + t * 0.0011 + fila * 0.55) * 16 + Math.sin(x * 23 - t * 0.0007) * 5; return; }
         if (forma === "anillo") { const ang = sem[i] * 6.2832 + t * 0.00016 * (1 + (i % 3) * 0.35), k = 1 + (i % 7) * 0.022 + Math.sin(t * 0.001 + i) * 0.006; dest.x = ax + Math.cos(ang) * rx * k; dest.y = ay + Math.sin(ang) * ry * k; return; }
-        const s4 = sem[i] * 4, lado = s4 | 0, q = s4 % 1, m = 14 + ((i * 37) % 70); // marco: a los bordes
-        dest.x = lado === 0 || lado === 2 ? q * W : lado === 1 ? W - m : m; dest.y = lado === 0 ? m : lado === 2 ? H - m : q * H;
+        destinoMarco(sem[i], i, W, H, dest); // marco: en los márgenes
     }
 
     /**

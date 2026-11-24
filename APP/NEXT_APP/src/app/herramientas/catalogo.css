@@ -1,6 +1,6 @@
 /* Catálogo de /herramientas (prefijo ht-): título y buscador, 6 destacadas en tarjetas y todas por familia en filas.
    El lenguaje de secciones de la portada llega por la clase viva-portada del <main> (solo en esta página). */
-.ht-migas { padding-top: 4px; }
+.ht-migas { padding-top: 16px; } /* a la altura de las demás páginas (96 px): pegadas a la barra quedaban en la franja del marco */
 .ht-migas nav { max-width: none; margin: 0; padding: 0; } /* alineadas con el título, no centradas en otro ancho */
 /* .viva-portada section (portada) las haría flex y centradas, con 104 px de relleno: aquí no. */
 .viva-portada .ht-cab { display: block; padding: 26px 0 0; }

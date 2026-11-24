@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { destinoMarco } from "../../src/modules/materia/marco";
 
 /**
  * El motor se prueba en /materia-prueba: una página de diagnóstico que solo existe fuera de
@@ -154,4 +155,30 @@ test.describe("Materia viva: motor de partículas", () => {
             return d.t > 0 && d.a < d.t;
         }, { timeout: 20_000 }).toBe(true);
     });
+});
+
+/** El marco pasaba bajo las migas y, entre 861 y ~1300 px, sobre la columna del contenido (24-11-2026). */
+test.describe("Materia viva: el marco queda en los márgenes", () => {
+    test("sin navegador: ningún punto del marco entra en la columna ni en la fila de las migas", () => {
+        for (const W of [900, 1100, 1280, 1440, 1920]) {
+            const H = 900, margen = (W - Math.min(1180, W - 48)) / 2;
+            for (let i = 0; i < 4000; i++) {
+                const { x, y } = destinoMarco((i * 0.6180339887) % 1, i, W, H);
+                if (y >= 64 && y <= H - 90) expect(x <= margen - 6 || x >= W - margen + 6, `W=${W} i=${i} x=${x.toFixed(1)} y=${y.toFixed(1)}`).toBe(true);
+                expect(x >= 0 && x <= W && y >= 0 && y <= H, `W=${W} i=${i}: fuera de la pantalla`).toBe(true);
+            }
+        }
+    });
+
+    for (const ancho of [1440, 1100]) {
+        test(`en ${ancho} px, las migas del catálogo van a la misma altura que en Servicios`, async ({ page }) => {
+            await page.setViewportSize({ width: ancho, height: 900 });
+            await page.goto("/servicios");
+            const migas = page.getByRole("navigation", { name: "Ruta de navegación" }).getByRole("list"); // el texto, no la caja con su relleno
+            const enServicios = (await migas.boundingBox())!.y;
+            await page.goto("/herramientas");
+            const enCatalogo = (await migas.boundingBox())!.y;
+            expect(Math.abs(enCatalogo - enServicios), `catálogo ${enCatalogo}, servicios ${enServicios}`).toBeLessThanOrEqual(1);
+        });
+    }
 });
