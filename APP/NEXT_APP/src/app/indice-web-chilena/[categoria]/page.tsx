@@ -7,7 +7,9 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
 import { CATEGORIAS, EDICION, RUTA, type Sitio, categoriaPorRuta, distribucion, medidos, nombreEdicion, peso, ranking, resumen, sitiosDe } from "@/lib/indice/datos";
-import { FiltroTabla } from "@/modules/indice/Cliente";
+import { FiltroTabla, OrdenTabla } from "@/modules/indice/Cliente";
+import { notaDimension } from "@/modules/indice/Dimensiones";
+import { DIMENSIONES } from "@/lib/indice/textos-dimensiones";
 import { Histograma } from "@/modules/indice/Graficos";
 import "@/modules/sobre-mi/sobre-mi.css";
 import "@/modules/indice/indice.css";
@@ -18,6 +20,8 @@ type Props = { params: Promise<{ categoria: string }> };
 function corto(s: Sitio): string {
     if (s.categoria === "municipalidad") return s.comuna ?? s.nombre;
     if (s.categoria === "gobierno-regional") return s.nombre.replace(/^Gobierno Regional (de la |de los |de las |del |de )/i, "");
+    if (s.categoria === "slep") return s.nombre.replace(/^Servicio Local de Educaci[oó]n P[uú]blica (de |del )?/i, "").replace(/\s*\(SLEP [^)]*\)+$/, "");
+    if (s.categoria === "delegacion") return s.nombre.replace(/^Delegaci[oó]n Presidencial /i, "");
     return s.nombre;
 }
 
@@ -44,6 +48,9 @@ export default async function Categoria({ params }: Props) {
     const sin = sitios.filter((s) => s.estado === "sin-respuesta");
     const trail: BreadcrumbTrail = [{ name: "Inicio", path: "" }, { name: "Índice de la Web Chilena", path: RUTA }, { name: c.plural, path: `${RUTA}/${c.ruta}` }];
     const idTabla = `ix-tabla-${c.ruta}`;
+    const conDim = m.some((x) => x.dim);
+    // Botones de orden: comando propio hacia la tabla (invocadores; React no conoce aún estos atributos).
+    const orden = { commandfor: idTabla, command: "--ordenar" } as Record<string, string>;
     return (
         <Esqueleto portada>
             <JsonLd schema={[breadcrumbSchema(trail)]} />
@@ -65,37 +72,46 @@ export default async function Categoria({ params }: Props) {
                             <h2 id="ix-ranking"><span className="linea-r"><span>Ranking</span></span></h2>
                             <FiltroTabla tabla={idTabla} total={sitios.length} />
                         </div>
-                        <div className="ix-tabla-caja" data-sube="">
+                        <div className="ix-tabla-caja" data-sube="" role="region" aria-labelledby={`${idTabla}-leyenda`} tabIndex={0}>
                             <table className="ix-tabla" id={idTabla}>
-                                <caption>Nota del índice: promedio de rendimiento, accesibilidad, buenas prácticas y SEO de Lighthouse en celular. Controles: cuántos de los doce cumple.</caption>
+                                <caption id={`${idTabla}-leyenda`}>{conDim
+                                    ? "Nota general: el promedio de las dimensiones medidas. Cada dimensión es el porcentaje de sus controles que cumple; la de velocidad es el promedio de Lighthouse en celular. Toca un encabezado para ordenar."
+                                    : "Nota del índice: promedio de rendimiento, accesibilidad, buenas prácticas y SEO de Lighthouse en celular. Controles: cuántos de los doce cumple."}</caption>
                                 <thead>
                                     <tr>
-                                        <th scope="col"><span className="ix-largo">Puesto</span><span className="ix-corto" aria-hidden="true">N.º</span></th><th scope="col">{c.id === "municipalidad" ? "Comuna" : c.id === "gobierno-regional" ? "Región" : "Institución"}</th><th scope="col">Nota</th>
-                                        <th scope="col"><abbr title="Rendimiento">Rend.</abbr></th><th scope="col"><abbr title="Accesibilidad">Acces.</abbr></th>
-                                        <th scope="col"><abbr title="Buenas prácticas">Práct.</abbr></th><th scope="col">SEO</th><th scope="col">Controles</th><th scope="col">Peso</th>
+                                        <th scope="col" data-type="number"><button type="button" {...orden}><span className="ix-largo">Puesto</span><span className="ix-corto" aria-hidden="true">N.º</span></button></th>
+                                        <th scope="col"><button type="button" {...orden}>{c.id === "municipalidad" ? "Comuna" : c.id === "gobierno-regional" ? "Región" : "Institución"}</button></th>
+                                        <th scope="col" data-type="number" aria-sort="descending"><button type="button" {...orden}>Nota</button></th>
+                                        {conDim ? DIMENSIONES.map((d) => <th key={d.id} scope="col" data-type="number"><button type="button" {...orden}>{d.corto}</button></th>) : (<>
+                                            <th scope="col"><abbr title="Rendimiento">Rend.</abbr></th><th scope="col"><abbr title="Accesibilidad">Acces.</abbr></th>
+                                            <th scope="col"><abbr title="Buenas prácticas">Práct.</abbr></th><th scope="col">SEO</th><th scope="col">Controles</th><th scope="col">Peso</th></>)}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {rk.map(({ sitio: s, puesto, nota, controles }) => (
                                         <tr key={s.slug} data-buscar={`${s.nombre} ${s.region ?? ""} ${s.comuna ?? ""}`}>
-                                            <td className="ix-puesto">{puesto}</td>
+                                            <td className="ix-puesto" data-value={puesto}>{puesto}</td>
                                             <th scope="row"><Link href={`${RUTA}/${c.ruta}/${s.slug}`} title={s.nombre}>{corto(s)}</Link>{s.region && corto(s) !== s.region && <small>{s.region}</small>}</th>
-                                            <td className="ix-nota-celda"><b data-nivel={nota >= 90 ? "bueno" : nota >= 50 ? "medio" : "bajo"}>{nota}</b></td>
-                                            <td>{s.notas.rendimiento}</td><td>{s.notas.accesibilidad}</td><td>{s.notas.practicas}</td><td>{s.notas.seo}</td>
-                                            <td>{controles === null ? "—" : `${controles}/12`}</td>
-                                            <td>{peso(s.peso)}</td>
+                                            <td className="ix-nota-celda" data-value={nota}><b data-nivel={nota >= 90 ? "bueno" : nota >= 50 ? "medio" : "bajo"}>{nota}</b></td>
+                                            {conDim ? DIMENSIONES.map((d) => { const v = notaDimension(s, d.id); return <td key={d.id} data-value={v ?? -1}>{v ?? "—"}</td>; }) : (<>
+                                                <td>{s.notas.rendimiento}</td><td>{s.notas.accesibilidad}</td><td>{s.notas.practicas}</td><td>{s.notas.seo}</td>
+                                                <td>{controles === null ? "—" : `${controles}/12`}</td>
+                                                <td>{peso(s.peso)}</td></>)}
                                         </tr>
                                     ))}
+                                </tbody>
+                                {sin.length > 0 && <tbody>
                                     {sin.map((s) => (
                                         <tr key={s.slug} data-buscar={`${s.nombre} ${s.region ?? ""} ${s.comuna ?? ""}`} className="ix-sin">
                                             <td className="ix-puesto">—</td>
                                             <th scope="row"><Link href={`${RUTA}/${c.ruta}/${s.slug}`} title={s.nombre}>{corto(s)}</Link>{s.region && corto(s) !== s.region && <small>{s.region}</small>}</th>
-                                            <td colSpan={7}>Sin nota: {s.motivo}.</td>
+                                            <td colSpan={conDim ? DIMENSIONES.length + 1 : 7}>Sin nota: {s.motivo}.</td>
                                         </tr>
                                     ))}
-                                </tbody>
+                                </tbody>}
                             </table>
                         </div>
+                        {conDim && <OrdenTabla tabla={idTabla} />}
                     </Vista>
                 </section>
                 <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-reparto">

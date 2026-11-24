@@ -14,6 +14,8 @@ import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import tls from "node:tls";
 
 const [, , archivoEntidades, salida, ...soloSlugs] = process.argv;
 if (!archivoEntidades || !salida || !process.env.LH_DIR) {
@@ -24,6 +26,9 @@ const { default: lighthouse } = await import(join(process.env.LH_DIR, "lighthous
 const chromeLauncher = await import(join(process.env.LH_DIR, "chrome-launcher/dist/index.js"));
 
 const { revisarCabeceras, revisarHtml } = await import("../../src/lib/indice/revision.ts");
+const { revisarHtmlExtra, clasificarRastreadores } = await import("../../src/lib/indice/dimensiones.ts");
+// Las entidades de terceros que usa Lighthouse (third-party-web): nombre y categoría de cada dominio.
+const { getEntity } = createRequire(join(process.env.LH_DIR, "lighthouse/package.json"))("third-party-web");
 const UA = "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36";
 const METRICAS = ["first-contentful-paint", "largest-contentful-paint", "total-blocking-time", "cumulative-layout-shift", "speed-index"];
 
@@ -52,7 +57,47 @@ async function revisar(url) {
         const code = err?.cause?.code ?? err?.name;
         redireccion = ["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "TimeoutError", "AbortError", "EHOSTUNREACH", "UND_ERR_SOCKET"].includes(code);
     }
-    return { urlFinal: r.url, estado: r.status, pesoHtml: html.length, revision: { ...cab, redireccion, ...revisarHtml(html) } };
+    const origen = new URL(r.url).origin;
+    const [robots, llms, cert] = await Promise.all([pedirTexto(`${origen}/robots.txt`, 100_000), pedirTexto(`${origen}/llms.txt`, 2_000), certificado(new URL(r.url))]);
+    // El mapa del sitio: el primero que declara robots.txt o, si no declara, /sitemap.xml.
+    const declarado = /^\s*sitemap\s*:\s*(\S+)/im.exec(robots.texto ?? "")?.[1];
+    const mapa = await pedirTexto(declarado ? new URL(declarado, origen).href : `${origen}/sitemap.xml`, 200_000);
+    return {
+        urlFinal: r.url, estado: r.status, pesoHtml: html.length, revision: { ...cab, redireccion, ...revisarHtml(html) },
+        // Edición 2026-12: lo que leen las dimensiones nuevas (src/lib/indice/dimensiones.ts).
+        extra: {
+            html: revisarHtmlExtra(html),
+            robots: { estado: robots.estado, texto: robots.texto },
+            sitemap: { url: mapa.url, estado: mapa.estado, esXml: /<(urlset|sitemapindex)\b/i.test(mapa.texto ?? "") },
+            llms: { estado: llms.estado, esTexto: llms.estado === 200 && !/^\s*</.test(llms.texto ?? "") && (llms.texto ?? "").trim().length > 0 },
+            certificado: cert,
+            software: { poweredBy: r.headers.get("x-powered-by"), server: r.headers.get("server") },
+        },
+    };
+}
+
+/** Pide un archivo de texto (robots.txt, sitemap, llms.txt) siguiendo redirecciones. Sin respuesta: estado null. */
+async function pedirTexto(url, max) {
+    try {
+        const r = await fetch(url, { headers: { "user-agent": UA, accept: "text/plain,application/xml,*/*" }, redirect: "follow", signal: AbortSignal.timeout(15_000) });
+        return { url: r.url, estado: r.status, texto: (await r.text()).slice(0, max) };
+    } catch {
+        return { url, estado: null, texto: null };
+    }
+}
+
+/** Vencimiento del certificado del sitio (si responde por HTTPS). */
+function certificado(u) {
+    if (u.protocol !== "https:") return Promise.resolve(null);
+    return new Promise((ok) => {
+        const s = tls.connect({ host: u.hostname, port: Number(u.port) || 443, servername: u.hostname, rejectUnauthorized: false, timeout: 10_000 }, () => {
+            const c = s.getPeerCertificate();
+            ok({ vence: c?.valid_to ? new Date(c.valid_to).toISOString() : null, valido: s.authorized, error: s.authorizationError ? String(s.authorizationError) : null });
+            s.end();
+        });
+        s.on("error", (e) => ok({ vence: null, valido: false, error: String(e?.code ?? e?.message ?? e) }));
+        s.on("timeout", () => { s.destroy(); ok({ vence: null, valido: false, error: "timeout" }); });
+    });
 }
 
 async function medirUna(url) {
@@ -83,6 +128,10 @@ function resumir(e, lhr, ms, rev) {
         metricas: Object.fromEntries(METRICAS.map((id) => [id, a[id]?.numericValue ?? null])),
         pesoBytes, pedidos,
         revision: rev?.revision ?? null, estadoHttp: rev?.estado ?? null, pesoHtml: rev?.pesoHtml ?? null, errorRevision: rev?.error ?? null,
+        extra: rev?.extra ?? null,
+        // Rastreadores de terceros que cargó la portada (las peticiones de Lighthouse, clasificadas con third-party-web).
+        rastreadores: clasificarRastreadores((a["network-requests"]?.details?.items ?? []).map((i) => i.url).filter(Boolean),
+            new URL(lhr.finalDisplayedUrl ?? lhr.finalUrl ?? e.url).hostname, (u) => { const x = getEntity(u); return x ? { name: x.name, category: x.category } : null; }),
         fallasA11y,
         benchmark: lhr.environment?.benchmarkIndex ?? null,
     };
@@ -100,7 +149,7 @@ if (process.env.SOLO_REVISION && soloSlugs.length) {
         if (!e || !(await existe(destino))) { console.log(`${slug}: sin medición previa`); continue; }
         const m = JSON.parse(await readFile(destino, "utf8"));
         const rev = await revisar(e.url).catch((err) => ({ error: String(err?.cause?.code ?? err?.message ?? err).slice(0, 200) }));
-        Object.assign(m, { revision: rev.revision ?? null, estadoHttp: rev.estado ?? null, pesoHtml: rev.pesoHtml ?? null, errorRevision: rev.error ?? null, revisionRepetida: new Date().toISOString() });
+        Object.assign(m, { revision: rev.revision ?? null, estadoHttp: rev.estado ?? null, pesoHtml: rev.pesoHtml ?? null, errorRevision: rev.error ?? null, extra: rev.extra ?? null, revisionRepetida: new Date().toISOString() });
         await writeFile(destino, JSON.stringify(m, null, 1));
         console.log(`${slug}: ${rev.error ?? `http ${rev.estado}`}`);
     }

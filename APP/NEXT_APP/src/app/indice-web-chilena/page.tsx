@@ -6,8 +6,9 @@ import { Vista } from "@/modules/landing/viva/Vista";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbSchema, type BreadcrumbTrail } from "@/lib/seo/schemas";
-import { CATEGORIAS, EDICION, RUTA, cumplimiento, distribucion, medidos, nombreEdicion, notaIndice, peso, pct, ranking, resumen, sitiosDe, periodoMedicion, urlDatos } from "@/lib/indice/datos";
+import { CATEGORIAS, EDICION, EDICIONES, RUTA, cumplimiento, distribucion, medidos, nombreEdicion, notaSitio, peso, pct, ranking, resumen, sitiosDe, periodoMedicion, urlDatos } from "@/lib/indice/datos";
 import { conjuntoDatosSchema, citaIndice, hallazgos } from "@/lib/indice/textos";
+import { DIMENSIONES, cumplimientoDimension } from "@/lib/indice/textos-dimensiones";
 import { Buscador, Copiar, TextoMateria } from "@/modules/indice/Cliente";
 import { BarrasCumplimiento, Histograma } from "@/modules/indice/Graficos";
 import "@/modules/sobre-mi/sobre-mi.css";
@@ -15,7 +16,7 @@ import "@/modules/indice/indice.css";
 
 export const metadata: Metadata = {
     title: { absolute: "Índice de la Web Chilena: sitios públicos medidos | nicoholas.dev" },
-    description: "Velocidad, accesibilidad, seguridad y lo básico de los sitios de municipalidades, ministerios, gobiernos regionales y universidades de Chile, medidos uno por uno.",
+    description: "Los sitios de más de 800 instituciones públicas y universidades de Chile, medidos uno por uno en siete dimensiones: velocidad, buscadores, IA, seguridad, correo, privacidad y directorios.",
     alternates: { canonical: RUTA },
 };
 
@@ -23,9 +24,10 @@ const trail: BreadcrumbTrail = [{ name: "Inicio", path: "" }, { name: "Índice d
 
 export default function IndiceWebChilena() {
     const todos = EDICION.sitios, m = medidos(todos), r = resumen(todos), h = hallazgos(todos);
+    const conDim = m.some((s) => s.dim);
     const entradas = todos.map((s) => {
         const c = CATEGORIAS.find((x) => x.id === s.categoria)!;
-        return { slug: s.slug, nombre: s.nombre, ruta: `${RUTA}/${c.ruta}/${s.slug}`, categoria: c.singular, nota: s.estado === "medido" ? notaIndice(s.notas) : null };
+        return { slug: s.slug, nombre: s.nombre, ruta: `${RUTA}/${c.ruta}/${s.slug}`, categoria: c.singular, nota: s.estado === "medido" ? notaSitio(s) : null };
     });
     return (
         <Esqueleto portada>
@@ -40,8 +42,10 @@ export default function IndiceWebChilena() {
                             <p className="ix-edicion" data-sube="">Edición de {nombreEdicion(EDICION.edicion)}</p>
                             <h1 id="ix-titulo"><span className="linea-r"><span>Índice de la Web Chilena</span></span></h1>
                             <p className="ix-respuesta" data-sube="" style={{ "--i": 1 } as CSSProperties}>
-                                Medí uno por uno los sitios de {r.total} instituciones de Chile, entre municipalidades, ministerios, gobiernos regionales y universidades: velocidad,
-                                accesibilidad y buenas prácticas con Lighthouse, y doce controles de seguridad y de lo básico. {h.principal.frase}
+                                {conDim ? <>Medí uno por uno los sitios de {r.total} instituciones de Chile, entre municipalidades, servicios locales de educación, hospitales, servicios públicos,
+                                ministerios, delegaciones presidenciales, gobiernos regionales y universidades, en siete dimensiones: velocidad, buscadores, IA, seguridad, correo, privacidad y directorios.
+                                Y le pregunté a Claude por el sitio oficial de cada una. {h.principal.frase}</> : <>Medí uno por uno los sitios de {r.total} instituciones de Chile, entre municipalidades, ministerios, gobiernos regionales y universidades: velocidad,
+                                accesibilidad y buenas prácticas con Lighthouse, y doce controles de seguridad y de lo básico. {h.principal.frase}</>}
                             </p>
                         </div>
                         <div className="ix-cifra" data-sube="" style={{ "--i": 2 } as CSSProperties}>
@@ -64,7 +68,7 @@ export default function IndiceWebChilena() {
                 <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-categorias">
                     <Vista className="ancho">
                         <h2 id="ix-categorias"><span className="linea-r"><span>Por tipo de institución</span></span></h2>
-                        <p className="ix-nota">La nota del índice es el promedio de las cuatro notas de Lighthouse en celular (rendimiento, accesibilidad, buenas prácticas y SEO), de 0 a 100.</p>
+                        <p className="ix-nota">{conDim ? "La nota es el promedio de las dimensiones medidas de cada sitio, de 0 a 100." : "La nota del índice es el promedio de las cuatro notas de Lighthouse en celular (rendimiento, accesibilidad, buenas prácticas y SEO), de 0 a 100."}</p>
                         <div className="ix-categorias" data-sube="">
                             {CATEGORIAS.map((c) => {
                                 const sitios = sitiosDe(c.id), rc = resumen(sitios), rk = ranking(medidos(sitios));
@@ -92,7 +96,29 @@ export default function IndiceWebChilena() {
                     </Vista>
                 </section>
 
-                <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-controles">
+                {conDim && (
+                    <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-dimensiones">
+                        <Vista className="ancho">
+                            <h2 id="ix-dimensiones"><span className="linea-r"><span>Siete dimensiones</span></span></h2>
+                            <p className="ix-nota">Cada barra es el porcentaje de los sitios que cumple ese control. Qué mide cada dimensión, por qué importa y de dónde sale la regla, en <Link href={`${RUTA}/metodologia`}>la metodología</Link>.</p>
+                            <div className="ix-dims-grupos" data-sube="">
+                                {DIMENSIONES.filter((d) => d.id !== "velocidad").map((d) => {
+                                    const filas = cumplimientoDimension(m, d.id as Exclude<typeof d.id, "velocidad">);
+                                    if (!filas.length) return null;
+                                    return (
+                                        <div key={d.id} className="ix-dims-grupo">
+                                            <h3>{d.nombre}</h3>
+                                            <BarrasCumplimiento filas={filas} titulo={`${d.nombre}: porcentaje de los ${filas[0]!.total} sitios medidos que cumple cada control`} />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <Link className="boton lleno" href={`${RUTA}/revisa-tu-sitio`}>Revisa tu sitio con los doce controles básicos</Link>
+                        </Vista>
+                    </section>
+                )}
+
+                {!conDim && <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-controles">
                     <Vista className="ancho ix-dos">
                         <div>
                             <h2 id="ix-controles"><span className="linea-r"><span>Los doce controles</span></span></h2>
@@ -103,7 +129,7 @@ export default function IndiceWebChilena() {
                             <BarrasCumplimiento filas={cumplimiento(m)} titulo={`Porcentaje de los ${m.filter((s) => s.revision).length} sitios revisados que cumple cada control`} />
                         </div>
                     </Vista>
-                </section>
+                </section>}
 
                 <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-datos">
                     <Vista className="ancho ix-dos">
@@ -117,6 +143,7 @@ export default function IndiceWebChilena() {
                                 <Link className="enlace-ir" href={`${RUTA}/metodologia`}>Cómo se midió</Link>
                                 <a className="enlace-ir" href={urlDatos("csv")} download>Descargar CSV</a>
                                 <a className="enlace-ir" href={urlDatos("json")} download>Descargar JSON</a>
+                                {EDICIONES.slice(1).map((e) => <a key={e.edicion} className="enlace-ir" href={urlDatos("csv", e)} download>Edición de {nombreEdicion(e.edicion)} (CSV)</a>)}
                             </p>
                         </div>
                         <div className="ix-cita" data-sube="">

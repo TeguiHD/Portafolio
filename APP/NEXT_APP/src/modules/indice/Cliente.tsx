@@ -76,3 +76,40 @@ export function Copiar({ texto, etiqueta = "Copiar la cita" }: { texto: string; 
         }}>{hecho ? "Copiada" : etiqueta}</button>
     );
 }
+
+/**
+ * Ordena el ranking por la columna que se elija (patrón sortable-table): botones en los encabezados con un comando
+ * propio (--ordenar), aria-sort en el encabezado activo, las filas existentes se mueven (no se vuelven a dibujar) y un
+ * solo aviso por cada orden. Sin invocadores (navegadores viejos), el mismo orden con un clic.
+ */
+export function OrdenTabla({ tabla }: { tabla: string }) {
+    const estado = useRef<HTMLParagraphElement>(null);
+    useEffect(() => {
+        const t = document.getElementById(tabla) as HTMLTableElement | null;
+        const cuerpo = t?.tBodies[0], cabeza = t?.tHead?.rows[0];
+        if (!t || !cuerpo || !cabeza) return;
+        const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
+        const ordenar = (b: HTMLButtonElement) => {
+            const th = b.closest("th")!;
+            const dir = th.getAttribute("aria-sort") === "ascending" ? "descending" : "ascending";
+            for (const h of cabeza.cells) h.removeAttribute("aria-sort");
+            th.setAttribute("aria-sort", dir);
+            const i = th.cellIndex, numero = th.dataset.type === "number", f = dir === "ascending" ? 1 : -1;
+            const filas = [...cuerpo.rows].map((r) => ({ r, v: r.cells[i]?.dataset.value ?? r.cells[i]?.textContent?.trim() ?? "" }));
+            filas.sort((a, b) => f * (numero ? Number(a.v) - Number(b.v) : collator.compare(a.v, b.v)));
+            const mover = cuerpo as HTMLTableSectionElement & { moveBefore?: (n: Node, ref: Node | null) => void };
+            for (const { r } of filas) { if (mover.moveBefore) mover.moveBefore(r, null); else cuerpo.appendChild(r); }
+            if (estado.current) estado.current.textContent = `Ordenado por ${b.textContent?.trim()}, ${dir === "ascending" ? "de menor a mayor" : "de mayor a menor"}.`;
+        };
+        const alComando = (e: Event) => {
+            const ev = e as Event & { command?: string; source?: Element | null };
+            if (ev.command === "--ordenar" && ev.source instanceof HTMLButtonElement) ordenar(ev.source);
+        };
+        t.addEventListener("command", alComando);
+        // Solo sin invocadores: con ellos, un clic también dispara «command» y ordenaría dos veces.
+        const sinInvocador = !("commandForElement" in HTMLButtonElement.prototype);
+        const clics = sinInvocador ? [...cabeza.querySelectorAll<HTMLButtonElement>('button[command="--ordenar"]')].map((b) => { const fn = () => ordenar(b); b.addEventListener("click", fn); return () => b.removeEventListener("click", fn); }) : [];
+        return () => { t.removeEventListener("command", alComando); clics.forEach((quitar) => quitar()); };
+    }, [tabla]);
+    return <p ref={estado} className="ix-oculto" role="status" />;
+}

@@ -11,6 +11,7 @@ import { SITE_URL } from "@/lib/seo/metadata";
 import { EDICION, RUTA, categoriaPorId, categoriaPorRuta, fechaCorta, medidos, nombreEdicion, peso, ranking, resumen, segundos, sitioPorSlug, sitiosDe } from "@/lib/indice/datos";
 import { CONTROLES, puntajeRevision } from "@/lib/indice/revision";
 import { Anillos } from "@/modules/servicios/Anillos";
+import { DimensionesSitio, RespuestaIaSitio } from "@/modules/indice/Dimensiones";
 import "@/modules/sobre-mi/sobre-mi.css";
 import "@/modules/servicios/servicios.css";
 import "@/modules/indice/indice.css";
@@ -65,8 +66,8 @@ export default async function SitioIndice({ params }: Props) {
                         <h1 id="ix-titulo"><span className="linea-r"><span>{s.nombre}</span></span></h1>
                         {s.estado === "medido" && fila ? (
                             <p className="ix-respuesta" data-sube="" style={{ "--i": 1 } as CSSProperties}>
-                                El sitio de {s.nombre} (<a href={s.url} rel="noopener nofollow" target="_blank">{dominio}</a>) tiene nota {fila.nota} de 100 en celular: puesto {fila.puesto} de {rk.length} entre {c.articulo}.
-                                {" "}La mediana de {c.articulo} es {r.mediana.nota}. {fila.controles !== null ? `Cumple ${fila.controles} de los doce controles de seguridad y de lo básico.` : ""}
+                                El sitio de {s.nombre} (<a href={s.url} rel="noopener nofollow" target="_blank">{dominio}</a>) tiene nota {fila.nota} de 100{s.dim ? ", el promedio de sus dimensiones medidas" : " en celular"}: puesto {fila.puesto} de {rk.length} entre {c.articulo}.
+                                {" "}La mediana de {c.articulo} es {r.mediana.nota}. {!s.dim && fila.controles !== null ? `Cumple ${fila.controles} de los doce controles de seguridad y de lo básico.` : ""}
                             </p>
                         ) : (
                             <p className="ix-respuesta" data-sube="" style={{ "--i": 1 } as CSSProperties}>
@@ -95,7 +96,31 @@ export default async function SitioIndice({ params }: Props) {
                             </Vista>
                         </section>
 
-                        {s.revision && (
+                        {s.dim && (
+                            <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-dimensiones">
+                                <Vista className="ancho ix-dos">
+                                    <div>
+                                        <h2 id="ix-dimensiones"><span className="linea-r"><span>Siete dimensiones</span></span></h2>
+                                        <p className="ix-nota">Cada una es el porcentaje de sus controles que cumple, de 0 a 100; la de velocidad es el promedio de Lighthouse. Abre una para ver qué falta y cómo arreglarlo.</p>
+                                    </div>
+                                    <div data-sube=""><DimensionesSitio s={s} /></div>
+                                </Vista>
+                            </section>
+                        )}
+
+                        {s.ia && (
+                            <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-ia">
+                                <Vista className="ancho ix-dos">
+                                    <div>
+                                        <h2 id="ix-ia"><span className="linea-r"><span>Lo que responde la IA</span></span></h2>
+                                        <p className="ix-nota">Le pregunté a Claude (Opus 5.5) «¿Cuál es el sitio web oficial de {s.nombre}?», de memoria y buscando en internet. Acierta si responde la dirección exacta del sitio.</p>
+                                    </div>
+                                    <div data-sube=""><RespuestaIaSitio s={s} /></div>
+                                </Vista>
+                            </section>
+                        )}
+
+                        {s.revision && !s.dim && (
                             <section className="ix-bloque" data-forma="marco" aria-labelledby="ix-ctl">
                                 <Vista className="ancho ix-dos">
                                     <div>

@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { CATEGORIAS, medidos, notaIndice, type Edicion, type IdCategoria } from "../../src/lib/indice/calculos";
+import { CATEGORIAS, medidos, notaSitio, type Edicion, type IdCategoria } from "../../src/lib/indice/calculos";
 
 // La edición se lee del archivo (Playwright no importa JSON sin atributo de importación).
-const EDICION = JSON.parse(readFileSync(new URL("../../src/data/indice/2026-11.json", import.meta.url), "utf8")) as Edicion;
+const EDICION = JSON.parse(readFileSync(new URL("../../src/data/indice/2026-12.json", import.meta.url), "utf8")) as Edicion;
 const sitiosDe = (c: IdCategoria) => EDICION.sitios.filter((s) => s.categoria === c);
 
 /**
@@ -18,11 +18,24 @@ const LOCAL = /localhost|127\.0\.0\.1/.test(process.env.PLAYWRIGHT_BASE_URL ?? "
 let ip = 10;
 const otraIp = () => ({ "cf-connecting-ip": `203.0.113.${ip++}` });
 
-test("la edición tiene sitios de los cuatro grupos y casi todos medidos", () => {
+test("la edición tiene sitios de los ocho grupos y casi todos medidos", () => {
     for (const c of CATEGORIAS) expect(sitiosDe(c.id).length, c.id).toBeGreaterThan(0);
     expect(medidos(EDICION.sitios).length / EDICION.sitios.length).toBeGreaterThan(0.85);
     expect(new Set(EDICION.sitios.map((s) => s.slug)).size).toBe(EDICION.sitios.length);
 });
+
+for (const ancho of [1440, 1024, 390]) {
+    test(`en la portada del sitio, a ${ancho} px, cada cifra del índice cabe en una línea`, async ({ page }) => {
+        // La columna medía 5.2ch con la letra del texto (16 px) y la cifra va a 56 px: «65» y «%» quedaban en dos líneas (24-11-2026).
+        await page.setViewportSize({ width: ancho, height: 900 });
+        await page.goto("/");
+        const cifras = page.locator(".ipo-cifras b");
+        await expect(cifras).toHaveCount(3);
+        for (const alto of await cifras.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).fontSize)))) {
+            expect(alto).toBeLessThan(1.5);
+        }
+    });
+}
 
 test("la portada responde en el HTML: cuántos sitios, qué se midió y los datos como Dataset", async ({ browser, request }) => {
     const ctx = await browser.newContext({ javaScriptEnabled: false });
@@ -54,10 +67,12 @@ test("la ficha de una institución: sus cuatro notas, sus controles y la fecha d
     const c = CATEGORIAS.find((x) => x.id === s.categoria)!;
     await page.goto(`${RUTA}/${c.ruta}/${s.slug}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(s.nombre);
-    await expect(page.locator(".ix-respuesta")).toContainText(`nota ${notaIndice(s.notas)} de 100`);
+    await expect(page.locator(".ix-respuesta")).toContainText(`nota ${notaSitio(s)} de 100`);
     await expect(page.locator(`progress[aria-label^="Rendimiento"]`)).toHaveAttribute("value", String(s.notas.rendimiento));
     await expect(page.locator(`progress[aria-label^="Accesibilidad"]`)).toHaveAttribute("value", String(s.notas.accesibilidad));
-    await expect(page.locator(".ix-controles li")).toHaveCount(12);
+    // Las siete dimensiones, cada una desplegable con sus controles.
+    await expect(page.locator(".ix-dims > li")).toHaveCount(7);
+    await expect(page.locator(".ix-dim summary").filter({ hasText: "Correo y suplantación" })).toBeVisible();
     await expect(page.locator("main")).toContainText(/Medido el \d{2}-\d{2}-\d{4} con Lighthouse/);
     // Cada grupo de la lista de métricas lleva solo <dt> y <dd> (Lighthouse bajaba la accesibilidad por un <small> suelto).
     const etiquetas = await page.locator(".ix-metricas > div").evaluateAll((gs) => gs.flatMap((g) => [...g.children].map((h) => h.tagName)));
@@ -104,6 +119,34 @@ test("los datos se descargan: un CSV con una fila por sitio, sin celdas que Exce
     const json = await (await request.get(jsonUrl)).json();
     expect(json.sitios).toHaveLength(EDICION.sitios.length);
     expect(json.licencia).toContain("CC BY 4.0");
+});
+
+test("las descargas de noviembre siguen en su dirección (están citadas en el Dataset)", async ({ request }) => {
+    const r = await request.get(`${RUTA}/datos/2026-11.csv`);
+    expect(r.status()).toBe(200);
+    expect((await r.text()).replace(/^﻿/, "").split("\r\n")[0]).toContain("nota_indice");
+    expect((await request.get(`${RUTA}/datos/2026-11.json`)).status()).toBe(200);
+});
+
+test("el ranking se ordena por una dimensión al tocar su encabezado", async ({ page }) => {
+    await page.goto(`${RUTA}/municipalidades`);
+    const cab = page.locator(".ix-tabla thead th").filter({ hasText: "Correo" });
+    await cab.getByRole("button").click();
+    await expect(cab).toHaveAttribute("aria-sort", "ascending");
+    const i = await cab.evaluate((th) => (th as HTMLTableCellElement).cellIndex);
+    const valores = await page.locator(".ix-tabla tbody").first().locator("tr").evaluateAll((filas, k) => filas.map((f) => Number((f as HTMLTableRowElement).cells[k]!.dataset.value)), i);
+    expect(valores).toEqual([...valores].sort((a, b) => a - b));
+    await expect(page.locator(".ix-oculto[role=status]")).toContainText("Ordenado por Correo");
+});
+
+test("la ficha dice qué responde Claude por el sitio oficial", async ({ page }) => {
+    const s = medidos(EDICION.sitios).find((x) => x.ia?.memoria && x.ia?.busqueda);
+    test.skip(!s, "la edición no trae la prueba de IA");
+    const c = CATEGORIAS.find((x) => x.id === s!.categoria)!;
+    await page.goto(`${RUTA}/${c.ruta}/${s!.slug}`);
+    const ia = page.locator(".ix-ia");
+    await expect(ia).toContainText("De memoria");
+    await expect(ia).toContainText(s!.ia!.memoria!.ok ? "Acierta" : "No acierta");
 });
 
 test("el buscador encuentra una institución aunque se escriba sin tildes", async ({ page }) => {
