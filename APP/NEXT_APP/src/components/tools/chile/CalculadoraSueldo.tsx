@@ -5,7 +5,9 @@ import { brutoParaLiquido, calcularSueldo, type DatosSueldo } from "@/lib/chile/
 import { AFPS, PARAMETROS_SUELDO, FUENTES_SUELDO, REFERENCIA_INDICADORES } from "@/lib/chile/parametros";
 import { fechaCL, mesCL, pesos } from "@/lib/chile/indicadores";
 import { useIndicadores } from "./IndicadoresContext";
-import { IconoCopiar, leerMonto, useCopiarHerramienta } from "./comunes";
+import { CampoNumero } from "@/components/ui/CampoNumero";
+import { textoDeNumero } from "@/lib/tools/numeros";
+import { IconoCopiar, useCopiarHerramienta } from "./comunes";
 import "./chile.css";
 
 type Sentido = "bruto" | "liquido";
@@ -23,16 +25,16 @@ export function CalculadoraSueldo() {
     const p = useMemo(() => ({ ...PARAMETROS_SUELDO, uf: uf.valor, ufTopes: ufTopes.valor, utm: utm.valor }), [uf.valor, ufTopes.valor, utm.valor]);
 
     const [sentido, setSentido] = useState<Sentido>("bruto");
-    const [monto, setMonto] = useState("1.200.000");
+    const [monto, setMonto] = useState<number | null>(1200000);
     const [afp, setAfp] = useState(AFPS[0]!.nombre);
     const [salud, setSalud] = useState<"fonasa" | "isapre">("fonasa");
-    const [plan, setPlan] = useState("3,5");
+    const [plan, setPlan] = useState<number | null>(3.5);
     const [contrato, setContrato] = useState<DatosSueldo["contrato"]>("indefinido");
-    const [noImp, setNoImp] = useState("");
+    const [noImp, setNoImp] = useState<number | null>(null);
     const { copiado, fallo, copiar } = useCopiarHerramienta(SLUG);
 
     const comision = AFPS.find((a) => a.nombre === afp)!.comision;
-    const n = leerMonto(monto), planUf = leerMonto(plan), extra = leerMonto(noImp) ?? 0;
+    const n = monto, planUf = plan, extra = noImp ?? 0;
     const r = useMemo(() => {
         if (n === null || n <= 0 || (salud === "isapre" && (planUf === null || planUf <= 0))) return null;
         const datos: Omit<DatosSueldo, "bruto"> = { comisionAfp: comision, salud: salud === "isapre" ? { tipo: "isapre", planUf: planUf! } : { tipo: "fonasa" }, contrato, noImponible: extra };
@@ -58,7 +60,7 @@ export function CalculadoraSueldo() {
                 <div>
                     <label className="cl-etiqueta" htmlFor="sl-monto">{sentido === "bruto" ? "Sueldo bruto mensual" : "Sueldo líquido que quieres"} <small>imponible, sin colación ni movilización</small></label>
                     <div className="cl-prefijo"><span aria-hidden="true">$</span>
-                        <input id="sl-monto" className="cl-entrada" inputMode="numeric" autoComplete="off" value={monto} onChange={(e) => setMonto(e.target.value.slice(0, 20))} onFocus={(e) => e.currentTarget.select()} />
+                        <CampoNumero id="sl-monto" className="cl-entrada" valor={monto} alCambiar={setMonto} onFocus={(e) => e.currentTarget.select()} />
                     </div>
                 </div>
                 <div>
@@ -77,7 +79,7 @@ export function CalculadoraSueldo() {
                 {salud === "isapre" ? (
                     <div>
                         <label className="cl-etiqueta" htmlFor="sl-plan">Precio de tu plan <small>en UF al mes, sale en tu contrato</small></label>
-                        <input id="sl-plan" className="cl-entrada cl-chica" inputMode="decimal" value={plan} onChange={(e) => setPlan(e.target.value.slice(0, 8))} />
+                        <CampoNumero id="sl-plan" className="cl-entrada cl-chica" decimales={2} valor={plan} alCambiar={setPlan} />
                     </div>
                 ) : null}
                 <div>
@@ -90,7 +92,7 @@ export function CalculadoraSueldo() {
                 <div>
                     <label className="cl-etiqueta" htmlFor="sl-noimp">Colación y movilización <small>opcional, no imponible</small></label>
                     <div className="cl-prefijo"><span aria-hidden="true">$</span>
-                        <input id="sl-noimp" className="cl-entrada cl-chica" inputMode="numeric" value={noImp} onChange={(e) => setNoImp(e.target.value.slice(0, 14))} placeholder="0" />
+                        <CampoNumero id="sl-noimp" className="cl-entrada cl-chica" valor={noImp} alCambiar={setNoImp} placeholder="0" />
                     </div>
                 </div>
             </div>
@@ -100,13 +102,13 @@ export function CalculadoraSueldo() {
                     <dl className="cl-filas">
                         {fila("bruto", "Sueldo bruto", r.bruto, sentido === "liquido" ? "cl-total" : "")}
                         {fila("afp", `AFP ${afp}`, r.afp, "cl-resta", `${porcentaje(p.cotizacionAfp)} + comisión ${porcentaje(comision)}${r.imponible < r.bruto ? " sobre el tope imponible" : ""}`)}
-                        {fila("salud", salud === "fonasa" ? "Salud (Fonasa)" : "Salud (Isapre)", r.salud, "cl-resta", salud === "fonasa" ? "7 %" : r.salud > Math.round(r.imponible * 0.07) ? `plan de ${plan} UF` : "7 % (mayor que el plan)")}
+                        {fila("salud", salud === "fonasa" ? "Salud (Fonasa)" : "Salud (Isapre)", r.salud, "cl-resta", salud === "fonasa" ? "7 %" : r.salud > Math.round(r.imponible * 0.07) ? `plan de ${textoDeNumero(plan, { decimales: 2 })} UF` : "7 % (mayor que el plan)")}
                         {fila("cesantia", "Seguro de cesantía", r.cesantia, "cl-resta", contrato === "indefinido" ? porcentaje(p.cesantiaTrabajador.indefinido) : "lo paga el empleador")}
                         {fila("impuesto", "Impuesto único", r.impuesto, "cl-resta", r.factorTramo ? `tramo del ${porcentaje(r.factorTramo)}` : "exento")}
                         {r.noImponible ? fila("noimp", "Colación y movilización", r.noImponible) : null}
                         {fila("liquido", "Sueldo líquido", r.liquido, sentido === "bruto" ? "cl-total" : "")}
                     </dl>
-                ) : <p className="cl-estado cl-mal" role="status">{monto.trim() ? "Escribe un monto en pesos, por ejemplo 1.200.000." : ""}</p>}
+                ) : <p className="cl-estado cl-mal" role="status">{monto !== null ? "Escribe un monto en pesos, por ejemplo 1.200.000." : ""}</p>}
                 <p className="cl-nota">
                     Un mes normal, sin gratificación, horas extra, APV ni otros descuentos de tu contrato. UTM de {mesCL(utm.fecha)} ({pesos(utm.valor)}); topes imponibles con la UF del {fechaCL(ufTopes.fecha)} ({pesos(ufTopes.valor, 2)}){salud === "isapre" ? ` y el plan con la del ${fechaCL(uf.fecha)}` : ""}{ind ? "" : ", valores de referencia porque la fuente del día no respondió"}.
                     Parámetros vigentes desde {FUENTES_SUELDO.vigencia}: {FUENTES_SUELDO.texto}.

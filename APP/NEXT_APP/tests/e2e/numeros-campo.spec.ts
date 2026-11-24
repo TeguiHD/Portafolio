@@ -82,3 +82,46 @@ test.describe("campo numérico: funciones", () => {
         expect(textoDeNumero(null, ENTERO)).toBe("");
     });
 });
+
+test.describe("campo numérico: en las herramientas", () => {
+    const cursor = (campo: import("@playwright/test").Locator) => campo.evaluate((el: HTMLInputElement) => el.selectionStart);
+    const ponerCursor = (campo: import("@playwright/test").Locator, n: number) => campo.evaluate((el: HTMLInputElement, i) => el.setSelectionRange(i, i), n);
+
+    test("sueldo: escribir pone los puntos de miles", async ({ page }) => {
+        await page.goto("/herramientas/sueldo-liquido");
+        const campo = page.getByLabel(/Sueldo bruto mensual/);
+        await campo.fill("");
+        await campo.pressSequentially("1234567");
+        await expect(campo).toHaveValue("1.234.567");
+    });
+
+    test("sueldo: escribir en medio deja el cursor tras el dígito escrito", async ({ page }) => {
+        await page.goto("/herramientas/sueldo-liquido");
+        const campo = page.getByLabel(/Sueldo bruto mensual/);
+        await campo.fill("");
+        await campo.pressSequentially("1234567");
+        await ponerCursor(campo, 3);
+        await page.keyboard.type("9");
+        await expect(campo).toHaveValue("12.934.567");
+        expect(await cursor(campo)).toBe(4);
+    });
+
+    test("sueldo: retroceso justo después de un punto borra el dígito de antes", async ({ page }) => {
+        await page.goto("/herramientas/sueldo-liquido");
+        const campo = page.getByLabel(/Sueldo bruto mensual/);
+        await campo.fill("");
+        await campo.pressSequentially("1234567");
+        await ponerCursor(campo, 6);
+        await page.keyboard.press("Backspace");
+        await expect(campo).toHaveValue("123.567");
+        expect(await cursor(campo)).toBe(3);
+    });
+
+    test("UF/UTM: un punto escrito en el monto es la coma decimal", async ({ page }) => {
+        await page.goto("/herramientas/uf-utm");
+        const campo = page.getByLabel("Monto", { exact: true });
+        await campo.fill("");
+        await campo.pressSequentially("2.5");
+        await expect(campo).toHaveValue("2,5");
+    });
+});

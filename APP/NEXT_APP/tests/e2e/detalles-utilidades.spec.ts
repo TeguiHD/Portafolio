@@ -60,8 +60,9 @@ test("impuestos: al quitar el IVA en pesos, neto + IVA da el total, y lo que no 
     await monto.fill("47");
     await expect(page.locator("body")).toContainText("47 ÷ 1,19 = 39");
     await expect(page.locator("body")).toContainText("+ $ 8");
+    // Las letras ya no entran al campo (separador de miles, 23-11-2026): el campo queda vacío, sin cálculo.
     await monto.fill("abc");
-    await expect(page.locator("main").getByRole("alert")).toContainText("No es un monto");
+    await expect(monto).toHaveValue("");
     await page.getByRole("button", { name: "Personalizado" }).click();
     await page.getByLabel("Tasa personalizada en porcentaje").fill("10.5");
     await monto.fill("100");

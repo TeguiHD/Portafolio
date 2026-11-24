@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { fechaCL, mesCL, pesos } from "@/lib/chile/indicadores";
 import { useIndicadores } from "./IndicadoresContext";
-import { IconoCopiar, leerMonto, useCopiarHerramienta } from "./comunes";
+import { CampoNumero } from "@/components/ui/CampoNumero";
+import { IconoCopiar, useCopiarHerramienta } from "./comunes";
 import "./chile.css";
 
 type Unidad = "UF" | "UTM" | "USD" | "EUR" | "CLP";
@@ -16,20 +17,20 @@ const NOMBRES: Record<Unidad, string> = { UF: "UF", UTM: "UTM", USD: "Dólares",
  */
 export function ConversorIndicadores() {
     const ind = useIndicadores();
-    const [monto, setMonto] = useState("1");
+    const [monto, setMonto] = useState<number | null>(1);
     const [desde, setDesde] = useState<Unidad>("UF");
-    const [manual, setManual] = useState({ UF: "", UTM: "", USD: "" });
+    const [manual, setManual] = useState<Record<"UF" | "UTM" | "USD", number | null>>({ UF: null, UTM: null, USD: null });
     const { copiado, fallo, copiar } = useCopiarHerramienta(SLUG);
 
     const valores = useMemo<Partial<Record<Unidad, number>>>(() => ({
         CLP: 1,
-        UF: ind?.uf.valor ?? leerMonto(manual.UF) ?? undefined,
-        UTM: ind?.utm.valor ?? leerMonto(manual.UTM) ?? undefined,
-        USD: ind?.dolar.valor ?? leerMonto(manual.USD) ?? undefined,
+        UF: ind?.uf.valor ?? manual.UF ?? undefined,
+        UTM: ind?.utm.valor ?? manual.UTM ?? undefined,
+        USD: ind?.dolar.valor ?? manual.USD ?? undefined,
         EUR: ind?.euro?.valor,
     }), [ind, manual]);
 
-    const n = leerMonto(monto);
+    const n = monto;
     const enPesos = n !== null && valores[desde] ? n * valores[desde]! : null;
     const destinos = (["CLP", "UF", "UTM", "USD", "EUR"] as Unidad[]).filter((u) => u !== desde && valores[u]);
     const formatear = (u: Unidad, v: number) => (u === "CLP" ? pesos(Math.round(v)) : `${v.toLocaleString("es-CL", { maximumFractionDigits: u === "UF" || u === "UTM" ? 4 : 2 })} ${u === "USD" ? "US$" : u === "EUR" ? "€" : u}`);
@@ -49,7 +50,7 @@ export function ConversorIndicadores() {
                     {(["UF", "UTM", "USD"] as const).map((u) => (
                         <div key={u}>
                             <label className="cl-etiqueta" htmlFor={`ind-${u}`}>Valor de {u === "USD" ? "1 dólar" : `1 ${u}`} en pesos</label>
-                            <input id={`ind-${u}`} className="cl-entrada cl-chica" inputMode="decimal" value={manual[u]} onChange={(e) => setManual((m) => ({ ...m, [u]: e.target.value.slice(0, 20) }))} />
+                            <CampoNumero id={`ind-${u}`} className="cl-entrada cl-chica" decimales={2} valor={manual[u]} alCambiar={(v) => setManual((m) => ({ ...m, [u]: v }))} />
                         </div>
                     ))}
                 </div>
@@ -59,7 +60,7 @@ export function ConversorIndicadores() {
                 <div className="cl-dos cl">
                     <div>
                         <label className="cl-etiqueta" htmlFor="ind-monto">Monto</label>
-                        <input id="ind-monto" className="cl-entrada" inputMode="decimal" autoComplete="off" value={monto} onChange={(e) => setMonto(e.target.value.slice(0, 24))} onFocus={(e) => e.currentTarget.select()} />
+                        <CampoNumero id="ind-monto" className="cl-entrada" decimales={4} valor={monto} alCambiar={setMonto} onFocus={(e) => e.currentTarget.select()} />
                     </div>
                     <div>
                         <label className="cl-etiqueta" htmlFor="ind-desde">En</label>
@@ -69,7 +70,7 @@ export function ConversorIndicadores() {
                     </div>
                 </div>
                 {enPesos === null ? (
-                    <p className="cl-estado cl-mal" role="status">{monto.trim() ? "No es un monto. Escribe, por ejemplo, 1.250.000 o 3,5." : ""}</p>
+                    <p className="cl-estado cl-mal" role="status">{monto !== null ? "No es un monto. Escribe, por ejemplo, 1.250.000 o 3,5." : ""}</p>
                 ) : (
                     <dl className="cl-filas" aria-live="polite">
                         {destinos.map((u, i) => {

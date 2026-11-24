@@ -1,6 +1,6 @@
 "use client";
 
-import { numeroCL } from "@/lib/tools/numeros";
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useCopiar } from "@/lib/tools/copiar";
 
 import { useState, useCallback, useMemo, useRef } from "react";
@@ -21,9 +21,8 @@ type CalculationMode = "add" | "remove";
 const MONTO_MAXIMO = 10_000_000_000;
 
 // Security: Validate and sanitize numeric input
-const validateAmount = (value: string): number | null => {
-    // A la chilena: «1.190.000» es un millón ciento noventa mil (antes se leía 1,19).
-    const num = numeroCL(value);
+const validateAmount = (num: number | null): number | null => {
+    // El campo ya entrega el número leído a la chilena («1.190.000» es un millón ciento noventa mil).
     if (num === null) return null;
 
     if (isNaN(num) || !isFinite(num) || num < 0 || num > MONTO_MAXIMO) {
@@ -32,13 +31,9 @@ const validateAmount = (value: string): number | null => {
     return num;
 };
 
-/** Por qué no se puede calcular lo escrito, o null si está bien (o vacío). */
-const errorMonto = (value: string): string | null => {
-    if (!value.trim()) return null;
-    const num = numeroCL(value);
-    if (num === null || !/\d/.test(value)) return "No es un monto. Escribe, por ejemplo, 1.190.000 o 19,5.";
-    if (num < 0) return "El monto no puede ser negativo.";
-    if (num > MONTO_MAXIMO) return "El monto máximo es 10.000.000.000.";
+/** Por qué no se puede calcular lo escrito, o null si está bien (o vacío). Letras y signos ya no entran al campo. */
+const errorMonto = (num: number | null): string | null => {
+    if (num !== null && num > MONTO_MAXIMO) return "El monto máximo es 10.000.000.000.";
     return null;
 };
 
@@ -68,10 +63,10 @@ export function CalculadoraIva() {
     const { trackImmediate } = useToolTracking("impuestos", { trackViewOnMount: false, debounceMs: 2000 });
 
     // Abre con un monto de ejemplo y su cálculo a la vista (como las calculadoras grandes): se entiende sin tocar nada.
-    const [amount, setAmount] = useState("10.000");
+    const [amount, setAmount] = useState<number | null>(10000);
     const recienEnfocado = useRef(false);
     const [taxRate, setTaxRate] = useState(19);
-    const [customRate, setCustomRate] = useState("19");
+    const [customRate, setCustomRate] = useState<number | null>(19);
     const [selectedPreset, setSelectedPreset] = useState("CL");
     const [mode, setMode] = useState<CalculationMode>("add");
     const { copiado, fallo, copiar } = useCopiar(2000);
@@ -124,17 +119,14 @@ export function CalculadoraIva() {
         const preset = TAX_PRESETS.find((p) => p.code === code);
         if (preset && code !== "CUSTOM") {
             setTaxRate(preset.rate);
-            setCustomRate(preset.rate.toString());
+            setCustomRate(preset.rate);
         }
     }, []);
 
     // Handle custom rate change
-    const handleCustomRateChange = useCallback((value: string) => {
-        setCustomRate(value);
-        const num = parseFloat(value);
-        if (!isNaN(num) && isFinite(num)) {
-            setTaxRate(validateRate(num));
-        }
+    const handleCustomRateChange = useCallback((num: number | null) => {
+        setCustomRate(num);
+        if (num !== null) setTaxRate(validateRate(num));
     }, []);
 
     // Copia y registra el uso (como mucho una vez cada 2 s).
@@ -194,13 +186,11 @@ export function CalculadoraIva() {
                             </label>
                             <div className="relative">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 text-lg" aria-hidden="true">$</span>
-                                <input
+                                <CampoNumero
                                     id="impuestos-monto"
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value.slice(0, 32))}
+                                    decimales={2}
+                                    valor={amount}
+                                    alCambiar={setAmount}
                                     // Lo que se escribe reemplaza el ejemplo (10.000): al enfocar queda todo seleccionado.
                                     // El mouseup del mismo clic deshacía la selección; se ignora solo ese.
                                     onFocus={(e) => { e.currentTarget.select(); recienEnfocado.current = true; }}
@@ -242,14 +232,11 @@ export function CalculadoraIva() {
                             {/* Custom Rate Input */}
                             {selectedPreset === "CUSTOM" && (
                                 <div className="flex items-center gap-3">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        step="0.5"
-                                        value={customRate}
+                                    <CampoNumero
+                                        decimales={2}
+                                        valor={customRate}
                                         aria-label="Tasa personalizada en porcentaje"
-                                        onChange={(e) => handleCustomRateChange(e.target.value)}
+                                        alCambiar={handleCustomRateChange}
                                         className="w-24 min-h-11 px-3 py-2 rounded-xl bg-[#0F1724] border border-white/10 text-white text-center focus:outline-none focus:border-[color-mix(in_srgb,var(--acento)_50%,transparent)]"
                                     />
                                     <span className="text-neutral-400" aria-hidden="true">%</span>
