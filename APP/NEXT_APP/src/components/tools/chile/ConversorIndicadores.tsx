@@ -60,7 +60,7 @@ export function ConversorIndicadores() {
                 <div className="cl-dos cl">
                     <div>
                         <label className="cl-etiqueta" htmlFor="ind-monto">Monto</label>
-                        <CampoNumero id="ind-monto" className="cl-entrada" decimales={4} valor={monto} alCambiar={setMonto} onFocus={(e) => e.currentTarget.select()} />
+                        <CampoNumero id="ind-monto" className="cl-entrada" decimales={2} valor={monto} alCambiar={setMonto} onFocus={(e) => e.currentTarget.select()} />
                     </div>
                     <div>
                         <label className="cl-etiqueta" htmlFor="ind-desde">En</label>

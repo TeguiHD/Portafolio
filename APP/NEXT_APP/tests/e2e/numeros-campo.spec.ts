@@ -27,16 +27,22 @@ test.describe("campo numérico: funciones", () => {
         expect(alEscribir("", "1234567", 7, ENTERO).texto).toBe("1.234.567");
     });
 
-    test("pegar un decimal con punto (planilla en inglés) solo es decimal donde hay decimales", () => {
+    test("pegar un decimal con punto (planilla en inglés): es decimal, y en un campo de pesos se quitan los decimales", () => {
         expect(alEscribir("", "39512.34", 8, DOS).texto).toBe("39.512,34");
-        expect(alEscribir("", "39512.34", 8, ENTERO).texto).toBe("3.951.234");
+        // Antes daba 3.951.234: «150000.00» copiado de una planilla quedaba cien veces más grande.
+        expect(alEscribir("", "39512.34", 8, ENTERO).texto).toBe("39.512");
+        expect(alEscribir("", "150000.00", 9, ENTERO).texto).toBe("150.000");
+        // Con un cero adelante no puede ser de miles; con miles y decimales, el último separador es el decimal.
+        expect(alEscribir("", "0.005", 5, { decimales: 8 }).texto).toBe("0,005");
+        expect(alEscribir("", "1,234.56", 8, DOS).texto).toBe("1.234,56");
+        expect(alEscribir("", "1,234,567", 9, ENTERO).texto).toBe("1.234.567");
         // Un punto seguido de tres dígitos es de miles, también con decimales.
         expect(alEscribir("", "1.234", 5, DOS).texto).toBe("1.234");
         expect(alEscribir("", "1.234,56", 8, DOS).texto).toBe("1.234,56");
     });
 
     test("un punto escrito al final, donde hay decimales, es la coma", () => {
-        expect(alEscribir("39.512", "39.512.", 7, DOS)).toEqual({ texto: "39.512,", cursor: 7 });
+        expect(alEscribir("39.512", "39.512.", 7, DOS)).toEqual({ texto: "39.512,", cursor: 7, comaProvisional: true });
         // En un campo sin decimales, el punto no hace nada.
         expect(alEscribir("39.512", "39.512.", 7, ENTERO)).toEqual({ texto: "39.512", cursor: 6 });
     });
@@ -67,10 +73,44 @@ test.describe("campo numérico: funciones", () => {
         // Sin saber qué se reemplazó: el sufijo intacto es lo que queda después del cursor.
         expect(alEscribir("10.000", "1.190.000", 9, DOS).texto).toBe("1.190.000");
         // Sabiéndolo (beforeinput): se normaliza exactamente lo que entró.
-        expect(alEscribir("10.000", "1.190.000", 9, DOS, { inicio: 0, fin: 6, insertado: "1.190.000" }).texto).toBe("1.190.000");
-        expect(alEscribir("12.000", "12.5", 4, DOS, { inicio: 0, fin: 6, insertado: "12.5" }).texto).toBe("12,5");
-        expect(alEscribir("1.000", "123.000", 3, ENTERO, { inicio: 1, fin: 1, insertado: "23" })).toEqual({ texto: "123.000", cursor: 3 });
-        expect(alEscribir("39.512", "39.512.", 7, DOS, { inicio: 6, fin: 6, insertado: "." }).texto).toBe("39.512,");
+        expect(alEscribir("10.000", "1.190.000", 9, DOS, { cambio: { inicio: 0, fin: 6, insertado: "1.190.000" } }).texto).toBe("1.190.000");
+        expect(alEscribir("12.000", "12.5", 4, DOS, { cambio: { inicio: 0, fin: 6, insertado: "12.5" } }).texto).toBe("12,5");
+        expect(alEscribir("1.000", "123.000", 3, ENTERO, { cambio: { inicio: 1, fin: 1, insertado: "23" } })).toEqual({ texto: "123.000", cursor: 3 });
+        expect(alEscribir("39.512", "39.512.", 7, DOS, { cambio: { inicio: 6, fin: 6, insertado: "." } }).texto).toBe("39.512,");
+    });
+
+    /** Escribe tecla por tecla al final, como en el campo: con el cambio anotado y la coma provisional de vuelta. */
+    function teclear(teclas: string, o: OpcionesNumero): string {
+        let texto = "", provisional = false;
+        for (const t of teclas) {
+            const r = alEscribir(texto, texto + t, texto.length + 1, o, { cambio: { inicio: texto.length, fin: texto.length, insertado: t }, comaProvisional: provisional });
+            texto = r.texto;
+            provisional = !!r.comaProvisional;
+        }
+        return texto;
+    }
+
+    test("los puntos de miles escritos a mano siguen siendo de miles, también donde hay decimales", () => {
+        // La revisión del 23-11: «1.190.000» tecleado en el IVA quedaba en 1,19 y «150.000» en un presupuesto, en 150.
+        for (const t of ["1.190.000", "150.000", "12.990", "25.000"]) expect(teclear(t, DOS), t).toBe(t);
+        expect(teclear("39.643,59", DOS)).toBe("39.643,59");
+        expect(teclear("1.234.567,89", DOS)).toBe("1.234.567,89");
+        expect(teclear("1.190.000", ENTERO)).toBe("1.190.000");
+        // Y el punto como decimal (teclado en inglés) sigue sirviendo cuando no puede ser de miles.
+        expect(teclear("39512.34", DOS)).toBe("39.512,34");
+        expect(teclear("2.5", DOS)).toBe("2,5");
+        expect(teclear("0.005", { decimales: 8 })).toBe("0,005");
+    });
+
+    test("en el tope de dígitos, la tecla no entra y el número no cambia", () => {
+        expect(alEscribir("1,25", "1,925", 3, DOS, { cambio: { inicio: 2, fin: 2, insertado: "9" } })).toEqual({ texto: "1,25", cursor: 2 });
+        const trece = "1.234.567.890.123";
+        expect(alEscribir(trece, `19${trece.slice(1)}`, 2, ENTERO, { cambio: { inicio: 1, fin: 1, insertado: "9" } })).toEqual({ texto: trece, cursor: 1 });
+    });
+
+    test("borrar un punto de miles (teclado de Android, sin tecla identificada) borra el dígito de al lado", () => {
+        expect(alEscribir("1.234", "1234", 1, ENTERO)).toEqual({ texto: "234", cursor: 0 });
+        expect(alEscribir("1.234", "1234", 1, ENTERO, { borrado: "adelante" })).toEqual({ texto: "134", cursor: 1 });
     });
 
     test("leer el texto visible", () => {
@@ -125,6 +165,15 @@ test.describe("campo numérico: en las herramientas", () => {
         await page.keyboard.press("Backspace");
         await expect(campo).toHaveValue("123.567");
         expect(await cursor(campo)).toBe(3);
+    });
+
+    test("IVA: teclear los puntos de miles a mano deja el monto entero (no 1,19)", async ({ page }) => {
+        await page.goto("/herramientas/impuestos");
+        const campo = page.getByLabel(/Monto neto/);
+        await campo.fill("");
+        await campo.pressSequentially("1.190.000");
+        await expect(campo).toHaveValue("1.190.000");
+        await expect(page.locator("body")).toContainText("1.416.100");
     });
 
     test("UF/UTM: un punto escrito en el monto es la coma decimal", async ({ page }) => {

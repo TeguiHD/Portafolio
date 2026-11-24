@@ -27,7 +27,7 @@ export function CurrencyConverter() {
     const [currencies, setCurrencies] = useState<Currency[]>([]);
     const [loading, setLoading] = useState(true);
     const [converting, setConverting] = useState(false);
-    const [amount, setAmount] = useState<number>(1000);
+    const [amount, setAmount] = useState<number | null>(1000);
     const [fromCurrency, setFromCurrency] = useState<string>("CLP");
     const [toCurrency, setToCurrency] = useState<string>("USD");
     const [result, setResult] = useState<ConversionResult | null>(null);
@@ -129,8 +129,8 @@ export function CurrencyConverter() {
                     <CampoNumero
                         id={`${uid}-cantidad`}
                         decimales={2}
-                        valor={amount || null}
-                        alCambiar={(n) => setAmount(n ?? 0)}
+                        valor={amount}
+                        alCambiar={setAmount}
                         className={`block min-h-14 w-full rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-3 pr-4 pl-12 text-xl font-semibold text-[var(--txt)] tabular-nums placeholder:text-[var(--mut)] ${FOCO}`}
                     />
                 </div>

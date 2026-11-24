@@ -32,6 +32,9 @@ export function CampoNumero({ valor, alCambiar, decimales = 0, negativos = false
     // Qué está por reemplazar el navegador (selección y texto que entra): sin esto, «10.000» → «1.190.000» con fill o
     // al pegar sobre una selección no se puede saber qué parte es nueva.
     const cambio = useRef<CambioCampo | null>(null);
+    const borrado = useRef<"atras" | "adelante" | undefined>(undefined);
+    // Si la coma nació de un punto escrito (todavía puede ser de miles): ver alEscribir.
+    const comaProvisional = useRef(false);
     useEffect(() => {
         const el = interno.current;
         if (!el) return;
@@ -39,6 +42,7 @@ export function CampoNumero({ valor, alCambiar, decimales = 0, negativos = false
             const datos = e.data ?? e.dataTransfer?.getData("text/plain") ?? null;
             cambio.current = e.inputType.startsWith("insert") && datos !== null && el.selectionStart !== null && el.selectionEnd !== null
                 ? { inicio: el.selectionStart, fin: el.selectionEnd, insertado: datos } : null;
+            borrado.current = e.inputType === "deleteContentForward" ? "adelante" : e.inputType.startsWith("delete") ? "atras" : undefined;
         };
         el.addEventListener("beforeinput", anotar);
         return () => el.removeEventListener("beforeinput", anotar);
@@ -82,11 +86,15 @@ export function CampoNumero({ valor, alCambiar, decimales = 0, negativos = false
             onKeyDown={teclaAbajo}
             onChange={(e) => {
                 const el = e.currentTarget;
-                const anotado = cambio.current;
+                const anotado = cambio.current, haciaDonde = borrado.current;
                 cambio.current = null;
+                borrado.current = undefined;
                 // Lo anotado vale solo si describe este mismo cambio (si no, se deduce de los textos).
                 const valido = anotado && anotado.fin <= mostrado.length && mostrado.slice(0, anotado.inicio) + anotado.insertado + mostrado.slice(anotado.fin) === el.value ? anotado : undefined;
-                const r = alEscribir(mostrado, el.value, el.selectionStart ?? el.value.length, opciones, valido);
+                // Si el formulario cambió el número desde afuera, la coma que se ve ya no es la que se escribió.
+                const provisional = comaProvisional.current && mostrado === texto;
+                const r = alEscribir(mostrado, el.value, el.selectionStart ?? el.value.length, opciones, { cambio: valido, borrado: haciaDonde, comaProvisional: provisional });
+                comaProvisional.current = !!r.comaProvisional;
                 cursorPendiente.current = r.cursor;
                 setTexto(r.texto);
                 setVuelta((v) => v + 1);
