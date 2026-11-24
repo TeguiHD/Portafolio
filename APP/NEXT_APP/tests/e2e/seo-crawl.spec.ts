@@ -94,6 +94,8 @@ test.describe("Sitemap y robots", () => {
         const uniqueLocs = new Set(locs);
         expect(uniqueLocs.size, "el sitemap contiene URLs duplicadas").toBe(locs.length);
 
+        // Con las fichas del índice son cientos de URLs: el plazo crece con el sitemap (en serie, sin cargar al servidor).
+        test.setTimeout(120_000 + locs.length * 1_000);
         for (const loc of locs) {
             const path = loc.replace(SITE_URL, "") || "/";
             const res = await request.get(path);
