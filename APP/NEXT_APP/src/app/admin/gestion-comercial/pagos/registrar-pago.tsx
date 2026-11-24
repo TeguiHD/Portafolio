@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -184,9 +185,9 @@ export default function RegistrarPago({ propuestas, abrirAlCargar }: { propuesta
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label htmlFor={`${id}-m`} className={etiqueta}>Monto (CLP)</label>
-                                    <input id={`${id}-m`} type="text" inputMode="numeric" autoComplete="off" required className={campo}
-                                        value={form.monto ? Number(form.monto).toLocaleString("es-CL") : ""}
-                                        onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value.replace(/\D/g, "").slice(0, 13) }))}
+                                    <CampoNumero id={`${id}-m`} required className={campo}
+                                        valor={form.monto ? Number(form.monto) : null}
+                                        alCambiar={(n) => setForm((f) => ({ ...f, monto: n === null ? "" : String(n) }))}
                                         aria-describedby={propuesta ? `${id}-saldo` : undefined} />
                                     {propuesta && (
                                         <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--mut)]">

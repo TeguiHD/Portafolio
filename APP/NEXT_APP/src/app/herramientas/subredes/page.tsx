@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { useState, useCallback, useMemo, useRef } from "react";
@@ -373,17 +374,12 @@ function PlanificadorVlsm() {
                                     style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
                                 />
                                 <label htmlFor={`vlsm-hosts-${fila.id}`} className="sr-only">Hosts necesarios en {nombreVisible}</label>
-                                <input
+                                <CampoNumero
                                     id={`vlsm-hosts-${fila.id}`}
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={fila.hosts}
-                                    onChange={event => cambiarFila(fila.id, "hosts", event.target.value)}
-                                    pattern="[0-9]{1,3}(\.?[0-9]{3})*"
+                                    valor={fila.hosts.trim() ? Number(fila.hosts.replace(/\./g, "")) : null}
+                                    alCambiar={n => cambiarFila(fila.id, "hosts", n === null ? "" : String(n))}
                                     aria-invalid={hostsMalos ? true : undefined}
                                     placeholder="0"
-                                    maxLength={13}
-                                    autoComplete="off"
                                     className={`font-mono text-right ${CAMPO}`}
                                     style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}
                                 />

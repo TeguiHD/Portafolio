@@ -74,27 +74,36 @@ function normalizarPegado(texto: string, o: OpcionesNumero): string {
     return signo + entero + (dec !== null && o.decimales > 0 ? `,${dec}` : "");
 }
 
+/** Qué reemplazó el navegador: el tramo [inicio, fin) del texto anterior y lo que entró (lo anota `beforeinput`). */
+export interface CambioCampo { inicio: number; fin: number; insertado: string }
+
 /**
  * Da formato a un campo numérico mientras se escribe. `anterior` es lo que mostraba el campo, `nuevo` lo que dejó el
- * navegador tras la tecla (o el pegado) y `cursor` dónde quedó. Devuelve el texto con los puntos y el cursor junto al
- * mismo dígito: los puntos que aparecen o desaparecen no lo mueven de su sitio.
+ * navegador tras la tecla (o el pegado) y `cursor` dónde quedó. Con `cambio` se sabe exactamente qué se reemplazó; sin
+ * él se deduce: lo que queda después del cursor es el final intacto, y lo que coincide al principio, el comienzo.
+ * Devuelve el texto con los puntos y el cursor junto al mismo dígito: los puntos que aparecen o desaparecen no lo mueven.
  */
-export function alEscribir(anterior: string, nuevo: string, cursor: number, o: OpcionesNumero): { texto: string; cursor: number } {
-    // El tramo que cambió: lo que no coincide entre el principio y el final de los dos textos.
-    let p = 0;
-    while (p < anterior.length && p < nuevo.length && anterior[p] === nuevo[p]) p++;
-    let s = 0;
-    while (s < anterior.length - p && s < nuevo.length - p && anterior[anterior.length - 1 - s] === nuevo[nuevo.length - 1 - s]) s++;
-    const insertado = nuevo.slice(p, nuevo.length - s);
+export function alEscribir(anterior: string, nuevo: string, cursor: number, o: OpcionesNumero, cambio?: CambioCampo): { texto: string; cursor: number } {
+    let inicio: number, fin: number, insertado: string;
+    if (cambio) ({ inicio, fin, insertado } = cambio);
+    else {
+        // Al escribir o pegar, el cursor queda al final de lo que entró. Deducir el final por coincidencia de letras
+        // fallaba al reemplazar todo: «10.000» → «1.190.000» se leía como «.19» insertado (y era decimal).
+        const s = Math.max(0, Math.min(nuevo.length - cursor, anterior.length));
+        let p = 0;
+        while (p < Math.min(cursor, anterior.length - s) && anterior[p] === nuevo[p]) p++;
+        [inicio, fin, insertado] = [p, anterior.length - s, nuevo.slice(p, cursor)];
+    }
     let crudo = nuevo, pos = cursor;
     if (insertado.length > 1) {
         // Pegado, autocompletado o arrastrado: se normaliza solo lo que entró.
         const limpio = normalizarPegado(insertado, o);
-        crudo = nuevo.slice(0, p) + limpio + nuevo.slice(nuevo.length - s);
-        pos = p + limpio.length;
-    } else if (insertado === "." && o.decimales > 0 && !anterior.includes(",")) {
+        crudo = anterior.slice(0, inicio) + limpio + anterior.slice(fin);
+        pos = inicio + limpio.length;
+    } else if (insertado === "." && o.decimales > 0 && !(anterior.slice(0, inicio) + anterior.slice(fin)).includes(",")) {
         // El teclado del celular da «.» como decimal en muchos idiomas: donde hay decimales, es la coma.
-        crudo = `${nuevo.slice(0, p)},${nuevo.slice(p + 1)}`;
+        crudo = `${anterior.slice(0, inicio)},${anterior.slice(fin)}`;
+        pos = inicio + 1;
     }
 
     // Lo que cuenta: signo, dígitos enteros, una coma y los decimales; y cuántos de cada uno quedan antes del cursor.

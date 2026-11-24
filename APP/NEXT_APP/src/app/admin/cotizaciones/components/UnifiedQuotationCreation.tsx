@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useTransition, useRef, useCallback, useEffect, useMemo } from "react";
 import {
     Plus, Search, ArrowRight, ArrowLeft, X, Code, Globe, Lock, Loader2,
@@ -718,9 +719,9 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
                         </div>
                         <div className="sm:col-span-2">
                             <label htmlFor="html-total" className={ETIQUETA}>Total (CLP)</label>
-                            <input id="html-total" type="text" inputMode="numeric" autoComplete="off" placeholder="1.190.000" className={`${CAMPO} tabular-nums`}
-                                value={totalTexto ? Number(totalTexto).toLocaleString("es-CL") : ""}
-                                onChange={e => setTotalTexto(e.target.value.replace(/\D/g, "").slice(0, 13))}
+                            <CampoNumero id="html-total" placeholder="1.190.000" className={`${CAMPO} tabular-nums`}
+                                valor={totalTexto ? Number(totalTexto) : null}
+                                alCambiar={n => setTotalTexto(n === null ? "" : String(n))}
                                 aria-describedby="html-total-ayuda" />
                             <p id="html-total-ayuda" className={AYUDA}>Lo que se cobra en total: con él se registran los pagos y las cuotas.</p>
                         </div>
@@ -786,9 +787,9 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
                         </div>
                         <div>
                             <label htmlFor="tex-total" className={ETIQUETA}>Total (CLP)</label>
-                            <input id="tex-total" type="text" inputMode="numeric" autoComplete="off" placeholder="1.190.000" className={`${CAMPO} tabular-nums`}
-                                value={totalTexto ? Number(totalTexto).toLocaleString("es-CL") : ""}
-                                onChange={e => setTotalTexto(e.target.value.replace(/\D/g, "").slice(0, 13))} />
+                            <CampoNumero id="tex-total" placeholder="1.190.000" className={`${CAMPO} tabular-nums`}
+                                valor={totalTexto ? Number(totalTexto) : null}
+                                alCambiar={n => setTotalTexto(n === null ? "" : String(n))} />
                         </div>
                         <div>
                             <label htmlFor="tex-acceso" className={ETIQUETA}>Acceso</label>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useId } from "react";
 import { QuotationData, ProviderCostItem, ProfessionalFeeItem } from "../../../../modules/quotations/types";
 import { Plus, Trash2 } from "lucide-react";
@@ -111,11 +112,10 @@ export default function QuotationForm({ data, onChange }: Props) {
                                     value={item.provider}
                                     onChange={v => updateProviderCost(item.id, { provider: v })}
                                 />
-                                <Input
+                                <InputMonto
                                     label="Costo (CLP)"
-                                    type="number"
-                                    value={item.costMin}
-                                    onChange={v => updateProviderCost(item.id, { costMin: parseInt(v) || 0 })}
+                                    valor={item.costMin || null}
+                                    alCambiar={n => updateProviderCost(item.id, { costMin: n ?? 0 })}
                                 />
                             </div>
                         </div>
@@ -147,11 +147,10 @@ export default function QuotationForm({ data, onChange }: Props) {
                                     onChange={v => updateProfessionalFee(item.id, { description: v })}
                                     rows={2}
                                 />
-                                <Input
+                                <InputMonto
                                     label="Precio (CLP)"
-                                    type="number"
-                                    value={item.price}
-                                    onChange={v => updateProfessionalFee(item.id, { price: parseInt(v) || 0 })}
+                                    valor={item.price || null}
+                                    alCambiar={n => updateProfessionalFee(item.id, { price: n ?? 0 })}
                                 />
                             </div>
                         </div>
@@ -250,5 +249,16 @@ function Button({ onClick, children, icon }: ButtonProps) {
             {icon}
             {children}
         </button>
+    );
+}
+
+/** Monto en pesos: con los puntos de miles mientras se escribe (antes era type=number, sin puntos). */
+function InputMonto({ label, valor, alCambiar }: { label: string; valor: number | null; alCambiar: (n: number | null) => void }) {
+    const id = useId();
+    return (
+        <div>
+            <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-[var(--txt)]">{label}</label>
+            <CampoNumero id={id} valor={valor} alCambiar={alCambiar} placeholder="0" className={`${CAMPO} tabular-nums`} />
+        </div>
     );
 }

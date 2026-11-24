@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useId, useState } from "react";
 import { formatCurrency } from "@/lib/currency";
 import { AYUDA, BOTON, BOTON_SEC, CAMPO, CIFRA, ETIQUETA, FICHA, GIRA, OPCION_NO, OPCION_SI, RIEL } from "./estilos";
@@ -192,13 +193,11 @@ export function GoalForm({ goal, onSubmit, onCancel }: GoalFormProps) {
                     <label htmlFor={`${id}-targetAmount`} className={ETIQUETA}>Monto objetivo *</label>
                     <div className="relative">
                         <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">$</span>
-                        <input
+                        <CampoNumero
                             id={`${id}-targetAmount`}
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            value={formData.targetAmount}
-                            onChange={(e) => setFormData({ ...formData, targetAmount: e.target.value })}
+                            decimales={2}
+                            valor={numeroCL(formData.targetAmount)}
+                            alCambiar={(n) => setFormData({ ...formData, targetAmount: n === null ? "" : String(n) })}
                             aria-required="true"
                             aria-invalid={errors.targetAmount ? true : undefined}
                             aria-describedby={errors.targetAmount ? `${id}-targetAmount-error` : undefined}
@@ -213,13 +212,11 @@ export function GoalForm({ goal, onSubmit, onCancel }: GoalFormProps) {
                     <label htmlFor={`${id}-currentAmount`} className={ETIQUETA}>Monto ahorrado</label>
                     <div className="relative">
                         <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">$</span>
-                        <input
+                        <CampoNumero
                             id={`${id}-currentAmount`}
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            value={formData.currentAmount}
-                            onChange={(e) => setFormData({ ...formData, currentAmount: e.target.value })}
+                            decimales={2}
+                            valor={numeroCL(formData.currentAmount)}
+                            alCambiar={(n) => setFormData({ ...formData, currentAmount: n === null ? "" : String(n) })}
                             aria-invalid={errors.currentAmount ? true : undefined}
                             aria-describedby={errors.currentAmount ? `${id}-currentAmount-error` : undefined}
                             className={`${CAMPO} pl-7 ${CIFRA}`}

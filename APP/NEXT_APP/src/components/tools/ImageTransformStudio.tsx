@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AlertCircle, Check, Link2, LoaderCircle, Maximize2, SlidersHorizontal, Unlink2 } from "lucide-react";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
@@ -260,7 +261,7 @@ export function ImageTransformStudio({ mode }: { mode: ModoEstudio }) {
                 ? <p className="flex justify-between text-xs text-slate-300"><span>Calidad</span><output className="font-mono" style={{ color: config.accent }}>{!enLote && currentResult?.calidad != null ? `${currentResult.calidad}%` : "Automática"}</output></p>
                 : <label className="block text-xs text-slate-300"><span className="mb-3 flex justify-between"><span>Calidad</span><output className="font-mono" style={{ color: config.accent }}>{quality}%</output></span><input type="range" min={10} max={100} value={quality} onChange={(event) => setQuality(Number(event.target.value))} className="h-5 w-full cursor-pointer" style={{ accentColor: config.accent }} /><span className="mt-1 flex justify-between text-[11px] text-slate-500"><span>Menor peso</span><span>Más detalle</span></span></label>}
         {mode === "comprimir-imagen" && <div>
-            <label className="block text-xs text-slate-300"><span className="mb-2 block">Peso objetivo (KB)</span><input className={fieldClass} type="number" inputMode="numeric" min={1} max={OBJETIVO_MAXIMO_KB} placeholder="Sin objetivo" value={objetivoKb || ""} disabled={format === "image/png"} aria-describedby={idAyudaObjetivo} onChange={(event) => setObjetivoKb(Math.min(OBJETIVO_MAXIMO_KB, enteroDeCampo(event.target.value)))} /></label>
+            <label className="block text-xs text-slate-300"><span className="mb-2 block">Peso objetivo (KB)</span><CampoNumero className={fieldClass} placeholder="Sin objetivo" valor={objetivoKb || null} disabled={format === "image/png"} aria-describedby={idAyudaObjetivo} alCambiar={(n) => setObjetivoKb(Math.min(OBJETIVO_MAXIMO_KB, Math.floor(n ?? 0)))} /></label>
             <span id={idAyudaObjetivo} className="mt-2 block text-[11px] leading-4 text-slate-500">{format === "image/png" ? "Solo con WebP o JPEG." : enLote ? "Para cada imagen: la mayor calidad que quepa; si ni con 40% alcanza, se achica." : "Busca la mayor calidad que quepa. Si ni con 40% alcanza, achica la imagen."}</span>
             {!enLote && <p aria-live="polite" className="mt-2 flex items-start gap-2 text-xs leading-5 text-slate-300">{objetivoTexto && currentResult?.objetivo && !currentResult.objetivo.logrado && <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />}{objetivoTexto}</p>}
         </div>}

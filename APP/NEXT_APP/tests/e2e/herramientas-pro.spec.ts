@@ -87,7 +87,7 @@ test.describe("Herramientas profesionales", () => {
         await monto.click({ position: { x: 200, y: 20 } });
         await monto.pressSequentially("5000");
         await expect(page.locator("#tools-content")).toContainText("5.950");
-        await expect(monto).toHaveValue("5000");
+        await expect(monto).toHaveValue("5.000"); // con el separador de miles al escribir (23-11-2026)
     });
 
     test("contraseñas en tema claro: el botón y la opción activa se leen (contraste ≥ 4,5)", async ({ page }) => {

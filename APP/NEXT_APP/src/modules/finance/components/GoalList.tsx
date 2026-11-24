@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useId, useState } from "react";
 import Link from "next/link";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
@@ -257,13 +258,11 @@ export function GoalList({ goals, onDelete, onContribute }: GoalListProps) {
                                 <label htmlFor={`${uid}-abono`} className={ETIQUETA}>Monto a abonar</label>
                                 <div className="relative">
                                     <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">$</span>
-                                    <input
+                                    <CampoNumero
                                         id={`${uid}-abono`}
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        value={contributeAmount}
-                                        onChange={(e) => setContributeAmount(e.target.value)}
+                                        decimales={2}
+                                        valor={numeroCL(contributeAmount)}
+                                        alCambiar={(n) => setContributeAmount(n === null ? "" : String(n))}
                                         className={`${CAMPO} pl-7 ${CIFRA}`}
                                         placeholder="50.000"
                                     />

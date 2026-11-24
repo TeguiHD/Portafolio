@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -183,13 +184,11 @@ function ExpenseModal({
                         </div>
                         <div>
                             <label htmlFor={`${id}-m`} className={etiqueta}>Monto (CLP) *</label>
-                            <input
+                            <CampoNumero
                                 id={`${id}-m`}
-                                type="text"
-                                inputMode="numeric"
                                 required
-                                value={form.amount ? Number(form.amount).toLocaleString("es-CL") : ""}
-                                onChange={e => setForm(f => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, "").slice(0, 13) }))}
+                                valor={form.amount ? Number(form.amount) : null}
+                                alCambiar={n => setForm(f => ({ ...f, amount: n === null ? "" : String(n) }))}
                                 className={`${campo} tabular-nums`}
                                 placeholder="0"
                             />

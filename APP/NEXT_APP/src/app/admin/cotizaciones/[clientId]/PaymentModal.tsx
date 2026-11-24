@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useEffect, useCallback, useId, useTransition } from "react";
 import { DollarSign, CreditCard, Banknote, Building2, Wallet, Bitcoin, HelpCircle, FileText, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -222,16 +223,11 @@ function Contenido({
                         <label htmlFor={`${id}-monto`} className={ETIQUETA}>Monto del pago</label>
                         <div className="relative">
                             <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--mut)]">$</span>
-                            <input
+                            <CampoNumero
                                 id={`${id}-monto`}
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="off"
-                                value={amount ? Number(amount).toLocaleString("es-CL") : ""}
-                                onChange={(e) => {
-                                    // Solo dígitos: el peso chileno no lleva decimales.
-                                    setAmount(e.target.value.replace(/\D/g, "").slice(0, 13));
-                                }}
+                                // El peso chileno no lleva decimales.
+                                valor={amount ? Number(amount) : null}
+                                alCambiar={(n) => setAmount(n === null ? "" : String(n))}
                                 placeholder={Math.round(remaining).toLocaleString("es-CL")}
                                 className={`${CAMPO} pl-7 tabular-nums`}
                                 aria-invalid={error ? true : undefined}

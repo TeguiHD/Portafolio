@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useEffect, useCallback, useId } from "react";
 import { ArrowLeftRight, ArrowRight, Clock } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
@@ -125,14 +126,12 @@ export function CurrencyConverter() {
                     <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-lg text-[var(--mut)]">
                         {fromCurrencyObj?.symbol || "$"}
                     </span>
-                    <input
+                    <CampoNumero
                         id={`${uid}-cantidad`}
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                        decimales={2}
+                        valor={amount || null}
+                        alCambiar={(n) => setAmount(n ?? 0)}
                         className={`block min-h-14 w-full rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] py-3 pr-4 pl-12 text-xl font-semibold text-[var(--txt)] tabular-nums placeholder:text-[var(--mut)] ${FOCO}`}
-                        min="0"
-                        step="0.01"
                     />
                 </div>
             </div>

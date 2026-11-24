@@ -6,8 +6,8 @@
  * el texto visible vive aquí. Las reglas están en src/lib/tools/numeros.ts (alEscribir) y en
  * docs/superpowers/specs/2026-11-23-separador-miles-design.md.
  */
-import { useCallback, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type Ref } from "react";
-import { alEscribir, numeroDeTexto, textoDeNumero } from "@/lib/tools/numeros";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type Ref } from "react";
+import { alEscribir, numeroDeTexto, textoDeNumero, type CambioCampo } from "@/lib/tools/numeros";
 
 type Nativos = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "onChange" | "type" | "inputMode">;
 
@@ -29,6 +29,20 @@ export function CampoNumero({ valor, alCambiar, decimales = 0, negativos = false
     const [, setVuelta] = useState(0);
     const interno = useRef<HTMLInputElement | null>(null);
     const cursorPendiente = useRef<number | null>(null);
+    // Qué está por reemplazar el navegador (selección y texto que entra): sin esto, «10.000» → «1.190.000» con fill o
+    // al pegar sobre una selección no se puede saber qué parte es nueva.
+    const cambio = useRef<CambioCampo | null>(null);
+    useEffect(() => {
+        const el = interno.current;
+        if (!el) return;
+        const anotar = (e: InputEvent) => {
+            const datos = e.data ?? e.dataTransfer?.getData("text/plain") ?? null;
+            cambio.current = e.inputType.startsWith("insert") && datos !== null && el.selectionStart !== null && el.selectionEnd !== null
+                ? { inicio: el.selectionStart, fin: el.selectionEnd, insertado: datos } : null;
+        };
+        el.addEventListener("beforeinput", anotar);
+        return () => el.removeEventListener("beforeinput", anotar);
+    }, []);
 
     // Si el formulario cambió el número desde afuera (reiniciar, «Todo lo que falta»), se muestra el suyo.
     const mostrado = numeroDeTexto(texto) === valor ? texto : textoDeNumero(valor, opciones);
@@ -68,7 +82,11 @@ export function CampoNumero({ valor, alCambiar, decimales = 0, negativos = false
             onKeyDown={teclaAbajo}
             onChange={(e) => {
                 const el = e.currentTarget;
-                const r = alEscribir(mostrado, el.value, el.selectionStart ?? el.value.length, opciones);
+                const anotado = cambio.current;
+                cambio.current = null;
+                // Lo anotado vale solo si describe este mismo cambio (si no, se deduce de los textos).
+                const valido = anotado && anotado.fin <= mostrado.length && mostrado.slice(0, anotado.inicio) + anotado.insertado + mostrado.slice(anotado.fin) === el.value ? anotado : undefined;
+                const r = alEscribir(mostrado, el.value, el.selectionStart ?? el.value.length, opciones, valido);
                 cursorPendiente.current = r.cursor;
                 setTexto(r.texto);
                 setVuelta((v) => v + 1);

@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useTransition, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -283,12 +284,10 @@ function ContractModal({
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div>
                                 <label htmlFor={`${id}-v`} className={etiqueta}>Valor total (CLP)</label>
-                                <input
+                                <CampoNumero
                                     id={`${id}-v`}
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={form.totalAmount ? Number(form.totalAmount).toLocaleString("es-CL") : ""}
-                                    onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value.replace(/[^0-9]/g, "").slice(0, 13) }))}
+                                    valor={form.totalAmount ? Number(form.totalAmount) : null}
+                                    alCambiar={n => setForm(f => ({ ...f, totalAmount: n === null ? "" : String(n) }))}
                                     className={`${campo} tabular-nums`}
                                     placeholder="0"
                                 />

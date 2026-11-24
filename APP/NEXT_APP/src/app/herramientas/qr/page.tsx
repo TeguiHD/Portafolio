@@ -1,4 +1,5 @@
 "use client";
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 
 import { Suspense, useState, useRef, useMemo, useEffect, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
@@ -354,7 +355,7 @@ function QRStudio() {
                     </div>
                 );
             case "event": return (<div className="space-y-2"><QrInput label="Título *" type="text" className={inputClass} value={eventData.title} onChange={(e) => { setEventData({ ...eventData, title: e.target.value }); }} /><QrInput label="Lugar" type="text" className={inputClass} value={eventData.location || ""} onChange={(e) => { setEventData({ ...eventData, location: e.target.value }); }} /><div className="grid gap-2 sm:grid-cols-2"><QrInput label="Inicio *" type="datetime-local" className={inputClass} value={eventData.startDate} onChange={(e) => { setEventData({ ...eventData, startDate: e.target.value }); }} /><QrInput label="Término" type="datetime-local" min={eventData.startDate || undefined} className={inputClass} value={eventData.endDate || ""} onChange={(e) => { setEventData({ ...eventData, endDate: e.target.value }); }} /></div><QrTextarea label="Descripción" className={`${inputClass} h-16 resize-none`} value={eventData.description || ""} onChange={(e) => { setEventData({ ...eventData, description: e.target.value }); }} /><p className="text-[11px] leading-relaxed text-slate-500">Escribe la hora de tu zona. El QR la guarda en UTC, así cada calendario la muestra a la hora correcta.</p></div>);
-            case "bitcoin": return (<div className="space-y-2"><QrInput label="Dirección Bitcoin *" type="text" spellCheck={false} autoComplete="off" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); }} /><QrInput label="Monto en BTC (opcional)" type="number" min="0" step="0.00000001" className={inputClass} value={bitcoinData.amount ?? ""} onChange={(e) => { const monto = parseFloat(e.target.value); setBitcoinData({ ...bitcoinData, amount: Number.isFinite(monto) ? monto : undefined }); }} /></div>);
+            case "bitcoin": return (<div className="space-y-2"><QrInput label="Dirección Bitcoin *" type="text" spellCheck={false} autoComplete="off" className={`${inputClass} font-mono text-xs`} value={bitcoinData.address} onChange={(e) => { setBitcoinData({ ...bitcoinData, address: e.target.value }); }} /><label className="studio-field">Monto en BTC (opcional)<CampoNumero decimales={8} className={inputClass} valor={bitcoinData.amount ?? null} alCambiar={(monto) => { setBitcoinData({ ...bitcoinData, amount: monto ?? undefined }); }} /></label></div>);
             default: return null;
         }
     };

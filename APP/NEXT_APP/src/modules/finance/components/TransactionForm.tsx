@@ -1,5 +1,7 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
+import { numeroDeTexto, textoDeNumero } from "@/lib/tools/numeros";
 import { useState, useEffect, useRef, useCallback, useId } from "react";
 import Link from "next/link";
 import { Camera, ChevronRight, FileText, ImageUp, ReceiptText, ScanLine, TriangleAlert, X } from "lucide-react";
@@ -456,18 +458,6 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
     ) => {
         const { name, value } = e.target;
 
-        // Special handling for amount field with thousand separators
-        if (name === "amount") {
-            const rawValue = value.replace(/[^\d,]/g, '');
-            const formattedValue = formatWithThousandSeparator(rawValue.replace(',', '.'));
-            setFormData(prev => ({
-                ...prev,
-                amount: parseFormattedValue(formattedValue),
-                displayAmount: formattedValue
-            }));
-            return;
-        }
-
         setFormData(prev => ({ ...prev, [name]: value }));
 
         // Reset category when type changes
@@ -543,15 +533,14 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                         <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">
                             {simbolo}
                         </span>
-                        <input
+                        <CampoNumero
                             id={`${idBase}-monto`}
-                            type="text"
                             name="amount"
-                            value={formData.displayAmount}
-                            onChange={handleChange}
+                            decimales={2}
+                            valor={numeroDeTexto(formData.displayAmount)}
+                            alCambiar={(n) => setFormData(prev => ({ ...prev, amount: n === null ? "" : String(n), displayAmount: textoDeNumero(n, { decimales: 2 }) }))}
                             required
                             placeholder="0"
-                            inputMode="decimal"
                             className={CAMPO_MONTO}
                         />
                     </div>
@@ -771,13 +760,13 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                                                 />
                                             </td>
                                             <td className="px-2 py-1 text-center">
-                                                <input
-                                                    type="number"
+                                                <CampoNumero
+                                                    decimales={2}
                                                     aria-label={`Cantidad del producto ${idx + 1}`}
-                                                    value={item.quantity}
-                                                    onChange={(e) => {
+                                                    valor={item.quantity}
+                                                    alCambiar={(n) => {
                                                         const newItems = [...formData.items!];
-                                                        const qty = parseFloat(e.target.value) || 1;
+                                                        const qty = n || 1;
                                                         newItems[idx] = {
                                                             ...newItems[idx],
                                                             quantity: qty,
@@ -786,7 +775,6 @@ export function TransactionForm({ initialData, onSuccess, onCancel }: Transactio
                                                         setFormData(prev => ({ ...prev, items: newItems }));
                                                     }}
                                                     className={`w-14 rounded bg-transparent py-1.5 text-center text-[var(--txt)] tabular-nums focus-visible:bg-[var(--fondo-2)] ${FOCO}`}
-                                                    min="1"
                                                 />
                                             </td>
                                             <td className={`px-2 py-1 text-right text-[var(--mut)] ${CIFRA}`}>

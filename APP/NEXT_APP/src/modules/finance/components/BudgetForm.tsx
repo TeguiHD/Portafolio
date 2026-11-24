@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useEffect, useCallback, useId } from "react";
 import { formatCurrency } from "@/lib/currency";
 import { AYUDA, BOTON, BOTON_SEC, CAMPO, CASILLA, CIFRA, ETIQUETA, GIRA, MARCA } from "./estilos";
@@ -169,13 +170,11 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
                     </label>
                     <div className="relative">
                         <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--mut)]">$</span>
-                        <input
+                        <CampoNumero
                             id={`${id}-amount`}
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            value={formData.amount}
-                            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                            decimales={2}
+                            valor={numeroCL(formData.amount)}
+                            alCambiar={(n) => setFormData({ ...formData, amount: n === null ? "" : String(n) })}
                             aria-required="true"
                             aria-invalid={errors.amount ? true : undefined}
                             aria-describedby={errors.amount ? `${id}-amount-error` : undefined}

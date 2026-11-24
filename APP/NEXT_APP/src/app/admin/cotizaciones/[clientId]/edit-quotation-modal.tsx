@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useEffect, useTransition, useRef, useCallback } from "react";
 import { X, Save, Loader2, Code, FileText, Eye, RefreshCw, AlertTriangle, Copy, Check, ExternalLink, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { getQuotationForEditAction, updateQuotationAction } from "./actions";
@@ -347,14 +348,11 @@ function Editor({ quotationId, onClose, onSaved }: Omit<EditQuotationModalProps,
 
                         <div>
                             <label htmlFor={`total-${quotationId}`} className={ETIQUETA}>Total (CLP)</label>
-                            <input
+                            <CampoNumero
                                 id={`total-${quotationId}`}
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="off"
-                                value={formData.total ? Math.round(formData.total).toLocaleString("es-CL") : ""}
-                                // Pesos sin decimales y con puntos de miles: «1.190.000». Antes era type=number y no aceptaba el punto chileno.
-                                onChange={(e) => setFormData({ ...formData, total: Number(e.target.value.replace(/\D/g, "").slice(0, 13)) || 0 })}
+                                // Pesos sin decimales y con puntos de miles mientras se escribe: «1.190.000».
+                                valor={formData.total ? Math.round(formData.total) : null}
+                                alCambiar={(n) => setFormData({ ...formData, total: n ?? 0 })}
                                 placeholder="0"
                                 className={`${CAMPO} tabular-nums`}
                             />

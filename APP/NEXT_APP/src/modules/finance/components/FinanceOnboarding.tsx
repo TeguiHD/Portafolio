@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useCallback, useEffect, useId } from "react";
 import { Building2, ChartPie, Check, CreditCard, PiggyBank, Sparkles, Target, Wallet } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
@@ -183,16 +184,11 @@ export function FinanceOnboarding({ onComplete, onCreateAccount }: FinanceOnboar
 
                     <div className="relative">
                         <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[var(--mut)]">$</span>
-                        <input
+                        <CampoNumero
                             id={`${uid}-saldo`}
-                            type="text"
-                            inputMode="numeric"
-                            autoComplete="off"
-                            // Pesos con puntos de miles («250.000»); con type=number el punto se leía como decimal.
-                            value={accountData.balance ? accountData.balance.toLocaleString("es-CL") : ""}
-                            onChange={(e) =>
-                                setAccountData((prev) => ({ ...prev, balance: Number(e.target.value.replace(/\D/g, "").slice(0, 13)) || 0 }))
-                            }
+                            // Pesos con puntos de miles mientras se escribe («250.000»).
+                            valor={accountData.balance || null}
+                            alCambiar={(n) => setAccountData((prev) => ({ ...prev, balance: n ?? 0 }))}
                             aria-describedby={`${uid}-saldo-ayuda`}
                             className={`block min-h-14 w-full rounded-lg border border-[var(--linea-2)] bg-[var(--fondo-2)] px-8 py-3 text-center text-2xl text-[var(--txt)] tabular-nums placeholder:text-[var(--mut)] ${FOCO}`}
                             placeholder="0"

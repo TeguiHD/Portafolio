@@ -63,6 +63,16 @@ test.describe("campo numérico: funciones", () => {
         expect(alEscribir("", "-", 1, { decimales: 0, negativos: true }).texto).toBe("-");
     });
 
+    test("reemplazar todo el campo (fill, autocompletar, pegar sobre una selección) no lee un pedazo como decimal", () => {
+        // Sin saber qué se reemplazó: el sufijo intacto es lo que queda después del cursor.
+        expect(alEscribir("10.000", "1.190.000", 9, DOS).texto).toBe("1.190.000");
+        // Sabiéndolo (beforeinput): se normaliza exactamente lo que entró.
+        expect(alEscribir("10.000", "1.190.000", 9, DOS, { inicio: 0, fin: 6, insertado: "1.190.000" }).texto).toBe("1.190.000");
+        expect(alEscribir("12.000", "12.5", 4, DOS, { inicio: 0, fin: 6, insertado: "12.5" }).texto).toBe("12,5");
+        expect(alEscribir("1.000", "123.000", 3, ENTERO, { inicio: 1, fin: 1, insertado: "23" })).toEqual({ texto: "123.000", cursor: 3 });
+        expect(alEscribir("39.512", "39.512.", 7, DOS, { inicio: 6, fin: 6, insertado: "." }).texto).toBe("39.512,");
+    });
+
     test("leer el texto visible", () => {
         expect(numeroDeTexto("1.234.567,5")).toBe(1234567.5);
         expect(numeroDeTexto("39.512,")).toBe(39512);
@@ -123,5 +133,35 @@ test.describe("campo numérico: en las herramientas", () => {
         await campo.fill("");
         await campo.pressSequentially("2.5");
         await expect(campo).toHaveValue("2,5");
+    });
+});
+
+test.describe("campo numérico: fuente", () => {
+    /**
+     * Los campos que nunca llevan separador de miles, con cuántos atributos numéricos tiene cada archivo
+     * (inputMode="numeric|decimal" y type="number"; una misma etiqueta puede traer los dos). Todo lo demás usa CampoNumero.
+     */
+    const EXCEPCIONES: Record<string, number> = {
+        "app/acceso/page.tsx": 1, // código de acceso (OTP)
+        "app/admin/profile/client.tsx": 2, // códigos de la app de autenticación
+        "app/herramientas/subredes/page.tsx": 1, // prefijo CIDR
+        "app/herramientas/qr/page.tsx": 2, // latitud y longitud
+        "components/tools/ImageTransformStudio.tsx": 3, // ancho, alto y lado máximo en píxeles
+        "app/admin/gestion-comercial/contratos/contracts-list.tsx": 2, // días de aviso
+        "app/admin/gestion-comercial/pagos/registrar-pago.tsx": 4, // cuota número y total de cuotas
+        "app/admin/gestion-comercial/pipeline/pipeline-board.tsx": 2, // probabilidad (%)
+        "modules/finance/components/RecurringForm.tsx": 2, // día del mes
+    };
+
+    test("todo campo numérico usa CampoNumero, salvo los que nunca llevan separador", async () => {
+        const { readdirSync, readFileSync } = await import("node:fs");
+        const raiz = new URL("../../src/", import.meta.url);
+        const hallados: Record<string, number> = {};
+        for (const ruta of readdirSync(raiz, { recursive: true }) as string[]) {
+            if (!ruta.endsWith(".tsx") || ruta.endsWith("CampoNumero.tsx")) continue;
+            const n = (readFileSync(new URL(ruta, raiz), "utf8").match(/inputMode="(?:numeric|decimal)"|type="number"/g) ?? []).length;
+            if (n) hallados[ruta.split("\\").join("/")] = n;
+        }
+        expect(hallados).toEqual(EXCEPCIONES);
     });
 });

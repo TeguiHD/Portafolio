@@ -12,7 +12,7 @@ import {
 import { formatCurrency } from "@/lib/currency";
 import { useFinance } from "@/modules/finance/context/FinanceContext";
 import { confirmar } from "@/modules/admin/confirmar/confirmar";
-import { numeroCL } from "@/lib/tools/numeros";
+import { CampoNumero } from "@/components/ui/CampoNumero";
 
 interface Account {
     id: string;
@@ -78,7 +78,7 @@ export default function AccountsPageClient({ abrirNueva = false }: { abrirNueva?
     });
     const [saving, setSaving] = useState(false);
     // El saldo se escribe a la chilena («1.250.000» o «1.250,50»): con type=number, «1.250.000» no se podía escribir.
-    const [saldoTexto, setSaldoTexto] = useState("");
+    const [saldoInicial, setSaldoInicial] = useState<number | null>(null);
     const uid = useId();
 
     const fetchAccounts = useCallback(async () => {
@@ -114,7 +114,7 @@ export default function AccountsPageClient({ abrirNueva = false }: { abrirNueva?
                 initialBalance: account.initialBalance,
                 isDefault: account.isDefault,
             });
-            setSaldoTexto("");
+            setSaldoInicial(null);
         } else {
             setEditingAccount(null);
             setFormData({
@@ -125,7 +125,7 @@ export default function AccountsPageClient({ abrirNueva = false }: { abrirNueva?
                 initialBalance: 0,
                 isDefault: false,
             });
-            setSaldoTexto("");
+            setSaldoInicial(null);
         }
         setShowForm(true);
     };
@@ -138,7 +138,7 @@ export default function AccountsPageClient({ abrirNueva = false }: { abrirNueva?
     const handleSubmit = async (e: React.FormEvent, cerrar: () => void) => {
         e.preventDefault();
         if (!formData.name.trim()) return;
-        const saldo = saldoTexto.trim() ? numeroCL(saldoTexto) : 0;
+        const saldo: number | null = saldoInicial ?? 0;
         if (!editingAccount && saldo === null) {
             setError("El saldo inicial no es un monto válido");
             return;
@@ -381,13 +381,12 @@ export default function AccountsPageClient({ abrirNueva = false }: { abrirNueva?
                                     <label htmlFor={`${uid}-saldo`} className={ETIQUETA}>
                                         Saldo inicial
                                     </label>
-                                    <input
+                                    <CampoNumero
                                         id={`${uid}-saldo`}
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        value={saldoTexto}
-                                        onChange={(e) => setSaldoTexto(e.target.value)}
+                                        decimales={2}
+                                        negativos
+                                        valor={saldoInicial}
+                                        alCambiar={setSaldoInicial}
                                         placeholder="0"
                                         aria-describedby={`${uid}-saldo-ayuda`}
                                         className={`${CAMPO} ${CIFRA}`}

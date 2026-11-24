@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useTransition, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -371,12 +372,10 @@ function DealModal({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label htmlFor={`${id}-v`} className={etiqueta}>Valor estimado (CLP)</label>
-                            <input
+                            <CampoNumero
                                 id={`${id}-v`}
-                                type="text"
-                                inputMode="numeric"
-                                value={form.estimatedValue ? Number(form.estimatedValue).toLocaleString("es-CL") : ""}
-                                onChange={e => setForm(f => ({ ...f, estimatedValue: e.target.value.replace(/[^0-9]/g, "").slice(0, 13) }))}
+                                valor={form.estimatedValue ? Number(form.estimatedValue) : null}
+                                alCambiar={n => setForm(f => ({ ...f, estimatedValue: n === null ? "" : String(n) }))}
                                 className={campo}
                                 placeholder="0"
                             />

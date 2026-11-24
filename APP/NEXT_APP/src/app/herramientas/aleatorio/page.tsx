@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { ToolPageHeader } from "@/components/tools/ToolPageHeader";
 import { enteroSeguro } from "@/lib/tools/numeros";
 import { posicionesSinRepetir } from "@/lib/tools/sorteo";
@@ -68,7 +69,7 @@ export default function RandomPickerPage() {
     const [groupCount, setGroupCount] = useState(2);
     const [isSpinning, setIsSpinning] = useState(false);
     const [ganadores, setGanadores] = useState<string[]>([]);
-    const [cantidadTexto, setCantidadTexto] = useState("1");
+    const [cantidad, setCantidad] = useState<number | null>(1);
     const [groups, setGroups] = useState<string[][] | null>(null);
     const [history, setHistory] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -88,7 +89,7 @@ export default function RandomPickerPage() {
     const names = useMemo(() => parseNames(inputText), [inputText]);
     const colors = useMemo(() => generateColors(names.length), [names.length]);
     const repetidos = useMemo(() => names.length - new Set(names).size, [names]);
-    const cantidadPedida = Math.max(1, parseInt(cantidadTexto, 10) || 1);
+    const cantidadPedida = Math.max(1, Math.floor(cantidad ?? 1));
     const cantidadEfectiva = Math.min(cantidadPedida, Math.max(1, names.length));
 
     const aplicarGiro = useCallback((grados: number) => {
@@ -407,16 +408,12 @@ export default function RandomPickerPage() {
                                 <label htmlFor="aleatorio-ganadores" className="text-sm text-neutral-400 mb-2 block">
                                     Cantidad de ganadores
                                 </label>
-                                <input
+                                <CampoNumero
                                     id="aleatorio-ganadores"
-                                    type="number"
-                                    inputMode="numeric"
-                                    min={1}
-                                    max={Math.max(1, names.length)}
-                                    value={cantidadTexto}
+                                    valor={cantidad}
                                     disabled={isSpinning}
-                                    onChange={(e) => setCantidadTexto(e.target.value)}
-                                    onBlur={() => { if (String(cantidadPedida) !== cantidadTexto.trim()) setCantidadTexto(String(cantidadPedida)); }}
+                                    alCambiar={setCantidad}
+                                    onBlur={() => { if (cantidad !== cantidadPedida) setCantidad(cantidadPedida); }}
                                     aria-describedby="aleatorio-ganadores-ayuda"
                                     className="h-11 w-28 px-3 rounded-xl bg-[#0F1724] border border-white/10 text-white text-sm focus:outline-none focus:border-[#FF8A00]/50 disabled:opacity-50"
                                 />

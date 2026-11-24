@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useEffect, useCallback, useId } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, CircleAlert, LoaderCircle, X } from "lucide-react";
@@ -453,16 +454,11 @@ export default function BatchTransactionsPage() {
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
                                         <label htmlFor={`${base}-monto`} className={ETIQUETA}>Monto</label>
-                                        <input
+                                        <CampoNumero
                                             id={`${base}-monto`}
-                                            type="text"
-                                            inputMode="numeric"
-                                            autoComplete="off"
-                                            // Pesos con puntos de miles: con type=number, «12.990» se leía como 12,99.
-                                            value={selectedTransaction.amount ? Math.round(selectedTransaction.amount).toLocaleString("es-CL") : ""}
-                                            onChange={(e) => updateTransaction(selectedTransaction.id, {
-                                                amount: Number(e.target.value.replace(/\D/g, "").slice(0, 13)) || 0
-                                            })}
+                                            // Pesos con puntos de miles mientras se escribe: con type=number, «12.990» se leía como 12,99.
+                                            valor={selectedTransaction.amount ? Math.round(selectedTransaction.amount) : null}
+                                            alCambiar={(n) => updateTransaction(selectedTransaction.id, { amount: n ?? 0 })}
                                             disabled={bloqueado}
                                             className={`${CAMPO} ${CIFRA}`}
                                         />
