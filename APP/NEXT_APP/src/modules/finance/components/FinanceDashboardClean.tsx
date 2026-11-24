@@ -6,7 +6,6 @@ import { Bell, ChevronRight, Plus, ScanLine, Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useFinance } from "../context/FinanceContext";
 import { BatchReceiptScanner } from "./BatchReceiptScanner";
-import { FinanceOnboarding } from "./FinanceOnboarding";
 import { OfflineIndicator } from "@/components/pwa/PWAComponents";
 import { EsqueletoFinanzas } from "./EsqueletoFinanzas";
 import { CabeceraFinanzas, CifrasFinanzas } from "./Piezas";
@@ -65,7 +64,7 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
     const { baseCurrency, refreshKey } = useFinance();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [sinCuentas, setSinCuentas] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
 
     // Fetch dashboard data
@@ -76,9 +75,7 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
             if (res.ok) {
                 const result = await res.json();
                 setData(result.data);
-                if (result.needsOnboarding) {
-                    setShowOnboarding(true);
-                }
+                setSinCuentas(!!result.needsOnboarding);
             }
         } catch (error) {
             console.error("Error fetching dashboard:", error);
@@ -123,12 +120,24 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
         return <EsqueletoFinanzas />;
     }
 
-    // Onboarding
-    if (showOnboarding) {
+    // Sin cuentas ni movimientos: un estado vacío que lleva a crear la primera cuenta (antes, un asistente de 4 pasos).
+    // Al elegirlo se crean las categorías de siempre, como hacía el asistente al terminar (solo si aún no hay ninguna).
+    if (sinCuentas) {
         return (
-            <div className="flex items-center justify-center py-8">
-                <div className="w-full max-w-lg">
-                    <FinanceOnboarding onComplete={() => { setShowOnboarding(false); fetchData(); }} />
+            <div className="max-w-[1180px] pb-8">
+                <CabeceraFinanzas titulo="Finanzas" bajada="Ingresos, gastos, presupuestos y metas, en tus propias cuentas." />
+                <div className={`${VACIO} mt-8`}>
+                    <p className="mx-auto max-w-[46ch] text-[15px]">
+                        Aún no tienes cuentas. Crea la primera (la del banco, una tarjeta o el efectivo) y desde ahí registras lo que entra y lo que sale.
+                    </p>
+                    <Link
+                        href="/admin/finance/accounts?nueva=1"
+                        className={`${BOTON} mt-6`}
+                        onClick={() => { void fetch("/api/finance/onboarding/complete", { method: "POST", keepalive: true }).catch(() => {}); }}
+                    >
+                        <Plus aria-hidden="true" className="size-4" />
+                        Crea tu primera cuenta
+                    </Link>
                 </div>
             </div>
         );
@@ -218,7 +227,7 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
                         <ul className={`${LISTA} m-0 list-none p-0`}>
                             {data.recentTransactions.slice(0, 5).map((tx) => (
                                 <li key={tx.id} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5 sm:gap-4">
-                                    <span aria-hidden="true" className={FICHA}>{tx.categoryIcon || "·"}</span>
+                                    <span aria-hidden="true" className={FICHA}>{tx.categoryIcon || ""}</span>
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate font-medium text-[var(--txt)]">{tx.description}</p>
                                         <p className="text-xs text-[var(--mut)]">

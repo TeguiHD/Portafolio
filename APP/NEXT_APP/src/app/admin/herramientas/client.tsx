@@ -374,7 +374,6 @@ export default function ToolsPageClient() {
                                                 <span className="text-[var(--mut)]">
                                                     Tasa de conversión: <b className="font-semibold tabular-nums text-[var(--txt)]">{tasa(tool, 1)}%</b>
                                                 </span>
-                                                <span aria-hidden="true" className="text-[var(--mut)]">·</span>
                                                 <span className="text-[var(--mut)]">
                                                     Total de interacciones: <b className="font-semibold tabular-nums text-[var(--txt)]">{numero.format(tool.stats.total)}</b>
                                                 </span>

@@ -281,7 +281,7 @@ export function BatchReceiptScanner({ onComplete, onCancel }: BatchReceiptScanne
                 titulo="Escanear boletas"
                 bajada={
                     <span aria-live="polite">
-                        {stats.total} boleta{stats.total !== 1 ? "s" : ""} · {stats.completed} procesada{stats.completed !== 1 ? "s" : ""}
+                        {stats.total} boleta{stats.total !== 1 ? "s" : ""}, {stats.completed} procesada{stats.completed !== 1 ? "s" : ""}
                     </span>
                 }
             >

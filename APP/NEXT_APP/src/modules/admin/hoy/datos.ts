@@ -46,7 +46,7 @@ export async function pendientes(userId: string, permisos: Set<string>): Promise
     for (const p of propuestas) {
         const vence = p.codeExpiresAt && p.codeExpiresAt.getTime() > Date.now() && p.codeExpiresAt.getTime() - Date.now() < 7 * DIA ? ` El código vence el ${fechaCorta(p.codeExpiresAt)}.` : "";
         lista.push({
-            titulo: `Propuesta ${p.folio} · ${p.client?.name || p.clientName}`,
+            titulo: `Propuesta ${p.folio} para ${p.client?.name || p.clientName}`,
             detalle: `${p.projectName}. Enviada ${hace(p.createdAt)}, sin firmar.${vence}`,
             href: p.clientId ? `/admin/cotizaciones/${p.clientId}` : "/admin/cotizaciones",
             tono: "acento", accion: "Abrir",
@@ -65,7 +65,7 @@ export async function pendientes(userId: string, permisos: Set<string>): Promise
         const atrasada = cuotaAtrasada(c.status, c.dueDate);
         const cuota = c.installmentNumber && c.totalInstallments ? `Cuota ${c.installmentNumber} de ${c.totalInstallments}` : "Pago";
         lista.push({
-            titulo: `${cuota} · ${c.quotation.clientName}`,
+            titulo: `${cuota} de ${c.quotation.clientName}`,
             detalle: `${pesos.format(c.amount)} de la propuesta ${c.quotation.folio}. ${atrasada ? "Venció el" : "Vence el"} ${fechaCorta(c.dueDate!)}.`,
             // En la propuesta está «Registrar pago» con sus cuotas; sin acceso a Propuestas, a Pagos.
             href: c.quotation.clientId && permisos.has("quotations.view") ? `/admin/cotizaciones/${c.quotation.clientId}` : "/admin/gestion-comercial/pagos",

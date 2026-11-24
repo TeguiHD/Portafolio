@@ -364,7 +364,7 @@ export function TransactionList({ onEdit, onDelete }: TransactionListProps) {
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate font-medium text-[var(--txt)]">{nombre}</p>
                                     <p className="truncate text-sm text-[var(--mut)]">
-                                        {tipo.label} · {transaction.account.name} · {formatDate(transaction.transactionDate)}
+                                        {tipo.label}, {transaction.account.name}, {formatDate(transaction.transactionDate)}
                                     </p>
                                 </div>
 

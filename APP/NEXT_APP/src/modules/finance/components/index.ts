@@ -36,8 +36,6 @@ export { ImportExport } from "./ImportExport";
 // AI Components
 export { AIAnalysis } from "./AIAnalysis";
 
-// Onboarding Components
-export { FinanceOnboarding } from "./FinanceOnboarding";
 
 // Navigation Components
 export { FinanceBreadcrumbs } from "./FinanceBreadcrumbs";

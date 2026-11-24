@@ -689,7 +689,7 @@ export default function SuperAdminClient() {
                             {vpsConnectionState.label}
                         </span>
                         {system && (
-                            <span>{system.hostname} · encendido hace {system.uptime} · muestra de hace {timeAgo(system.status.sampledAt)}</span>
+                            <span>{system.hostname}, encendido hace {system.uptime}. Muestra de hace {timeAgo(system.status.sampledAt)}</span>
                         )}
                     </p>
                 </div>
@@ -757,7 +757,7 @@ export default function SuperAdminClient() {
                             { label: 'CPU', value: `${system.cpu.usagePercent}%`, sub: cpuSummary },
                             { label: 'RAM', value: memoryValue, sub: memorySubtitle },
                             { label: 'Disco raíz', value: system.disks[0] ? `${system.disks[0].usePercent}%` : 'N/D', sub: system.disks[0] ? `${system.disks[0].used}/${system.disks[0].size}` : 'Sin dato' },
-                            { label: 'Conexiones TCP', value: system.connectionSummary.total, sub: `${system.connectionSummary.established} establecidas · ${system.connectionSummary.listening} en escucha` },
+                            { label: 'Conexiones TCP', value: system.connectionSummary.total, sub: `${system.connectionSummary.established} establecidas y ${system.connectionSummary.listening} en escucha` },
                             { label: 'Temperatura', value: hottestTemperature ? `${hottestTemperature.valueC.toFixed(1)} °C` : 'N/D', sub: hottestTemperature?.label || 'Sensores no disponibles' },
                         ]} />
 
@@ -793,10 +793,10 @@ export default function SuperAdminClient() {
                                             <li key={entry.name} className="border-b border-[var(--linea)] py-3 text-sm">
                                                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                                                     <span className="font-mono font-medium text-[var(--txt)]">{entry.name}</span>
-                                                    <span className="text-xs text-[var(--mut)] tabular-nums">{entry.rxPackets.toLocaleString('es-CL')} paquetes recibidos · {entry.txPackets.toLocaleString('es-CL')} enviados</span>
+                                                    <span className="text-xs text-[var(--mut)] tabular-nums">{entry.rxPackets.toLocaleString('es-CL')} paquetes recibidos y {entry.txPackets.toLocaleString('es-CL')} enviados</span>
                                                 </div>
                                                 <p className="mt-1 text-xs text-[var(--mut)] tabular-nums">
-                                                    Total: bajada {formatBytes(entry.rxBytes)} · subida {formatBytes(entry.txBytes)} — ahora: {formatBytes(rate?.rxPerSec || 0)}/s · {formatBytes(rate?.txPerSec || 0)}/s
+                                                    Total: bajada {formatBytes(entry.rxBytes)}, subida {formatBytes(entry.txBytes)}. Ahora: bajada {formatBytes(rate?.rxPerSec || 0)}/s, subida {formatBytes(rate?.txPerSec || 0)}/s
                                                 </p>
                                             </li>
                                         )
@@ -813,7 +813,7 @@ export default function SuperAdminClient() {
                                         <li key={`${processEntry.pid}-${index}`} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2.5 text-sm">
                                             <div className="min-w-0">
                                                 <p className="truncate font-medium text-[var(--txt)]" title={processEntry.command}>{processEntry.command}</p>
-                                                <p className="font-mono text-xs text-[var(--mut)]">PID {processEntry.pid} · {processEntry.user}</p>
+                                                <p className="font-mono text-xs text-[var(--mut)]">PID {processEntry.pid}, {processEntry.user}</p>
                                             </div>
                                             <span className="shrink-0 font-mono font-semibold tabular-nums text-[var(--txt)]">{processEntry.cpu}%</span>
                                         </li>
@@ -829,7 +829,7 @@ export default function SuperAdminClient() {
                                             <li key={reading.label} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-2.5 text-sm">
                                                 <span className="text-[var(--txt)]">{reading.label}</span>
                                                 <span className={`font-mono tabular-nums ${reading.valueC >= 80 ? 'text-red-400' : reading.valueC >= 65 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                                    {reading.valueC.toFixed(1)} °C{reading.valueC >= 80 ? ' · alta' : reading.valueC >= 65 ? ' · tibia' : ''}
+                                                    {reading.valueC.toFixed(1)} °C{reading.valueC >= 80 ? ', alta' : reading.valueC >= 65 ? ', tibia' : ''}
                                                 </span>
                                             </li>
                                         ))}
@@ -859,7 +859,7 @@ export default function SuperAdminClient() {
 
                         <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--mut)]">
                             <span aria-hidden="true" className={`size-2 rounded-full ${vpsConnectionState.dot}`} />
-                            Se actualiza sola cada 15 s · muestra de hace {timeAgo(system.status.sampledAt)}
+                            Se actualiza sola cada 15 s. Muestra de hace {timeAgo(system.status.sampledAt)}
                         </p>
 
                         <dl className="grid max-w-3xl gap-4">
@@ -895,7 +895,7 @@ export default function SuperAdminClient() {
                                             <div aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--linea-2)]">
                                                 <div className={`h-full rounded-full ${disk.usePercent > 90 ? 'bg-red-400' : disk.usePercent > 70 ? 'bg-amber-400' : 'bg-[var(--acento)]'}`} style={{ width: `${disk.usePercent}%` }} />
                                             </div>
-                                            <p className="text-xs text-[var(--mut)]">Disponible: {disk.available} · Sistema de archivos: {disk.filesystem}</p>
+                                            <p className="text-xs text-[var(--mut)]">Disponible: {disk.available}. Sistema de archivos: {disk.filesystem}</p>
                                         </li>
                                     ))}
                                 </ul>
@@ -921,7 +921,7 @@ export default function SuperAdminClient() {
                                                     <span className="text-xs text-[var(--mut)] tabular-nums">{entry.txPackets.toLocaleString('es-CL')} paquetes enviados</span>
                                                 </div>
                                                 <p className="mt-1 text-xs text-[var(--mut)] tabular-nums">
-                                                    Total: bajada {formatBytes(entry.rxBytes)} · subida {formatBytes(entry.txBytes)} — ahora: {formatBytes(rate?.rxPerSec || 0)}/s · {formatBytes(rate?.txPerSec || 0)}/s
+                                                    Total: bajada {formatBytes(entry.rxBytes)}, subida {formatBytes(entry.txBytes)}. Ahora: bajada {formatBytes(rate?.rxPerSec || 0)}/s, subida {formatBytes(rate?.txPerSec || 0)}/s
                                                 </p>
                                             </li>
                                         )
@@ -1074,7 +1074,7 @@ export default function SuperAdminClient() {
                                                     </div>
                                                     <div className="shrink-0 text-right">
                                                         <p className="font-medium tabular-nums text-[var(--txt)]">{entry.count} eventos</p>
-                                                        <p className="text-xs text-[var(--mut)] tabular-nums">{entry.successCount} aceptados · {entry.failureCount} fallidos</p>
+                                                        <p className="text-xs text-[var(--mut)] tabular-nums">{entry.successCount} aceptados y {entry.failureCount} fallidos</p>
                                                     </div>
                                                 </li>
                                             ))}
@@ -1505,7 +1505,7 @@ export default function SuperAdminClient() {
                                     <li key={i} className="border-b border-[var(--linea)] py-2.5">
                                         <p className="truncate text-sm text-[var(--txt)]" title={c.message}>{c.message}</p>
                                         <p className="mt-0.5 text-xs text-[var(--mut)]">
-                                            {c.author} · {c.date} · <span className="font-mono">{c.hash.substring(0, 8)}</span>
+                                            {c.author}, {c.date}, <span className="font-mono">{c.hash.substring(0, 8)}</span>
                                         </p>
                                     </li>
                                 ))}

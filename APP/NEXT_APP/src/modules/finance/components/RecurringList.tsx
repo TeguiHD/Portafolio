@@ -121,17 +121,15 @@ export function RecurringList({ payments, onMarkPaid, onSkip, onToggleActive, on
                                     </h3>
                                     <span className={config.clase}>{venceHoy ? "Vence hoy" : config.label}</span>
                                 </div>
-                                <p className="mt-0.5 flex flex-wrap gap-x-2 text-sm text-[var(--mut)]">
-                                    <span>{frecuencia}</span>
+                                <p className="mt-0.5 flex flex-wrap gap-x-1 text-sm text-[var(--mut)]">
+                                    <span>{frecuencia}{payment.category || payment.account ? "," : ""}</span>
                                     {payment.category && (
                                         <>
-                                            <span aria-hidden="true">·</span>
-                                            <span className="min-w-0 truncate">{payment.category.name}</span>
+                                            <span className="min-w-0 truncate">{payment.category.name}{payment.account ? "," : ""}</span>
                                         </>
                                     )}
                                     {payment.account && (
                                         <>
-                                            <span aria-hidden="true">·</span>
                                             <span className="min-w-0 truncate">{payment.account.icon} {payment.account.name}</span>
                                         </>
                                     )}

@@ -212,7 +212,7 @@ export default function AnalysisClient({
                             </option>
                             {vacancyOptions.map((v) => (
                                 <option key={v.id} value={v.id}>
-                                    {v.title} · {v.company}
+                                    {v.title}, {v.company}
                                 </option>
                             ))}
                         </select>
@@ -244,7 +244,7 @@ export default function AnalysisClient({
                     <h2 className="text-xl font-semibold leading-snug text-[var(--txt)]">{selectedVacancy.title}</h2>
                     <p className="mt-1 text-sm text-[var(--mut)]">
                         {selectedVacancy.company}
-                        {selectedVacancy.location ? ` · ${selectedVacancy.location}` : ""}
+                        {selectedVacancy.location ? `, ${selectedVacancy.location}` : ""}
                     </p>
                 </div>
                 <div className="w-full lg:w-72">
@@ -257,7 +257,7 @@ export default function AnalysisClient({
                     >
                         {vacancyOptions.map((v) => (
                             <option key={v.id} value={v.id}>
-                                {v.title} · {v.company}
+                                {v.title}, {v.company}
                             </option>
                         ))}
                     </select>

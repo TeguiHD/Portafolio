@@ -4,7 +4,7 @@ import { useState, useRef, useId } from "react";
 import { Download, Upload } from "lucide-react";
 import {
     BOTON, CASILLA, CIFRA, ERROR, ETIQUETA, FOCO, GIRA, LISTA, OPCION, OPCION_NO, OPCION_SI, SECCION, SOBRE, SUAVE, SUBE,
-    TARJETA, CAMPO,
+    BLOQUE, CAMPO,
 } from "./estilos";
 
 interface ExportOptions {
@@ -167,7 +167,7 @@ export function ImportExport() {
             )}
 
             {activeTab === "export" ? (
-                <div className={`${TARJETA} space-y-6 p-5 sm:p-6`}>
+                <div className={`${BLOQUE} space-y-6`}>
                     <div>
                         <h2 className="text-lg font-semibold text-[var(--txt)]">Exportar datos</h2>
                         <p className={`${SUAVE} mt-1`}>
@@ -267,7 +267,7 @@ export function ImportExport() {
                     </button>
                 </div>
             ) : (
-                <div className={`${TARJETA} space-y-6 p-5 sm:p-6`}>
+                <div className={`${BLOQUE} space-y-6`}>
                     <div>
                         <h2 className="text-lg font-semibold text-[var(--txt)]">Importar datos</h2>
                         <p className={`${SUAVE} mt-1`}>

@@ -142,7 +142,7 @@ function ExpenseModal({
                     {expense ? (
                         <p className="text-sm text-[var(--mut)]">
                             Cliente: <span className="text-[var(--txt)]">{expense.client.name}</span>
-                            {expense.contract && <> · Contrato <span className="font-mono text-[var(--txt)]">{expense.contract.contractNumber}</span></>}
+                            {expense.contract && <>, contrato <span className="font-mono text-[var(--txt)]">{expense.contract.contractNumber}</span></>}
                         </p>
                     ) : (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -305,7 +305,7 @@ export function ExpensesList({
                 <div>
                     <h1 className={titulo}>Gastos</h1>
                     <p className={bajada}>
-                        Lo que gastas por cliente: hosting, dominios, licencias y terceros · {expenses.length} registro{expenses.length !== 1 ? "s" : ""}
+                        Lo que gastas por cliente: hosting, dominios, licencias y terceros. {expenses.length} registro{expenses.length !== 1 ? "s" : ""}.
                     </p>
                 </div>
                 <button type="button" onClick={() => setShowCreate(true)} className={botonPrincipal}>
@@ -383,10 +383,10 @@ export function ExpensesList({
                                             <span className="block font-medium text-[var(--txt)]">{expense.description}</span>
                                             <span className="mt-0.5 block text-[13px] text-[var(--mut)]">
                                                 {expense.client.name}
-                                                {expense.contract && <> · <span className="font-mono" title={expense.contract.title}>{expense.contract.contractNumber}</span></>}
+                                                {expense.contract && <>, <span className="font-mono" title={expense.contract.title}>{expense.contract.contractNumber}</span></>}
                                             </span>
                                             <span className="mt-0.5 block text-[13px] text-[var(--mut)] md:hidden">
-                                                {cfg.label} · <span className="sm:hidden">{formatDate(expense.expenseDate)} · </span>{frecuencia}
+                                                {cfg.label}, <span className="sm:hidden">{formatDate(expense.expenseDate)}, </span>{frecuencia}
                                             </span>
                                         </th>
                                         <td className={`${td} max-md:hidden`}>

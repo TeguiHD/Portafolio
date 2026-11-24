@@ -439,7 +439,7 @@ function OverviewTab({ client }: { client: FichaCliente }) {
                                         <p className="text-sm font-medium text-[var(--txt)]">{TIPO_FIRMA[a.type] ?? a.type}</p>
                                         <p className="text-xs text-[var(--mut)]">
                                             {a.signerName ? `Firmó ${a.signerName}` : "Sin firmar"}
-                                            {a.signerRut && ` · ${a.signerRut}`}
+                                            {a.signerRut && `, ${a.signerRut}`}
                                         </p>
                                     </div>
                                     <div className="shrink-0 text-right">
@@ -478,7 +478,7 @@ function ContractProjectFlow({ contract }: { contract: Contract }) {
                         <h2 className="text-lg font-semibold text-[var(--txt)]">{contract.title}</h2>
                         <StatusBadge status={contract.status} nombres={ESTADO_CONTRATO} />
                     </div>
-                    <p className="font-mono text-xs text-[var(--mut)]">{contract.contractNumber} · {TIPO_CONTRATO[contract.type] ?? contract.type}</p>
+                    <p className="text-xs text-[var(--mut)]"><span className="font-mono">{contract.contractNumber}</span>, {TIPO_CONTRATO[contract.type] ?? contract.type}</p>
                     {contract.description && (
                         <p className="mt-1 text-sm text-[var(--mut)]">{contract.description}</p>
                     )}
@@ -559,7 +559,7 @@ function ContractProjectFlow({ contract }: { contract: Contract }) {
                     {contract.paymentPlans.map((pp) => (
                         <span key={pp.id} className="flex flex-wrap items-center gap-2">
                             <CreditCard size={14} aria-hidden="true" />
-                            <span className="tabular-nums text-[var(--txt)]">{pp.totalInstallments} cuota{pp.totalInstallments === 1 ? "" : "s"} · {formatCLP(pp.totalAmount)}</span>
+                            <span className="tabular-nums text-[var(--txt)]">{pp.totalInstallments} cuota{pp.totalInstallments === 1 ? "" : "s"} por {formatCLP(pp.totalAmount)}</span>
                             <StatusBadge status={pp.status} nombres={ESTADO_PLAN} />
                         </span>
                     ))}
@@ -602,7 +602,7 @@ function ContractsTab({ contracts, total }: { contracts: Contract[]; total: numb
                                     <span className="text-base font-semibold text-[var(--txt)]">{contract.title}</span>
                                     <StatusBadge status={contract.status} nombres={ESTADO_CONTRATO} />
                                 </span>
-                                <span className="mt-0.5 block font-mono text-xs text-[var(--mut)]">{contract.contractNumber} · {TIPO_CONTRATO[contract.type] ?? contract.type}</span>
+                                <span className="mt-0.5 block text-xs text-[var(--mut)]"><span className="font-mono">{contract.contractNumber}</span>, {TIPO_CONTRATO[contract.type] ?? contract.type}</span>
                             </span>
                             <span className="flex shrink-0 items-center gap-4 sm:text-right">
                                 <span>
@@ -640,7 +640,7 @@ function QuotationsTab({ quotations, clientId, total }: { quotations: Quotation[
                     <li key={q.id} className="flex flex-col justify-between gap-2 border-b border-[var(--linea)] py-3 sm:flex-row sm:items-center sm:gap-4">
                         <div className="min-w-0">
                             <h3 className="text-sm font-semibold text-[var(--txt)]">{q.projectName}</h3>
-                            <p className="mt-0.5 font-mono text-xs text-[var(--mut)]">{q.folio} · {formatDate(q.createdAt)}</p>
+                            <p className="mt-0.5 text-xs text-[var(--mut)]"><span className="font-mono">{q.folio}</span>, {formatDate(q.createdAt)}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
                             <p className="text-right text-sm tabular-nums">
@@ -706,7 +706,7 @@ function ExpensesTab({ expenses }: { expenses: Expense[] }) {
                     <li key={e.id} className={FILA}>
                         <div className="min-w-0">
                             <h3 className="text-sm font-semibold text-[var(--txt)]">{e.description}</h3>
-                            <p className="mt-0.5 text-xs text-[var(--mut)]">{CATEGORIA[e.category] ?? e.category} · {formatDate(e.expenseDate)}</p>
+                            <p className="mt-0.5 text-xs text-[var(--mut)]">{CATEGORIA[e.category] ?? e.category}, {formatDate(e.expenseDate)}</p>
                         </div>
                         <p className="shrink-0 text-sm font-semibold tabular-nums text-red-400">−{formatCLP(e.amount)}</p>
                     </li>

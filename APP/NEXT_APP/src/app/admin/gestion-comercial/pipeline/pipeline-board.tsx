@@ -162,7 +162,7 @@ function DealCard({
 
                 <span className="mb-3 block truncate text-[13px] text-[var(--mut)]">
                     {deal.client.name}
-                    {deal.client.workType && <>&nbsp;· {deal.client.workType}</>}
+                    {deal.client.workType && <>, {deal.client.workType}</>}
                 </span>
 
                 <span className="mb-2 flex items-baseline justify-between gap-2">
@@ -655,7 +655,7 @@ export function PipelineBoard({ initialDeals, clients, abrirNueva = false, puede
                 <div>
                     <h1 className={titulo}>Oportunidades</h1>
                     <p className={bajada}>
-                        Abre una oportunidad para moverla de etapa, editarla o anotar una actividad · {deals.length} en total
+                        Abre una oportunidad para moverla de etapa, editarla o anotar una actividad. {deals.length} en total.
                     </p>
                 </div>
                 <button type="button" onClick={() => setShowCreateModal(true)} className={botonPrincipal}>
@@ -693,7 +693,7 @@ export function PipelineBoard({ initialDeals, clients, abrirNueva = false, puede
                 <p className="text-sm text-[var(--mut)]" aria-live="polite">
                     {delaEtapa.length === 0
                         ? `Sin oportunidades en ${etapaElegida.label.toLowerCase()}`
-                        : `${delaEtapa.length} en ${etapaElegida.label.toLowerCase()} · ${pesos(delaEtapa.reduce((s, d) => s + d.estimatedValue, 0))}`}
+                        : `${delaEtapa.length} en ${etapaElegida.label.toLowerCase()}, por ${pesos(delaEtapa.reduce((s, d) => s + d.estimatedValue, 0))}`}
                 </p>
                 <div className="space-y-2">{delaEtapa.map(tarjeta)}</div>
             </section>

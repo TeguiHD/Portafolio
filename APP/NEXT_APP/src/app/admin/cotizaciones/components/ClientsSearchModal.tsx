@@ -213,9 +213,9 @@ export default function ClientsSearchModal({ clients, isSuperAdmin, isSpyMode, i
                         </p>
                     </div>
                 ) : (
-                    <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <ul className="border-t border-[var(--linea)]">
                         {paginatedClients.map((client) => (
-                            <li key={client.id} className="flex">
+                            <li key={client.id} className="border-b border-[var(--linea)]">
                                 <ClientCard
                                     client={client}
                                     isSuperAdmin={isSuperAdmin}

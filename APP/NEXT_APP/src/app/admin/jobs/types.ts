@@ -102,12 +102,12 @@ export type AiModelOption = {
 };
 
 export const AI_MODEL_OPTIONS: AiModelOption[] = [
-    { id: "qwen/qwen3-32b", provider: "GROQ", label: "Groq · Qwen 3 32B" },
-    { id: "openai/gpt-oss-120b", provider: "GROQ", label: "Groq · GPT-OSS 120B" },
-    { id: "nvidia/nemotron-3-super:free", provider: "OPENROUTER", label: "OpenRouter · NVIDIA Nemotron 3 Super" },
-    { id: "z-ai/glm-4.5-air:free", provider: "OPENROUTER", label: "OpenRouter · Z.ai GLM 4.5 Air" },
-    { id: "minimax/minimax-m2.5:free", provider: "OPENROUTER", label: "OpenRouter · MiniMax M2.5" },
-    { id: "google/gemma-3-27b-it:free", provider: "OPENROUTER", label: "OpenRouter · Google Gemma 3 27B" },
+    { id: "qwen/qwen3-32b", provider: "GROQ", label: "Qwen 3 32B (Groq)" },
+    { id: "openai/gpt-oss-120b", provider: "GROQ", label: "GPT-OSS 120B (Groq)" },
+    { id: "nvidia/nemotron-3-super:free", provider: "OPENROUTER", label: "NVIDIA Nemotron 3 Super (OpenRouter)" },
+    { id: "z-ai/glm-4.5-air:free", provider: "OPENROUTER", label: "Z.ai GLM 4.5 Air (OpenRouter)" },
+    { id: "minimax/minimax-m2.5:free", provider: "OPENROUTER", label: "MiniMax M2.5 (OpenRouter)" },
+    { id: "google/gemma-3-27b-it:free", provider: "OPENROUTER", label: "Google Gemma 3 27B (OpenRouter)" },
 ];
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {

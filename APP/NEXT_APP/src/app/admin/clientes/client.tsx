@@ -10,7 +10,7 @@ import { confirmar } from "@/modules/admin/confirmar/confirmar";
 import ContactInfoModal from "./contact-info-modal";
 import ClientSecurityManager from "./security-manager";
 import CreateClientModal from "../cotizaciones/components/CreateClientModal";
-import { BOTON, BOTON_ICONO, BOTON_SEC, CAMPO, CHIP_ACENTO, FOCO, H1, INICIALES, TARJETA } from "@/modules/quotations/estilos";
+import { BOTON, BOTON_ICONO, BOTON_SEC, CAMPO, CHIP_ACENTO, FOCO, H1, INICIALES } from "@/modules/quotations/estilos";
 
 export interface ClienteDirectorio {
     id: string;
@@ -39,6 +39,9 @@ interface ClientsPageClientProps {
 }
 
 /** Directorio de clientes: buscar, crear, editar el contacto, la contraseña del portal y abrir la ficha o sus propuestas. */
+/** «1 propuesta», «3 propuestas». */
+const cuenta = (n: number, nombre: string) => `${n} ${nombre}${n === 1 ? "" : "s"}`;
+
 export default function ClientsPageClient({ clientes, busqueda, currentUserId, isSuperAdmin }: ClientsPageClientProps) {
     const [search, setSearch] = useState(busqueda);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -113,69 +116,45 @@ export default function ClientsPageClient({ clientes, busqueda, currentUserId, i
                     {busqueda ? "Ningún cliente coincide con la búsqueda." : "Aún no tienes clientes."}
                 </p>
             ) : (
-                <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <ul className="border-t border-[var(--linea)]">
                     {clientes.map(client => {
                         const puedeAdministrar = isSuperAdmin || client.userId === currentUserId;
                         const correo = client.contactEmail || client.email;
+                        const datos = [client.company && client.company !== client.name ? client.company : null, correo || "Sin correo"].filter(Boolean).join(", ");
                         return (
-                            <li key={client.id} className={`${TARJETA} flex flex-col p-5 transition-colors duration-150 hover:border-[var(--linea-2)]`}>
-                                <div className="mb-3 flex items-start gap-3">
+                            <li key={client.id} className="grid gap-4 border-b border-[var(--linea)] py-5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-8">
+                                <div className="flex min-w-0 items-start gap-3">
                                     <span aria-hidden="true" className={`${INICIALES} size-10 text-sm`}>
                                         {client.name.substring(0, 2).toUpperCase()}
                                     </span>
-                                    <div className="min-w-0 flex-1">
+                                    <div className="min-w-0 flex-1 space-y-1">
                                         <h2 className="truncate text-base font-semibold text-[var(--txt)]" title={client.name}>
                                             <Link href={`/admin/clientes/${client.id}`} className={`rounded-sm transition-colors duration-150 hover:text-[var(--acento)] ${FOCO}`}>
                                                 {client.name}
                                             </Link>
                                         </h2>
-                                        <p className="truncate text-sm text-[var(--mut)]">
-                                            {client.company && client.company !== client.name ? `${client.company} · ` : ""}{correo || "Sin correo"}
+                                        <p className="truncate text-sm text-[var(--mut)]">{datos}</p>
+                                        {client.contactName && (
+                                            <p className="truncate text-sm text-[var(--mut)]">
+                                                Contacto: <span className="text-[var(--txt)]">{client.contactName}</span>{client.contactRole && `, ${client.contactRole}`}
+                                            </p>
+                                        )}
+                                        <p className="text-sm tabular-nums text-[var(--mut)]">
+                                            {cuenta(client.propuestas, "propuesta")}, {cuenta(client.negocios, "negocio")} y {cuenta(client.contratos, "contrato")}
                                         </p>
+                                        {client.workType && (
+                                            <p className="pt-1"><span className={`${CHIP_ACENTO} max-w-full truncate`}>{client.workType}</span></p>
+                                        )}
+                                        {puedeAdministrar && (
+                                            <div className="max-w-sm pt-1">
+                                                <ClientSecurityManager clientId={client.id} clientName={client.name} clientSlug={client.slug} />
+                                            </div>
+                                        )}
                                     </div>
-                                    {puedeAdministrar && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDelete(client)}
-                                            className={`${BOTON_ICONO} -mr-2 -mt-2 hover:text-red-400`}
-                                            aria-label={`Eliminar a ${client.name}`}
-                                        >
-                                            <Trash2 size={16} aria-hidden="true" />
-                                        </button>
-                                    )}
                                 </div>
 
-                                {client.workType && (
-                                    <p className="mb-3"><span className={`${CHIP_ACENTO} max-w-full truncate`}>{client.workType}</span></p>
-                                )}
-
-                                <dl className="grid grid-cols-3 border-y border-[var(--linea)]">
-                                    {[
-                                        { nombre: "Propuestas", valor: client.propuestas },
-                                        { nombre: "Negocios", valor: client.negocios },
-                                        { nombre: "Contratos", valor: client.contratos },
-                                    ].map((c) => (
-                                        <div key={c.nombre} className="flex flex-col py-2">
-                                            <dt className="order-2 text-xs text-[var(--mut)]">{c.nombre}</dt>
-                                            <dd className="order-1 text-lg font-bold tabular-nums text-[var(--txt)]">{c.valor}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-
-                                {client.contactName && (
-                                    <p className="mt-3 truncate text-sm text-[var(--mut)]">
-                                        Contacto: <span className="text-[var(--txt)]">{client.contactName}</span>
-                                        {client.contactRole && <span> · {client.contactRole}</span>}
-                                    </p>
-                                )}
-
-                                {puedeAdministrar && (
-                                    <div className="mt-3 border-b border-[var(--linea)]">
-                                        <ClientSecurityManager clientId={client.id} clientName={client.name} clientSlug={client.slug} />
-                                    </div>
-                                )}
-
-                                <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                                {/* En ancho, una grilla: así el flex-1 del botón «Contacto» no lo estira; en celular, botones parejos. */}
+                                <div className="flex flex-wrap items-center gap-2 md:grid md:grid-flow-col md:auto-cols-max md:self-start">
                                     <ContactInfoModal
                                         client={client}
                                         onUpdate={() => router.refresh()}
@@ -183,7 +162,7 @@ export default function ClientsPageClient({ clientes, busqueda, currentUserId, i
                                     />
                                     <Link
                                         href={`/admin/cotizaciones/${client.id}`}
-                                        className={`${BOTON_SEC} flex-1`}
+                                        className={`${BOTON_SEC} flex-1 md:flex-none`}
                                         aria-label={`Propuestas de ${client.name}`}
                                     >
                                         <FileText size={16} aria-hidden="true" />
@@ -191,12 +170,22 @@ export default function ClientsPageClient({ clientes, busqueda, currentUserId, i
                                     </Link>
                                     <Link
                                         href={`/admin/clientes/${client.id}`}
-                                        className={`${BOTON} flex-1`}
+                                        className={`${BOTON} flex-1 md:flex-none`}
                                         aria-label={`Ficha de ${client.name}`}
                                     >
                                         <IdCard size={16} aria-hidden="true" />
                                         <span>Ficha</span>
                                     </Link>
+                                    {puedeAdministrar && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(client)}
+                                            className={`${BOTON_ICONO} hover:text-red-400`}
+                                            aria-label={`Eliminar a ${client.name}`}
+                                        >
+                                            <Trash2 size={16} aria-hidden="true" />
+                                        </button>
+                                    )}
                                 </div>
                             </li>
                         );

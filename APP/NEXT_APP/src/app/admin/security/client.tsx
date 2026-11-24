@@ -143,7 +143,6 @@ const CELDA_CIFRA = "flex flex-col-reverse justify-end gap-1 px-3 sm:px-4 py-4 b
 
 function SeverityCard({ severity, count, total, isActive, onClick }: { severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"; count: number; total: number; isActive: boolean; onClick: () => void }) {
     const config = SEVERITY_CONFIG[severity];
-    const Icon = config.icon;
     const pct = total > 0 ? (count / total) * 100 : 0;
 
     return (
@@ -154,7 +153,6 @@ function SeverityCard({ severity, count, total, isActive, onClick }: { severity:
             className={`flex flex-col gap-2 px-4 py-4 text-left border-[var(--linea)] max-lg:even:border-l max-lg:[&:nth-child(n+3)]:border-t lg:[&:not(:first-child)]:border-l transition-colors motion-reduce:transition-none ${FOCO} focus-visible:outline-offset-[-2px] ${isActive ? "bg-[color-mix(in_srgb,var(--acento)_9%,transparent)]" : HOVER}`}
         >
             <span className="flex items-center gap-2 text-[13.5px] text-[var(--mut)]">
-                <Icon size={16} className={config.text} aria-hidden="true" />
                 {SEVERITY_LABELS[severity]}
                 {isActive && <span className="ml-auto text-xs font-medium text-[var(--acento)]">Filtrando</span>}
             </span>
@@ -371,7 +369,7 @@ function ResolutionModal({ incident, onClose, onSubmit }: { incident: SecurityIn
     return (
         <DialogoFormulario
             titulo="Resolver incidente"
-            descripcion={`${TYPE_LABELS[incident.type] || incident.type} · severidad ${(SEVERITY_LABELS[incident.severity] ?? incident.severity).toLowerCase()}`}
+            descripcion={`${TYPE_LABELS[incident.type] || incident.type}, severidad ${(SEVERITY_LABELS[incident.severity] ?? incident.severity).toLowerCase()}`}
             alCerrar={onClose}
         >
             {(cerrar) => (
@@ -498,7 +496,7 @@ function IncidentRow({ incident, onResolve, isExpanded, onToggle }: { incident: 
                         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
                             <div className="min-w-0"><dt className="text-xs text-[var(--mut)]">IP (cifrada)</dt><dd className="font-mono text-xs text-[var(--txt)] truncate">{incident.ipHash.slice(0, 16)}…</dd></div>
                             <div><dt className="text-xs text-[var(--mut)]">Fecha y hora</dt><dd className="text-[var(--txt)]">{formatDateTime(incident.createdAt)}</dd></div>
-                            <div><dt className="text-xs text-[var(--mut)]">Riesgo</dt><dd className={riesgo ? riesgo.clase : "text-[var(--mut)]"}>{riesgo ? `${String(details.riskScore)} · ${riesgo.texto}` : "—"}</dd></div>
+                            <div><dt className="text-xs text-[var(--mut)]">Riesgo</dt><dd className={riesgo ? riesgo.clase : "text-[var(--mut)]"}>{riesgo ? `${String(details.riskScore)}, ${riesgo.texto}` : "—"}</dd></div>
                             <div className="min-w-0"><dt className="text-xs text-[var(--mut)]">Navegador</dt><dd className="text-[var(--txt)] truncate">{incident.userAgent?.slice(0, 40) || "—"}</dd></div>
                         </dl>
                         {incident.resolved && (
@@ -679,7 +677,8 @@ export default function SecurityDashboardClient() {
 
                 {/* Severidad: cada una filtra el historial */}
                 <section aria-labelledby="severidad-t">
-                    <h2 id="severidad-t" className={`${H2} mb-2`}>Por severidad <span className="font-normal">· toca una para filtrar el historial</span></h2>
+                    <h2 id="severidad-t" className={H2}>Por severidad</h2>
+                    <p className="mb-2 text-sm text-[var(--mut)]">Toca una para filtrar el historial.</p>
                     <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-[var(--linea)]">
                         {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).map(sev => (
                             <SeverityCard key={sev} severity={sev} count={stats?.bySeverity[sev] || 0} total={totalIncidents} isActive={filterSeverity === sev} onClick={() => setFilterSeverity(filterSeverity === sev ? null : sev)} />
@@ -824,7 +823,6 @@ export default function SecurityDashboardClient() {
 
                 <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pt-2 text-xs text-[var(--mut)]">
                     <span className="inline-flex items-center gap-1"><Clock size={12} aria-hidden="true" /> Actualizado: {lastUpdate?.toLocaleTimeString("es-CL") || "—"}</span>
-                    <span aria-hidden="true">·</span>
                     <span>{isLive ? "Se actualiza cada 10 s" : "Actualización en pausa"}</span>
                 </p>
             </section>
@@ -914,7 +912,7 @@ function PendingActionsPanel() {
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium text-[var(--txt)]">{item.actionType}</p>
                                             <p className="mt-1 text-xs text-[var(--mut)]">
-                                                Puntaje: {item.score}/100 · IP: {item.ipHash?.slice(0, 8) ?? '—'} · {new Date(item.createdAt).toLocaleString('es-CL')}
+                                                Puntaje {item.score}/100, IP cifrada {item.ipHash?.slice(0, 8) ?? '—'}, {new Date(item.createdAt).toLocaleString('es-CL', { timeZone: 'America/Santiago' })}
                                             </p>
                                             {item.context && (
                                                 <p className="mt-1 font-mono text-xs text-[var(--mut)] break-all">

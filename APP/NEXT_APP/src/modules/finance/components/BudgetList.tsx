@@ -125,7 +125,7 @@ export function BudgetList({ budgets, onDelete, onToggleActive }: BudgetListProp
                                 </div>
                                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--mut)]">
                                     <span className="min-w-0 truncate">
-                                        {budget.category?.name || "Todos los gastos"} · {PERIOD_LABELS[budget.period] ?? budget.period}
+                                        {budget.category?.name || "Todos los gastos"}, {(PERIOD_LABELS[budget.period] ?? budget.period).toLowerCase()}
                                     </span>
                                     {!budget.isActive && <span className={MARCA_NEUTRA}>Pausado</span>}
                                 </p>
@@ -158,7 +158,7 @@ export function BudgetList({ budgets, onDelete, onToggleActive }: BudgetListProp
                                         </>
                                     ) : (
                                         <span className={CIFRA}>
-                                            {estado.texto} · Disponible: {formatCurrency(budget.remaining)}
+                                            {estado.texto}. Disponible: {formatCurrency(budget.remaining)}
                                         </span>
                                     )}
                                 </p>

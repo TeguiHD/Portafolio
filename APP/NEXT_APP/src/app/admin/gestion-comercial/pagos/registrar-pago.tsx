@@ -156,7 +156,7 @@ export default function RegistrarPago({ propuestas, abrirAlCargar }: { propuesta
                                     <option value="">Elige una propuesta</option>
                                     {propuestas.map((p) => (
                                         <option key={p.id} value={p.id}>
-                                            {p.folio} · {p.cliente} · saldo {pesos(Math.max(0, p.total - p.pagado))}
+                                            {p.folio}, {p.cliente}, saldo {pesos(Math.max(0, p.total - p.pagado))}
                                         </option>
                                     ))}
                                 </select>
@@ -174,8 +174,8 @@ export default function RegistrarPago({ propuestas, abrirAlCargar }: { propuesta
                                         <option value="">Pago nuevo</option>
                                         {propuesta.cuotas.map((c) => (
                                             <option key={c.id} value={c.id}>
-                                                {c.numero && c.de ? `Cuota ${c.numero} de ${c.de}` : "Cuota"} · {pesos(c.monto)}
-                                                {c.vence ? ` · ${c.estado === "OVERDUE" ? "atrasada desde" : "vence"} ${fechaCorta(c.vence)}` : ""}
+                                                {c.numero && c.de ? `Cuota ${c.numero} de ${c.de}` : "Cuota"}, {pesos(c.monto)}
+                                                {c.vence ? `, ${c.estado === "OVERDUE" ? "atrasada desde" : "vence"} ${fechaCorta(c.vence)}` : ""}
                                             </option>
                                         ))}
                                     </select>

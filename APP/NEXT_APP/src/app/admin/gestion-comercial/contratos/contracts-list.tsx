@@ -433,8 +433,8 @@ function ClientContractGroup({
                         <span className="min-w-0">
                             <span className="block font-semibold text-[var(--txt)]">{clientName}</span>
                             <span className="block text-[13px] text-[var(--mut)]">
-                                {clientWorkType && <>{clientWorkType} · </>}
-                                {contracts.length} contrato{contracts.length !== 1 ? "s" : ""} · <span className="tabular-nums">{pesos(totalValue)}</span>
+                                {clientWorkType && <>{clientWorkType}. </>}
+                                {contracts.length} contrato{contracts.length !== 1 ? "s" : ""} por <span className="tabular-nums">{pesos(totalValue)}</span>
                             </span>
                         </span>
                     </button>
@@ -448,8 +448,8 @@ function ClientContractGroup({
                         <th scope="row" className={`${td} text-left font-normal`}>
                             <span className="block font-medium text-[var(--txt)]">{contract.title}</span>
                             <span className="mt-0.5 block text-[13px] text-[var(--mut)]">
-                                <span className="font-mono">{contract.contractNumber}</span> · {TYPE_LABELS[contract.type]}
-                                {contract.autoRenew && <> · Renovación automática</>}
+                                <span className="font-mono">{contract.contractNumber}</span>, {TYPE_LABELS[contract.type]}
+                                {contract.autoRenew && <>, renovación automática</>}
                             </span>
                             <span className="mt-0.5 block text-[13px] text-[var(--mut)] md:hidden">{vigencia}</span>
                             <span className="mt-0.5 block text-[13px] font-semibold tabular-nums text-[var(--txt)] sm:hidden">{pesos(contract.totalAmount)}</span>
@@ -572,7 +572,7 @@ export function ContractsList({
                 <div>
                     <h1 className={titulo}>Contratos</h1>
                     <p className={bajada}>
-                        Acuerdos con tus clientes: valor, fechas, renovación y estado · {contracts.length} registro{contracts.length !== 1 ? "s" : ""}
+                        Acuerdos con tus clientes: valor, fechas, renovación y estado. {contracts.length} registro{contracts.length !== 1 ? "s" : ""}.
                     </p>
                 </div>
                 <button type="button" onClick={() => setShowCreate(true)} className={botonPrincipal}>

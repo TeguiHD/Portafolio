@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useId } from "react";
+import { useState, useCallback, useRef, useEffect, useId, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import { confirmar } from "@/modules/admin/confirmar/confirmar";
 import { copiarTexto } from "@/lib/tools/copiar";
 import {
-    Shield, Activity, Monitor, Clock, Key, Edit3, Save, X, LogOut, Lock, Download, Eye, EyeOff, CheckCircle, AlertTriangle, Globe, RefreshCw, Copy, Check, Smartphone, ChevronDown, Loader2, QrCode, ShieldCheck, ShieldOff, MapPin, Laptop, Tablet
+    Shield, Activity, Monitor, Clock, Key, Edit3, Save, X, LogOut, Download, Eye, EyeOff, CheckCircle, AlertTriangle, Globe, RefreshCw, Copy, Check, Smartphone, ChevronDown, Loader2, QrCode, ShieldCheck, ShieldOff, MapPin, Laptop, Tablet
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -64,8 +64,9 @@ const CAMPO = "w-full min-h-10 max-sm:min-h-11 px-3 rounded-lg bg-[var(--fondo-2
 const CAMPO_CODIGO = "w-full min-h-12 px-3 rounded-lg bg-[var(--fondo-2)] border border-[var(--linea-2)] text-[var(--txt)] text-center text-2xl font-mono tracking-[0.5em] placeholder:text-[var(--mut)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--acento)]";
 const OJO = `absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-lg text-[var(--mut)] transition-colors duration-150 hover:text-[var(--txt)] motion-reduce:transition-none ${FOCO}`;
 const ETIQUETA = "block mb-1.5 text-sm font-medium text-[var(--txt)]";
-const TARJETA = "rounded-xl border border-[var(--linea)] bg-[var(--sup)] p-5 sm:p-6";
-const TITULO_TARJETA = "flex items-center gap-2 text-base font-semibold text-[var(--txt)]";
+/** Bloque con título, sin caja: una línea arriba y aire (las reglas del panel dejan borde y fondo para tablas y gráficos). */
+const BLOQUE = "border-t border-[var(--linea)] pt-6";
+const TITULO_BLOQUE = "text-base font-semibold text-[var(--txt)]";
 const SECCION = "flex items-center gap-2 text-[15px] font-semibold text-[var(--mut)]";
 const CUENTA = "rounded-full bg-[color-mix(in_srgb,var(--txt)_8%,transparent)] px-2 py-0.5 text-xs font-medium tabular-nums text-[var(--mut)]";
 const GIRO = "animate-spin motion-reduce:animate-none";
@@ -90,7 +91,7 @@ function resumenDetalle(detalle: string | null): string | null {
     const t = (k: string) => (typeof o[k] === "string" && o[k] ? String(o[k]) : null);
     const lugar = [t("city"), t("country")].filter(Boolean).join(", ") || null;
     const partes = [t("newBrowser") ?? t("browser"), t("os"), t("newDevice") ?? t("device"), lugar].filter(Boolean);
-    return partes.length ? partes.join(" · ") : null;
+    return partes.length ? partes.join(", ") : null;
 }
 
 function timeAgo(dateStr: string) {
@@ -104,22 +105,26 @@ function timeAgo(dateStr: string) {
     return days === 1 ? "ayer" : `hace ${days} días`;
 }
 
+// Con la zona fija y reloj de 24 horas: el servidor (en UTC) y el navegador (en Chile) escriben lo mismo y React no
+// choca al hidratar (#418). Con «a. m.», Node pone un espacio normal y Chrome uno duro (U+00A0): nunca coincidían.
 function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString("es-CL", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    });
+    return new Date(dateStr).toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Santiago" });
 }
 
 function formatDateTime(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString("es-CL", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return new Date(dateStr).toLocaleString("es-CL", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Santiago" });
+}
+
+const sinSuscripcion = () => () => {};
+/**
+ * «hace 5 min» depende de la hora del navegador: en el servidor y al hidratar va la fecha (la misma en los dos), y el
+ * tiempo relativo después de montar. Antes se calculaba en el render y daba el error #418 de React. Con `conFecha`, el
+ * relativo va seguido de la fecha.
+ */
+function Hace({ fecha, conFecha = false }: { fecha: string; conFecha?: boolean }) {
+    const montado = useSyncExternalStore(sinSuscripcion, () => true, () => false);
+    const completa = formatDateTime(fecha);
+    return <time dateTime={fecha} title={completa}>{!montado ? completa : conFecha ? `${timeAgo(fecha)}, ${completa}` : timeAgo(fecha)}</time>;
 }
 
 function DeviceIcon({ device, os }: { device: string | null; os: string | null }) {
@@ -351,7 +356,7 @@ export function ProfilePageClient({
                             {user.role === "SUPERADMIN" && <span>Acceso a todo el panel</span>}
                             <span>Miembro desde {formatDate(user.createdAt)}</span>
                             {user.lastLoginAt && (
-                                <span>Último acceso {timeAgo(user.lastLoginAt)}</span>
+                                <span>Último acceso <Hace fecha={user.lastLoginAt} /></span>
                             )}
                         </p>
                     </div>
@@ -545,16 +550,15 @@ function ChangePasswordCard({ ultimoCambio }: { ultimoCambio: string | null }) {
     };
 
     return (
-        <section aria-labelledby={`${id}-t`} className={`${TARJETA} space-y-4 min-w-0`}>
-            <h2 id={`${id}-t`} className={TITULO_TARJETA}>
-                <Lock size={18} className="text-[var(--mut)]" aria-hidden="true" />
+        <section aria-labelledby={`${id}-t`} className={`${BLOQUE} space-y-4 min-w-0`}>
+            <h2 id={`${id}-t`} className={TITULO_BLOQUE}>
                 Contraseña
             </h2>
 
             {!isOpen ? (
                 <div className="space-y-4">
                     <p className="text-sm text-[var(--mut)]">
-                        {ultimoCambio ? `Último cambio ${timeAgo(ultimoCambio)}.` : "Es la misma desde que se creó la cuenta."} Solo se guarda su huella (Argon2id): nadie puede leerla.
+                        {ultimoCambio ? <>Último cambio <Hace fecha={ultimoCambio} />.</> : "Es la misma desde que se creó la cuenta."} Solo se guarda su huella (Argon2id): nadie puede leerla.
                     </p>
                     <button
                         type="button"
@@ -867,9 +871,8 @@ function MFASetupCard({ initialMfaEnabled }: { initialMfaEnabled: boolean }) {
     };
 
     return (
-        <section aria-labelledby={`${id}-t`} className={`${TARJETA} space-y-4`}>
-            <h2 id={`${id}-t`} className={TITULO_TARJETA}>
-                <Smartphone size={18} className="text-[var(--mut)]" aria-hidden="true" />
+        <section aria-labelledby={`${id}-t`} className={`${BLOQUE} space-y-4`}>
+            <h2 id={`${id}-t`} className={TITULO_BLOQUE}>
                 Verificación en dos pasos
             </h2>
 
@@ -1181,7 +1184,7 @@ function SessionsTab({ sessions, onRevoke }: { sessions: SessionInfo[]; onRevoke
                                                 )}
                                                 <span className="flex items-center gap-1">
                                                     <Clock size={12} aria-hidden="true" />
-                                                    {timeAgo(session.lastActivity)}
+                                                    <Hace fecha={session.lastActivity} />
                                                 </span>
                                             </div>
                                         </div>
@@ -1442,7 +1445,7 @@ function ActivityTab({ initialActivities, totalCount }: { initialActivities: Act
                                         </p>
                                     )}
                                     <p className="mt-1 text-xs text-[var(--mut)]">
-                                        {timeAgo(activity.createdAt)} · {formatDateTime(activity.createdAt)}
+                                        <Hace fecha={activity.createdAt} conFecha />
                                     </p>
                                 </div>
                             </li>

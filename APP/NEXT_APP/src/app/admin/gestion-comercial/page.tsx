@@ -114,7 +114,7 @@ export default async function GestionComercialDashboard() {
                 const cuando = c.dias < 0 ? `Venció el ${fechaLarga(c.endDate!)} y sigue activo` : `Vence el ${fechaLarga(c.endDate!)}, ${enDias(c.dias)}`;
                 return {
                     id: c.id,
-                    titulo: `${c.contractNumber} · ${c.client.name}`,
+                    titulo: `${c.contractNumber}, ${c.client.name}`,
                     detalle: `${c.title}. ${cuando}.${c.autoRenew ? " Con renovación automática." : ""}`,
                     pronto: c.dias <= 7,
                 };

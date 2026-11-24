@@ -42,7 +42,7 @@ export function DailyChart({ data, month, year }: DailyChartProps) {
     return (
         <figure className={`m-0 ${SERIES}`}>
             <figcaption className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-                <h2 className={SECCION}>Movimientos por día · {mes}</h2>
+                <h2 className={SECCION}>Movimientos por día en {mes}</h2>
                 <ul className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm text-[var(--mut)]">
                     <li className="flex items-center gap-2">
                         <i aria-hidden="true" className="size-2.5 rounded-sm bg-[var(--serie-gasto)]" />

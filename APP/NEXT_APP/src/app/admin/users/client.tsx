@@ -355,7 +355,7 @@ export default function UsersPageClient({ currentUserRole, currentUserId, permis
                 <div className="min-w-0">
                     <h1 className="text-2xl font-bold tracking-tight text-[var(--txt)] sm:text-[28px]">Usuarios</h1>
                     <p className="mt-1 text-[15px] text-[var(--mut)]">
-                        Cuentas, roles y permisos · <span className="tabular-nums">{users.length}</span> {users.length === 1 ? "usuario" : "usuarios"}
+                        {`Cuentas, roles y permisos: ${users.length} ${users.length === 1 ? "usuario" : "usuarios"}`}
                     </p>
                 </div>
                 {permisos.crear && (
@@ -427,7 +427,7 @@ export default function UsersPageClient({ currentUserRole, currentUserId, permis
                 <span className="font-medium tabular-nums text-[var(--txt)]">{paginatedUsers.length}</span> de{" "}
                 <span className="font-medium tabular-nums text-[var(--txt)]">{filteredUsers.length}</span> usuarios
                 {filteredUsers.length !== users.length && <> (filtrado de <span className="tabular-nums">{users.length}</span>)</>}
-                {filteredUsers.length === 0 && searchQuery && <> · sin resultados para «{searchQuery}»</>}
+                {filteredUsers.length === 0 && searchQuery && <>, sin resultados para «{searchQuery}»</>}
             </p>
 
             {error && (

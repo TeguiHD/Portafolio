@@ -19,7 +19,7 @@ function MatchScore({ score }: { score: number | null }) {
     return (
         <p className="m-0 text-right">
             <span className={`block text-xl font-bold tabular-nums ${style.text}`}>{score}%</span>
-            <span className="text-xs text-[var(--mut)]">Coincidencia · ajuste {style.label.toLowerCase()}</span>
+            <span className="text-xs text-[var(--mut)]">Coincidencia, ajuste {style.label.toLowerCase()}</span>
         </p>
     );
 }

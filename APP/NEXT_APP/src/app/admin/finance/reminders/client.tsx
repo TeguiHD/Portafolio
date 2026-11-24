@@ -273,8 +273,7 @@ export default function RemindersPageClient() {
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate font-medium text-[var(--txt)]">{payment.name}</p>
                                             <p className={`${SUAVE} truncate`}>
-                                                {payment.category?.name || "Sin categoría"}
-                                                <span aria-hidden="true"> · </span>
+                                                {payment.category?.name || "Sin categoría"},{" "}
                                                 <span className={CIFRA}>{formatCurrency(payment.amount)}</span>
                                             </p>
                                         </div>

@@ -58,6 +58,8 @@ export const OPCION_NO = `border-[var(--linea-2)] text-[var(--mut)] hover:text-[
 
 /** Tarjeta: solo cuando agrupa algo de verdad (un formulario, un bloque con su título). */
 export const TARJETA = "rounded-xl border border-[var(--linea)] bg-[var(--sup)]";
+/** Sección sin caja: una línea arriba y aire. Para lo que antes era una tarjeta con título (convertidor, exportar, preguntas). */
+export const BLOQUE = "border-t border-[var(--linea)] pt-6";
 /** Lista de filas: línea arriba y cada fila con su línea abajo. */
 export const LISTA = "border-t border-[var(--linea)]";
 export const FILA = `flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5 transition-colors duration-150 sm:gap-4 ${SOBRE}`;
@@ -65,8 +67,8 @@ export const FILA = `flex items-center gap-3 border-b border-[var(--linea)] px-1
 export const FICHA = "grid size-10 shrink-0 place-items-center rounded-full bg-[var(--fondo-2)] text-lg text-[var(--mut)]";
 /** Estado vacío de una lista. */
 export const VACIO = "border-y border-[var(--linea)] px-2 py-10 text-center text-[var(--mut)]";
-/** Mensaje de error en línea (va con role="alert"). */
-export const ERROR = "rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400";
+/** Mensaje de error en línea (va con role="alert"): texto en el color de error del tema, sin caja. */
+export const ERROR = "text-sm font-medium text-[var(--error)]";
 /** Etiqueta pequeña de estado: base + color de estado (`bg-emerald-500/10 text-emerald-400`, etc.). */
 export const MARCA = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium";
 export const MARCA_NEUTRA = `${MARCA} bg-[var(--fondo-2)] text-[var(--mut)]`;

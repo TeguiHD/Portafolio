@@ -98,7 +98,7 @@ export default function SelectorBuscable({
                 className={`${campo} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50`}
             >
                 <span id={`${id}-v`} className={`min-w-0 truncate ${selected ? "" : "text-[var(--mut)]"}`}>
-                    {selected ? (selected.sublabel ? `${selected.label} · ${selected.sublabel}` : selected.label) : placeholder}
+                    {selected ? (selected.sublabel ? `${selected.label}, ${selected.sublabel}` : selected.label) : placeholder}
                 </span>
                 <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-[var(--mut)] motion-safe:transition-transform motion-safe:duration-150 ${open ? "rotate-180" : ""}`} />
             </button>

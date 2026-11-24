@@ -2,9 +2,9 @@
 
 import { CampoNumero } from "@/components/ui/CampoNumero";
 import { useState, useEffect, useCallback, useId } from "react";
-import { ArrowLeftRight, ArrowRight, Clock } from "lucide-react";
+import { ArrowLeftRight, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
-import { CAMPO, CIFRA, ERROR, ETIQUETA, FOCO, GIRA, ICONO, OPCION, OPCION_NO, OPCION_SI, SECCION, TARJETA } from "./estilos";
+import { CAMPO, CIFRA, ERROR, ETIQUETA, FOCO, GIRA, ICONO, OPCION, OPCION_NO, OPCION_SI, SECCION, BLOQUE } from "./estilos";
 
 interface Currency {
     id: string;
@@ -66,7 +66,10 @@ export function CurrencyConverter() {
                 }),
             });
 
-            if (!res.ok) throw new Error("Error en la conversión");
+            if (!res.ok) {
+                const datos = await res.json().catch(() => null) as { error?: string } | null;
+                throw new Error(datos?.error || "No se pudo convertir: intenta de nuevo en un momento");
+            }
 
             const data = await res.json();
             setResult(data);
@@ -99,7 +102,7 @@ export function CurrencyConverter() {
 
     if (loading) {
         return (
-            <div role="status" className={`${TARJETA} p-5 sm:p-6`}>
+            <div role="status" className={BLOQUE}>
                 <span className="sr-only">Cargando monedas…</span>
                 <div aria-hidden="true" className="animate-pulse space-y-4 motion-reduce:animate-none">
                     <div className="h-6 w-1/3 rounded bg-[var(--fondo-2)]" />
@@ -111,13 +114,10 @@ export function CurrencyConverter() {
     }
 
     return (
-        <section aria-labelledby={`${uid}-titulo`} className={`${TARJETA} space-y-6 p-5 sm:p-6`}>
+        <section aria-labelledby={`${uid}-titulo`} className={`${BLOQUE} space-y-6`}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h2 id={`${uid}-titulo`} className="text-lg font-semibold text-[var(--txt)]">Convertidor de moneda</h2>
-                <p className="flex items-center gap-1.5 text-sm text-[var(--mut)]">
-                    <Clock aria-hidden="true" className="size-4" />
-                    Actualizado cada 4h
-                </p>
+                <p className="text-sm text-[var(--mut)]">Tasas del día</p>
             </div>
 
             <div>

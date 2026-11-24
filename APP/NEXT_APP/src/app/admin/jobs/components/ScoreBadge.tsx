@@ -30,7 +30,7 @@ export function ScoreBadge({
         >
             <span>{Math.round(score)}%</span>
             <span className={showLabel ? "font-medium" : "sr-only"}>
-                {showLabel ? "· ajuste " : "de coincidencia, ajuste "}
+                {showLabel ? ", ajuste " : "de coincidencia, ajuste "}
                 {style.label.toLowerCase()}
             </span>
         </span>

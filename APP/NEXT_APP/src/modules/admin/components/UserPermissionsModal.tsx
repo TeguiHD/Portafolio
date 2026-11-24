@@ -153,7 +153,7 @@ export function UserPermissionsModal({
                             </h2>
                             <p id={`${id}-d`} className="mt-0.5 text-sm text-[var(--mut)]">
                                 Rol: <span className="font-medium text-[var(--txt)]">{ROLE_NAMES[userRole] ?? userRole}</span>
-                                {" · "}Los cambios se aplican de inmediato.
+                                {". "}Los cambios se aplican de inmediato.
                             </p>
                         </div>
                         <button

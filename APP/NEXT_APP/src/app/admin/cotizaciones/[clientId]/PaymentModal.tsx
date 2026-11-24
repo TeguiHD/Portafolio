@@ -210,8 +210,8 @@ function Contenido({
                             >
                                 {cuotas.map((c) => (
                                     <option key={c.id} value={c.id}>
-                                        {nombreCuota(c)} · {pesos(c.monto)}
-                                        {c.vence ? ` · ${c.estado === "OVERDUE" ? "venció" : "vence"} el ${fechaCorta(c.vence)}` : ""}
+                                        {nombreCuota(c)}, {pesos(c.monto)}
+                                        {c.vence ? `, ${c.estado === "OVERDUE" ? "venció" : "vence"} el ${fechaCorta(c.vence)}` : ""}
                                     </option>
                                 ))}
                                 <option value="">Otro pago, fuera de las cuotas</option>
@@ -345,7 +345,7 @@ function Contenido({
                                 fechaCorta(payment.fecha),
                                 payment.numero && payment.de ? nombreCuota(payment) : null,
                                 payment.referencia,
-                            ].filter(Boolean).join(" · ");
+                            ].filter(Boolean).join(", ");
                             return (
                                 <li key={payment.id} className="flex items-center justify-between gap-3 border-b border-[var(--linea)] py-3">
                                     <span className="flex min-w-0 items-center gap-3">

@@ -118,7 +118,7 @@ const ConfidenceBadge = ({ confidence }: { confidence: number }) => {
 
     return (
         <span className={`${MARCA} shrink-0 whitespace-nowrap ${nivel.clase}`}>
-            Confianza {nivel.texto} · <span className="tabular-nums">{percentage} %</span>
+            Confianza {nivel.texto} (<span className="tabular-nums">{percentage} %</span>)
         </span>
     );
 };

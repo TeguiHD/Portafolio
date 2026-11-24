@@ -266,8 +266,8 @@ function CodeFinder({
                 />
             </div>
             <p className="mt-1 text-right text-[11px] text-[var(--mut)]">
-                {value.length > 0 ? `${lineCount} líneas · ${value.length} caracteres · ` : ""}
-                Ctrl+F para buscar · Tab inserta 2 espacios
+                {value.length > 0 ? `${lineCount} líneas, ${value.length} caracteres. ` : ""}
+                Ctrl+F para buscar; Tab inserta 2 espacios
             </p>
         </div>
     );
@@ -853,7 +853,7 @@ export default function UnifiedQuotationCreation({ clients = [], preSelectedClie
                                 {latexPreview && (
                                     <span className="ml-2 text-xs" aria-live="polite">
                                         {latexPreview.errors.length > 0 && <span className="text-red-400">{latexPreview.errors.length} error(es)</span>}
-                                        {latexPreview.errors.length > 0 && latexPreview.warnings.length > 0 && <span className="text-[var(--mut)]"> · </span>}
+                                        {latexPreview.errors.length > 0 && latexPreview.warnings.length > 0 && <span className="text-[var(--mut)]">, </span>}
                                         {latexPreview.warnings.length > 0 && <span className="text-amber-400">{latexPreview.warnings.length} aviso(s)</span>}
                                     </span>
                                 )}

@@ -137,16 +137,16 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
                                     const cuando = porCobrar && payment.dueDate
                                         ? `${payment.status === "CANCELLED" ? "vencía" : estado === ESTADO.OVERDUE ? "venció" : "vence"} ${fecha(payment.dueDate)}`
                                         : fecha(payment.paidAt);
-                                    const extra = [cuota, payment.reference ? `Ref.: ${payment.reference}` : null, payment.receiptUrl ? "con comprobante" : null].filter(Boolean).join(" · ");
+                                    const extra = [cuota, payment.reference ? `Ref.: ${payment.reference}` : null, payment.receiptUrl ? "con comprobante" : null].filter(Boolean).join(", ");
                                     return (
                                         <tr key={payment.id} className="border-b border-[var(--linea)]">
                                             <th scope="row" className={`${td} text-left font-normal`}>
                                                 <span className="block font-medium text-[var(--txt)]">{payment.quotation.projectName || "Sin nombre"}</span>
                                                 <span className="mt-0.5 block text-[13px] text-[var(--mut)]">
                                                     <span className="font-mono">{payment.quotation.folio}</span>
-                                                    {extra && <> · {extra}</>}
+                                                    {extra && <>, {extra}</>}
                                                 </span>
-                                                <span className="mt-0.5 block text-[13px] text-[var(--mut)] sm:hidden">{cliente} · {metodo} · {cuando}</span>
+                                                <span className="mt-0.5 block text-[13px] text-[var(--mut)] sm:hidden">{cliente}, {metodo}, {cuando}</span>
                                             </th>
                                             <td className={`${td} text-[var(--txt)] max-sm:hidden`}>{cliente}</td>
                                             <td className={`${td} text-[var(--mut)] max-md:hidden`}>{metodo}</td>

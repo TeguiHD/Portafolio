@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FileText, Eye, ChevronRight, Share2 } from "lucide-react";
+import { ChevronRight, Share2 } from "lucide-react";
 import ContactInfoModal from "../../clientes/contact-info-modal";
 import ShareModal from "@/components/quotations/ShareModal";
-import { BOTON, BOTON_SEC, CHIP, CHIP_NEUTRO, INICIALES, TARJETA } from "@/modules/quotations/estilos";
+import { BOTON, BOTON_SEC, CHIP, FOCO, INICIALES } from "@/modules/quotations/estilos";
 
 interface Client {
     id: string;
@@ -52,42 +52,33 @@ export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyM
     const propuestas = client._count.quotations;
 
     return (
-        <article className={`${TARJETA} flex w-full flex-col p-5 transition-colors duration-150 hover:border-[var(--linea-2)]`}>
-            <div className="flex items-start gap-3">
-                <span aria-hidden="true" className={`${INICIALES} size-11 text-sm`}>{initials}</span>
-                <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base font-semibold text-[var(--txt)]">{client.name}</h3>
-                    {client.company && <p className="truncate text-sm text-[var(--mut)]">{client.company}</p>}
-                    <p className="truncate font-mono text-xs text-[var(--mut)]">/{client.slug}</p>
+        <article className="grid w-full gap-4 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-8">
+            <div className="flex min-w-0 items-start gap-3">
+                <span aria-hidden="true" className={`${INICIALES} size-10 text-sm`}>{initials}</span>
+                <div className="min-w-0 flex-1 space-y-1">
+                    <h3 className="truncate text-base font-semibold text-[var(--txt)]">
+                        <Link href={`/admin/cotizaciones/${client.id}`} className={`rounded-sm transition-colors duration-150 hover:text-[var(--acento)] ${FOCO}`}>{client.name}</Link>
+                    </h3>
+                    <p className="truncate text-sm text-[var(--mut)]">
+                        {client.company && <>{client.company}, </>}<span className="font-mono text-xs">/{client.slug}</span>
+                    </p>
+                    <p className="text-sm tabular-nums text-[var(--mut)]">{propuestas} propuesta{propuestas === 1 ? "" : "s"}</p>
+                    {(sharedBy || isSpyMode || (isSuperAdmin && client.user && !isOwner)) && (
+                        <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                            {sharedBy && <span className="text-[var(--mut)]">Compartido por {sharedBy}</span>}
+                            {isSpyMode && <span className={`${CHIP} bg-amber-500/10 text-amber-400`}>Modo espía</span>}
+                            {isSuperAdmin && client.user && !isOwner && (
+                                <span className="min-w-0 truncate text-amber-400">
+                                    Dueño: <span className="font-medium">{client.user.name || client.user.email}</span>
+                                </span>
+                            )}
+                        </p>
+                    )}
                 </div>
-                <span className={`${CHIP_NEUTRO} tabular-nums`} title={`${propuestas} propuesta${propuestas === 1 ? "" : "s"}`}>
-                    <FileText size={12} aria-hidden="true" />
-                    {propuestas}
-                    <span className="sr-only"> propuesta{propuestas === 1 ? "" : "s"}</span>
-                </span>
             </div>
 
-            {(sharedBy || isSpyMode || (isSuperAdmin && client.user && !isOwner)) && (
-                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                    {sharedBy && (
-                        <span className="flex items-center gap-1 text-[var(--mut)]">
-                            <Share2 size={12} aria-hidden="true" /> Compartido por {sharedBy}
-                        </span>
-                    )}
-                    {isSpyMode && (
-                        <span className={`${CHIP} bg-amber-500/10 text-amber-400`}>
-                            <Eye size={12} aria-hidden="true" /> Modo espía
-                        </span>
-                    )}
-                    {isSuperAdmin && client.user && !isOwner && (
-                        <span className="min-w-0 truncate text-amber-400">
-                            Dueño: <span className="font-medium">{client.user.name || client.user.email}</span>
-                        </span>
-                    )}
-                </div>
-            )}
-
-            <div className="mt-auto flex flex-wrap gap-2 pt-5">
+            {/* En ancho, una grilla: así el flex-1 del botón «Contacto» no lo estira; en celular, botones parejos. */}
+            <div className="flex flex-wrap items-center gap-2 md:grid md:grid-flow-col md:auto-cols-max">
                 <ContactInfoModal client={{
                     id: client.id,
                     name: client.name,
@@ -108,13 +99,13 @@ export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyM
                             e.preventDefault();
                             setShowShareModal(true);
                         }}
-                        className={`${BOTON_SEC} flex-1`}
+                        className={`${BOTON_SEC} flex-1 md:flex-none`}
                     >
                         <Share2 size={16} aria-hidden="true" />
                         <span>Compartir</span>
                     </button>
                 )}
-                <Link href={`/admin/cotizaciones/${client.id}`} className={`${BOTON} w-full`}>
+                <Link href={`/admin/cotizaciones/${client.id}`} className={`${BOTON} flex-1 md:flex-none`} aria-label={`Ver las propuestas de ${client.name}`}>
                     Ver propuestas
                     <ChevronRight size={16} aria-hidden="true" />
                 </Link>

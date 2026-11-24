@@ -125,7 +125,7 @@ export default async function JobsDashboardPage() {
             id: e.id,
             createdAt: e.createdAt,
             title: e.application.vacancy.title,
-            subtitle: `${e.application.vacancy.company} · ${e.fromStatus ? STATUS_LABELS[e.fromStatus] : "—"} → ${STATUS_LABELS[e.toStatus]}`,
+            subtitle: `${e.application.vacancy.company}: ${e.fromStatus ? STATUS_LABELS[e.fromStatus] : "—"} → ${STATUS_LABELS[e.toStatus]}`,
             badge: null,
         })),
     ]
@@ -257,7 +257,7 @@ export default async function JobsDashboardPage() {
                                         <div key={row.source} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-sm">
                                             <dt className="truncate text-[var(--txt)]">{label}</dt>
                                             <dd className="m-0 font-mono text-xs tabular-nums text-[var(--mut)]">
-                                                {row._count._all} · {pct}%
+                                                {row._count._all} ({pct}%)
                                             </dd>
                                             <dd aria-hidden="true" className="col-span-2 m-0 h-1.5 overflow-hidden rounded-full bg-[var(--linea-2)]">
                                                 <span className="block h-full rounded-full bg-[var(--acento)]" style={{ width: `${pct}%` }} />

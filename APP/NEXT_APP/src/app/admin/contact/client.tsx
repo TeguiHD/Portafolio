@@ -474,7 +474,7 @@ export default function ContactPageClient() {
                                 <p className="break-all text-sm text-[var(--acento)]">{selectedMessage.email}</p>
                                 <p className="mt-1 text-xs text-[var(--mut)]">
                                     {new Date(selectedMessage.createdAt).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" })}
-                                    {textoOrigen(selectedMessage.origen) && <> · Llegó por: {textoOrigen(selectedMessage.origen)}</>}
+                                    {textoOrigen(selectedMessage.origen) && <>. Llegó por {textoOrigen(selectedMessage.origen)}</>}
                                 </p>
                             </div>
 
@@ -483,11 +483,11 @@ export default function ContactPageClient() {
                                 <p className="whitespace-pre-wrap break-words text-[var(--txt)]">{selectedMessage.message}</p>
 
                                 {selectedMessage.isSpam && (
-                                    <p className="mt-4 flex items-start gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                                    <p className="mt-4 flex items-start gap-2 text-xs text-[var(--error)]">
                                         <AlertTriangle aria-hidden="true" className="mt-px size-4 shrink-0" />
                                         <span>
                                             Detectado como spam (puntaje: {selectedMessage.spamScore})
-                                            {selectedMessage.spamReason && ` · ${selectedMessage.spamReason}`}
+                                            {selectedMessage.spamReason && `: ${selectedMessage.spamReason}`}
                                         </span>
                                     </p>
                                 )}

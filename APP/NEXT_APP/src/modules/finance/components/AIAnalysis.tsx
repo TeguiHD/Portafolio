@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Sparkles, Wrench } from "lucide-react";
 import { CabeceraFinanzas } from "./Piezas";
-import { BOTON, CAMPO, ERROR, GIRA, LISTA, MARCA, OPCION, OPCION_NO, SECCION, SUAVE, TARJETA, VACIO } from "./estilos";
+import { BOTON, CAMPO, ERROR, GIRA, LISTA, MARCA, OPCION, OPCION_NO, SECCION, SUAVE, BLOQUE, VACIO } from "./estilos";
 
 interface Analysis {
     resumen: string;
@@ -240,7 +240,7 @@ export function AIAnalysis() {
             </div>
 
             {/* Pregunta libre */}
-            <section aria-labelledby={`${idPregunta}-t`} className={`${TARJETA} p-5 sm:p-6`}>
+            <section aria-labelledby={`${idPregunta}-t`} className={BLOQUE}>
                 <h2 id={`${idPregunta}-t`} className="m-0 text-base font-semibold text-[var(--txt)]">Pregunta sobre tus finanzas</h2>
                 <form
                     className="mt-4 flex flex-col gap-3 sm:flex-row"
