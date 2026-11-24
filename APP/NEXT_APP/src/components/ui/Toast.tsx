@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, ReactNode } from 'react'
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react'
 
 // Toast types
@@ -19,8 +19,10 @@ interface ToastInternal extends Toast {
     exiting?: boolean
 }
 
+/** Solo funciones, estables: el valor no cambia nunca. Con la lista adentro, cada aviso daba un valor nuevo y las
+ * páginas que tienen `toast` en las dependencias de un efecto volvían a pedir datos; si el pedido fallaba, otro aviso, y
+ * así en bucle (Mensajes hacía ~100 pedidos por segundo con la API caída; 24-11-2026). */
 interface ToastContextType {
-    toasts: Toast[]
     addToast: (toast: Omit<Toast, 'id'>) => void
     removeToast: (id: string) => void
     success: (title: string, message?: string) => void
@@ -163,8 +165,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         addToast({ type: 'info', title, message })
     }, [addToast])
 
+    const valor = useMemo(() => ({ addToast, removeToast, success, error, warning, info }), [addToast, removeToast, success, error, warning, info])
+
     return (
-        <ToastContext.Provider value={{ toasts, addToast, removeToast, success, error, warning, info }}>
+        <ToastContext.Provider value={valor}>
             {children}
 
             {/* Toast container - highest z-index. Está desde la carga para que los lectores de pantalla anuncien lo que entra. */}

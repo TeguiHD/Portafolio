@@ -5,6 +5,8 @@ import { hasPermission } from "@/lib/permission-check";
 import { Role } from '@/generated/prisma/client';
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { leerIndicadores } from "@/lib/chile/indicadores.server";
+import { tasaConPesos } from "@/lib/finanzas/tasa-pesos";
 
 const FRANKFURTER_API = "https://api.frankfurter.app";
 const CACHE_TTL_HOURS = 4;
@@ -55,7 +57,13 @@ export async function POST(request: NextRequest) {
 
         let rate: number;
 
-        if (date) {
+        if (from === "CLP" || to === "CLP") {
+            // Frankfurter no publica el peso chileno: dólar y euro del día de mindicador.cl, otras monedas vía el dólar.
+            if (date) return NextResponse.json({ error: "Sin tasa histórica del peso chileno" }, { status: 400 });
+            const ind = await indicadoresPesos();
+            if (!ind) return NextResponse.json({ error: "No se pudo obtener el dólar del día: intenta de nuevo en un rato" }, { status: 502 });
+            rate = (await tasaConPesos(from, to, ind, (m) => getCurrentRate("USD", m))) ?? 0;
+        } else if (date) {
             // Historical rate - fetch directly from API
             rate = await getHistoricalRate(from, to, date);
         } else {
@@ -82,6 +90,34 @@ export async function POST(request: NextRequest) {
         logger.error("[Convert POST] Error", error);
         return NextResponse.json({ error: "Error al convertir" }, { status: 500 });
     }
+}
+
+/**
+ * Dólar y euro en pesos: los del día de mindicador.cl, que se guardan cada vez que cambian; si mindicador.cl no
+ * responde, lo último guardado (el 24-11-2026 su HTTPS no respondía). Sin nada guardado, null. Se guardan con base CLP
+ * (dólares y euros por un peso): las demás consultas de la tabla leen solo la base EUR de Frankfurter y no las ven.
+ */
+let guardado = "";
+async function indicadoresPesos(): Promise<{ dolar: number; euro?: number } | null> {
+    const ind = await leerIndicadores();
+    if (ind) {
+        const valores = { dolar: ind.dolar.valor, euro: ind.euro?.valor };
+        const clave = `${valores.dolar}|${valores.euro ?? ""}`;
+        if (clave !== guardado) {
+            const filas: [string, number][] = [["USD", valores.dolar]];
+            if (valores.euro) filas.push(["EUR", valores.euro]);
+            await Promise.all(filas.map(([moneda, pesos]) => prisma.exchangeRateCache.upsert({
+                where: { baseCurrency_targetCurrency: { baseCurrency: "CLP", targetCurrency: moneda } },
+                update: { rate: 1 / pesos, fetchedAt: new Date() },
+                create: { baseCurrency: "CLP", targetCurrency: moneda, rate: 1 / pesos },
+            }))).then(() => { guardado = clave; }).catch((e) => logger.error("[Convert] No se guardó el dólar del día", e));
+        }
+        return valores;
+    }
+    const filas = await prisma.exchangeRateCache.findMany({ where: { baseCurrency: "CLP", targetCurrency: { in: ["USD", "EUR"] } } });
+    const porPeso = (m: string) => filas.find((f) => f.targetCurrency === m)?.rate;
+    const usd = porPeso("USD"), eur = porPeso("EUR");
+    return usd ? { dolar: 1 / usd, ...(eur ? { euro: 1 / eur } : {}) } : null;
 }
 
 async function getCurrentRate(from: string, to: string): Promise<number> {
