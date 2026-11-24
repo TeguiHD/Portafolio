@@ -21,7 +21,8 @@
 .ht-destacada h3 a { color: var(--txt); text-decoration: none; }
 .ht-destacada h3 a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .ht-destacada h3 a:focus-visible { outline: none; }
-.ht-destacada p { margin: 0; color: var(--mut); font-size: 14.5px; line-height: 1.5; align-self: start; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* Entera: con line-clamp quedaba cortada a media frase («descárgalo…»). La grilla iguala la altura de cada fila. */
+.ht-destacada p { margin: 0; color: var(--mut); font-size: 14.5px; line-height: 1.5; align-self: start; text-wrap: pretty; }
 .ht-destacada:has(a:focus-visible) { outline: 2px solid var(--acento); outline-offset: 3px; }
 @media (hover: hover) { .ht-destacada:has(a:hover) { border-color: color-mix(in srgb, var(--c) 55%, var(--linea-2)); background: color-mix(in srgb, var(--c) 7%, var(--fondo-2)); translate: 0 -2px; } }
 .ht-nueva { display: inline-block; margin-left: 10px; padding: 1px 9px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--acento) 55%, transparent); color: var(--acento); font: 500 12px var(--mono); vertical-align: 3px; }
@@ -99,6 +100,14 @@
   .ht-destacadas ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .ht-destacada { padding: 16px 14px 18px; border-radius: 16px; gap: 6px; }
   .ht-destacada h3 { font-size: 16px; }
-  .ht-destacada p { font-size: 13.5px; -webkit-line-clamp: 3; line-clamp: 3; }
+  .ht-destacada p { font-size: 13.5px; }
+}
+/* Celular: en dos columnas la descripción entera ocupaba hasta 6 líneas. Una columna, en fila: ícono a la izquierda. */
+@media (max-width: 560px) {
+  .ht-destacadas ul { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .ht-destacada { grid-template-columns: 26px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 14px; row-gap: 3px; padding: 14px 16px 15px; }
+  .ht-destacada > svg { grid-row: 1 / span 2; width: 24px; height: 24px; margin-top: 1px; }
+  .ht-destacada h3 { margin: 0; }
+  .ht-destacada .ht-nueva { top: 14px; right: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .ht-destacada { transition: none; } }

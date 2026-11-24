@@ -9,6 +9,7 @@ import { COLOR_CATEGORIA, ICONOS } from "@/modules/landing/viva/siglas";
 import type { PublicToolCatalogEntry } from "@/lib/tool-registry";
 import { coincide } from "./buscar-herramientas";
 import "./carcasa.css";
+import { sinCortes } from "@/lib/sin-cortes";
 
 const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"];
 const mayuscula = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -98,7 +99,7 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
                             <li key={t.slug} style={{ "--c": COLOR_CATEGORIA[t.category] ?? "var(--acento)" } as CSSProperties}>
                                 <svg viewBox="0 0 24 24" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONOS[t.slug] ?? "" }} />
                                 <Link href={`/herramientas/${t.slug}`}>{t.name}</Link>
-                                <p>{t.description}</p>
+                                <p>{sinCortes(t.description)}</p>
                             </li>
                         ))}
                     </ul>

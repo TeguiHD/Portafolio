@@ -146,4 +146,24 @@ test.describe("Herramientas, ronda 2 en el celular", () => {
             await expect(page.locator("#tools-content"), slug).not.toContainText("Volver a herramientas");
         }
     });
+
+    // Las descripciones se cortaban a media frase con «…» (line-clamp) en las destacadas y en las relacionadas (24-11-2026).
+    for (const ancho of [1440, 1100, 768, 390]) {
+        test(`en ${ancho} px, ninguna descripción del catálogo ni de las relacionadas queda cortada`, async ({ page }) => {
+            await page.setViewportSize({ width: ancho, height: 900 });
+            for (const [ruta, sel] of [["/herramientas", ".ht-destacada p"], ["/herramientas/json", ".hc-relacionadas p"]] as const) {
+                await page.goto(ruta);
+                await page.locator(sel).first().waitFor();
+                const cortadas = await page.locator(sel).evaluateAll((ps) => ps.filter((p) => p.scrollHeight > p.clientHeight + 1).map((p) => p.textContent));
+                expect(cortadas, `${ruta} en ${ancho} px`).toEqual([]);
+            }
+        });
+    }
+
+    test("«Wi-Fi» no se parte entre dos líneas (guion que no corta) en el catálogo y en la cabecera del QR", async ({ page }) => {
+        await page.goto("/herramientas");
+        await expect(page.locator(".ht-destacada p", { hasText: "código QR" })).toContainText("Wi\u2011Fi");
+        await page.goto("/herramientas/qr");
+        await expect(page.locator("#tools-content p", { hasText: "código QR" }).first()).toContainText("Wi\u2011Fi");
+    });
 });

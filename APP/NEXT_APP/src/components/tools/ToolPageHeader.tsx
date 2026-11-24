@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { TOOL_ICONS } from "./ToolIcons";
 import { DEFAULT_TOOL_REGISTRY } from "@/lib/tool-registry";
 import { COLOR_CATEGORIA } from "@/modules/landing/viva/siglas";
+import { sinCortes } from "@/lib/sin-cortes";
 
 const CATALOGO = new Map(DEFAULT_TOOL_REGISTRY.map((t) => [t.slug, t]));
 /** Lo que corre entero en el navegador (30 de 33, verificado en el código el 24-11-2026; el registro de uso no manda contenido).
@@ -22,7 +23,7 @@ export function ToolPageHeader({ slug }: { slug: string }) {
                 {Icon && <span className="th-icono"><Icon aria-hidden="true" /></span>}
                 <h1>{t?.name ?? slug}</h1>
             </div>
-            {t ? <p>{t.description}</p> : null}
+            {t ? <p>{sinCortes(t.description)}</p> : null}
             <p className="th-donde">{t?.donde ?? NAVEGADOR}</p>
         </header>
     );

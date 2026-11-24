@@ -36,28 +36,15 @@ test.describe("Herramientas con el lenguaje del sitio", () => {
         await expect(page.locator(".ht-destacada")).toHaveCount(0);
     });
 
-    test("a 390 px las destacadas van de a dos y nada desborda", async ({ page }) => {
+    // En dos columnas la descripción entera ocupaba hasta 6 líneas: a 390 px van en una columna, en fila (24-11-2026).
+    test("a 390 px las destacadas van en una columna y nada desborda", async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto("/herramientas");
         await expect(page.locator(".ht-destacada")).toHaveCount(6);
         const filas = await page.locator(".ht-destacada").evaluateAll((es) => es.map((e) => Math.round(e.getBoundingClientRect().top)));
-        expect(new Set(filas).size).toBe(3);
+        expect(new Set(filas).size).toBe(6);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
-
-    for (const ancho of [1440, 360]) {
-        // La tarjeta reparte su alto (filas auto auto 1fr): si el párrafo se estira, asoma una línea más bajo los «…».
-        test(`la descripción de una destacada no muestra más líneas que las del recorte (${ancho} px)`, async ({ page }) => {
-            await page.setViewportSize({ width: ancho, height: 900 });
-            await page.goto("/herramientas");
-            await expect(page.locator(".ht-destacada")).toHaveCount(6);
-            const sobran = await page.locator(".ht-destacada p").evaluateAll((ps) => ps.flatMap((p) => {
-                const cs = getComputedStyle(p), lineas = Number(cs.webkitLineClamp), alto = Number.parseFloat(cs.lineHeight) * lineas;
-                return p.clientHeight > alto + 1 ? [`${p.textContent?.slice(0, 20)}: ${p.clientHeight} > ${alto}`] : [];
-            }));
-            expect(sobran).toEqual([]);
-        });
-    }
 
     for (const ancho of [1440, 390]) {
         test(`las destacadas van alineadas con el buscador, con su rótulo encima y sin hueco tras el título (${ancho} px)`, async ({ page }) => {

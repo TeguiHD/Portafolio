@@ -9,6 +9,7 @@ import { Vista } from "@/modules/landing/viva/Vista";
 import type { PublicToolCatalogEntry } from "@/lib/tool-registry";
 import type { Destacadas } from "@/lib/tool-destacadas";
 import { coincide } from "./buscar-herramientas";
+import { sinCortes } from "@/lib/sin-cortes";
 
 const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"];
 const mayuscula = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -79,7 +80,7 @@ export function IndiceHerramientas({ tools, destacadas, nuevas = [] }: { tools: 
                                     <article className="ht-destacada" style={{ "--c": color(t.category) } as CSSProperties}>
                                         <Icono slug={t.slug} />
                                         <h3><Link className="ht-tarjeta" href={`/herramientas/${t.slug}`}>{t.name}</Link></h3>
-                                        <p>{t.description}</p>
+                                        <p>{sinCortes(t.description)}</p>
                                         {nuevas.includes(t.slug) ? <span className="ht-nueva">Nueva</span> : null}
                                     </article>
                                 </li>
@@ -116,7 +117,7 @@ export function IndiceHerramientas({ tools, destacadas, nuevas = [] }: { tools: 
                                         <li key={t.id} className="ht-fila">
                                             <Icono slug={t.slug} />
                                             <p className="ht-nombre"><Link className="tools-tile-enter" href={`/herramientas/${t.slug}`}>{t.name}</Link>{nuevas.includes(t.slug) ? <span className="ht-nueva">Nueva</span> : null}</p>
-                                            <p className="ht-linea">{t.description}</p>
+                                            <p className="ht-linea">{sinCortes(t.description)}</p>
                                             <button type="button" className="ht-estrella" disabled={!ready} onClick={() => toggleFavorite(t.slug)} aria-pressed={guardada}
                                                 aria-label={`${guardada ? "Quitar de" : "Añadir a"} favoritas: ${t.name}`} title={guardada ? "Quitar de favoritas" : "Guardar en favoritas"}>{guardada ? "★" : "☆"}</button>
                                         </li>
