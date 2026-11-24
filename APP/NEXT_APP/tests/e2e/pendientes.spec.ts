@@ -51,6 +51,18 @@ test.describe("sin navegador", () => {
         expect((ruta.match(/ip: ipParaUso\(ip\)/g) ?? []).length).toBe(4); // tres en ToolUsage y una en RateLimitEntry
     });
 
+    test("ninguna ruta guarda la IP sin hash en el registro de límites (RateLimitEntry)", () => {
+        // El canje de enlaces del portal la guardaba tal cual (24-11-2026); la tabla estaba vacía, no hubo filas que borrar.
+        const raiz = "src/app/api";
+        const rutas = (readdirSync(raiz, { recursive: true }) as string[]).filter((r) => r.endsWith("route.ts"))
+            .map((r) => `${raiz}/${r}`).filter((r) => leer(r).includes("checkRateLimitAtomic("));
+        expect(rutas.length).toBeGreaterThanOrEqual(2);
+        for (const r of rutas) {
+            const metadatos = [...leer(r).matchAll(/metadata:\s*\{([^}]*)\}/g)].map((m) => m[1]!);
+            for (const m of metadatos) if (/\bip\b/.test(m)) expect(m, r).toMatch(/ip:\s*ipParaUso\(/);
+        }
+    });
+
     test("resembrar no pisa lo editado en el panel y no queda la semilla vieja de 28", () => {
         expect(leer("prisma/seed.ts")).toMatch(/prisma\.tool\.upsert\(\{\s*where: \{ slug: tool\.slug \},\s*update: \{\},/);
         expect(existsSync("scripts/seed-new-tools.ts")).toBe(false);

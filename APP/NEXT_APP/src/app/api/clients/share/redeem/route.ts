@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ipCliente } from "@/lib/ip-cliente";
+import { ipParaUso } from "@/lib/ip-uso";
 import { auth } from "@/lib/auth";
 import { redeemShareCode } from "@/services/sharing-service";
 
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
             limit: 5,
             windowMs: 15 * 60 * 1000, // 15 minutes
             identifier: `redeem_${session.user.id}`, // Rate limit by User ID (more robust than IP for auth'd limits)
-            metadata: { ip }
+            metadata: { ip: ipParaUso(ip) } // con hash, como en el resto de RateLimitEntry
         });
 
         if (!rateLimit.allowed) {
