@@ -21,6 +21,8 @@ interface ConversionResult {
     rate: number;
     converted: number;
     formattedRate: string;
+    /** «Tasa del 20-11-2026» cuando el dólar es un respaldo de otro día. */
+    nota?: string;
 }
 
 export function CurrencyConverter() {
@@ -117,7 +119,7 @@ export function CurrencyConverter() {
         <section aria-labelledby={`${uid}-titulo`} className={`${BLOQUE} space-y-6`}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h2 id={`${uid}-titulo`} className="text-lg font-semibold text-[var(--txt)]">Convertidor de moneda</h2>
-                <p className="text-sm text-[var(--mut)]">Tasas del día</p>
+                <p className="text-sm text-[var(--mut)]">{result?.nota ?? "Tasas del día"}</p>
             </div>
 
             <div>

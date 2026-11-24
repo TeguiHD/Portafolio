@@ -28,9 +28,9 @@ export function ScoreBadge({
         <span
             className={`inline-flex items-center gap-1 rounded-md border font-semibold tabular-nums ${sizeClasses} ${style.bg} ${style.text} ${style.border}`}
         >
-            <span>{Math.round(score)}%</span>
+            <span>{Math.round(score)}%{showLabel ? "," : ""}</span>
             <span className={showLabel ? "font-medium" : "sr-only"}>
-                {showLabel ? ", ajuste " : "de coincidencia, ajuste "}
+                {showLabel ? "ajuste " : "de coincidencia, ajuste "}
                 {style.label.toLowerCase()}
             </span>
         </span>

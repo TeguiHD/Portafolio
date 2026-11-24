@@ -5,7 +5,7 @@
  * Una prueba (herramientas-ronda2, «datos: el menú…») revisa slugs, nombres y largo de cada frase.
  */
 export const MENU_HERRAMIENTAS = [
-    { slug: "qr", nombre: "Generador de QR", que: "Para enlaces, Wi-Fi, contactos o WhatsApp" },
+    { slug: "qr", nombre: "Generador de QR", que: "Enlaces, Wi-Fi, contactos o WhatsApp" },
     { slug: "quitar-fondo", nombre: "Quitar fondo", que: "En tu navegador, con PNG transparente" },
     { slug: "comprimir-imagen", nombre: "Compresor de imágenes", que: "Por calidad o por tamaño máximo en KB" },
     { slug: "claves", nombre: "Generador de contraseñas", que: "Contraseñas o frases de paso al azar" },

@@ -474,7 +474,7 @@ export default function ContactPageClient() {
                                 <p className="break-all text-sm text-[var(--acento)]">{selectedMessage.email}</p>
                                 <p className="mt-1 text-xs text-[var(--mut)]">
                                     {new Date(selectedMessage.createdAt).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" })}
-                                    {textoOrigen(selectedMessage.origen) && <>. Llegó por {textoOrigen(selectedMessage.origen)}</>}
+                                    {textoOrigen(selectedMessage.origen) && <>. Llegó por: {textoOrigen(selectedMessage.origen)}</>}
                                 </p>
                             </div>
 

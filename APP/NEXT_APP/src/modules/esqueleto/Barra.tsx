@@ -152,7 +152,8 @@ export function Barra({ enlaces = ENLACES, inicio = "/", contacto = "/#contacto"
             };
             const sale = () => {
                 clearTimeout(abrir);
-                if (vistaPrevia && p.matches(":popover-open")) cerrar = window.setTimeout(() => { if (vistaPrevia && p.matches(":popover-open")) p.hidePopover(); }, 200);
+                // Con el foco del teclado adentro no se cierra: el foco quedaría en algo que ya no se ve.
+                if (vistaPrevia && p.matches(":popover-open")) cerrar = window.setTimeout(() => { if (vistaPrevia && p.matches(":popover-open") && !g.matches(":focus-within")) p.hidePopover(); }, 200);
             };
             const foco = (e: FocusEvent) => { if (e.relatedTarget && !g.contains(e.relatedTarget as Node) && p.matches?.(":popover-open")) p.hidePopover(); };
             p.addEventListener("toggle", alCambiar); b.addEventListener("click", clic); g.addEventListener("pointerenter", entra); g.addEventListener("pointerleave", sale); g.addEventListener("focusout", foco);

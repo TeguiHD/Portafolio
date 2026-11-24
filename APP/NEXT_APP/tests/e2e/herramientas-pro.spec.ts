@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { getDefaultPublicToolCatalog } from "../../src/lib/tool-registry";
 import { TOOL_COUNT } from "../../src/lib/tool-count";
+import { sinCortes } from "../../src/lib/sin-cortes";
 
 /** Herramientas más profesionales: una sola cabecera verificada, sin relleno, colores del sitio y resultado de entrada. */
 const CATALOGO = new Map(getDefaultPublicToolCatalog().map((t) => [t.slug, t]));
@@ -19,7 +20,7 @@ test.describe("Herramientas profesionales", () => {
             await expect(page.locator("h1")).toHaveCount(1);
             await expect(page.locator("h1")).toHaveText(t.name);
             const cab = page.locator("header.th");
-            await expect(cab.locator("p").first()).toHaveText(t.description);
+            await expect(cab.locator("p").first()).toHaveText(sinCortes(t.description)); // «Wi-Fi» va con guion que no corta
             await expect(cab.locator(".th-donde")).toHaveText(DONDE[slug] ?? NAVEGADOR);
             const migas = page.getByRole("navigation", { name: "Ruta de navegación" });
             await expect(migas.locator("li").last()).toContainText(t.name);

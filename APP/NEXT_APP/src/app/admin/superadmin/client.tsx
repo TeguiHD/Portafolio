@@ -713,7 +713,7 @@ export default function SuperAdminClient() {
                         </p>
                     )}
                     {aviso && (
-                        <p role={aviso.ok ? 'status' : 'alert'} className={`rounded-xl px-4 py-3 text-sm ${aviso.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                        <p role={aviso.ok ? 'status' : 'alert'} className={`text-sm font-medium ${aviso.ok ? 'text-[var(--sube)]' : 'text-[var(--error)]'}`}>
                             {aviso.texto}
                         </p>
                     )}

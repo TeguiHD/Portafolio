@@ -97,7 +97,7 @@ test("«Hoy» muestra lo pendiente y cifras reales (sin contar las visitas al pa
     const lista = page.locator(".hoy-lista");
     await expect(lista.getByRole("link", { name: /Propuesta 2026-801 para Empresa Ficticia/ })).toContainText("El código vence el");
     await expect(lista.getByRole("link", { name: /2 mensajes sin leer/ })).toHaveAttribute("href", "/admin/contact");
-    await expect(lista.getByRole("link", { name: /Cuota 2 de 3 de Empresa Ficticia/ })).toBeVisible();
+    await expect(lista.getByRole("link", { name: /Cuota 2 de 3, Empresa Ficticia/ })).toBeVisible();
     // Lo sembrado: 30 días con 3 + (7d mod 11) visitas públicas cada uno, desde 40 direcciones; la del panel no cuenta.
     let total = 0; const ips = new Set<number>();
     for (let d = 0; d < 30; d++) for (let k = 0; k < 3 + ((d * 7) % 11); k++) { total++; ips.add((d * 13 + k) % 40); }

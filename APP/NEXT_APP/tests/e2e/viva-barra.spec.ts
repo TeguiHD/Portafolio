@@ -199,4 +199,44 @@ test.describe("Materia viva: barra", () => {
             for (const a of altos) expect(a).toBeLessThanOrEqual(1.4);
         });
     }
+
+    // «white-space: nowrap» en los hijos de la barra se heredaba a los paneles: la frase del Índice se salía (24-11-2026).
+    for (const ancho of [1440, 1100, 900]) {
+        test(`en ${ancho} px, el texto de los paneles no se sale de su panel`, async ({ page }) => {
+            await page.setViewportSize({ width: ancho, height: 900 });
+            await page.goto("/herramientas");
+            for (const nombre of ["Herramientas", "Índice"]) {
+                const boton = page.locator("#nb-ir").getByRole("button", { name: nombre });
+                await boton.click();
+                const panel = page.locator(`#${await boton.getAttribute("aria-controls")}`);
+                await expect(panel).toBeVisible();
+                const fuera = await panel.evaluate((p) => { const r = p.getBoundingClientRect(); return [...p.querySelectorAll("b, span, a")].filter((e) => e.getBoundingClientRect().right > r.right + 1).map((e) => e.textContent!.slice(0, 40)); });
+                expect(fuera, nombre).toEqual([]);
+                await page.keyboard.press("Escape");
+            }
+        });
+    }
+
+    test("en el menú del celular, el Índice abierto no se sale de la pantalla", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("/herramientas");
+        await page.getByRole("button", { name: "Menú" }).click();
+        await page.locator("#nb-lista").getByRole("button", { name: "Índice" }).click();
+        const lista = page.locator("#nb-lista");
+        await expect(lista.getByRole("link", { name: /Revisa tu sitio/ })).toBeVisible();
+        expect(await lista.evaluate((l) => l.scrollWidth <= l.clientWidth + 1), "desplazamiento lateral dentro del menú").toBe(true);
+    });
+
+    // A 861 px la barra abierta mide 829 px y su contenido ~835: «Hablemos» asomaba 6 px fuera de la cápsula.
+    test("a 861 px, arriba y recogida, «Hablemos» queda dentro de la barra", async ({ page }) => {
+        await page.setViewportSize({ width: 861, height: 900 });
+        await page.goto("/herramientas");
+        const dentro = () => page.evaluate(() => document.querySelector("#nb-hablar")!.getBoundingClientRect().right <= document.querySelector("#nb")!.getBoundingClientRect().right + 0.5);
+        await page.waitForFunction(() => document.getElementById("nb")!.getAnimations({ subtree: true }).every((a) => a.playState !== "running"));
+        expect(await dentro(), "arriba").toBe(true);
+        await page.mouse.move(430, 600); await page.mouse.wheel(0, 400);
+        await expect(page.locator("#nb")).toHaveClass(/nb-baja/);
+        await page.waitForTimeout(900);
+        expect(await dentro(), "recogida").toBe(true);
+    });
 });

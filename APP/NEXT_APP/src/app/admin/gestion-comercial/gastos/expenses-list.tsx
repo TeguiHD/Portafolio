@@ -386,7 +386,7 @@ export function ExpensesList({
                                                 {expense.contract && <>, <span className="font-mono" title={expense.contract.title}>{expense.contract.contractNumber}</span></>}
                                             </span>
                                             <span className="mt-0.5 block text-[13px] text-[var(--mut)] md:hidden">
-                                                {cfg.label}, <span className="sm:hidden">{formatDate(expense.expenseDate)}, </span>{frecuencia}
+                                                {cfg.label}, <span className="sm:hidden">{formatDate(expense.expenseDate)}, </span>{frecuencia?.toLowerCase()}
                                             </span>
                                         </th>
                                         <td className={`${td} max-md:hidden`}>

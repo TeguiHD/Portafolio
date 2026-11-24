@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { tasaConPesos, textoTasa } from "../../src/lib/finanzas/tasa-pesos";
+import { RESPALDO_MAX_DIAS, fechaRespaldo, tasaConPesos, textoTasa } from "../../src/lib/finanzas/tasa-pesos";
 
 /**
  * Panel, tanda 5 (24-11-2026): convertidor con pesos chilenos, avisos sin bucle, Mi perfil sin error de hidratación,
@@ -59,8 +59,22 @@ test.describe("sin navegador", () => {
     test("sin cajas rojas de error en el panel: el error va como texto", () => {
         const carpetas = ["src/app/admin", "src/modules/admin", "src/modules/finance"].filter(existsSync);
         const con = carpetas.flatMap((c) => (readdirSync(c, { recursive: true }) as string[]).filter((f) => /\.tsx?$/.test(f)).map((f) => `${c}/${f}`))
-            .filter((a) => /rounded-(?:lg|xl) bg-red-500\/10 px-/.test(readFileSync(a, "utf8")));
+            .filter((a) => /<p role=[^>]*alert[^>]*bg-red-500\/10|rounded-(?:lg|xl) bg-red-500\/10 px-/.test(readFileSync(a, "utf8")));
         expect(con).toEqual([]);
+    });
+
+    test("convertidor: un respaldo de otro día lo dice, y uno de más de una semana no sirve", () => {
+        const ahora = new Date("2026-11-24T15:00:00Z");
+        expect(fechaRespaldo(new Date("2026-11-24T04:00:00Z"), ahora)).toEqual({ vigente: true, texto: null }); // 01:00 en Chile, mismo día
+        expect(fechaRespaldo(new Date("2026-11-20T15:00:00Z"), ahora)).toEqual({ vigente: true, texto: "Tasa del 20-11-2026" });
+        expect(fechaRespaldo(new Date(ahora.getTime() - (RESPALDO_MAX_DIAS + 1) * 86_400_000), ahora).vigente).toBe(false);
+    });
+
+    test("textos del panel que la revisión del 24-11 encontró mal escritos", () => {
+        expect(readFileSync("src/app/admin/contact/client.tsx", "utf8")).toContain("<>. Llegó por: {");
+        expect(readFileSync("src/app/admin/jobs/components/ScoreBadge.tsx", "utf8")).not.toContain('", ajuste "');
+        expect(readFileSync("src/modules/admin/hoy/datos.ts", "utf8")).not.toMatch(/\$\{cuota\} de \$\{/);
+        expect(readFileSync("src/modules/finance/components/DailyChart.tsx", "utf8")).toContain("} de ${year}");
     });
 
     test("ningún «·» entre datos en el código del panel", () => {

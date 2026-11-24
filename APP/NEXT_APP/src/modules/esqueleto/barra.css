@@ -5,8 +5,10 @@
 .nb { position: fixed; z-index: 30; top: 16px; left: 0; right: 0; margin-inline: auto; width: min(1180px, 100vw - 32px); display: flex; align-items: center; gap: 6px;
   padding: 8px 8px 8px 22px; border-radius: 999px; border: 1px solid transparent; isolation: isolate; interpolate-size: allow-keywords;
   transition: width .7s var(--curva), padding .7s var(--curva), translate .55s var(--curva), background .5s, border-color .5s, box-shadow .5s; }
-/* Ninguna pieza se encoge: con 680 px fijos, «Hablemos» quedaba en 32 px y el tema encima (24-11-2026). */
-.nb > * { flex-shrink: 0; white-space: nowrap; }
+/* Ninguna pieza se encoge: con 680 px fijos, «Hablemos» quedaba en 32 px y el tema encima (24-11-2026). Sin cortes de
+   línea solo en las piezas de la fila: puesto en .nb > * se heredaba a los paneles y la frase del Índice se salía. */
+.nb > * { flex-shrink: 0; }
+.nb-marca, .nb-ir .nb-item, .nb-hablar, .nb-menu { white-space: nowrap; }
 /* Al bajar se recoge en una cápsula de vidrio del ancho de su contenido (la animación hacia max-content necesita
    interpolate-size; donde no existe, cambia de golpe); si sigues bajando se esconde, y vuelve apenas subes */
 .nb.nb-baja { width: max-content; max-width: calc(100vw - 32px); padding-left: 20px; background: color-mix(in srgb, var(--fondo-2) 70%, transparent); border-color: var(--linea-2);
@@ -26,6 +28,8 @@
 .nb-ir { position: relative; display: flex; align-items: center; margin-right: 6px; }
 .nb-ir .nb-item { position: relative; z-index: 1; padding: 10px 16px; border-radius: 999px; color: var(--mut); font-size: 15.5px; transition: color .3s; }
 .nb-ir .nb-item:hover, .nb-ir .nb-item[aria-current], .nb-abre[aria-expanded="true"] { color: var(--txt); }
+/* Entre 861 y 960 px la barra abierta no alcanza para el relleno de siempre: «Hablemos» asomaba fuera de la cápsula. */
+@media (min-width: 861px) and (max-width: 960px) { .nb-ir .nb-item { padding-inline: 12px; } }
 .nb-abre { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; font: inherit; cursor: pointer; }
 .nb-abre svg { transition: rotate .25s var(--curva); }
 .nb-abre[aria-expanded="true"] svg { rotate: 180deg; }

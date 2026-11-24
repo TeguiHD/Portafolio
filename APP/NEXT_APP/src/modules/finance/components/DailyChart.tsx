@@ -37,7 +37,7 @@ export function DailyChart({ data, month, year }: DailyChartProps) {
     // «Hoy» reemplaza a las marcas vecinas para que no se monten
     const marcas = diaHoy && diaHoy <= n ? [...fijas.filter((d) => Math.abs(d - diaHoy) > 2), diaHoy] : fijas;
     const conMovimientos = data.filter((d) => d.income > 0 || d.expense > 0);
-    const mes = `${MESES[month - 1]} ${year}`;
+    const mes = `${MESES[month - 1]} de ${year}`;
 
     return (
         <figure className={`m-0 ${SERIES}`}>

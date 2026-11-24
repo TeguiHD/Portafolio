@@ -105,7 +105,7 @@ export default function ClientCard({ client, currentUserId, isSuperAdmin, isSpyM
                         <span>Compartir</span>
                     </button>
                 )}
-                <Link href={`/admin/cotizaciones/${client.id}`} className={`${BOTON} flex-1 md:flex-none`} aria-label={`Ver las propuestas de ${client.name}`}>
+                <Link href={`/admin/cotizaciones/${client.id}`} className={`${BOTON} flex-1 md:flex-none`} aria-label={`Ver propuestas de ${client.name}`}>
                     Ver propuestas
                     <ChevronRight size={16} aria-hidden="true" />
                 </Link>

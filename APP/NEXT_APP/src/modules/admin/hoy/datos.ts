@@ -65,7 +65,7 @@ export async function pendientes(userId: string, permisos: Set<string>): Promise
         const atrasada = cuotaAtrasada(c.status, c.dueDate);
         const cuota = c.installmentNumber && c.totalInstallments ? `Cuota ${c.installmentNumber} de ${c.totalInstallments}` : "Pago";
         lista.push({
-            titulo: `${cuota} de ${c.quotation.clientName}`,
+            titulo: `${cuota}, ${c.quotation.clientName}`,
             detalle: `${pesos.format(c.amount)} de la propuesta ${c.quotation.folio}. ${atrasada ? "Venció el" : "Vence el"} ${fechaCorta(c.dueDate!)}.`,
             // En la propuesta está «Registrar pago» con sus cuotas; sin acceso a Propuestas, a Pagos.
             href: c.quotation.clientId && permisos.has("quotations.view") ? `/admin/cotizaciones/${c.quotation.clientId}` : "/admin/gestion-comercial/pagos",

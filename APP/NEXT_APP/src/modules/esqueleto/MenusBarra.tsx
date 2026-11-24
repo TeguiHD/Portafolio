@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MENU_HERRAMIENTAS } from "@/lib/tool-menu";
+import { sinCortes } from "@/lib/sin-cortes";
 import { CATEGORIAS, RUTA } from "@/lib/indice/calculos";
 
 /** Las herramientas del panel: las destacadas de respaldo del catálogo y dos de la familia Chile (sin el registro entero). */
@@ -11,7 +12,7 @@ export function PanelHerramientas({ alElegir }: { alElegir: () => void }) {
         <div className="nb-panel nb-panel-herr">
             <ul className="nb-panel-lista">
                 {HERRAMIENTAS.map((h) => (
-                    <li key={h.href}><Link href={h.href} onClick={alElegir}><b>{h.nombre}</b><span>{h.que}</span></Link></li>
+                    <li key={h.href}><Link href={h.href} onClick={alElegir}><b>{h.nombre}</b><span>{sinCortes(h.que)}</span></Link></li>
                 ))}
             </ul>
             <Link className="nb-panel-todas" href="/herramientas" onClick={alElegir}>Ver todas las herramientas</Link>

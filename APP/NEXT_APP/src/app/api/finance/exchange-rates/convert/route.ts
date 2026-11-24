@@ -6,7 +6,7 @@ import { Role } from '@/generated/prisma/client';
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { leerIndicadores } from "@/lib/chile/indicadores.server";
-import { tasaConPesos, textoTasa } from "@/lib/finanzas/tasa-pesos";
+import { fechaRespaldo, tasaConPesos, textoTasa } from "@/lib/finanzas/tasa-pesos";
 
 const FRANKFURTER_API = "https://api.frankfurter.app";
 const CACHE_TTL_HOURS = 4;
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         }
 
         let rate: number;
+        let nota: string | undefined; // «Tasa del 20-11-2026» si el dólar es un respaldo de otro día
 
         if (from === "CLP" || to === "CLP") {
             // Frankfurter no publica el peso chileno: dólar y euro del día de mindicador.cl, otras monedas vía el dólar.
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
             const ind = await indicadoresPesos();
             if (!ind) return NextResponse.json({ error: "No se pudo obtener el dólar del día: intenta de nuevo en un rato" }, { status: 502 });
             rate = (await tasaConPesos(from, to, ind, (m) => getCurrentRate("USD", m))) ?? 0;
+            nota = ind.nota;
         } else if (date) {
             // Historical rate - fetch directly from API
             rate = await getHistoricalRate(from, to, date);
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
             rate,
             converted,
             formattedRate: textoTasa(from, to, rate),
+            ...(nota ? { nota } : {}),
             timestamp: new Date().toISOString(),
         });
     } catch (error) {
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
  * (dólares y euros por un peso): las demás consultas de la tabla leen solo la base EUR de Frankfurter y no las ven.
  */
 let guardado = "";
-async function indicadoresPesos(): Promise<{ dolar: number; euro?: number } | null> {
+async function indicadoresPesos(): Promise<{ dolar: number; euro?: number; nota?: string } | null> {
     const ind = await leerIndicadores();
     if (ind) {
         const valores = { dolar: ind.dolar.valor, euro: ind.euro?.valor };
@@ -114,10 +117,14 @@ async function indicadoresPesos(): Promise<{ dolar: number; euro?: number } | nu
         }
         return valores;
     }
+    // El euro guardado solo se usa si es del mismo día que el dólar (no se mezcla un dólar de hoy con un euro viejo).
     const filas = await prisma.exchangeRateCache.findMany({ where: { baseCurrency: "CLP", targetCurrency: { in: ["USD", "EUR"] } } });
-    const porPeso = (m: string) => filas.find((f) => f.targetCurrency === m)?.rate;
-    const usd = porPeso("USD"), eur = porPeso("EUR");
-    return usd ? { dolar: 1 / usd, ...(eur ? { euro: 1 / eur } : {}) } : null;
+    const usd = filas.find((f) => f.targetCurrency === "USD"), eur = filas.find((f) => f.targetCurrency === "EUR");
+    if (!usd) return null;
+    const { vigente, texto } = fechaRespaldo(usd.fetchedAt);
+    if (!vigente) return null;
+    const mismoDia = eur && eur.fetchedAt.toDateString() === usd.fetchedAt.toDateString();
+    return { dolar: 1 / usd.rate, ...(mismoDia && eur ? { euro: 1 / eur.rate } : {}), ...(texto ? { nota: texto } : {}) };
 }
 
 async function getCurrentRate(from: string, to: string): Promise<number> {

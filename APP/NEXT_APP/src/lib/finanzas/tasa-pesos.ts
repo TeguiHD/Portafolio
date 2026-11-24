@@ -29,3 +29,19 @@ export function textoTasa(from: string, to: string, rate: number): string {
     const [de, a, valor] = rate < 1 ? [to, from, 1 / rate] : [from, to, rate];
     return `1 ${de} = ${new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 }).format(valor)} ${a}`;
 }
+
+/** Días que sirve el dólar guardado cuando mindicador.cl no responde. Más viejo, mejor no convertir. */
+export const RESPALDO_MAX_DIAS = 7;
+
+const diaChile = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+
+/**
+ * Si el dólar guardado (de `fecha`) todavía sirve y, si no es de hoy en Chile, el texto que lo dice («Tasa del
+ * 20-11-2026»). La interfaz dice «Tasas del día»: un respaldo de otro día no puede pasar por el de hoy.
+ */
+export function fechaRespaldo(fecha: Date, ahora: Date = new Date()): { vigente: boolean; texto: string | null } {
+    if (ahora.getTime() - fecha.getTime() > RESPALDO_MAX_DIAS * 86_400_000) return { vigente: false, texto: null };
+    if (diaChile(fecha) === diaChile(ahora)) return { vigente: true, texto: null };
+    const [a, m, d] = diaChile(fecha).split("-");
+    return { vigente: true, texto: `Tasa del ${d}-${m}-${a}` };
+}

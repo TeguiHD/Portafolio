@@ -693,7 +693,7 @@ export function PipelineBoard({ initialDeals, clients, abrirNueva = false, puede
                 <p className="text-sm text-[var(--mut)]" aria-live="polite">
                     {delaEtapa.length === 0
                         ? `Sin oportunidades en ${etapaElegida.label.toLowerCase()}`
-                        : `${delaEtapa.length} en ${etapaElegida.label.toLowerCase()}, por ${pesos(delaEtapa.reduce((s, d) => s + d.estimatedValue, 0))}`}
+                        : `${delaEtapa.length} en ${etapaElegida.label.toLowerCase()} por ${pesos(delaEtapa.reduce((s, d) => s + d.estimatedValue, 0))}`}
                 </p>
                 <div className="space-y-2">{delaEtapa.map(tarjeta)}</div>
             </section>

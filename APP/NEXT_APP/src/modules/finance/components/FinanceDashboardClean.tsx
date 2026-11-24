@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Bell, ChevronRight, Plus, ScanLine, Tag } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Bell, ChevronRight, Plus, ScanLine, Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useFinance } from "../context/FinanceContext";
 import { BatchReceiptScanner } from "./BatchReceiptScanner";
@@ -227,7 +227,7 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
                         <ul className={`${LISTA} m-0 list-none p-0`}>
                             {data.recentTransactions.slice(0, 5).map((tx) => (
                                 <li key={tx.id} className="flex items-center gap-3 border-b border-[var(--linea)] px-1 py-3.5 sm:gap-4">
-                                    <span aria-hidden="true" className={FICHA}>{tx.categoryIcon || ""}</span>
+                                    <span aria-hidden="true" className={FICHA}>{tx.categoryIcon || (tx.type === "expense" ? <ArrowUpRight className="size-[18px]" /> : tx.type === "income" ? <ArrowDownLeft className="size-[18px]" /> : <ArrowLeftRight className="size-[18px]" />)}</span>
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate font-medium text-[var(--txt)]">{tx.description}</p>
                                         <p className="text-xs text-[var(--mut)]">
