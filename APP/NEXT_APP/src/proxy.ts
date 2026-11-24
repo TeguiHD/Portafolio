@@ -18,6 +18,7 @@ import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import { getRedisClient, isRedisAvailable, CACHE_KEYS } from '@/lib/redis'
 import { parseArParams } from '@/lib/ar-launch'
 import { ipCliente } from '@/lib/ip-cliente'
+import { claveLimiteProxy } from '@/lib/limite-proxy'
 
 // ============= SECURITY CONSTANTS =============
 const SECURITY_VERSION = '2.1.0'
@@ -516,15 +517,9 @@ const rateLimitMap = new Map<string, RateLimitRecord>()
 const VIOLATION_THRESHOLD = 3  // Block after 3 rate limit violations
 const BLOCK_DURATION = 15 * 60 * 1000  // 15 min block
 
+// Quién (IPv6 por su /64) y qué categoría de ruta: src/lib/limite-proxy.ts
 function getRateLimitKey(request: NextRequest): string {
-    const ip = getClientIp(request)
-
-    // Include path category in key for granular limiting
-    const pathCategory = request.nextUrl.pathname.startsWith('/api/auth') ? 'auth' :
-        request.nextUrl.pathname.startsWith('/api/finance') ? 'finance' :
-            request.nextUrl.pathname.startsWith('/api/') ? 'api' : 'page'
-
-    return `ratelimit:${ip}:${pathCategory}`
+    return claveLimiteProxy(getClientIp(request), request.nextUrl.pathname)
 }
 
 function checkRateLimit(

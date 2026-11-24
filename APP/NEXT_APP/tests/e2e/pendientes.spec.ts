@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { DEFAULT_TOOL_REGISTRY, getDefaultPublicToolCatalog } from "../../src/lib/tool-registry";
 import { crearLectorRanking } from "../../src/lib/tool-destacadas";
 import { claveUsoIp, ipParaUso } from "../../src/lib/ip-uso";
+import { claveLimiteProxy } from "../../src/lib/limite-proxy";
 import { coincide } from "../../src/components/tools/buscar-herramientas";
 import { radiosAnillo } from "../../src/modules/materia/anillo";
 
@@ -49,6 +50,16 @@ test.describe("sin navegador", () => {
         // Tampoco en el registro del límite de usos (RateLimitEntry), escrito abreviado: metadata: { ip, … }.
         expect(ruta).not.toMatch(/metadata:\s*\{\s*ip\s*[,}]/);
         expect((ruta.match(/ip: ipParaUso\(ip\)/g) ?? []).length).toBe(4); // tres en ToolUsage y una en RateLimitEntry
+    });
+
+    test("el límite de pedidos del proxy cuenta una IPv6 por su /64 (cambiar el final de la dirección no lo salta)", () => {
+        expect(claveLimiteProxy("2001:db8:1:2:aaaa::1", "/herramientas")).toBe(claveLimiteProxy("2001:db8:1:2:bbbb:cccc:dddd:9", "/blog"));
+        expect(claveLimiteProxy("2001:db8:1:2::1", "/")).not.toBe(claveLimiteProxy("2001:db8:1:3::1", "/"));
+        expect(claveLimiteProxy("203.0.113.7", "/")).not.toBe(claveLimiteProxy("203.0.113.8", "/"));
+        // Cada categoría lleva su propia cuenta.
+        const categorias = ["/api/auth/x", "/api/finance/x", "/api/tools/x", "/blog"].map((r) => claveLimiteProxy("203.0.113.7", r));
+        expect(new Set(categorias).size).toBe(4);
+        expect(leer("src/proxy.ts")).toContain("claveLimiteProxy(");
     });
 
     test("ninguna ruta guarda la IP sin hash en el registro de límites (RateLimitEntry)", () => {
