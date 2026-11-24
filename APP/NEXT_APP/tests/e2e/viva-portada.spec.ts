@@ -2,10 +2,10 @@ import { expect, test } from "@playwright/test";
 import { PORTADA } from "./viva-utils";
 
 test.describe("Materia viva: la portada completa", () => {
-    test("las seis secciones, en orden, y un solo título principal", async ({ page }) => {
+    test("las siete secciones, en orden (con el índice), y un solo título principal", async ({ page }) => {
         await page.goto(PORTADA, { waitUntil: "domcontentloaded" });
         const ids = await page.locator("main section[id]").evaluateAll((s) => s.map((x) => x.id));
-        expect(ids).toEqual(["inicio", "proyectos", "herramientas", "blog", "contacto", "firma"]);
+        expect(ids).toEqual(["inicio", "proyectos", "herramientas", "indice", "blog", "contacto", "firma"]);
         await expect(page.locator("h1")).toHaveCount(1);
         // Lo de la portada anterior ya no está.
         await expect(page.locator("[data-barra-anterior], [data-pie-anterior]")).toHaveCount(0);
@@ -23,7 +23,7 @@ test.describe("Materia viva: la portada completa", () => {
             // En celular las formas de fondo se apagan («marco» sin opacidad): la esfera se cambia por una lista y las olas
             // ya no pasan por encima del texto. La materia queda donde es el contenido.
             const celular = ancho <= 760;
-            for (const [id, forma] of [["proyectos", "imagen"], ["herramientas", celular ? "marco" : "texto"], ["blog", celular ? "marco" : "olas"], ["contacto", "anillo"], ["firma", "firma"]] as const) {
+            for (const [id, forma] of [["proyectos", "imagen"], ["herramientas", celular ? "marco" : "texto"], ["indice", "marco"], ["blog", celular ? "marco" : "olas"], ["contacto", "anillo"], ["firma", "firma"]] as const) {
                 await page.evaluate((x) => document.getElementById(x)!.scrollIntoView({ behavior: "instant", block: "center" }), id);
                 await expect(lienzo, `forma en #${id}`).toHaveAttribute("data-forma-activa", forma);
             }

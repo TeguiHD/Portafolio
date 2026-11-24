@@ -1,12 +1,14 @@
 /* Barra de «Materia viva». Copiada de la maqueta aprobada (fuentes/navbar.html). */
 /* ================= Navegación (prefijo nb-): una cápsula que respira con la página ================= */
-.nb { --ancho: min(1180px, 100vw - 32px); position: fixed; z-index: 30; top: 16px; left: 50%; width: var(--ancho); display: flex; align-items: center; gap: 6px;
-  padding: 8px 8px 8px 22px; border-radius: 999px; border: 1px solid transparent; translate: -50% 0; isolation: isolate;
+/* Centrada con márgenes, no con translate: el anclaje CSS ubica los paneles con la caja sin transformar, y con
+   translate: -50% quedaban corridos medio ancho de barra a la derecha (24-11-2026). */
+.nb { --ancho: min(1180px, 100vw - 32px); position: fixed; z-index: 30; top: 16px; left: 0; right: 0; margin-inline: auto; width: var(--ancho); display: flex; align-items: center; gap: 6px;
+  padding: 8px 8px 8px 22px; border-radius: 999px; border: 1px solid transparent; isolation: isolate;
   transition: width .7s var(--curva), padding .7s var(--curva), translate .55s var(--curva), background .5s, border-color .5s, box-shadow .5s; }
 /* Al bajar se recoge en una cápsula de vidrio; si sigues bajando se esconde, y vuelve apenas subes */
 .nb.nb-baja { --ancho: min(680px, 100vw - 32px); padding-left: 20px; background: color-mix(in srgb, var(--fondo-2) 70%, transparent); border-color: var(--linea-2);
   backdrop-filter: blur(20px) saturate(1.5); box-shadow: 0 1px 0 #ffffff1f inset, 0 22px 60px -26px #000c; }
-.nb.nb-oculta { translate: -50% -140%; }
+.nb.nb-oculta { translate: 0 -140%; }
 /* Avance de lectura: un hilo de luz que recorre el borde inferior de la cápsula */
 .nb::after { content: ""; position: absolute; left: 26px; right: 26px; bottom: -1px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--acento)); transform-origin: left;
   transform: scaleX(var(--avance, 0)); opacity: 0; transition: opacity .4s; }
@@ -19,8 +21,13 @@
 .nb.nb-baja .nb-marca span { max-width: 0; opacity: 0; }
 
 .nb-ir { position: relative; display: flex; align-items: center; margin-right: 6px; }
-.nb-ir a { position: relative; z-index: 1; padding: 10px 16px; border-radius: 999px; color: var(--mut); font-size: 15.5px; transition: color .3s; }
-.nb-ir a:hover, .nb-ir a[aria-current] { color: var(--txt); }
+.nb-ir .nb-item { position: relative; z-index: 1; padding: 10px 16px; border-radius: 999px; color: var(--mut); font-size: 15.5px; transition: color .3s; }
+.nb-ir .nb-item:hover, .nb-ir .nb-item[aria-current], .nb-abre[aria-expanded="true"] { color: var(--txt); }
+.nb-abre { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; font: inherit; cursor: pointer; }
+.nb-abre svg { transition: rotate .25s var(--curva); }
+.nb-abre[aria-expanded="true"] svg { rotate: 180deg; }
+.nb-abre:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.nb-grupo { display: contents; }
 /* La pastilla viaja entre los enlaces: sigue al cursor y descansa en la sección actual */
 .nb-luz { position: absolute; z-index: 0; left: 0; top: 50%; height: 36px; width: var(--w, 0px); border-radius: 999px; translate: var(--x, 0px) -50%; opacity: var(--o, 0);
   background: color-mix(in srgb, var(--txt) 9%, transparent); box-shadow: 0 1px 0 #ffffff1a inset;
@@ -42,7 +49,7 @@
   .nb { animation: nb-cae .9s var(--curva) both; }
   .nb > * { animation: nb-llega .7s var(--curva) both; animation-delay: calc(.25s + var(--n, 0) * 70ms); }
 }
-@keyframes nb-cae { from { translate: -50% -130%; } }
+@keyframes nb-cae { from { translate: 0 -130%; } }
 @keyframes nb-llega { from { opacity: 0; transform: translateY(-10px); } }
 
 /* El botón «Menú» y lo que solo va en el menú del celular no existen en ancho; la lista es parte de la fila. */
@@ -79,16 +86,20 @@
   .nb-lista[popover]::backdrop { background: rgb(4 6 10 / .45); }
   :root[data-tema="claro"] .nb-lista[popover]::backdrop { background: rgb(13 30 44 / .25); }
   :root[data-tema="claro"] .nb-lista:is([popover], [data-abierta]) { box-shadow: 0 30px 70px -30px rgb(13 40 60 / .45); }
-  .nb-lista a { display: flex; align-items: center; justify-content: space-between; padding: 15px 14px; border-radius: 14px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--txt); }
-  .nb-lista a:not(.boton)::after { content: "→"; color: var(--mut); font-weight: 400; }
-  .nb-lista a + a:not(.boton) { border-top: 1px solid var(--linea); border-radius: 0; }
-  .nb-lista a[aria-current]:not(.boton) { color: var(--acento); }
+  /* Con .nb-ir delante: le gana a la regla de escritorio (.nb-ir .nb-item), que achicaba y apagaba los enlaces. */
+  .nb-ir .nb-lista > a, .nb-ir .nb-grupo > .nb-abre { display: flex; align-items: center; justify-content: space-between; padding: 15px 14px; border-radius: 14px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--txt); }
+  .nb-lista > a:not(.boton)::after { content: "→"; color: var(--mut); font-weight: 400; }
+  .nb-lista > :is(a, .nb-grupo) + :is(a:not(.boton), .nb-grupo) { border-top: 1px solid var(--linea); border-radius: 0; }
+  .nb-lista > a[aria-current]:not(.boton), .nb-grupo > .nb-abre[aria-current] { color: var(--acento); }
+  .nb-grupo { display: block; }
+  .nb-grupo > .nb-abre { width: 100%; text-align: left; color: var(--txt); }
+  .nb-sub[hidden] { display: none; }
   .viva .nb .nb-lista .nb-solo-menu { display: flex; }
   .nb-lista .nb-instalar { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 15px 14px; border: 0; border-top: 1px solid var(--linea);
     background: none; color: var(--acento); font: 600 18px var(--font-inter, Inter), sans-serif; text-align: left; cursor: pointer; }
   .nb-lista .nb-instalar::after { content: "↓"; color: var(--mut); font-weight: 400; }
   .nb-lista .ayuda-instalar { margin: 0; padding: 0 14px 12px; font-size: 14.5px; color: var(--mut); }
-  .nb-lista .nb-menu-hablar { justify-content: center; margin-top: 10px; padding: 16px 20px; font-size: 16.5px; border-radius: 16px; }
+  .nb-ir .nb-lista .nb-menu-hablar { justify-content: center; margin-top: 10px; padding: 16px 20px; font-size: 16.5px; border-radius: 16px; }
   @media (prefers-reduced-motion: no-preference) {
     .nb-lista[popover] { transition: opacity .22s var(--curva), translate .28s var(--curva), overlay .28s allow-discrete, display .28s allow-discrete; opacity: 0; translate: 0 -10px; }
     .nb-lista[popover]:popover-open { opacity: 1; translate: 0 0; }
@@ -99,5 +110,46 @@
   .nb { flex-wrap: wrap; }
   .nb-menu { display: none; }
   .nb-lista { display: flex; flex-wrap: wrap; gap: 4px 6px; width: 100%; }
-  .nb-lista a { padding: 8px 10px; font-size: 15px; }
+  .nb-ir .nb-lista a { padding: 8px 10px; font-size: 15px; }
+}
+
+/* ---- Paneles de Herramientas e Índice (patrón navbar anidado) ---- */
+/* Último recurso del panel en pantallas medianas: centrado bajo la barra. */
+@position-try --nb-centro { position-area: block-end span-all; justify-self: center; }
+/* Ancho: popover anclado bajo su botón (anchor positioning; sin él, el script lo ubica). */
+@media (min-width: 861px) {
+  /* Alineado al borde derecho de su botón (la barra está a la derecha); si se sale, al izquierdo; si tampoco cabe, centrado. */
+  .nb-sub[popover] { position: absolute; position-area: block-end span-inline-start; position-try-fallbacks: flip-inline, --nb-centro;
+    inset: auto; height: auto; margin: 12px 0 0; overflow: visible;
+    width: min(640px, calc(100dvw - 32px)); padding: 0; border: 1px solid var(--linea-2); border-radius: 22px; color: var(--txt);
+    background: color-mix(in srgb, var(--fondo) 94%, transparent); backdrop-filter: blur(18px) saturate(1.3); box-shadow: 0 30px 80px -30px rgb(0 0 0 / .7); }
+  @supports not (position-area: block-end) { .nb-sub[popover] { position: fixed; margin: 0; } }
+  /* Puente sobre el hueco: pasar del botón al panel no cuenta como salir. */
+  .nb-sub[popover]::before { content: ""; position: absolute; inset-inline: 0; inset-block-end: 100%; block-size: 14px; }
+  .nb-sub:not(:popover-open) { display: none; }
+  .nb-sub:popover-open { display: block; }
+  :root[data-tema="claro"] .nb-sub[popover] { box-shadow: 0 30px 70px -30px rgb(13 40 60 / .4); }
+  @media (prefers-reduced-motion: no-preference) {
+    .nb-sub[popover] { transition: opacity .2s var(--curva), translate .25s var(--curva), overlay .25s, display .25s; transition-behavior: allow-discrete; }
+    @starting-style { .nb-sub[popover]:popover-open { opacity: 0; translate: 0 -6px; } }
+  }
+}
+.nb-panel { padding: 18px; display: grid; gap: 14px; }
+.nb-panel a { display: grid; gap: 2px; padding: 10px 12px; border-radius: 14px; color: var(--txt); text-decoration: none; transition: background .2s; }
+.nb-panel a:hover, .nb-panel a:focus-visible { background: color-mix(in srgb, var(--txt) 7%, transparent); }
+.nb-panel a:focus-visible { outline: 2px solid var(--acento); outline-offset: -2px; }
+.nb-panel b { font-size: 15.5px; font-weight: 600; }
+.nb-panel span { font-size: 13.5px; color: var(--mut); line-height: 1.35; }
+.nb-panel-lista, .nb-panel-grupos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; }
+.nb-panel-lista span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nb-panel-todas { border-top: 1px solid var(--linea); border-radius: 0 0 14px 14px !important; font-weight: 600; color: var(--acento) !important; }
+.nb-panel-indice { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: start; }
+.nb-panel-grupos { grid-template-columns: 1fr; }
+.nb-panel-grupos a { padding: 7px 12px; font-size: 14.5px; color: var(--mut); }
+.nb-panel-grupos a:hover { color: var(--txt); }
+/* En el menú del celular: el panel va dentro, en una columna. */
+@media (max-width: 860px) {
+  .nb-panel { padding: 0 4px 10px; }
+  .nb-panel-lista, .nb-panel-indice { grid-template-columns: 1fr; }
+  .nb-panel a { padding: 9px 12px; }
 }

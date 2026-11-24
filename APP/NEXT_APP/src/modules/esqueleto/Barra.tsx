@@ -6,14 +6,17 @@ import { usePathname } from "next/navigation";
 import { useSeccion } from "@/modules/materia/Materia";
 import { cambiarTema } from "./tema";
 import { BotonInstalar } from "@/components/pwa/BotonInstalar";
+import { PanelHerramientas, PanelIndice } from "./MenusBarra";
 import "./barra.css";
 
-export interface EnlaceBarra { href: string; texto: string }
+/** Un destino de la barra. Con `menu`, es un botón que abre un panel (popover en ancho, lista desplegable en el menú del celular). */
+export interface EnlaceBarra { href: string; texto: string; menu?: "herramientas" | "indice" }
 
 const ENLACES: EnlaceBarra[] = [
     { href: "/servicios", texto: "Servicios" },
     { href: "/#proyectos", texto: "Proyectos" },
-    { href: "/herramientas", texto: "Herramientas" },
+    { href: "/herramientas", texto: "Herramientas", menu: "herramientas" },
+    { href: "/indice-web-chilena", texto: "Índice", menu: "indice" },
     { href: "/blog", texto: "Blog" },
 ];
 
@@ -34,7 +37,7 @@ export function Barra({ enlaces = ENLACES, inicio = "/", contacto = "/#contacto"
     const encima = useRef(-1);
     const posar = () => {
         const nav = ir.current; if (!nav) return;
-        const i = encima.current >= 0 ? encima.current : actual, a = nav.querySelectorAll<HTMLElement>("a")[i];
+        const i = encima.current >= 0 ? encima.current : actual, a = nav.querySelectorAll<HTMLElement>(".nb-item")[i];
         if (!a) { nav.style.setProperty("--o", "0"); return; }
         nav.style.setProperty("--x", `${a.offsetLeft - (innerWidth <= 760 ? 5 : 0)}px`);
         nav.style.setProperty("--w", `${a.offsetWidth}px`);
@@ -86,9 +89,64 @@ export function Barra({ enlaces = ENLACES, inicio = "/", contacto = "/#contacto"
         aplicar(); angosto.addEventListener("change", aplicar); l.addEventListener("toggle", alCambiar); b.addEventListener("click", sinApi);
         return () => { angosto.removeEventListener("change", aplicar); l.removeEventListener("toggle", alCambiar); b.removeEventListener("click", sinApi); };
     }, []);
-    // Al elegir un destino, el menú se cierra (también si es una sección de esta misma página).
-    const cerrarMenu = () => { const l = lista.current; if (!l) return; if (l.matches?.(":popover-open")) l.hidePopover(); l.removeAttribute("data-abierta"); };
+    // Al elegir un destino, el menú se cierra (también si es una sección de esta misma página), y los paneles también.
+    const cerrarMenu = () => {
+        const l = lista.current; if (!l) return;
+        if (l.matches?.(":popover-open")) l.hidePopover();
+        l.removeAttribute("data-abierta");
+        for (const p of l.querySelectorAll<HTMLElement>(".nb-sub")) { if (p.matches?.(":popover-open")) p.hidePopover(); }
+    };
     useEffect(cerrarMenu, [ruta]);
+
+    // Los paneles (patrón navbar anidado): en ancho son popovers que abre el botón (popovertarget) o el cursor al pasar;
+    // en el menú del celular son listas desplegables con hidden. Se sincronizan con el mismo corte que la lista.
+    useEffect(() => {
+        const l = lista.current; if (!l) return;
+        const angosto = matchMedia("(max-width: 860px)"), conHover = matchMedia("(hover: hover)");
+        const grupos = [...l.querySelectorAll<HTMLElement>(".nb-grupo")];
+        const limpiezas: (() => void)[] = [];
+        const anclaje = CSS.supports("position-area", "block-end");
+        const aplicar = () => {
+            for (const g of grupos) {
+                const b = g.querySelector<HTMLButtonElement>(".nb-abre")!, p = g.querySelector<HTMLElement>(".nb-sub")!;
+                if (p.matches?.(":popover-open")) p.hidePopover();
+                if (angosto.matches) { p.removeAttribute("popover"); p.hidden = true; } else { p.setAttribute("popover", "auto"); p.hidden = false; }
+                b.setAttribute("aria-expanded", "false");
+            }
+        };
+        for (const g of grupos) {
+            const b = g.querySelector<HTMLButtonElement>(".nb-abre")!, p = g.querySelector<HTMLElement>(".nb-sub")!;
+            let vistaPrevia = false;
+            const alCambiar = (e: Event) => {
+                const abierto = (e as ToggleEvent).newState === "open";
+                b.setAttribute("aria-expanded", String(abierto));
+                if (!abierto) vistaPrevia = false;
+                // Sin anchor positioning: el panel se ubica bajo su botón con su caja, sin salirse de la pantalla.
+                if (abierto && !anclaje) {
+                    const r = b.getBoundingClientRect(), t = p.getBoundingClientRect();
+                    const arriba = r.bottom + 10 + t.height > innerHeight ? Math.max(0, r.top - 10 - t.height) : r.bottom + 10;
+                    p.style.top = `${arriba}px`; p.style.left = `${Math.min(Math.max(0, r.left + r.width / 2 - t.width / 2), innerWidth - t.width)}px`;
+                }
+            };
+            const clic = (e: MouseEvent) => {
+                if (angosto.matches) { p.hidden = !p.hidden; b.setAttribute("aria-expanded", String(!p.hidden)); return; }
+                // Si el cursor ya lo abrió, el clic lo deja fijo en vez de cerrarlo.
+                if (vistaPrevia) { vistaPrevia = false; e.preventDefault(); }
+            };
+            const entra = (e: PointerEvent) => {
+                if (angosto.matches || !conHover.matches || e.pointerType === "touch" || p.matches(":popover-open")) return;
+                // Con source, el botón queda como ancla implícita del panel (los tipos de TypeScript aún no lo traen).
+                try { (p.showPopover as (o?: { source?: HTMLElement }) => void)({ source: b }); } catch { try { p.showPopover(); } catch { return; } }
+                vistaPrevia = true;
+            };
+            const sale = () => { if (vistaPrevia && p.matches(":popover-open")) p.hidePopover(); };
+            const foco = (e: FocusEvent) => { if (e.relatedTarget && !g.contains(e.relatedTarget as Node) && p.matches?.(":popover-open")) p.hidePopover(); };
+            p.addEventListener("toggle", alCambiar); b.addEventListener("click", clic); g.addEventListener("pointerenter", entra); g.addEventListener("pointerleave", sale); g.addEventListener("focusout", foco);
+            limpiezas.push(() => { p.removeEventListener("toggle", alCambiar); b.removeEventListener("click", clic); g.removeEventListener("pointerenter", entra); g.removeEventListener("pointerleave", sale); g.removeEventListener("focusout", foco); });
+        }
+        aplicar(); angosto.addEventListener("change", aplicar);
+        return () => { angosto.removeEventListener("change", aplicar); limpiezas.forEach((f) => f()); };
+    }, []);
 
     // El botón se deja atraer por el cursor (solo con puntero fino y sin la preferencia de menos movimiento).
     useEffect(() => {
@@ -111,13 +169,23 @@ export function Barra({ enlaces = ENLACES, inicio = "/", contacto = "/#contacto"
                     <span>Menú</span>
                 </button>
                 <div className="nb-lista" id="nb-lista" ref={lista}>
-                    {enlaces.map((e, k) => (
-                        <Link key={e.href} href={e.href} aria-current={k === actual ? "location" : !e.href.includes("#") && (ruta === e.href || ruta.startsWith(`${e.href}/`)) ? "page" : undefined}
-                            onClick={cerrarMenu}
-                            onPointerEnter={() => { encima.current = k; posar(); }} onFocus={() => { encima.current = k; posar(); }} onBlur={() => { encima.current = -1; posar(); }}>
-                            {e.texto}
-                        </Link>
-                    ))}
+                    {enlaces.map((e, k) => {
+                        const aqui = k === actual ? "location" : !e.href.includes("#") && (ruta === e.href || ruta.startsWith(`${e.href}/`)) ? "page" : undefined;
+                        const pastilla = { onPointerEnter: () => { encima.current = k; posar(); }, onFocus: () => { encima.current = k; posar(); }, onBlur: () => { encima.current = -1; posar(); } };
+                        if (!e.menu) return <Link key={e.href} className="nb-item" href={e.href} aria-current={aqui} onClick={cerrarMenu} {...pastilla}>{e.texto}</Link>;
+                        const id = `nb-sub-${e.menu}`;
+                        return (
+                            <div key={e.href} className="nb-grupo">
+                                <button type="button" className="nb-item nb-abre" aria-expanded="false" aria-controls={id} popoverTarget={id} aria-current={aqui} {...pastilla}>
+                                    {e.texto}
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                                </button>
+                                <div className="nb-sub" id={id}>
+                                    {e.menu === "herramientas" ? <PanelHerramientas alElegir={cerrarMenu} /> : <PanelIndice alElegir={cerrarMenu} />}
+                                </div>
+                            </div>
+                        );
+                    })}
                     {/* Solo en el menú del celular: lo que en ancho vive en el pie o en el botón de al lado. */}
                     <Link className="nb-solo-menu" href="/sobre-mi" onClick={cerrarMenu} aria-current={ruta === "/sobre-mi" ? "page" : undefined}>Sobre mí</Link>
                     <BotonInstalar className="nb-solo-menu nb-instalar" />

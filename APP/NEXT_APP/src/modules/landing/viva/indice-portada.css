@@ -1,0 +1,16 @@
+/* Índice de la Web Chilena en la portada (prefijo ipo-): el texto a la izquierda, tres cifras grandes a la derecha. */
+.ipo { padding-block: 110px; }
+.ipo-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 80px); align-items: start; }
+.ipo-texto p { max-width: 54ch; color: var(--mut); font-size: 18px; line-height: 1.55; }
+.ipo-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; margin-top: 26px; }
+/* La columna de la cifra mide lo que la cifra más ancha (subgrid): los textos quedan alineados y «65 %» no se parte. */
+.ipo-cifras { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 22px 18px; }
+.ipo-cifras li { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: baseline; padding-bottom: 20px; border-bottom: 1px solid var(--linea); }
+.ipo-cifras b { white-space: nowrap; font-size: clamp(34px, 4.2vw, 56px); font-weight: 800; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--txt); }
+.ipo-cifras span { color: var(--mut); font-size: 16px; line-height: 1.45; }
+@media (max-width: 820px) {
+  .ipo { padding-block: 80px; }
+  .ipo-rejilla { grid-template-columns: 1fr; }
+  .ipo-cifras { grid-template-columns: minmax(0, 1fr); }
+  .ipo-cifras li { row-gap: 6px; }
+}
