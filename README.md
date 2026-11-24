@@ -1,28 +1,42 @@
-<div align="center">
+# nicoholas.dev
 
-# Portafolio Full-Stack
-
-**Portfolio publico + plataforma operativa privada + laboratorios de herramientas + defensa autonoma controlada.**
+Sitio de **Nicoholas Lopetegui**, desarrollador full stack e ingeniero en informática en Chile. Este repositorio tiene el
+código completo: el sitio público y la plataforma privada que lo acompaña (panel, portal de clientes, cotizaciones y
+finanzas).
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](APP/NEXT_APP)
 [![React](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white)](APP/NEXT_APP/package.json)
 [![Prisma](https://img.shields.io/badge/Prisma-7-2d3748?logo=prisma)](APP/NEXT_APP/prisma/schema.prisma)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](DOCKER)
-[![Redis](https://img.shields.io/badge/Redis-AOF%20%2B%20noeviction-dc382d?logo=redis&logoColor=white)](APP/NEXT_APP/docs/SECURITY_OPERATIONS_RUNBOOK.md)
-[![pnpm](https://img.shields.io/badge/pnpm-10.33-f69220?logo=pnpm&logoColor=white)](APP/NEXT_APP/package.json)
-[![Security](https://img.shields.io/badge/security-Zero%20Trust%20%2B%20SOAR--lite-0f766e)](APP/NEXT_APP/docs/SECURITY_OPERATIONS_RUNBOOK.md)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169e1?logo=postgresql&logoColor=white)](DOCKER)
+[![Playwright](https://img.shields.io/badge/Playwright-450%2B%20pruebas-2ead33?logo=playwright&logoColor=white)](APP/NEXT_APP/tests/e2e)
 
-</div>
+## Qué hay en el sitio
+
+- **[Servicios](https://nicoholas.dev/servicios):** desarrollo web a medida, en Chile y a distancia. Tiendas en línea,
+  sistemas internos e intranets, y herramientas web y automatizaciones, cada uno con su caso real (por ejemplo, la
+  tienda en línea de [FloresDyD](https://floresdyd.cl)).
+- **[Herramientas](https://nicoholas.dev/herramientas):** 33 herramientas gratuitas, en español y sin registro; 30
+  funcionan enteras en el navegador. Van de un generador de códigos QR a calculadoras chilenas de sueldo líquido,
+  boleta de honorarios, UF y UTM, y un validador de RUT.
+- **[Índice de la Web Chilena](https://nicoholas.dev/indice-web-chilena):** los sitios de 809 instituciones públicas y
+  universidades de Chile, medidos en siete dimensiones: velocidad, buscadores, IA, seguridad, correo, privacidad y
+  directorios. Datos abiertos (CC BY 4.0) y [metodología pública](https://nicoholas.dev/indice-web-chilena/metodologia).
+- **[Cómo se hizo](https://nicoholas.dev/como-se-hizo):** el método detrás de cada parte (medir, revisar a los mejores,
+  decidir por escrito y comprobar con pruebas) y el estudio de cada herramienta.
+- **[Blog](https://nicoholas.dev/blog)** y **[Sobre mí](https://nicoholas.dev/sobre-mi)**.
+
+Contacto: contacto@nicoholas.dev o el formulario de [nicoholas.dev](https://nicoholas.dev/#contacto).
+LinkedIn: [nicoholas-lopetegui](https://www.linkedin.com/in/nicoholas-lopetegui/).
 
 ---
 
-## Vision
+## Visión
 
-Este repositorio contiene una aplicacion Next.js productiva, no una landing aislada. Une presencia publica, herramientas tecnicas, administracion interna, finanzas personales, gestion comercial, cotizaciones, CV/jobs, portal de clientes, notificaciones, superadmin VPS y un plano de seguridad con auditoria y defensa autonoma reversible.
+Esta es una aplicación Next.js en producción, no una landing aislada. Une la presencia pública, las herramientas, la
+administración interna, las finanzas personales, la gestión comercial, las cotizaciones, el CV y las postulaciones, el
+portal de clientes, las notificaciones y un plano de seguridad con auditoría y defensa automática reversible.
 
-La filosofia del proyecto es simple:
-
-> Construir una plataforma personal/profesional que pueda vivir mucho tiempo: mantenible, auditable, actualizada y operable bajo presion.
+> Una plataforma personal y profesional pensada para durar: mantenible, auditable, al día y operable bajo presión.
 
 ---
 
@@ -62,14 +76,7 @@ flowchart LR
 | **Seguridad** | Zero Trust, MFA, RBAC, AuditLog, CSP, SOAR-lite, AbuseIPDB |
 | **Supply chain** | GitHub Actions, CodeQL, Trivy, Gitleaks, Dependabot |
 
-Validacion local reciente:
-
-| Check | Resultado |
-| --- | --- |
-| `pnpm run lint` | OK |
-| `pnpm run typecheck` | OK |
-| `pnpm run build` | OK |
-| `pnpm run test:e2e` | 15/15 OK |
+Pruebas: más de 450 automáticas con Playwright en `APP/NEXT_APP/tests/e2e`; la mayoría abre el sitio en un navegador real.
 
 > `pnpm audit` consulta el registry externo de npm y puede enviar inventario de dependencias. Ejecutarlo solo con aprobacion explicita del operador.
 
