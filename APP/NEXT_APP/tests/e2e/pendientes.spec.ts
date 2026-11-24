@@ -46,7 +46,9 @@ test.describe("sin navegador", () => {
         expect(claveUsoIp("203.0.113.7")).toBe("203.0.113.7");
         const ruta = leer("src/app/api/tools/regex-ai/route.ts");
         expect(ruta).not.toMatch(/ip:\s*ip\b/);
-        expect((ruta.match(/ip: ipParaUso\(ip\)/g) ?? []).length).toBe(3);
+        // Tampoco en el registro del límite de usos (RateLimitEntry), escrito abreviado: metadata: { ip, … }.
+        expect(ruta).not.toMatch(/metadata:\s*\{\s*ip\s*[,}]/);
+        expect((ruta.match(/ip: ipParaUso\(ip\)/g) ?? []).length).toBe(4); // tres en ToolUsage y una en RateLimitEntry
     });
 
     test("resembrar no pisa lo editado en el panel y no queda la semilla vieja de 28", () => {

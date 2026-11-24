@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { DEFAULT_TOOL_REGISTRY } from "../../src/lib/tool-registry";
+import { DESTACADAS_RESPALDO } from "../../src/lib/tool-destacadas";
+import { MENU_HERRAMIENTAS } from "../../src/lib/tool-menu";
 
 /** Ronda 2: ninguna herramienta parece de otro sitio. Mismo marco, dos anchos y la cabecera centrada. */
 const SITIO = 1180;
@@ -37,6 +39,7 @@ async function medir(page: Page) {
         return {
             herramienta: w("#tools-content main"),
             guia: w("details.tool-guide"),
+            estudio: w("section.tool-estudio"),
             relacionadas: w("nav.hc-relacionadas"),
             migasX: Math.round(document.querySelector('nav[aria-label="Ruta de navegación"] ol')!.getBoundingClientRect().x),
             centroTitulo: (Math.min(icono.left, texto.left) + Math.max(icono.right, texto.right)) / 2,
@@ -49,13 +52,14 @@ async function medir(page: Page) {
 test.describe("Herramientas, ronda 2", () => {
     test.use({ viewport: { width: 1440, height: 900 } });
 
-    test("dos anchos y una sola columna por página: la guía y las relacionadas miden lo mismo que la herramienta", async ({ page }) => {
+    test("dos anchos y una sola columna por página: la guía, «Cómo se hizo» y las relacionadas miden lo mismo que la herramienta", async ({ page }) => {
         const migas = new Set<number>();
         for (const [slug, ancho] of [["claves", ESTRECHA], ["impuestos", ESTRECHA], ["qr", SITIO], ["json", SITIO], ["comprimir-imagen", SITIO]] as const) {
             await page.goto(`/herramientas/${slug}`);
             const m = await medir(page);
             expect(m.herramienta, `${slug}: herramienta`).toBe(ancho);
             expect(m.guia, `${slug}: guía`).toBe(ancho);
+            expect(m.estudio, `${slug}: «Cómo se hizo»`).toBe(ancho);
             expect(m.relacionadas, `${slug}: relacionadas`).toBe(ancho);
             migas.add(m.migasX);
         }
@@ -78,6 +82,15 @@ test.describe("Herramientas, ronda 2", () => {
         const migas = (await page.getByRole("navigation", { name: "Ruta de navegación" }).locator("ol").boundingBox())!;
         const titulo = (await page.locator("#ht-cab-titulo").boundingBox())!;
         expect(Math.abs(migas.x - titulo.x)).toBeLessThanOrEqual(1);
+    });
+
+    test("datos: el menú de la barra copia del registro las destacadas y dos de Chile", () => {
+        // El menú vive aparte para no mandar el registro entero al navegador en cada página (24-11-2026).
+        const esperado = [...DESTACADAS_RESPALDO, "sueldo-liquido", "uf-utm"].map((slug) => {
+            const t = DEFAULT_TOOL_REGISTRY.find((x) => x.slug === slug)!;
+            return { slug, nombre: t.name, que: t.description.split(/(?<=\.)\s/)[0]!.replace(/\.$/, "") };
+        });
+        expect(MENU_HERRAMIENTAS).toEqual(esperado);
     });
 
     test("catálogo: el registro completo no viaja al navegador", async ({ page }) => {

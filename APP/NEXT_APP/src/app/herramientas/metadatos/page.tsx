@@ -419,6 +419,55 @@ function segmentoOrientacion(orientacion: number): Uint8Array<ArrayBuffer> {
 }
 
 /**
+ * Dónde termina la foto: justo después del EOI (FFD9). Recorre los segmentos que vienen desde el primer SOS (en un JPEG
+ * progresivo hay tablas y más barridos entre medio) y, dentro de cada barrido, salta los bytes de relleno (FF00) y las
+ * marcas de reinicio (RST0–7), que son lo único con FF que puede aparecer ahí. Sin EOI, la foto llega hasta el final.
+ * Lo que algunos celulares pegan después (el video de una foto en movimiento, otras imágenes) no es parte de la foto y
+ * puede traer su propia ubicación: no se copia.
+ */
+function finDeLaFoto(view: DataView, sos: number): number {
+    let i = sos;
+    while (i + 1 < view.byteLength) {
+        const marca = view.getUint16(i);
+        if (marca === 0xFFD9) return i + 2;
+        if (marca === 0xFFFF) { i++; continue; } // FF de relleno entre segmentos
+        if ((marca & 0xFF00) !== 0xFF00 || i + 3 >= view.byteLength) return view.byteLength;
+        i += 2 + view.getUint16(i + 2);
+        if (marca !== 0xFFDA) continue;
+        while (i + 1 < view.byteLength) {
+            if (view.getUint8(i) !== 0xFF) { i++; continue; }
+            const b = view.getUint8(i + 1);
+            if (b === 0x00 || (b >= 0xD0 && b <= 0xD7)) { i += 2; continue; }
+            if (b === 0xFF) { i++; continue; } // FF de relleno antes de una marca
+            break; // una marca: la lee la vuelta de afuera
+        }
+    }
+    return view.byteLength;
+}
+
+/** ¿El segmento empieza (tras marca y largo) con este identificador? */
+function tieneId(view: DataView, offset: number, id: string): boolean {
+    if (offset + 4 + id.length > view.byteLength) return false;
+    for (let k = 0; k < id.length; k++) if (view.getUint8(offset + 4 + k) !== id.charCodeAt(k)) return false;
+    return true;
+}
+
+/**
+ * Los APPn y comentarios que se quedan: solo los técnicos, que no dicen nada de quien sacó la foto y hacen falta para
+ * mostrarla bien: APP0 JFIF, APP2 con el perfil de color y APP14 de Adobe (cómo leer los colores en CMYK). El resto se
+ * quita: EXIF y XMP (APP1), IPTC (APP13), MPF (APP2, anuncia imágenes pegadas al final), lo que cada marca guarda en
+ * otros APPn (Samsung en APP4: sensor e identificador único; C2PA en APP11: autor y lugar) y los comentarios (COM).
+ */
+function seQuedaEnLaCopia(view: DataView, offset: number, marker: number): boolean {
+    if (marker === 0xFFFE) return false;
+    if (marker < 0xFFE0 || marker > 0xFFEF) return true; // tablas y cabecera de la imagen
+    if (marker === 0xFFE0) return tieneId(view, offset, "JFIF\0") || tieneId(view, offset, "JFXX\0");
+    if (marker === 0xFFE2) return tieneId(view, offset, "ICC_PROFILE\0");
+    if (marker === 0xFFEE) return tieneId(view, offset, "Adobe");
+    return false;
+}
+
+/**
  * Strip all EXIF data from a JPEG by rebuilding without APP1 segments.
  * SECURITY: Creates a clean copy, preserving only image data.
  * La orientación se vuelve a escribir sola: sin ella, una foto vertical del celular se ve acostada.
@@ -438,24 +487,25 @@ function stripExif(buffer: ArrayBuffer, orientacion = 1): ArrayBuffer {
         const marker = view.getUint16(offset);
 
         if (marker === 0xFFDA) {
-            // Start of Scan - copy everything from here to end (actual image data)
-            chunks.push(buffer.slice(offset));
+            // Start of Scan: la imagen hasta su EOI; lo pegado después no.
+            chunks.push(buffer.slice(offset, finDeLaFoto(view, offset)));
             break;
         }
 
+        if (marker === 0xFFFF) { offset++; continue; } // FF de relleno entre segmentos
         if ((marker & 0xFF00) !== 0xFF00) break;
 
         if (offset + 3 >= view.byteLength) break;
         const segmentLength = view.getUint16(offset + 2);
         const segmentEnd = offset + 2 + segmentLength;
 
-        // Skip APP1 (EXIF, XMP), APP13 (IPTC) and COM (comments) segments — strip metadata
-        if (marker === 0xFFE1 || marker === 0xFFED || marker === 0xFFFE) {
+        // Los metadatos no pasan a la copia (seQuedaEnLaCopia dice cuáles sí, y por qué).
+        if (!seQuedaEnLaCopia(view, offset, marker)) {
             offset = segmentEnd;
             continue;
         }
 
-        // Keep all other segments
+        // Tablas, cabecera de la imagen y los APPn técnicos
         chunks.push(buffer.slice(offset, segmentEnd));
         offset = segmentEnd;
     }

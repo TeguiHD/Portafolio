@@ -30,11 +30,10 @@ function resumenCodigos(h: Hallazgo): string {
  * EMOJI STEGANOGRAPHY
  * ===================
  * Hides text inside emoji sequences using zero-width characters (ZWC).
- * Each character of the secret message is encoded into a binary representation
- * using two invisible Unicode characters:
+ * Formato actual (v2): una marca U+2060 y luego cada byte UTF-8 del mensaje en 8 caracteres invisibles, sin separadores:
  *   - Zero-Width Space        (U+200B) → bit 0
  *   - Zero-Width Non-Joiner   (U+200C) → bit 1
- * Characters are separated by Zero-Width Joiner (U+200D).
+ * El formato anterior separaba los caracteres con U+200D (Zero-Width Joiner); se sigue leyendo.
  *
  * SECURITY (OWASP/MITRE):
  * - Input length limits prevent DoS

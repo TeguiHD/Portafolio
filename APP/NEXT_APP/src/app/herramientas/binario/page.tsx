@@ -64,7 +64,8 @@ const binaryToText = (binary: string): string =>
 
 export default function BinaryTranslatorPage() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("binario");
-    const { trackImmediate } = useToolTracking("binario", { trackViewOnMount: true, debounceMs: 2000 });
+    // La visita ya la cuenta la carcasa (una por sesión, como en las demás); aquí solo las acciones.
+    const { trackImmediate } = useToolTracking("binario", { trackViewOnMount: false, debounceMs: 2000 });
 
     const [mode, setMode] = useState<ModeType>("text-to-binary");
     const [inputText, setInputText] = useState("");

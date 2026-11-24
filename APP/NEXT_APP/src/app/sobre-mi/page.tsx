@@ -22,6 +22,7 @@
  */
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
+import Link from "next/link";
 import { Esqueleto } from "@/modules/esqueleto/Esqueleto";
 import { Vista } from "@/modules/landing/viva/Vista";
 import { StackVivo } from "@/modules/sobre-mi/StackVivo";
@@ -143,6 +144,7 @@ export default function SobreMiPage() {
                                 </p>
                             </article>
                         </div>
+                        <p className="sm-tambien" data-sube="" style={{ "--i": 2 } as CSSProperties}>Y este sitio: <Link href="/como-se-hizo">cómo se hizo cada parte</Link>, con lo que se midió, lo que se revisó y cómo se comprueba.</p>
                     </Vista>
                 </section>
 

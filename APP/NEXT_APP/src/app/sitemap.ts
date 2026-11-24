@@ -22,6 +22,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: "monthly",
             priority: 0.7,
         },
+        // El estudio detrás de cada parte del sitio (24-11-2026).
+        { url: `${SITE_URL}/como-se-hizo`, lastModified: new Date("2026-11-24"), changeFrequency: "monthly", priority: 0.7 },
     ];
 
     const tools: MetadataRoute.Sitemap = Object.values(TOOLS_SEO).map((entry) => ({

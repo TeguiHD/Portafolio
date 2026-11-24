@@ -114,3 +114,19 @@ body:has(.tools-workspace) { overflow-x: clip !important; overflow-y: visible !i
 .th p.th-donde { margin-top: 4px; font-size: 13.5px; line-height: 20px; color: color-mix(in srgb, var(--mut) 85%, var(--acento)); }
 /* En el celular el ícono va encima: al lado, un título de dos líneas quedaba centrado lejos de él. */
 @media (max-width: 640px) { .th-titulo { flex-direction: column; gap: 10px; } .th-icono { width: 42px; height: 42px; border-radius: 13px; } .th-icono svg { width: 22px; height: 22px; } }
+
+/* «Cómo se hizo» (src/components/tools/ComoSeHizo.tsx): el estudio de cada herramienta, entre ella y la guía. Una lista
+   de definiciones: el nombre de cada fila a la izquierda y su contenido a la derecha (subgrid alinea las columnas de
+   todas las filas); en el celular, uno sobre otro. Colores del sitio, así sirve igual en tema claro y oscuro. */
+.tools-workspace .tool-estudio { box-sizing: border-box; width: var(--ancho-h); margin: 0 auto 2.5rem; scroll-margin-top: 6rem; color: var(--txt); }
+.tool-estudio h2 { margin: 0 0 .75rem; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
+.tool-estudio dl { display: grid; grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr); margin: 0; border-top: 1px solid var(--linea-2); }
+.tool-estudio dl > div { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; column-gap: 1.5rem; row-gap: .2rem; padding: .85rem 0; border-bottom: 1px solid var(--linea); }
+.tool-estudio dt { color: var(--mut); font-size: .875rem; line-height: 1.6; }
+.tool-estudio dd { margin: 0; max-width: 68ch; font-size: .9375rem; line-height: 1.6; text-wrap: pretty; overflow-wrap: anywhere; }
+.tool-estudio ul { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; margin: 0; padding: 0; list-style: none; }
+.tool-estudio cite { font-style: normal; }
+.tool-estudio a { color: var(--txt); text-decoration: underline; text-decoration-color: var(--linea-2); text-underline-offset: 3px; transition: text-decoration-color .2s; }
+.tool-estudio a:hover { text-decoration-color: var(--acento); }
+.tool-estudio > p { margin: .9rem 0 0; font-size: .875rem; }
+@media (max-width: 640px) { .tool-estudio dl { grid-template-columns: minmax(0, 1fr); } }

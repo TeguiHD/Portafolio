@@ -35,3 +35,9 @@ Rehacer el interior de cada herramienta, unificar anchos de todas, el panel de a
 ## Anti-objetivos
 
 Texto que prometa algo que el código no hace; perder un h1 o duplicarlo; romper las pruebas de SEO.
+
+## Corrección (24-11-2026)
+
+La línea de regex decía «que usa Google Gemini»: el código manda la descripción o el patrón a OpenRouter, con el modelo
+Mistral Small 24B (`src/services/gemini.ts`), nunca el texto de prueba. Se corrigió en el registro y en su prueba al
+escribir el «Cómo se hizo» de cada herramienta (docs/superpowers/specs/2026-11-24-como-se-hizo-design.md).

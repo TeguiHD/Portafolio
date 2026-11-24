@@ -156,6 +156,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
         name: "Generador de QR",
         ancho: "ancha",
         description: "Crea un código QR para un enlace, texto, Wi-Fi, contacto o WhatsApp y descárgalo en PNG o SVG.",
+        donde: "Funciona en tu navegador. Solo la vista 3D de realidad aumentada pasa la dirección del modelo al visor del sitio, que lo carga desde ahí.",
         icon: "qr",
         category: "utility",
         publicCategory: "generación",
@@ -281,7 +282,7 @@ export const DEFAULT_TOOL_REGISTRY: ToolRegistryEntry[] = [
         isActive: true,
         sortOrder: 19,
         relacionadas: ["json", "jwt", "base64"],
-        donde: "Funciona en tu navegador. Solo las funciones con IA envían tu texto a nuestro servidor, que usa Google Gemini.",
+        donde: "Funciona en tu navegador. Solo las funciones con IA envían a nuestro servidor la descripción o el patrón, nunca el texto de prueba, y este los pasa a Mistral por OpenRouter.",
     },
     {
         slug: "jwt",

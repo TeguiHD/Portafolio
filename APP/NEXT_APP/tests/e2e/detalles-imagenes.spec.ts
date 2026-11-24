@@ -61,6 +61,39 @@ async function jpegConExif(page: Page) {
     return Buffer.concat([jpeg.subarray(0, finApp0), xmp, exif, jpeg.subarray(finApp0)]);
 }
 
+test("metadatos: el video que algunos celulares pegan tras la foto (foto en movimiento) no queda en la copia limpia", async ({ page }) => {
+    await page.goto("/herramientas/metadatos");
+    const base = await jpegConExif(page);
+    // Multi-Picture Format (APP2 «MPF»): anuncia las imágenes que vienen después del fin de la foto.
+    const mpf = segmento(0xffe2, Buffer.from("MPF\0MM\0*", "latin1"));
+    // Lo que las marcas guardan en otros APPn: Samsung en APP4 (sensor, identificador único), C2PA en APP11 (autor, lugar).
+    const samsung = segmento(0xffe4, Buffer.from("SEC\0ssuniqueid=K12345", "latin1"));
+    const c2pa = segmento(0xffeb, Buffer.from("JP\0\0c2pa autor y lugar", "latin1"));
+    // El perfil de color sí se queda: sin él, una foto en Display P3 se ve con otros colores.
+    const icc = segmento(0xffe2, Buffer.from("ICC_PROFILE\0\x01\x01perfil", "latin1"));
+    const conMpf = Buffer.concat([base.subarray(0, 2), mpf, samsung, c2pa, icc, base.subarray(2)]);
+    // Lo pegado tras el EOI: un MP4 con su ubicación, como en las fotos en movimiento.
+    const video = Buffer.from("\0\0\0\x18ftypmp42\0\0\0\0udta\xa9xyz+33.4489-070.6693/", "latin1");
+    await page.getByLabel("Seleccionar imagen", { exact: true }).setInputFiles({ name: "movimiento.jpg", mimeType: "image/jpeg", buffer: Buffer.concat([conMpf, video]) });
+    await page.getByRole("button", { name: "Limpiar imagen y eliminar metadatos" }).click();
+    const evento = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Descargar", exact: true }).click();
+    const limpia = await bytes(await evento);
+    expect(limpia.includes(Buffer.from("ftypmp42", "latin1"))).toBe(false);
+    expect(limpia.includes(Buffer.from("-070.6693", "latin1"))).toBe(false);
+    expect(limpia.includes(Buffer.from("MPF\0", "latin1"))).toBe(false);
+    expect(limpia.includes(Buffer.from("ssuniqueid", "latin1"))).toBe(false);
+    expect(limpia.includes(Buffer.from("c2pa", "latin1"))).toBe(false);
+    expect(limpia.includes(Buffer.from("ICC_PROFILE", "latin1"))).toBe(true);
+    expect(limpia.subarray(-2).equals(Buffer.from([0xff, 0xd9]))).toBe(true);
+    // Y sigue siendo la misma foto, girada por su orientación 6: el navegador la abre de 80 × 120.
+    const medida = await page.evaluate(async (b64) => {
+        const bmp = await createImageBitmap(new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: "image/jpeg" }), { imageOrientation: "from-image" });
+        return `${bmp.width}x${bmp.height}`;
+    }, limpia.toString("base64"));
+    expect(medida).toBe("80x120");
+});
+
 test("esteganografía: un PNG con transparencia guarda el mensaje y se vuelve a leer", async ({ page }) => {
     await page.goto("/herramientas/esteganografia-imagen");
     await page.getByLabel("Seleccionar imagen", { exact: true }).setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: await png(page, 200, 120, true) });

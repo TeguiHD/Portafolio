@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
         limit: RATE_LIMIT,
         windowMs: RATE_WINDOW_MS,
         identifier,
-        metadata: { ip, fingerprint, cookieId },
+        // La IP va con hash, como en ToolUsage: el límite usa el identificador de arriba, no necesita la IP en claro.
+        metadata: { ip: ipParaUso(ip), fingerprint, cookieId },
     });
 
     // Build response headers

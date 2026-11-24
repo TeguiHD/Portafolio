@@ -41,3 +41,4 @@
   .sm-stack { grid-template-columns: 1fr; } .sm-stack #ancla-marca { height: 200px; }
   .sm-anios li { grid-template-columns: 1fr; }
 }
+.sm-tambien a { color: var(--txt); text-decoration: underline; text-decoration-color: var(--linea-2); text-underline-offset: 4px; }

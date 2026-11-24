@@ -3,7 +3,7 @@ import { TOOL_SEO_SLUGS } from "../../src/lib/seo/tools-content";
 import { readFileSync } from "node:fs";
 import { CATEGORIAS } from "../../src/lib/indice/calculos";
 
-const EDICION = JSON.parse(readFileSync(new URL("../../src/data/indice/2026-11.json", import.meta.url), "utf8")) as { sitios: unknown[] };
+const EDICION = JSON.parse(readFileSync(new URL("../../src/data/indice/2026-12.json", import.meta.url), "utf8")) as { sitios: unknown[] };
 
 const SITE_URL = "https://nicoholas.dev";
 
@@ -12,8 +12,8 @@ const SITE_URL = "https://nicoholas.dev";
 // (legal). Si se agrega o quita una de estas páginas en el sitemap, este
 // número debe actualizarse a mano junto con sitemap.ts; las herramientas, en
 // cambio, se derivan de TOOL_SEO_SLUGS y no deben tocar este archivo nunca.
-// + /servicios y sus tres páginas (22-11-2026); + el índice: portada, método, revisor, 4 rankings y una ficha por sitio.
-const NON_TOOL_SITEMAP_PAGES = 11 + 3 + CATEGORIAS.length + EDICION.sitios.length;
+// + /servicios y sus tres páginas (22-11-2026); + /como-se-hizo (24-11-2026); + el índice: portada, método, revisor, 4 rankings y una ficha por sitio.
+const NON_TOOL_SITEMAP_PAGES = 12 + 3 + CATEGORIAS.length + EDICION.sitios.length;
 const EXPECTED_SITEMAP_URL_COUNT = TOOL_SEO_SLUGS.length + NON_TOOL_SITEMAP_PAGES;
 
 test.describe("Sitemap y robots", () => {
@@ -38,9 +38,10 @@ test.describe("Sitemap y robots", () => {
 
     test("el sitemap no contiene rutas privadas", async ({ request }) => {
         const xml = await (await request.get("/sitemap.xml")).text();
-        expect(xml).not.toContain("/admin");
-        expect(xml).not.toContain("/api/");
-        expect(xml).not.toContain("/acceso");
+        // Se mira el primer tramo de cada ruta: «/indice-web-chilena/…/administradora-de-los-tribunales…» es pública.
+        const rutas = [...xml.matchAll(/<loc>https?:\/\/[^/<]+(\/[^<]*)<\/loc>/g)].map((m) => m[1]!);
+        expect(rutas.length).toBeGreaterThan(100);
+        for (const r of rutas) expect(r, r).not.toMatch(/^\/(admin|api|acceso)(\/|$)/);
     });
 
     test("robots.txt permite crawlers de IA y bloquea admin", async ({ request }) => {

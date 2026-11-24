@@ -1,6 +1,7 @@
 /**
  * AI Service for Regex Generation
- * Uses OpenRouter API with Llama 3.2 3B Instruct (Free tier)
+ * Usa OpenRouter con el modelo mistralai/mistral-small-24b-instruct-2501 (MODEL_NAME). El nombre del archivo es histórico:
+ * ya no usa Gemini. Solo recibe la descripción o el patrón, nunca el texto de prueba.
  * Features: rate limiting protection, prompt injection prevention
  */
 

@@ -1,6 +1,6 @@
 /**
  * Boleta de honorarios: el cliente retiene un porcentaje del bruto y lo paga al SII; tú recibes el resto (líquido).
- * Se calcula al peso, como la boleta electrónica del SII: retención = bruto × tasa redondeado.
+ * Se calcula al peso (el SII no publica su regla de redondeo: investigación del 22-11-2026): retención = bruto × tasa redondeado.
  */
 export interface Boleta {
     bruto: number;

@@ -296,7 +296,7 @@ export default function PasswordGeneratorPage() {
                             <h2 className="text-white font-semibold text-sm flex items-center gap-2">
                                 Tiempo para descifrar
                             </h2>
-                            <a href="https://hashcat.net/wiki/" target="_blank" rel="noopener noreferrer" className="text-[11px] text-neutral-500 hover:text-white">Hashcat 2024 →</a>
+                            <a href="https://hashcat.net/wiki/" target="_blank" rel="noopener noreferrer" className="text-[11px] text-neutral-500 hover:text-white">Hashcat (documentación)</a>
                         </div>
 
                         <div role="group" aria-label="Escenario de ataque" className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mb-4">
@@ -436,7 +436,7 @@ export default function PasswordGeneratorPage() {
                                 { term: "Bits efectivos post-cuánticos", def: "Seguridad real contra computadoras cuánticas. El algoritmo de Grover reduce la entropía a la mitad. 256 bits clásicos = 128 bits cuánticos." },
                                 { term: "Algoritmo de Grover (√n)", def: "Propuesto en 1996 por Lov Grover. Reduce búsqueda de O(N) a O(√N). Ejemplo: 2^128 combinaciones se reducen a 2^64 operaciones cuánticas." },
                                 { term: "NIST PQC", def: "Post-Quantum Cryptography del NIST (Instituto Nacional de Estándares de EE.UU.). Define estándares para criptografía resistente a computadoras cuánticas." },
-                                { term: "Hashcat", def: "Herramienta de código abierto para recuperación de contraseñas. Las velocidades de ataque usadas aquí son las que publica para GPUs RTX 4090." },
+                                { term: "Hashcat", def: "Herramienta de código abierto para recuperar contraseñas. Las velocidades de aquí son estimaciones para una RTX 4090, reunidas de los foros de hashcat y de pruebas publicadas en 2024; cambian con el equipo y la versión." },
                                 { term: "Bcrypt", def: "Función hash diseñada para ser lenta y resistente a GPUs. Usa 'cost factor' para aumentar dificultad. Preferido para almacenar contraseñas." },
                                 { term: "Phishing", def: "Ataque de ingeniería social donde se clona un sitio web legítimo para robar credenciales. Siempre verifica la URL antes de ingresar datos." },
                                 { term: "Credential Stuffing", def: "Ataque automatizado que usa credenciales filtradas de un servicio para probar en otros. Por eso nunca debes reutilizar contraseñas." },
@@ -461,7 +461,7 @@ export default function PasswordGeneratorPage() {
                             { name: "NIST SP 800-131A Rev 2", url: "https://csrc.nist.gov/publications/detail/sp/800-131a/rev-2/final", desc: "Guía de transición criptográfica" },
                             { name: "NIST Post-Quantum Cryptography", url: "https://csrc.nist.gov/Projects/post-quantum-cryptography", desc: "Estándares PQC oficiales" },
                             { name: "Grover's Algorithm (1996)", url: "https://arxiv.org/abs/quant-ph/9605043", desc: "Paper original de Lov Grover" },
-                            { name: "Hashcat: velocidades por GPU", url: "https://hashcat.net/wiki/", desc: "Velocidades reales de crackeo por GPU" },
+                            { name: "Hashcat: documentación", url: "https://hashcat.net/wiki/", desc: "La herramienta de las estimaciones de velocidad" },
                             { name: "OWASP Password Guidelines", url: "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html", desc: "Mejores prácticas de la industria" },
                             { name: "Have I Been Pwned", url: "https://haveibeenpwned.com/", desc: "Verificador de filtraciones de datos" },
                         ].map((s) => (

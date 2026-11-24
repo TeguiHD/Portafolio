@@ -320,8 +320,8 @@ function generateHtaccess(cfg: ServerBlock): string {
     // Deny hidden files
     lines.push("# Deny hidden files");
     lines.push("<FilesMatch \"^\\.\">"); 
-    lines.push("    Order allow,deny");
-    lines.push("    Deny from all");
+    // Apache 2.4: «Require all denied» (Order/Deny es de la 2.2 y en la 2.4 solo funciona con mod_access_compat).
+    lines.push("    Require all denied");
     lines.push("</FilesMatch>");
 
     return lines.join("\n");

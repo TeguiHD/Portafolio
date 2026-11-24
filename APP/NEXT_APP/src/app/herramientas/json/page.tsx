@@ -11,6 +11,7 @@ import { analizarJson, MAX_JSON_CHARS, type AnalisisJson, type AvisosJson } from
 import { analizarJsonEnWorker, cancelarAnalisisJson, UMBRAL_WORKER_JSON } from "@/lib/json-client";
 import { useCopiar } from "@/lib/tools/copiar";
 import { descargarTexto } from "@/lib/tools/descargar";
+import { TOOL_COUNT } from "@/lib/tool-count";
 
 const ACCENT = "#10B981";
 
@@ -88,7 +89,7 @@ export default function JsonFormatterPage() {
 
     // Un ejemplo real para ver qué hace sin tener un JSON a mano (los sitios grandes muestran un resultado antes de pedir nada).
     const cargarEjemplo = useCallback(() => {
-        setInput(JSON.stringify({ sitio: "nicoholas.dev", herramientas: 29, gratis: true, familias: ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes"] }));
+        setInput(JSON.stringify({ sitio: "nicoholas.dev", herramientas: TOOL_COUNT, gratis: true, familias: ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"] }));
         setFeedback(null);
     }, []);
 

@@ -489,7 +489,7 @@ export default function RegexTesterPage() {
                             placeholder="Ingresa el texto para probar tu regex..."
                             className="w-full h-48 bg-[#0a0e17] border border-white/10 rounded-xl p-3 text-white font-mono text-sm focus:ring-2 focus:ring-blue-500/50 outline-none resize-none"
                         />
-                        <p className="text-[10px] text-neutral-600 mt-1">{testString.length.toLocaleString()}/{MAX_TEXT_LENGTH.toLocaleString()} caracteres</p>
+                        <p className="text-[10px] text-neutral-600 mt-1">{testString.length.toLocaleString("es-CL")}/{MAX_TEXT_LENGTH.toLocaleString("es-CL")} caracteres</p>
                     </div>
 
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
@@ -571,7 +571,7 @@ export default function RegexTesterPage() {
                     <p className="text-[10px] text-amber-400/80">
                         <strong>Seguridad:</strong> La expresión, sus grupos y el reemplazo se calculan en un Web Worker, fuera del hilo de la página.
                         Si tardan más de {EXECUTION_TIMEOUT_MS} ms (posible retroceso catastrófico) el worker se termina y la pestaña no se congela.
-                        Límite de texto: {(MAX_TEXT_LENGTH / 1000).toFixed(0)} KB. La explicación del patrón solo lo lee, no lo ejecuta.
+                        Límite de texto: {MAX_TEXT_LENGTH.toLocaleString("es-CL")} caracteres. La explicación del patrón solo lo lee, no lo ejecuta.
                     </p>
                 </div>
 

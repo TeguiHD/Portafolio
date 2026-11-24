@@ -56,6 +56,7 @@ ${proyectos}
 ## Sobre el autor
 
 - [Sobre mí](${SITE_URL}/sobre-mi): biografía, stack y trayectoria.
+- [Cómo se hizo](${SITE_URL}/como-se-hizo): el método (medir, revisar a los mejores, decidir por escrito, comprobar con pruebas) y el estudio de cada parte del sitio y de cada herramienta.
 - GitHub: https://github.com/TeguiHD
 - LinkedIn: https://www.linkedin.com/in/nicoholas-lopetegui/
 

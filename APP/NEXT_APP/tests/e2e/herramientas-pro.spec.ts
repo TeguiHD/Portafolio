@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { getDefaultPublicToolCatalog } from "../../src/lib/tool-registry";
+import { TOOL_COUNT } from "../../src/lib/tool-count";
 
 /** Herramientas más profesionales: una sola cabecera verificada, sin relleno, colores del sitio y resultado de entrada. */
 const CATALOGO = new Map(getDefaultPublicToolCatalog().map((t) => [t.slug, t]));
 const NAVEGADOR = "Funciona en tu navegador: lo que escribes o subes no sale de tu equipo.";
 const DONDE: Record<string, string> = {
     dns: "La consulta la hace nuestro servidor, contra seis resolvedores públicos.",
-    regex: "Funciona en tu navegador. Solo las funciones con IA envían tu texto a nuestro servidor, que usa Google Gemini.",
+    regex: "Funciona en tu navegador. Solo las funciones con IA envían a nuestro servidor la descripción o el patrón, nunca el texto de prueba, y este los pasa a Mistral por OpenRouter.",
+    qr: "Funciona en tu navegador. Solo la vista 3D de realidad aumentada pasa la dirección del modelo al visor del sitio, que lo carga desde ahí.",
 };
 
 test.describe("Herramientas profesionales", () => {
@@ -67,7 +69,7 @@ test.describe("Herramientas profesionales", () => {
     test("JSON se puede probar con un ejemplo", async ({ page }) => {
         await page.goto("/herramientas/json");
         await page.getByRole("button", { name: "Probar con un ejemplo" }).click();
-        await expect(page.locator("#tools-content")).toContainText('"herramientas": 29');
+        await expect(page.locator("#tools-content")).toContainText(`"herramientas": ${TOOL_COUNT}`);
     });
 
     test("unidades: lo que escribes no viaja al servidor dentro de la URL de la visita", async ({ page }) => {

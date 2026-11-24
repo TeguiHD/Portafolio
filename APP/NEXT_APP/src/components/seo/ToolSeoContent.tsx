@@ -12,6 +12,7 @@ import Link from "next/link";
 import { BookOpen, ChevronDown } from "lucide-react";
 import { getToolCopy } from "@/lib/seo/tools-copy";
 import { getToolSeo } from "@/lib/seo/tools-content";
+import { ComoSeHizo } from "@/components/tools/ComoSeHizo";
 
 interface ToolSeoContentProps {
     slug: string;
@@ -19,11 +20,14 @@ interface ToolSeoContentProps {
 
 export function ToolSeoContent({ slug }: ToolSeoContentProps) {
     const copy = getToolCopy(slug);
-    if (!copy) return null;
+    // El estudio de la herramienta va antes de la guía: el porqué y el cómo, después el paso a paso.
+    if (!copy) return <ComoSeHizo slug={slug} />;
 
     const entry = getToolSeo(slug);
 
     return (
+        <>
+        <ComoSeHizo slug={slug} />
         <section
             aria-label={`Guía de ${entry.h1}`}
             className="tool-seo pb-8"
@@ -92,5 +96,6 @@ export function ToolSeoContent({ slug }: ToolSeoContentProps) {
 
             {/* Las relacionadas van al final de la herramienta, en «También te puede servir» (CarcasaHerramientas). */}
         </section>
+        </>
     );
 }

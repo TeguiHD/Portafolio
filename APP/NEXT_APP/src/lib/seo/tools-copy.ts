@@ -159,7 +159,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     base64: {
         intro:
-            "Base64 convierte datos binarios en texto imprimible usando 64 caracteres seguros. No es cifrado ni compresión: es una forma de meter una imagen o un archivo por un canal que solo acepta texto, como un correo, un JSON o una hoja de CSS. Aquí puedes codificar y decodificar texto e imágenes en ambos sentidos, íntegramente en el navegador.",
+            "Base64 convierte datos binarios en texto imprimible usando 64 caracteres seguros. No es cifrado ni compresión: es una forma de meter una imagen o un archivo por un canal que solo acepta texto, como un correo, un JSON o una hoja de CSS. Aquí puedes codificar y decodificar texto, y convertir una imagen en una data URI, íntegramente en el navegador.",
         steps: [
             {
                 title: "Elige el sentido",
@@ -167,7 +167,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Pega el contenido o suelta el archivo",
-                body: "Para texto, escribe o pega directamente. Para imágenes, arrastra el archivo: obtendrás la cadena y también el data URI listo para usar en CSS o HTML.",
+                body: "Para texto, escribe o pega directamente. Para imágenes, arrastra el archivo: obtendrás la data URI completa, con su prefijo, lista para usar en CSS o HTML. La cadena sola es lo que va después de la coma.",
             },
             {
                 title: "Copia el resultado",
@@ -203,7 +203,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Se suben mis archivos a algún servidor?",
-                answer: "No. La conversión ocurre en tu navegador mediante la API FileReader, y el archivo nunca sale de tu equipo. Puedes comprobarlo desconectando la red: la herramienta sigue codificando y decodificando con normalidad.",
+                answer: "No. La imagen se lee con la API FileReader y el texto se convierte con TextEncoder, todo en tu navegador: el archivo nunca sale de tu equipo. Puedes comprobarlo desconectando la red: la herramienta sigue codificando y decodificando con normalidad.",
             },
         ],
     },
@@ -427,7 +427,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             { title: "Cotizar en dólares", body: "Convertir una cotización o una compra en dólares a pesos con el dólar observado del día." },
         ],
         faq: [
-            { question: "¿De dónde salen los valores?", answer: "De mindicador.cl, un servicio público y gratuito que publica los indicadores del Banco Central de Chile (UF, dólar observado y euro) y del SII (UTM). El sitio los consulta cada 30 minutos." },
+            { question: "¿De dónde salen los valores?", answer: "De mindicador.cl, un servicio público y gratuito que publica los indicadores del Banco Central de Chile (UF, dólar observado y euro) y del SII (UTM). El sitio los guarda por 30 minutos y los vuelve a pedir con la visita siguiente; si la fuente falla, muestra los últimos que recibió, hasta por tres días." },
             { question: "¿Por qué la UF de hoy es distinta a la de ayer?", answer: "Porque la UF se reajusta cada día según la inflación (IPC) del mes anterior. Entre el día 10 de un mes y el 9 del siguiente sube o baja de a poco, hasta completar esa variación." },
             { question: "¿El dólar observado es el que me cobra el banco?", answer: "No exactamente. El dólar observado es un promedio que publica el Banco Central con las operaciones del día hábil anterior; bancos y casas de cambio cobran su propio precio, normalmente algo mayor." },
             { question: "¿Qué pasa si la fuente no responde?", answer: "La herramienta lo dice y te deja escribir los valores a mano, así el conversor funciona igual. Nunca muestra un valor inventado." },
@@ -589,7 +589,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     binario: {
         intro:
-            "Todo texto es, por debajo, una secuencia de números, y cada número una secuencia de bits. Este traductor convierte texto a código binario y de vuelta, mostrando la correspondencia carácter a carácter. Sirve para entender qué está pasando bajo la superficie, para resolver ejercicios y para descifrar esas cadenas de ceros y unos que aparecen en juegos y acertijos.",
+            "Todo texto es, por debajo, una secuencia de números, y cada número una secuencia de bits. Este traductor convierte texto a código binario y de vuelta, byte a byte en UTF-8. Sirve para entender qué está pasando bajo la superficie, para resolver ejercicios y para descifrar esas cadenas de ceros y unos que aparecen en juegos y acertijos.",
         steps: [
             {
                 title: "Elige la dirección",
@@ -621,7 +621,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         faq: [
             {
                 question: "¿Por qué cada carácter ocupa 8 bits?",
-                answer: "Porque un byte son 8 bits y ASCII asigna un byte por carácter, lo que permite 256 combinaciones. Los caracteres con acento y los emoji necesitan más de un byte bajo UTF-8, así que su representación binaria es más larga.",
+                answer: "Porque un byte son 8 bits, que dan 256 combinaciones. ASCII define 128 caracteres (7 bits), así que una letra sin tilde cabe en un byte; en UTF-8, los caracteres con acento y los emoji necesitan de dos a cuatro bytes, y su binario es más largo.",
             },
             {
                 question: "¿Cómo se convierte una letra a binario?",
@@ -743,7 +743,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Cuántos participantes admite?",
-                answer: "Hasta 1.000 entradas de hasta 100 caracteres cada una. Con muchas, las porciones de la ruleta se vuelven finas y en ella los nombres se cortan a 12 caracteres, pero el sorteo sigue siendo correcto: el nombre completo aparece en la lista de ganadores.",
+                answer: "Hasta 1.000 entradas de hasta 100 caracteres cada una. Con muchas, las porciones de la ruleta se vuelven finas y en ella los nombres se acortan, pero el sorteo sigue siendo correcto: el nombre completo aparece en la lista de ganadores.",
             },
             {
                 question: "¿Cómo se arman los grupos?",
@@ -808,7 +808,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         steps: [
             {
                 title: "Escribe el dominio o una IP",
-                body: "Basta el nombre; si pegas una URL completa o un correo, se queda solo con el dominio. Sirven también subdominios concretos. Si escribes una IP, se hace la consulta inversa (PTR).",
+                body: "Basta el nombre; si pegas una URL completa o un correo, se queda solo con el dominio. Sirven también subdominios concretos. Si escribes una IP pública, se hace la consulta inversa (PTR).",
             },
             {
                 title: "Elige el tipo de registro",
@@ -863,11 +863,11 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     nginx: {
         intro:
-            "La mayoría de los fallos de configuración de Nginx no son errores de sintaxis, sino directivas puestas en el bloque equivocado o un orden de location que hace que la regla correcta nunca se evalúe. Este generador arma configuraciones para los casos habituales — redirecciones, HTTPS, cabeceras de seguridad, proxy inverso — con la estructura ya correcta, y también genera el equivalente en .htaccess.",
+            "La mayoría de los fallos de configuración de Nginx no son errores de sintaxis, sino directivas puestas en el bloque equivocado o un orden de location que hace que la regla correcta nunca se evalúe. Este generador arma configuraciones para los casos habituales (HTTPS con redirección desde HTTP, cabeceras de seguridad, proxy inverso, caché y compresión) con la estructura ya correcta, y también genera el equivalente en .htaccess.",
         steps: [
             {
                 title: "Elige qué necesitas",
-                body: "Redirección de dominio, forzar HTTPS, servir una SPA, proxy a un backend, cabeceras de seguridad. Cada opción genera el bloque completo.",
+                body: "SSL con redirección de HTTP a HTTPS (301), proxy a un backend con WebSocket, compresión, caché de estáticos, cabeceras de seguridad, límite de peticiones o bloqueo de bots. Lo que actives se suma al mismo bloque server.",
             },
             {
                 title: "Rellena dominio y destino",
@@ -880,8 +880,8 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
         ],
         useCases: [
             {
-                title: "Migrar un dominio conservando el SEO",
-                body: "Una redirección 301 traspasa la autoridad del dominio antiguo al nuevo. Una 302 no, y es el error que hace perder posiciones tras una migración.",
+                title: "Pasar un sitio a HTTPS",
+                body: "Con SSL y «Forzar HTTPS (301)», un bloque en el puerto 80 manda todo a HTTPS con una redirección permanente, y HSTS le pide al navegador no volver a usar HTTP.",
             },
             {
                 title: "Poner una aplicación tras un proxy inverso",
@@ -954,11 +954,11 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 question: "¿Se pierde calidad al quitar los metadatos?",
-                answer: "No. Los metadatos van en bloques aparte de los píxeles, así que quitarlos no recomprime la imagen, ni en JPEG, ni en PNG ni en WebP. En JPEG se conserva solo la orientación, para que una foto vertical no aparezca acostada.",
+                answer: "No. Los metadatos van en bloques aparte de los píxeles, así que quitarlos no recomprime la imagen, ni en JPEG, ni en PNG ni en WebP. En JPEG se conservan solo la orientación, para que una foto vertical no aparezca acostada, y lo técnico para mostrar bien los colores (el perfil de color y los datos JFIF y Adobe). Se quita lo que cada marca guarda aparte, como el bloque de Samsung, y lo que algunos celulares pegan después de la foto, como el video de una foto en movimiento.",
             },
             {
                 question: "¿Se sube mi foto a algún servidor?",
-                answer: "No. La lectura y el borrado ocurren en tu navegador mediante la API FileReader, y la imagen no sale de tu equipo. Es un requisito, no un detalle: enviar a un servidor una foto para comprobar su privacidad sería contradictorio.",
+                answer: "No. La lectura y el borrado ocurren en tu navegador, que trabaja sobre los bytes del archivo, y la imagen no sale de tu equipo. Es un requisito, no un detalle: enviar a un servidor una foto para comprobar su privacidad sería contradictorio.",
             },
         ],
     },
@@ -1309,7 +1309,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
 
     "paleta-colores": {
         intro:
-            "Sacar los colores de una imagen a ojo produce valores aproximados que nunca terminan de encajar. Este extractor analiza la imagen y devuelve los colores dominantes en HEX, RGB y HSL, listos para copiar a CSS o a una herramienta de diseño. Sirve para construir una paleta a partir de una fotografía, o para recuperar los colores exactos de una marca a partir de su logo.",
+            "Sacar los colores de una imagen a ojo produce valores aproximados que nunca terminan de encajar. Este extractor analiza la imagen y devuelve los colores dominantes en HEX, RGB y HSL, listos para copiar a CSS o a una herramienta de diseño. Sirve para construir una paleta a partir de una fotografía, o para recuperar los colores de una marca a partir de su logo (cada uno es el promedio de tonos muy parecidos, así que puede diferir en unas pocas unidades).",
         steps: [
             {
                 title: "Carga la imagen",
@@ -1331,7 +1331,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Recuperar colores de marca",
-                body: "Cuando existe el logo pero no el manual de marca, extraer los valores exactos evita usar un azul parecido que se nota distinto al lado del original.",
+                body: "Cuando existe el logo pero no el manual de marca, extraer sus valores evita elegir a ojo un azul parecido que se nota distinto al lado del original.",
             },
             {
                 title: "Ajustar interfaces a una imagen",
@@ -1536,7 +1536,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Elige la tipografía",
-                body: "Hay cinco: Standard (la clásica de FIGlet), Banner (bloques ██), Small (de tres líneas), Block y Mini (cada letra en un recuadro). La legibilidad cambia mucho: algunas quedan bien con una palabra y se vuelven ilegibles con otra.",
+                body: "Hay cinco: Standard (al estilo de FIGlet), Banner (bloques ██), Small (de tres líneas), Block y Mini (cada letra en un recuadro). La legibilidad cambia mucho: algunas quedan bien con una palabra y se vuelven ilegibles con otra.",
             },
             {
                 title: "Exporta",
@@ -1650,7 +1650,7 @@ export const TOOLS_COPY: Record<string, ToolCopy> = {
             },
             {
                 title: "Escribe el mensaje",
-                body: "Cuanto más largo, más píxeles necesita. Una imagen pequeña tiene un límite de cuánto texto puede esconder sin que empiece a notarse.",
+                body: "Cuanto más largo, más píxeles necesita. Una imagen pequeña tiene un límite de cuánto texto cabe: tres bits por cada píxel opaco.",
             },
             {
                 title: "Descarga la imagen resultante",

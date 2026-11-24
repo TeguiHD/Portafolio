@@ -27,7 +27,8 @@ function decodificarTexto(entrada: string): { output: string; error: string } {
 
 export default function ImageBase64Page() {
     const { isLoading, isAuthorized, accessType, toolName } = useToolAccess("base64");
-    const { trackImmediate } = useToolTracking("base64", { trackViewOnMount: true });
+    // La visita ya la cuenta la carcasa (una por sesión, como en las demás); aquí solo las acciones.
+    const { trackImmediate } = useToolTracking("base64", { trackViewOnMount: false });
     const [tab, setTab] = useState<"text" | "image">("text");
     const [mode, setMode] = useState<"encode" | "decode">("encode");
     const [input, setInput] = useState("");

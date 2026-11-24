@@ -208,7 +208,7 @@ test.describe("campo numérico: fuente", () => {
         const hallados: Record<string, number> = {};
         for (const ruta of readdirSync(raiz, { recursive: true }) as string[]) {
             if (!ruta.endsWith(".tsx") || ruta.endsWith("CampoNumero.tsx")) continue;
-            const n = (readFileSync(new URL(ruta, raiz), "utf8").match(/inputMode="(?:numeric|decimal)"|type="number"/g) ?? []).length;
+            const n = (readFileSync(new URL(ruta, raiz), "utf8").match(/inputMode="(?:numeric|decimal)"|(?<![-\w])type="number"/g) ?? []).length;
             if (n) hallados[ruta.split("\\").join("/")] = n;
         }
         expect(hallados).toEqual(EXCEPCIONES);

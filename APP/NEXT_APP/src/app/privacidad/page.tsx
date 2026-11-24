@@ -12,7 +12,7 @@ export const metadata = {
 /** Mismo texto que antes; cambió la presentación y el correo de contacto (contacto@, confirmado por el titular). */
 export default function PrivacyPage() {
     return (
-        <PaginaLegal titulo="Privacidad" actualizado="18 de noviembre de 2026" secciones={[
+        <PaginaLegal titulo="Privacidad" actualizado="24 de noviembre de 2026" secciones={[
             { id: "introduccion", titulo: "Introducción", contenido: (
                 <p>Esta política de privacidad describe cómo se maneja la información en el sitio web y las herramientas de <strong>Nicoholas Lopetegui</strong> (en adelante «el Sitio»). Mi compromiso es la transparencia técnica y el respeto absoluto por tus datos.</p>
             ) },
@@ -21,6 +21,13 @@ export default function PrivacyPage() {
                 <ul>
                     <li><strong>Procesamiento local:</strong> los datos que ingresas (texto para QR, contraseñas generadas, cadenas regex) se procesan directamente en tu navegador y <strong>no se envían</strong> a mis servidores para su almacenamiento.</li>
                     <li><strong>Sin persistencia:</strong> no guardo registros de las contraseñas generadas ni del contenido de tus códigos QR.</li>
+                </ul>
+                <p>Las excepciones, con lo que sale de tu equipo en cada una:</p>
+                <ul>
+                    <li><strong>Probador de regex, funciones con IA:</strong> si usas «Generar con IA» o «Generar ejemplos», la descripción o el patrón (nunca el texto de prueba) van a mi servidor y de ahí a OpenRouter, que los pasa al modelo Mistral. Guardo los primeros 100 caracteres en el registro de uso, con un hash de tu IP en vez de la IP.</li>
+                    <li><strong>Verificador DNS:</strong> el dominio que escribes va a mi servidor, que lo consulta a seis resolvedores públicos; la respuesta queda 30 segundos en memoria.</li>
+                    <li><strong>Quitar fondo y encajar al sujeto:</strong> la primera vez, el navegador descarga el modelo desde el servidor de IMG.LY (staticimgly.com); la foto no sale de tu equipo.</li>
+                    <li><strong>Vista 3D del generador de QR:</strong> el visor carga el modelo desde la dirección que escribes.</li>
                 </ul>
             </>) },
             { id: "analiticas", titulo: "Analíticas y cookies", contenido: (<>

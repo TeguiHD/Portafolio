@@ -11,11 +11,12 @@ test.describe("Sobre mí, legales y errores con el lenguaje del sitio", () => {
         await expect(page.locator(".viva.solo-oscuro")).toHaveCount(0);
     });
 
-    for (const [ruta, titulo, secciones] of [["/privacidad", "Privacidad", 6], ["/terminos", "Términos de uso", 5]] as const) {
+    // Privacidad cambió el 24-11-2026: las excepciones de lo que sale del equipo (regex con IA, DNS, quitar fondo, vista 3D).
+    for (const [ruta, titulo, secciones, fecha] of [["/privacidad", "Privacidad", 6, "24 de noviembre de 2026"], ["/terminos", "Términos de uso", 5, "18 de noviembre de 2026"]] as const) {
         test(`${ruta}: fecha fija, índice de secciones y el correo de contacto`, async ({ page }) => {
             await page.goto(ruta);
             await expect(page.locator("h1")).toContainText(titulo);
-            await expect(page.getByText("Última actualización: 18 de noviembre de 2026")).toBeVisible();
+            await expect(page.getByText(`Última actualización: ${fecha}`)).toBeVisible();
             await expect(page.getByRole("navigation", { name: "En esta página" }).getByRole("link")).toHaveCount(secciones);
             await expect(page.locator('a[href^="mailto:contacto@nicoholas.dev"]')).toHaveCount(1);
             await expect(page.locator('a[href^="mailto:hola@"]')).toHaveCount(0);

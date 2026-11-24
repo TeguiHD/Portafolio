@@ -1,6 +1,6 @@
 /**
  * Revisión de SPF (RFC 7208) y DMARC (RFC 7489) de un dominio. Lógica pura: la lectura de TXT llega como
- * función, así la ruta usa resolvedores reales y las pruebas usan datos fijos.
+ * función, así la ruta usa resolvedores reales y se puede probar con datos fijos (aún no hay pruebas de esta parte).
  */
 
 export type NivelObservacion = "bien" | "info" | "atencion" | "error";
