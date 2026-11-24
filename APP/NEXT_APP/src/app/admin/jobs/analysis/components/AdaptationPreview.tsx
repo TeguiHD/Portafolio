@@ -81,7 +81,7 @@ export function AdaptationPreview({
             </div>
 
             {aiError && (
-                <p className="flex items-start gap-2.5 rounded-lg bg-red-500/10 px-3 py-2.5 text-sm text-[var(--txt)]">
+                <p className="flex items-start gap-2.5 text-sm text-[var(--txt)]">
                     <CircleX className="mt-0.5 size-4 shrink-0 text-red-400" aria-hidden="true" />
                     <span>La IA no pudo generar el plan ({aiError}). Se aplicaron solo los ajustes fijos, sin IA.</span>
                 </p>

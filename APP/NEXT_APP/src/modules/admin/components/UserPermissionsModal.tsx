@@ -176,7 +176,7 @@ export function UserPermissionsModal({
                             <p role="alert" className="py-12 text-center text-sm text-red-400">{error}</p>
                         ) : (
                             <div className="space-y-6">
-                                {errorCambio && <p role="alert" className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{errorCambio}</p>}
+                                {errorCambio && <p role="alert" className="text-sm text-[var(--error)]">{errorCambio}</p>}
                                 {Object.entries(groupedPermissions).map(([category, perms]) => (
                                     <section key={category} aria-labelledby={`${id}-${category}`}>
                                         <h3 id={`${id}-${category}`} className="mb-1 text-[15px] font-semibold text-[var(--mut)]">

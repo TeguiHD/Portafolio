@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { tasaConPesos } from "../../src/lib/finanzas/tasa-pesos";
+import { tasaConPesos, textoTasa } from "../../src/lib/finanzas/tasa-pesos";
 
 /**
  * Panel, tanda 5 (24-11-2026): convertidor con pesos chilenos, avisos sin bucle, Mi perfil sin error de hidratación,
@@ -49,6 +49,20 @@ test.describe("sin navegador", () => {
         expect(await tasaConPesos("CLP", "EUR", { dolar: 950 }, usdA)).toBeCloseTo(0.92 / 950, 10);
     });
 
+    test("convertidor: la tasa se escribe en formato chileno y, si es menor que 1, al revés", () => {
+        expect(textoTasa("CLP", "USD", 1 / 950)).toBe("1 USD = 950 CLP");
+        expect(textoTasa("USD", "CLP", 950.26)).toBe("1 USD = 950,26 CLP");
+        expect(textoTasa("EUR", "CLP", 1030)).toBe("1 EUR = 1.030 CLP");
+        expect(textoTasa("EUR", "USD", 1.0812)).toBe("1 EUR = 1,08 USD");
+    });
+
+    test("sin cajas rojas de error en el panel: el error va como texto", () => {
+        const carpetas = ["src/app/admin", "src/modules/admin", "src/modules/finance"].filter(existsSync);
+        const con = carpetas.flatMap((c) => (readdirSync(c, { recursive: true }) as string[]).filter((f) => /\.tsx?$/.test(f)).map((f) => `${c}/${f}`))
+            .filter((a) => /rounded-(?:lg|xl) bg-red-500\/10 px-/.test(readFileSync(a, "utf8")));
+        expect(con).toEqual([]);
+    });
+
     test("ningún «·» entre datos en el código del panel", () => {
         const carpetas = ["src/app/admin", "src/modules/admin", "src/components/admin", "src/modules/finance", "src/modules/quotations", "src/components/quotations"].filter(existsSync);
         const archivos = carpetas.flatMap((c) => (readdirSync(c, { recursive: true }) as string[]).filter((f) => /\.tsx?$/.test(f)).map((f) => `${c}/${f}`));
@@ -69,7 +83,7 @@ test.describe("con la sesión de prueba", () => {
     test("convertidor: de pesos a dólares da una tasa, sin error", async ({ browser }) => {
         const page = await abrir(browser);
         await page.goto("/admin/finance/settings");
-        await expect(page.getByText(/1 CLP = /)).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText(/Tasa: 1 USD = [\d.]+(,\d+)? CLP/)).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("Error en la conversión")).toHaveCount(0);
     });
 

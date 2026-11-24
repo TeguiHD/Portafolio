@@ -392,7 +392,7 @@ export default function AuditPageClient() {
 
             {/* Error */}
             {error && (
-                <p role="alert" className="flex items-center gap-2 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                <p role="alert" className="flex items-center gap-2 text-sm text-[var(--error)]">
                     <AlertTriangle size={16} aria-hidden="true" />
                     {error}
                 </p>

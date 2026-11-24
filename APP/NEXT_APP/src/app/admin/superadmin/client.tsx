@@ -707,7 +707,7 @@ export default function SuperAdminClient() {
             {(errorCarga || aviso) && (
                 <div className="space-y-2">
                     {errorCarga && (
-                        <p role="alert" className="flex items-start gap-2 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                        <p role="alert" className="flex items-start gap-2 text-sm text-[var(--error)]">
                             <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
                             {errorCarga}
                         </p>
@@ -852,7 +852,7 @@ export default function SuperAdminClient() {
                         <WarningPanel warnings={system.status.warnings} />
 
                         {missingSshConfigMessage && (
-                            <p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                            <p role="alert" className="text-sm text-[var(--error)]">
                                 {missingSshConfigMessage} Completa las variables del entorno y reinicia el servicio web.
                             </p>
                         )}

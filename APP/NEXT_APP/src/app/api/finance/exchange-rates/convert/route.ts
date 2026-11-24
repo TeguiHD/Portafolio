@@ -6,7 +6,7 @@ import { Role } from '@/generated/prisma/client';
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { leerIndicadores } from "@/lib/chile/indicadores.server";
-import { tasaConPesos } from "@/lib/finanzas/tasa-pesos";
+import { tasaConPesos, textoTasa } from "@/lib/finanzas/tasa-pesos";
 
 const FRANKFURTER_API = "https://api.frankfurter.app";
 const CACHE_TTL_HOURS = 4;
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
             to,
             rate,
             converted,
-            formattedRate: `1 ${from} = ${rate.toFixed(4)} ${to}`,
+            formattedRate: textoTasa(from, to, rate),
             timestamp: new Date().toISOString(),
         });
     } catch (error) {

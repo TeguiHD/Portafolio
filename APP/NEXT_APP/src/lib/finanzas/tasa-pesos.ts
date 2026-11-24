@@ -20,3 +20,12 @@ export async function tasaConPesos(from: string, to: string, ind: { dolar: numbe
     }
     return from === "CLP" ? 1 / pesos : pesos;
 }
+
+/**
+ * La tasa en palabras, con números a la chilena («1 USD = 950,26 CLP»). Si es menor que 1 se da vuelta: «1 CLP = 0.0011
+ * USD» no decía nada; «1 USD = 950 CLP» sí.
+ */
+export function textoTasa(from: string, to: string, rate: number): string {
+    const [de, a, valor] = rate < 1 ? [to, from, 1 / rate] : [from, to, rate];
+    return `1 ${de} = ${new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 }).format(valor)} ${a}`;
+}
