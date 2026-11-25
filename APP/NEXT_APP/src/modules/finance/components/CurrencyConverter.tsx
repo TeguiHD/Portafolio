@@ -1,9 +1,10 @@
 "use client";
 
 import { CampoNumero } from "@/components/ui/CampoNumero";
-import { useState, useEffect, useCallback, useId } from "react";
+import { useState, useEffect, useCallback, useId, useRef } from "react";
 import { ArrowLeftRight, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import { tieneTasa } from "@/lib/finanzas/tasa-pesos";
 import { CAMPO, CIFRA, ERROR, ETIQUETA, FOCO, GIRA, ICONO, OPCION, OPCION_NO, OPCION_SI, SECCION, BLOQUE } from "./estilos";
 
 interface Currency {
@@ -35,13 +36,16 @@ export function CurrencyConverter() {
     const [result, setResult] = useState<ConversionResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const uid = useId();
+    /** El pedido en curso: al cambiar de par se cancela, y su respuesta (si igual llega) no pisa la del par nuevo. */
+    const pedido = useRef<AbortController | null>(null);
 
     useEffect(() => {
         async function fetchCurrencies() {
             try {
                 const res = await fetch("/api/finance/currencies?active=true");
                 const data = await res.json();
-                setCurrencies(data.data || []);
+                // Solo las monedas que alguna fuente publica: ARS, COP y PEN siempre fallaban.
+                setCurrencies(((data.data || []) as Currency[]).filter((c) => tieneTasa(c.code)));
             } catch (err) {
                 console.error("Error fetching currencies:", err);
             } finally {
@@ -54,11 +58,15 @@ export function CurrencyConverter() {
     const convert = useCallback(async () => {
         if (!amount || !fromCurrency || !toCurrency) return;
 
+        pedido.current?.abort();
+        const este = new AbortController();
+        pedido.current = este;
         setConverting(true);
         setError(null);
 
         try {
             const res = await fetch("/api/finance/exchange-rates/convert", {
+                signal: este.signal,
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -74,14 +82,19 @@ export function CurrencyConverter() {
             }
 
             const data = await res.json();
+            if (pedido.current !== este) return;
             setResult(data);
         } catch (err) {
+            if (pedido.current !== este) return; // cancelado o reemplazado: manda el pedido nuevo
             setError((err as Error).message);
             setResult(null);
         } finally {
-            setConverting(false);
+            if (pedido.current === este) setConverting(false);
         }
     }, [amount, fromCurrency, toCurrency]);
+
+    // Al salir de la página se cancela lo que esté en curso.
+    useEffect(() => () => pedido.current?.abort(), []);
 
     // Auto-convert when values change
     useEffect(() => {

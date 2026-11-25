@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import type { Role } from '@/generated/prisma/client';
 import { logFinanceEvent, AuditActions } from "@/lib/audit";
+import { crearCategoriasBase } from "@/lib/finanzas/categorias-base";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +126,11 @@ export async function POST(request: Request) {
                 currency: true,
             },
         });
+
+        // La primera cuenta trae las categorías de siempre, si aún no tiene ninguna (no impide crear la cuenta si falla).
+        if (accountCount === 0) {
+            await crearCategoriasBase(prisma, session.user.id).catch((e) => console.error("[Accounts POST] categorías base", e));
+        }
 
         // Audit log for account creation
         await logFinanceEvent(

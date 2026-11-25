@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { RESPALDO_MAX_DIAS, fechaRespaldo, tasaConPesos, textoTasa } from "../../src/lib/finanzas/tasa-pesos";
+import { RESPALDO_MAX_DIAS, fechaRespaldo, tasaConPesos, textoTasa, tieneTasa } from "../../src/lib/finanzas/tasa-pesos";
 
 /**
  * Panel, tanda 5 (24-11-2026): convertidor con pesos chilenos, avisos sin bucle, Mi perfil sin error de hidratación,
@@ -77,6 +77,11 @@ test.describe("sin navegador", () => {
         expect(readFileSync("src/modules/finance/components/DailyChart.tsx", "utf8")).toContain("} de ${year}");
     });
 
+    test("convertidor: solo las monedas que alguna fuente publica (ARS, COP y PEN no los publica ninguna)", () => {
+        for (const m of ["CLP", "USD", "EUR", "BRL", "GBP", "JPY", "MXN"]) expect(tieneTasa(m), m).toBe(true);
+        for (const m of ["ARS", "COP", "PEN"]) expect(tieneTasa(m), m).toBe(false);
+    });
+
     test("ningún «·» entre datos en el código del panel", () => {
         const carpetas = ["src/app/admin", "src/modules/admin", "src/components/admin", "src/modules/finance", "src/modules/quotations", "src/components/quotations"].filter(existsSync);
         const archivos = carpetas.flatMap((c) => (readdirSync(c, { recursive: true }) as string[]).filter((f) => /\.tsx?$/.test(f)).map((f) => `${c}/${f}`));
@@ -99,6 +104,36 @@ test.describe("con la sesión de prueba", () => {
         await page.goto("/admin/finance/settings");
         await expect(page.getByText(/Tasa: 1 USD = [\d.]+(,\d+)? CLP/)).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("Error en la conversión")).toHaveCount(0);
+    });
+
+    // Una respuesta lenta de un par anterior pisaba la del par elegido después (24-11-2026).
+    test("convertidor: si cambias de moneda, una respuesta vieja que llega tarde no pisa la nueva", async ({ browser }) => {
+        const page = await abrir(browser);
+        await page.route("**/api/finance/exchange-rates/convert", async (r) => {
+            const { from, to, amount } = r.request().postDataJSON() as { from: string; to: string; amount: number };
+            if (to === "USD") await new Promise((h) => setTimeout(h, 1500));
+            await r.fulfill({ json: { amount, from, to, rate: 2, converted: amount * 2, formattedRate: `prueba ${from} a ${to}` } }).catch(() => {});
+        });
+        const primero = page.waitForRequest("**/api/finance/exchange-rates/convert");
+        await page.goto("/admin/finance/settings");
+        await primero; // CLP → USD, que tarda
+        await page.getByLabel("A", { exact: true }).selectOption("EUR");
+        await expect(page.getByText("Tasa: prueba CLP a EUR")).toBeVisible();
+        await page.waitForTimeout(1800); // llega la de USD
+        await expect(page.getByText("Tasa: prueba CLP a EUR")).toBeVisible();
+        await expect(page.getByText("prueba CLP a USD")).toHaveCount(0);
+    });
+
+    test("convertidor: no ofrece monedas sin tasa, y la API lo dice claro si se las piden", async ({ browser }) => {
+        const page = await abrir(browser);
+        await page.goto("/admin/finance/settings");
+        const de = page.getByLabel("De", { exact: true });
+        await expect(de.locator("option", { hasText: "USD" })).toHaveCount(1);
+        const opciones = await de.locator("option").allTextContents();
+        for (const m of ["ARS", "COP", "PEN"]) expect(opciones.join(" "), m).not.toContain(m);
+        const r = await page.request.post("/api/finance/exchange-rates/convert", { data: { amount: 1000, from: "ARS", to: "CLP" } });
+        expect(r.status()).toBe(400);
+        expect((await r.json()).error).toBe("Sin tasa para ARS: ninguna de las fuentes la publica");
     });
 
     test("mensajes: con la API caída, un aviso y sin pedidos en bucle", async ({ browser }) => {

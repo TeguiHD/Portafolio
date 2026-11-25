@@ -121,7 +121,7 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
     }
 
     // Sin cuentas ni movimientos: un estado vacío que lleva a crear la primera cuenta (antes, un asistente de 4 pasos).
-    // Al elegirlo se crean las categorías de siempre, como hacía el asistente al terminar (solo si aún no hay ninguna).
+    // Las categorías de siempre las crea el servidor al guardar la primera cuenta (src/lib/finanzas/categorias-base.ts).
     if (sinCuentas) {
         return (
             <div className="max-w-[1180px] pb-8">
@@ -130,11 +130,7 @@ export function FinanceDashboardClean({ userId: _userId }: FinanceDashboardClean
                     <p className="mx-auto max-w-[46ch] text-[15px]">
                         Aún no tienes cuentas. Crea la primera (la del banco, una tarjeta o el efectivo) y desde ahí registras lo que entra y lo que sale.
                     </p>
-                    <Link
-                        href="/admin/finance/accounts?nueva=1"
-                        className={`${BOTON} mt-6`}
-                        onClick={() => { void fetch("/api/finance/onboarding/complete", { method: "POST", keepalive: true }).catch(() => {}); }}
-                    >
+                    <Link href="/admin/finance/accounts?nueva=1" className={`${BOTON} mt-6`}>
                         <Plus aria-hidden="true" className="size-4" />
                         Crea tu primera cuenta
                     </Link>

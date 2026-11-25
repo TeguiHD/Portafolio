@@ -45,3 +45,14 @@ export function fechaRespaldo(fecha: Date, ahora: Date = new Date()): { vigente:
     const [a, m, d] = diaChile(fecha).split("-");
     return { vigente: true, texto: `Tasa del ${d}-${m}-${a}` };
 }
+
+/** Las 30 monedas que publica Frankfurter (tasas del Banco Central Europeo), consultadas en su API el 25-11-2026. */
+const FRANKFURTER = ["AUD", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD", "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK", "NZD", "PHP", "PLN", "RON", "SEK", "SGD", "THB", "TRY", "USD", "ZAR"];
+
+/**
+ * Si alguna fuente publica la tasa de esa moneda: las de Frankfurter y el peso chileno (mindicador.cl). ARS, COP y PEN
+ * no los publica ninguna: el convertidor no los ofrece (decisión del dueño, 25-11-2026), aunque sigan para las cuentas.
+ */
+export function tieneTasa(moneda: string): boolean {
+    return moneda === "CLP" || FRANKFURTER.includes(moneda);
+}

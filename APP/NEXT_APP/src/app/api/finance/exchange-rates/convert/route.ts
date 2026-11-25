@@ -6,7 +6,7 @@ import { Role } from '@/generated/prisma/client';
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { leerIndicadores } from "@/lib/chile/indicadores.server";
-import { fechaRespaldo, tasaConPesos, textoTasa } from "@/lib/finanzas/tasa-pesos";
+import { fechaRespaldo, tasaConPesos, textoTasa, tieneTasa } from "@/lib/finanzas/tasa-pesos";
 
 const FRANKFURTER_API = "https://api.frankfurter.app";
 const CACHE_TTL_HOURS = 4;
@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
                 timestamp: new Date().toISOString(),
             });
         }
+
+        const sinTasa = [from, to].find((m) => !tieneTasa(m));
+        if (sinTasa) return NextResponse.json({ error: `Sin tasa para ${sinTasa}: ninguna de las fuentes la publica` }, { status: 400 });
 
         let rate: number;
         let nota: string | undefined; // «Tasa del 20-11-2026» si el dólar es un respaldo de otro día
