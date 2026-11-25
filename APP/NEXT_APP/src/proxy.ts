@@ -18,7 +18,7 @@ import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import { getRedisClient, isRedisAvailable, CACHE_KEYS } from '@/lib/redis'
 import { parseArParams } from '@/lib/ar-launch'
 import { ipCliente } from '@/lib/ip-cliente'
-import { claveLimiteProxy } from '@/lib/limite-proxy'
+import { claveLimiteProxy, esPrimerExceso, reglaLimite } from '@/lib/limite-proxy'
 
 // ============= SECURITY CONSTANTS =============
 const SECURITY_VERSION = '2.1.0'
@@ -547,13 +547,14 @@ function checkRateLimit(
         return { allowed: true }
     }
 
-    if (record.count >= limit) {
-        // Increment violations
-        record.violations++
-
-        // Block repeat offenders
-        if (record.violations >= VIOLATION_THRESHOLD) {
-            record.blockedUntil = now + BLOCK_DURATION
+    record.count++
+    if (record.count > limit) {
+        // Una falta por ventana excedida, como con Redis (ver checkProxyRateLimit).
+        if (esPrimerExceso(record.count, limit)) {
+            record.violations++
+            if (record.violations >= VIOLATION_THRESHOLD) {
+                record.blockedUntil = now + BLOCK_DURATION
+            }
         }
 
         return {
@@ -562,7 +563,6 @@ function checkRateLimit(
         }
     }
 
-    record.count++
     return { allowed: true }
 }
 
@@ -596,14 +596,18 @@ async function checkProxyRateLimit(
 
         const ttl = await client.ttl(counterKey)
         if (count > limit) {
-            const violations = await client.incr(violationsKey)
-            if (violations === 1) {
-                await client.expire(violationsKey, 24 * 60 * 60)
-            }
+            // Una falta por ventana excedida (el primer pedido sobre el tope), no por cada rechazo: antes, tres rechazos
+            // en el mismo minuto bloqueaban 15 min (le pasaba al panel navegando rápido, 25-11-2026).
+            if (esPrimerExceso(count, limit)) {
+                const violations = await client.incr(violationsKey)
+                if (violations === 1) {
+                    await client.expire(violationsKey, 24 * 60 * 60)
+                }
 
-            if (violations >= VIOLATION_THRESHOLD) {
-                await client.setEx(blockedKey, blockSeconds, '1')
-                return { allowed: false, retryAfter: blockSeconds }
+                if (violations >= VIOLATION_THRESHOLD) {
+                    await client.setEx(blockedKey, blockSeconds, '1')
+                    return { allowed: false, retryAfter: blockSeconds }
+                }
             }
 
             return { allowed: false, retryAfter: ttl > 0 ? ttl : windowSeconds }
@@ -979,33 +983,12 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith('/api/') && pathname !== '/api/health' && !esIncidenteInterno(request, pathname)) {
         const rateLimitKey = getRateLimitKey(request)
 
-        // Stricter limits based on endpoint sensitivity
-        let limit = 100
-        let window = 60000
-        let pathCategory = 'api'
-
-        if (pathname.startsWith('/api/auth')) {
-            pathCategory = 'auth'
-            // Allow more requests for logout/session operations
-            if (pathname.includes('/signout') || pathname.includes('/csrf') || pathname.includes('/session')) {
-                limit = 30      // 30 requests per minute for logout/session
-                window = 60000
-            } else if (pathname.includes('/password-reset/request')) {
-                limit = 3       // 3 password reset requests per hour
-                window = 60 * 60 * 1000
-            } else {
-                limit = 10      // 10 requests per minute for login attempts
-                window = 60000
-            }
-        } else if (pathname.startsWith('/api/finance/ocr')) {
-            pathCategory = 'finance'
-            limit = 10      // 10 OCR requests per minute
-            window = 60000
-        } else if (pathname.startsWith('/api/admin')) {
-            pathCategory = 'admin'
-            limit = 50      // 50 admin requests per minute
-            window = 60000
-        }
+        // Tope, ventana y contador salen de la misma regla (src/lib/limite-proxy.ts): antes /api/admin contaba con el
+        // contador de toda la API y el tope de admin, y en /api/auth la sesión gastaba el cupo de entrar.
+        const regla = reglaLimite(pathname)
+        let limit = regla.limite
+        const window = regla.ventanaMs
+        const pathCategory = regla.categoria
 
         // Apply dynamic rate limit override from EnforcementExecutor
         if (redisUp) {
