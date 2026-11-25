@@ -239,4 +239,20 @@ test.describe("Materia viva: barra", () => {
         await page.waitForTimeout(900);
         expect(await dentro(), "recogida").toBe(true);
     });
+
+    // Firefox 160 tiene anclaje CSS pero no el ancla implícita de popovertarget: el panel quedaba en y = −130, sobre la
+    // barra y fuera de la pantalla (captura del dueño, 24-11-2026). Cada botón nombra su ancla y su panel la usa.
+    test("cada panel se ancla a su botón con un nombre explícito y va fijo como la barra", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto("/herramientas");
+        for (const menu of ["herramientas", "indice"]) {
+            const [ancla, usa] = await page.evaluate((m) => [getComputedStyle(document.querySelector(`button[popovertarget="nb-sub-${m}"]`)!).getPropertyValue("anchor-name"), getComputedStyle(document.getElementById(`nb-sub-${m}`)!).getPropertyValue("position-anchor")], menu);
+            expect(ancla, menu).toBe(`--nb-${menu}`);
+            expect(usa, menu).toBe(`--nb-${menu}`);
+            // Fijo como la barra: con «absolute», Firefox 160 lo ubicaba 200 px más arriba aun con el ancla bien puesta.
+            await page.locator(`button[popovertarget="nb-sub-${menu}"]`).click();
+            await expect(page.locator(`#nb-sub-${menu}`)).toHaveCSS("position", "fixed");
+            await page.keyboard.press("Escape");
+        }
+    });
 });

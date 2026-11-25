@@ -121,12 +121,20 @@
 }
 
 /* ---- Paneles de Herramientas e Índice (patrón navbar anidado) ---- */
+/* Ancla explícita: cada botón nombra la suya y su panel la usa. Firefox 160 tiene anclaje CSS pero no el ancla implícita
+   de popovertarget ni la de showPopover({ source }): sin nombre, el panel quedaba sobre la barra y fuera de la pantalla. */
+[popovertarget="nb-sub-herramientas"] { anchor-name: --nb-herramientas; }
+#nb-sub-herramientas { position-anchor: --nb-herramientas; }
+[popovertarget="nb-sub-indice"] { anchor-name: --nb-indice; }
+#nb-sub-indice { position-anchor: --nb-indice; }
 /* Último recurso del panel en pantallas medianas: centrado bajo la barra. */
 @position-try --nb-centro { position-area: block-end span-all; justify-self: center; }
 /* Ancho: popover anclado bajo su botón (anchor positioning; sin él, el script lo ubica). */
 @media (min-width: 861px) {
   /* Alineado al borde derecho de su botón (la barra está a la derecha); si se sale, al izquierdo; si tampoco cabe, centrado. */
-  .nb-sub[popover] { position: absolute; position-area: block-end span-inline-start; position-try-fallbacks: flip-inline, --nb-centro;
+  /* Fijo, como la barra: con «absolute», Firefox 160 lo dejaba ~200 px más arriba (sobre la barra y fuera de la
+     pantalla) aunque el ancla estuviera bien; y un panel abierto no tiene por qué moverse si la página se desplaza. */
+  .nb-sub[popover] { position: fixed; position-area: block-end span-inline-start; position-try-fallbacks: flip-inline, --nb-centro;
     inset: auto; height: auto; margin: 12px 0 0; overflow: visible;
     width: min(640px, calc(100dvw - 32px)); padding: 0; border: 1px solid var(--linea-2); border-radius: 22px; color: var(--txt);
     background: color-mix(in srgb, var(--fondo) 94%, transparent); backdrop-filter: blur(18px) saturate(1.3); box-shadow: 0 30px 80px -30px rgb(0 0 0 / .7); }
