@@ -42,7 +42,8 @@
 
 /* --- Categorías: cuatro bloques con su histograma y sus extremos --- */
 .ix-nota { margin: 16px 0 0; max-width: 64ch; color: var(--mut); font-size: 16px; line-height: 1.6; }
-.ix-nota a { color: var(--txt); }
+.ix-nota a { color: var(--txt); text-decoration: underline; text-decoration-color: var(--linea-2); text-underline-offset: 3px; } /* dentro de un párrafo, no solo por el color */
+.ix-nota a:hover { text-decoration-color: currentColor; }
 .ix-categorias { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px 48px; margin-top: 40px; }
 .ix-categoria h3 { font-size: clamp(24px, 2.6vw, 34px); letter-spacing: -.04em; }
 .ix-categoria h3 a { color: var(--txt); text-decoration: none; }

@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { ArrowUpRight, LogOut, Menu, Moon, Search, Sun, X, FileText, Users } from "lucide-react";
 import type { Role } from "@/generated/prisma/client";
 import { cambiarTema } from "@/modules/esqueleto/tema";
+import { useAtajo } from "@/hooks/useAtajo";
 import { NotificationButton } from "@/modules/admin/components/NotificationPanel";
 import { GRUPOS, INICIO, EN_CELULAR, activo, migas, puede, type Destino } from "./navegacion";
 import "./armazon.css";
@@ -28,6 +29,7 @@ interface Resultado { tipo: "seccion" | "cliente" | "propuesta"; nombre: string;
 export function Armazon({ user, permisos, conteos = {}, children }: { user: Usuario; permisos: string[]; conteos?: Conteos; children: ReactNode }) {
     const ruta = usePathname() || "/admin";
     const router = useRouter();
+    const atajo = useAtajo("K");
     const bloqueado = user.mfaEnabled !== true;
     const falta2fa = bloqueado && ruta !== "/admin/profile";
 
@@ -107,7 +109,7 @@ export function Armazon({ user, permisos, conteos = {}, children }: { user: Usua
                     </nav>
                     <p className="ad-aqui">{aqui}</p>
                     <button type="button" className="ad-buscar" onClick={abrirBuscador} aria-haspopup="dialog" aria-label="Buscar en el panel">
-                        <Search size={17} aria-hidden="true" /><span>Buscar sección, cliente o propuesta</span><kbd>⌘K</kbd>
+                        <Search size={17} aria-hidden="true" /><span>Buscar sección, cliente o propuesta</span><kbd>{atajo}</kbd>
                     </button>
                     <div className="ad-avisos"><NotificationButton /></div>
                     <a className="ad-icono ad-solo-ancho" href="/" target="_blank" rel="noopener" aria-label="Ver el sitio (nueva pestaña)" title="Ver el sitio"><ArrowUpRight size={18} aria-hidden="true" /></a>

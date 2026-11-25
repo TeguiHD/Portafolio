@@ -10,6 +10,7 @@ import type { PublicToolCatalogEntry } from "@/lib/tool-registry";
 import { coincide } from "./buscar-herramientas";
 import "./carcasa.css";
 import { sinCortes } from "@/lib/sin-cortes";
+import { useAtajo } from "@/hooks/useAtajo";
 
 const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"];
 const mayuscula = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -40,6 +41,7 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
     }, [slugActual]);
     const sugeridas = actual ? (relacionadas[actual.slug] ?? []).flatMap((s) => tools.filter((t) => t.slug === s)) : [];
     const dialogo = useRef<HTMLDialogElement>(null), buscador = useRef<HTMLInputElement>(null);
+    const atajo = useAtajo("K");
     const [consulta, setConsulta] = useState("");
     const visibles = tools.filter((t) => coincide(t, consulta));
 
@@ -76,9 +78,9 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
                         Herramientas
                     </Link>
                     <div className="hc-acciones">
-                        <button type="button" className="hc-boton" onClick={abrir} aria-label="Abrir navegación de herramientas" aria-haspopup="dialog" title="Buscar herramientas (Ctrl / ⌘ K)">
+                        <button type="button" className="hc-boton" onClick={abrir} aria-label="Abrir navegación de herramientas" aria-haspopup="dialog" title={`Buscar herramientas (${atajo})`}>
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-                            <span>Buscar</span><kbd>⌘K</kbd>
+                            <span>Buscar</span><kbd>{atajo}</kbd>
                         </button>
                         <button type="button" className="hc-boton hc-estrella" disabled={!ready} onClick={() => toggleFavorite(actual.slug)} aria-pressed={guardada}
                             aria-label={guardada ? "Guardada" : "Guardar herramienta"} title={guardada ? "Quitar de favoritas" : "Guardar en favoritas"}>

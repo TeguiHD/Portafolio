@@ -41,7 +41,7 @@ export function Pie() {
                         <path className="sl-arco" d="M8 58 A52 52 0 0 1 112 58" /><line x1="2" y1="58" x2="118" y2="58" className="sl-horizonte" />
                         <circle id="sl-astro" r="6" cx={reloj ? reloj.cx.toFixed(1) : 60} cy={reloj ? reloj.cy.toFixed(1) : 58} style={{ opacity: reloj && !reloj.dia ? 0.35 : 1 }} />
                     </svg>
-                    <p><b id="hora">{reloj ? reloj.hora : "--:--"}</b><span id="sl-momento">Santiago de Chile{reloj ? ` · ${reloj.dia ? "de día" : "de noche"}` : ""}</span></p>
+                    <p><b id="hora">{reloj ? reloj.hora : "--:--"}</b><span id="sl-momento">{reloj ? `${reloj.dia ? "De día" : "De noche"} en Santiago de Chile` : "Santiago de Chile"}</span></p>
                 </div>
                 <nav className="sl-ir" aria-label="Sitio">
                     {ENLACES.map(([href, texto]) => <Link key={href} href={href}>{texto}</Link>)}
