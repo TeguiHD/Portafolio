@@ -151,7 +151,7 @@ export function ControlesSonido({ prefs, cambiar, muestra }: { prefs: Preferenci
             <div className="es-opciones">
                 <label><input type="checkbox" checked={prefs.clic} disabled={!prefs.activo} onChange={(e) => cambiar({ clic: e.target.checked })} /> Clic al presionar y al soltar</label>
                 <label><input type="checkbox" checked={prefs.teclas} disabled={!prefs.activo} onChange={(e) => cambiar({ teclas: e.target.checked })} /> Teclas al escribir</label>
-                <label><input type="checkbox" checked={prefs.ventanas} disabled={!prefs.activo} onChange={(e) => cambiar({ ventanas: e.target.checked })} /> Ventanas que se abren y se cierran</label>
+                <label><input type="checkbox" checked={prefs.avisos} disabled={!prefs.activo} onChange={(e) => cambiar({ avisos: e.target.checked })} /> Notificaciones e inicio de sesión</label>
             </div>
         </div>
     );
