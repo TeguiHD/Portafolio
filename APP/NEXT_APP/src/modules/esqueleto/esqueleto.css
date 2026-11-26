@@ -149,3 +149,8 @@ html:has(.viva.solo-oscuro), .viva.solo-oscuro { --fondo: #08090d; --fondo-2: #0
   .viva-portada .acciones .boton { justify-content: center; width: 100%; padding: 15px 20px; }
 }
 
+
+/* Modo escritorio: la página dentro de una ventana (iframe del mismo origen, data-ventana lo pone TemaInicial) va sin la
+   barra, el pie, las migas, la materia ni los botones de buscar: el escritorio ya tiene los suyos. */
+html[data-ventana] .nb, html[data-ventana] .suelo, html[data-ventana] #materia, html[data-ventana] .frente,
+html[data-ventana] nav[aria-label="Ruta de navegación"], html[data-ventana] .hc-acciones { display: none !important; }

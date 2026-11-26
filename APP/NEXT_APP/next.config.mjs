@@ -86,9 +86,15 @@ const nextConfig = {
           // with per-request nonces for improved security (no unsafe-inline)
         ],
       },
-      // Prevent clickjacking: todo menos /insertar/<herramienta>, que se ofrece para incrustar (botón «Insertar»).
+      // Contra el clickjacking (igual que frame-ancestors en src/proxy.ts y src/lib/escritorio/enmarcable.ts): las páginas
+      // públicas solo se enmarcan desde el mismo sitio (ventanas del modo escritorio); el panel, el portal, el acceso y la
+      // API, nunca. /insertar/<herramienta> se ofrece para incrustar en cualquier sitio (botón «Insertar»): sin encabezado.
       {
-        source: '/:path((?!insertar/).*)',
+        source: '/:path((?!insertar/|admin|api|acceso|cambiar-clave|cotizacion|forbidden|unauthorized).*)',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+      },
+      {
+        source: '/:path((?:admin|api|acceso|cambiar-clave|cotizacion|forbidden|unauthorized).*)',
         headers: [{ key: 'X-Frame-Options', value: 'DENY' }],
       },
     ];

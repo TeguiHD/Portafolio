@@ -17,7 +17,7 @@ test.describe("Materia viva: pie", () => {
     test("enlaza a las páginas reales del sitio", async ({ page }) => {
         await page.goto(RUTA);
         const destinos = await page.locator("footer.suelo nav a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-        expect(destinos).toEqual(["/servicios", "/#proyectos", "/herramientas", "/blog", "/indice-web-chilena", "/como-se-hizo", "/sobre-mi", "/cotizacion", "/privacidad", "/terminos"]);
+        expect(destinos).toEqual(["/servicios", "/#proyectos", "/herramientas", "/blog", "/indice-web-chilena", "/como-se-hizo", "/sobre-mi", "/escritorio", "/cotizacion", "/privacidad", "/terminos"]);
     });
 
     test("el anillo lleva de vuelta arriba", async ({ page }) => {

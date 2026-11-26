@@ -80,7 +80,8 @@ test("los permisos del visor se limitan a su ruta y al origen HTTPS validado", a
     expect(preview.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");
     expect(preview.headers()["content-security-policy"]).toMatch(/connect-src[^;]*https:\/\/modelviewer.dev/);
     const qr = await request.get(`/herramientas/qr?glb=${encodeURIComponent(model)}`);
-    expect(qr.headers()["x-frame-options"]).toBe("DENY");
+    // El QR se abre en una ventana del modo escritorio: mismo origen, nada más.
+    expect(qr.headers()["x-frame-options"]).toBe("SAMEORIGIN");
     expect(qr.headers()["content-security-policy"]).not.toMatch(/connect-src[^;]*modelviewer.dev/);
     const invalid = await request.get("/ar/preview?glb=javascript:alert(1)");
     expect(invalid.headers()["content-security-policy"]).not.toContain("javascript:");

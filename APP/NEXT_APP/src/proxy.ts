@@ -17,6 +17,7 @@ import type { NextRequest } from 'next/server'
 import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import { getRedisClient, isRedisAvailable, CACHE_KEYS } from '@/lib/redis'
 import { parseArParams } from '@/lib/ar-launch'
+import { enmarcableEnEscritorio } from '@/lib/escritorio/enmarcable'
 import { ipCliente } from '@/lib/ip-cliente'
 import { claveLimiteProxy, esPrimerExceso, reglaLimite } from '@/lib/limite-proxy'
 
@@ -299,7 +300,7 @@ function generateRequestId(): string {
  * - Development keeps unsafe-inline/unsafe-eval because dev tooling needs them.
  * - Production script-src removes unsafe-inline and blocks inline event handlers.
  */
-function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false, incrustable = false): string {
+function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false, incrustable = false, enmarcable = false): string {
     // Detect if running in development/localhost
     const isDev = process.env.NODE_ENV !== 'production' ||
         process.env.NEXTAUTH_URL?.includes('localhost') ||
@@ -365,7 +366,8 @@ function buildCSP(nonce?: string, modelOrigin?: string, embeddedPreview = false,
 
         // Frame ancestors: prevent clickjacking (allow self in dev for iframe testing)
         // /insertar/<herramienta> se ofrece para incrustar en cualquier sitio (botón «Insertar»): solo esas rutas.
-        incrustable ? "frame-ancestors *" : (isDev || embeddedPreview) ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
+        // Las páginas públicas, solo dentro del mismo sitio (ventanas del modo escritorio); el panel, el portal y el acceso, nunca.
+        incrustable ? "frame-ancestors *" : (isDev || embeddedPreview || enmarcable) ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
 
         // Object/Embed: block all plugins (Flash, Java, etc)
         "object-src 'none'",
@@ -730,7 +732,8 @@ export async function proxy(request: NextRequest) {
     const arModel = isArViewer ? parseArParams(Object.fromEntries(request.nextUrl.searchParams)) : null
     const modelOrigin = arModel?.glb ? new URL(arModel.glb).origin : undefined
     const incrustable = pathname.startsWith('/insertar/')
-    const csp = buildCSP(nonce, modelOrigin, pathname === '/ar/preview', incrustable)
+    const enmarcable = !incrustable && enmarcableEnEscritorio(pathname)
+    const csp = buildCSP(nonce, modelOrigin, pathname === '/ar/preview', incrustable, enmarcable)
     const earlySecurityHeaders = {
         ...staticSecurityHeaders,
         'Content-Security-Policy': csp,
@@ -929,11 +932,12 @@ export async function proxy(request: NextRequest) {
     response.headers.set('Content-Security-Policy', csp)
     // La vista previa se incrusta desde el editor del mismo origen. El resto
     // del sitio mantiene DENY.
-    if (pathname === '/ar/preview') response.headers.set('X-Frame-Options', 'SAMEORIGIN')
+    if (pathname === '/ar/preview' || enmarcable) response.headers.set('X-Frame-Options', 'SAMEORIGIN')
     // Incrustable: sin X-Frame-Options (la CSP frame-ancestors * manda; con ella el navegador ignora ese encabezado).
     if (incrustable) response.headers.delete('X-Frame-Options')
     // El QR puede llenar la ubicación actual (con el permiso del navegador): solo esa página la pide; el resto la bloquea.
-    if (pathname === '/herramientas/qr') {
+    // En el modo escritorio el QR vive en una ventana: la página que lo enmarca también debe permitir la ubicación.
+    if (pathname === '/herramientas/qr' || pathname === '/escritorio') {
         response.headers.set('Permissions-Policy', staticSecurityHeaders['Permissions-Policy'].replace('geolocation=()', 'geolocation=(self)'))
     }
 

@@ -81,6 +81,8 @@ export function Materia({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (!lienzo.current || !frente.current) return;
+        // Dentro de una ventana del modo escritorio la materia es la del escritorio: aquí no se gasta.
+        if (document.documentElement.hasAttribute("data-ventana")) return;
         // El motor (muestrear figuras y texto, el primer cuadro) no compite con la carga: arranca cuando la página ya cargó
         // —o a los 2 s, si alguna imagen externa se demora— y el hilo queda libre. El contenido nunca lo espera.
         let cancelado = false, limpiar = () => undefined as void, espera = 0;

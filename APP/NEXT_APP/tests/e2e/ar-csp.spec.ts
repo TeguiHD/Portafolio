@@ -20,8 +20,10 @@ test("el resto del sitio no recibe ninguna concesión del visor", async ({ reque
         const res = await request.get(path);
         const value = csp(res.headers());
         for (const grant of SOLO_VISOR) expect(value, `${path} → ${grant}`).not.toContain(grant);
-        expect(res.headers()["x-frame-options"], path).toBe("DENY");
+        // Desde el 26-11-2026 las páginas públicas se abren en las ventanas del modo escritorio: solo el mismo origen.
+        expect(res.headers()["x-frame-options"], path).toBe("SAMEORIGIN");
     }
+    expect((await request.get("/acceso")).headers()["x-frame-options"]).toBe("DENY");
 });
 
 test("el visor abre su origen solo con un modelo validado", async ({ request }) => {

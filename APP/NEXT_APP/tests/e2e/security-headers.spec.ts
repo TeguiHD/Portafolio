@@ -7,7 +7,9 @@ test.describe('Security headers and edge protections', () => {
 
         const headers = response.headers();
         expect(headers['strict-transport-security']).toContain('max-age=63072000');
-        expect(headers['x-frame-options']).toBe('DENY');
+        // Las páginas públicas solo se enmarcan desde el mismo sitio (modo escritorio); el acceso y el panel, nunca.
+        expect(headers['x-frame-options']).toBe('SAMEORIGIN');
+        expect((await request.get('/acceso')).headers()['x-frame-options']).toBe('DENY');
         expect(headers['x-content-type-options']).toBe('nosniff');
         expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
         expect(headers['permissions-policy']).toContain('camera=()');

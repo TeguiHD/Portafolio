@@ -7,7 +7,7 @@ import { BotonInstalar } from "@/components/pwa/BotonInstalar";
 import "./pie.css";
 
 const ENLACES = [
-    ["/servicios", "Servicios"], ["/#proyectos", "Proyectos"], ["/herramientas", "Herramientas"], ["/blog", "Blog"], ["/indice-web-chilena", "Índice web chilena"], ["/como-se-hizo", "Cómo se hizo"], ["/sobre-mi", "Sobre mí"],
+    ["/servicios", "Servicios"], ["/#proyectos", "Proyectos"], ["/herramientas", "Herramientas"], ["/blog", "Blog"], ["/indice-web-chilena", "Índice web chilena"], ["/como-se-hizo", "Cómo se hizo"], ["/sobre-mi", "Sobre mí"], ["/escritorio", "Modo escritorio"],
     ["/cotizacion", "Portal de clientes"], ["/privacidad", "Privacidad"], ["/terminos", "Términos"],
 ] as const;
 
@@ -44,7 +44,8 @@ export function Pie() {
                     <p><b id="hora">{reloj ? reloj.hora : "--:--"}</b><span id="sl-momento">{reloj ? `${reloj.dia ? "De día" : "De noche"} en Santiago de Chile` : "Santiago de Chile"}</span></p>
                 </div>
                 <nav className="sl-ir" aria-label="Sitio">
-                    {ENLACES.map(([href, texto]) => <Link key={href} href={href}>{texto}</Link>)}
+                    {/* El escritorio con <a>: carga entero, con su propia política de permisos e historial. */}
+                    {ENLACES.map(([href, texto]) => href === "/escritorio" ? <a key={href} href={href}>{texto}</a> : <Link key={href} href={href}>{texto}</Link>)}
                     <BotonInstalar className="sl-instalar" />
                 </nav>
                 <a className="sl-subir" href="#contenido" aria-label="Volver al inicio"

@@ -207,6 +207,11 @@ export function Barra({ enlaces = ENLACES, inicio = "/", contacto = "/#contacto"
                     <Link className="nb-solo-menu boton lleno nb-menu-hablar" href={contacto} onClick={cerrarMenu}>Hablemos de tu proyecto</Link>
                 </div>
             </nav>
+            {/* El modo escritorio (/escritorio): el sitio en ventanas. Con mouse y en pantallas anchas; en el celular está en el pie. */}
+            {/* <a> y no <Link>: el escritorio carga entero (su propia política de permisos e historial). */}
+            <a className="nb-escritorio" href="/escritorio" aria-label="Modo escritorio" title="Modo escritorio" style={{ "--n": 2 } as React.CSSProperties}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>
+            </a>
             {conTema && (
                 <button className="nb-tema" id="nb-tema" type="button" aria-label="Cambiar entre tema claro y oscuro" style={{ "--n": 2 } as React.CSSProperties} onClick={(e) => cambiarTema(e)}>
                     <svg className="nb-luna" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.5 0-1-.1-1.5A7 7 0 0 1 12 3Z" /></svg>

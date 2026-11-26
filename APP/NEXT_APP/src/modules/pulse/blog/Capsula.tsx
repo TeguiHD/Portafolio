@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
-import { IconoTiempo, figuraDelCielo } from "./IconoTiempo";
+import { IconoTiempo } from "./IconoTiempo";
 import { useMateria } from "@/modules/materia/Materia";
-import type { Clima } from "@/modules/materia/motor";
+import { climaDe } from "./clima";
 import type { PulseContextData } from "@/modules/pulse/types";
 import "./capsula.css";
 
@@ -11,14 +11,8 @@ const CIUDAD_POR_DEFECTO = "Santiago";
 
 type Estado = "cargando" | "listo" | "fallo";
 
-/** El cielo del lugar, en el idioma de la materia: llueve, nieva, sube polvo con el sol, titilan estrellas o pasan nubes. */
-export function climaDe(codigo: number, dia: boolean): Clima {
-  const f = figuraDelCielo(codigo, dia);
-  if (f === "tormenta" || f === "chubasco" || f === "lluvia" || f === "llovizna") return "lluvia";
-  if (f === "nieve") return "nieve";
-  if (f === "niebla" || f === "nube") return "nubes";
-  return f === "luna" || f === "luna-nube" ? "noche" : "sol";
-}
+// climaDe vive en ./clima: también lo usa el fondo «Clima de Santiago» del modo escritorio.
+export { climaDe } from "./clima";
 
 /** «2026-11-17T06:30» (hora local del lugar, como la entrega Open-Meteo) → minutos desde la medianoche. */
 function minutosDe(iso?: string): number | null {

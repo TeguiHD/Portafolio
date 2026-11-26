@@ -25,7 +25,7 @@ export function AvisoVersion() {
   const ultima = useRef(0);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    if (!("serviceWorker" in navigator) || document.documentElement.hasAttribute("data-ventana")) return;
     let vivo = true;
 
     const vigilar = (reg: ServiceWorkerRegistration) => {

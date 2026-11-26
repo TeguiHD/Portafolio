@@ -41,6 +41,10 @@
   transition: translate .5s var(--curva), width .5s var(--curva), opacity .3s; pointer-events: none; }
 .nb-luz::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 14px; height: 2px; margin-left: -7px; border-radius: 2px; background: var(--acento); opacity: var(--p, 0); transition: opacity .3s; }
 
+.nb-escritorio { position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--mut); transition: color .25s, background .25s; }
+.nb-escritorio:hover, .nb-escritorio:focus-visible { color: var(--txt); background: var(--linea); }
+/* Desde 1100 px hay espacio para el ícono sin empujar «Hablemos» fuera de la barra; más angosto, el enlace queda en el pie. */
+@media (max-width: 1099px), (pointer: coarse) { .nb-escritorio { display: none; } }
 .nb-tema { position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--mut); transition: color .25s, background .25s; }
 .nb-tema:hover { color: var(--txt); background: var(--linea); }
 .nb-tema svg { position: absolute; transition: rotate .7s var(--curva), scale .5s var(--curva), opacity .4s; }

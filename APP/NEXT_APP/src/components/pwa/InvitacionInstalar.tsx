@@ -25,7 +25,7 @@ export function InvitacionInstalar() {
     const ver = Boolean(modo) && bajo && !cerrada;
 
     useEffect(() => {
-        if (!modo || bajo || !matchMedia("(pointer: coarse)").matches || descartadaHacePoco()) return;
+        if (!modo || bajo || !matchMedia("(pointer: coarse)").matches || descartadaHacePoco() || document.documentElement.hasAttribute("data-ventana")) return;
         const alBajar = () => { if (scrollY > innerHeight * 0.8) setBajo(true); };
         addEventListener("scroll", alBajar, { passive: true });
         alBajar();
