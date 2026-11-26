@@ -212,8 +212,12 @@ test.describe("modo escritorio", () => {
         await page.getByRole("option", { name: "Conversemos" }).dblclick();
         const dentro = ventana(page, "Conversemos").locator("iframe").contentFrame();
         await expect(dentro.getByRole("heading", { name: /Conversemos/ })).toBeVisible();
-        await dentro.getByRole("button", { name: "Escribirme un mensaje" }).click();
-        await expect(dentro.getByRole("dialog", { name: "Escríbeme" })).toBeVisible();
+        // La página de la ventana se pinta antes de hidratarse (en producción los scripts llegan por Cloudflare): se
+        // reintenta el clic hasta que el botón ya responde.
+        await expect(async () => {
+            await dentro.getByRole("button", { name: "Escribirme un mensaje" }).click();
+            await expect(dentro.getByRole("dialog", { name: "Escríbeme" })).toBeVisible({ timeout: 1500 });
+        }).toPass({ timeout: 20000 });
     });
 
     test("en el celular las ventanas ocupan la pantalla y Atrás las cierra", async ({ browser }) => {
