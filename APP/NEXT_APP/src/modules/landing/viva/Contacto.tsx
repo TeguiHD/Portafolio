@@ -5,25 +5,13 @@ import { useMateria } from "@/modules/materia/Materia";
 import { avisar } from "@/modules/esqueleto/avisos";
 import { copiarTexto } from "@/lib/tools/copiar";
 import { ORIGENES } from "@/lib/contacto-origen";
+import { CORREO_CONTACTO, LIMITES_CONTACTO, MENSAJES_CONTACTO, enviarContacto, medirDesfase, mensajeCorto } from "@/lib/contacto/envio";
 import { Vista } from "./Vista";
 import "./contacto.css";
 import "./contacto-formulario.css";
 
-const CORREO = "contacto@nicoholas.dev";
-const DEMASIADOS = "Recibí varios mensajes seguidos. Prueba de nuevo en una hora o escríbeme al correo.";
-const FALLO = "No pude enviar el mensaje. Prueba otra vez o escríbeme al correo.";
-const REVISAR = "Revisa el correo y el mensaje, y prueba otra vez.";
-const LENTO = "El envío tardó demasiado. Prueba otra vez o escríbeme al correo.";
-const SIN_RED = "No hay conexión a internet: el mensaje no salió. Lo escrito sigue aquí; prueba cuando vuelva la conexión.";
-const CORTO = "Cuéntame un poco más: al menos 10 caracteres, sin contar los espacios.";
-/** Los mismos topes que aplica el servidor (src/app/api/contact/route.ts). */
-const MIN_MENSAJE = 10, MAX_MENSAJE = 2000;
-/** Desde este largo se muestra cuánto queda: maxLength corta en silencio lo que se pega de más. */
-const AVISO_LARGO = 1800;
-/** El servidor descarta en silencio lo que llega antes de 3 s de abrir el formulario (filtro de bots). */
-const ESPERA_MINIMA = 3200;
-/** La hora del servidor llega redondeada al segundo y con el retardo de la red: se resta este margen (ms) a la hora de apertura. */
-const MARGEN_RELOJ = 1500;
+const CORREO = CORREO_CONTACTO;
+const { MIN_MENSAJE, MAX_MENSAJE, AVISO_LARGO } = LIMITES_CONTACTO;
 
 type Campo = HTMLInputElement | HTMLTextAreaElement;
 /** `:user-invalid` es solo visual: esto lo refleja en `aria-invalid` para los lectores de pantalla. */
@@ -68,10 +56,7 @@ export function Contacto() {
         d.showModal();
         if (!desfaseMedido.current) {
             desfaseMedido.current = true;
-            fetch("/robots.txt", { method: "HEAD", cache: "no-store" }).then((r) => {
-                const hora = Date.parse(r.headers.get("date") ?? "");
-                if (Number.isFinite(hora)) desfase.current = hora - Date.now();
-            }).catch(() => { desfaseMedido.current = false; });
+            void medirDesfase().then((d) => { if (d === null) desfaseMedido.current = false; else desfase.current = d; });
         }
     };
 
@@ -83,25 +68,16 @@ export function Contacto() {
         if (ocupado.current) return;
         const f = e.currentTarget, datos = new FormData(f), texto = (k: string) => String(datos.get(k) ?? "").trim();
         // minLength cuenta los espacios; el servidor no. Sin esto, «         a» gastaba uno de los 3 envíos por hora en un rechazo.
-        if (texto("message").length < MIN_MENSAJE) { setFallo(CORTO); f.querySelector<HTMLTextAreaElement>("#ct-mensaje")?.focus(); return; }
+        if (mensajeCorto(texto("message"))) { setFallo(MENSAJES_CONTACTO.CORTO); f.querySelector<HTMLTextAreaElement>("#ct-mensaje")?.focus(); return; }
         ocupado.current = true; setEnviando(true); setFallo("");
-        const corte = new AbortController(), reloj = setTimeout(() => corte.abort(), 30000);
         try {
-            const falta = ESPERA_MINIMA - (Date.now() - abierto.current);
-            if (falta > 0) await new Promise((r) => setTimeout(r, falta));
-            const r = await fetch("/api/contact", {
-                method: "POST", headers: { "Content-Type": "application/json" }, signal: corte.signal,
-                body: JSON.stringify({ name: texto("name") || undefined, email: texto("email"), message: texto("message"), origen: texto("origen") || undefined, website: String(datos.get("website") ?? ""), formStartTime: Math.round(abierto.current + desfase.current - MARGEN_RELOJ) }),
-            });
-            const cuerpo: { success?: boolean; error?: string } = await r.json().catch(() => ({}));
-            if (r.ok && cuerpo.success) {
+            const r = await enviarContacto({ name: texto("name") || undefined, email: texto("email"), message: texto("message"), origen: texto("origen") || undefined, website: String(datos.get("website") ?? "") }, abierto.current, desfase.current);
+            if (r.ok) {
                 f.reset(); setLargo(0); abierto.current = 0; dialogo.current?.close();
                 avisar("Mensaje enviado"); motor?.sacudir(9);
-            } else avisarFallo(r.status === 429 ? DEMASIADOS : r.status === 400 ? (typeof cuerpo.error === "string" && cuerpo.error ? `${cuerpo.error.replace(/^Email/, "Correo")}.` : REVISAR) : FALLO);
-        } catch (error) {
-            avisarFallo(error instanceof Error && error.name === "AbortError" ? LENTO : navigator.onLine === false ? SIN_RED : FALLO);
+            } else avisarFallo(r.error);
         } finally {
-            clearTimeout(reloj); ocupado.current = false; setEnviando(false);
+            ocupado.current = false; setEnviando(false);
         }
     };
 
