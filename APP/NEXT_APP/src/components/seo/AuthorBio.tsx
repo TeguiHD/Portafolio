@@ -6,15 +6,15 @@
  */
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/seo/metadata";
-import { personSchema } from "@/lib/seo/schemas";
+import { CARGOS } from "@/lib/seo/schemas";
 
 export function AuthorBio() {
-    // Solo describe a la persona (nombre + rol de personSchema()). Ningún dato
+    // Solo describe a la persona (nombre + su oficio, el primero de CARGOS). Ningún dato
     // aquí puede depender de qué herramienta esté renderizando este componente:
     // una afirmación de producto ("gratis", "sin registro", "sin marcas de
     // agua"...) puede ser falsa en alguna de las 29, así que no vive aquí. Eso
     // es responsabilidad del registro por herramienta (Fase 4).
-    const jobTitle = personSchema().jobTitle as string;
+    const jobTitle = CARGOS[0];
 
     return (
         <aside

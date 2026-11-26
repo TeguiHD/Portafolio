@@ -26,11 +26,12 @@
 .sm-anios li { display: grid; grid-template-columns: minmax(110px, 200px) minmax(0, 1fr); align-items: baseline; gap: 6px 30px; padding: 22px 4px; border-bottom: 1px solid var(--linea); font-size: clamp(18px, 1.8vw, 23px); font-weight: 600; letter-spacing: -.015em; }
 .sm-anio { font: 700 clamp(30px, 4vw, 52px)/1 var(--font-inter, Inter), sans-serif; letter-spacing: -.05em; color: transparent; -webkit-text-stroke: 1.2px color-mix(in srgb, var(--acento) 70%, transparent); }
 
-.sm-proyectos { display: grid; gap: 0; margin-top: 30px; border-top: 1px solid var(--linea); }
-.sm-proyectos article { padding: 28px 4px; border-bottom: 1px solid var(--linea); }
-.sm-proyectos h3 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -.03em; }
+.sm-intro { margin: 22px 0 0; max-width: 52ch; color: var(--txt); font-size: clamp(18px, 1.7vw, 22px); line-height: 1.45; letter-spacing: -.01em; }
+.sm-filas, .sm-proyectos { display: grid; gap: 0; margin-top: 30px; border-top: 1px solid var(--linea); }
+.sm-filas article, .sm-proyectos article { padding: 28px 4px; border-bottom: 1px solid var(--linea); }
+.sm-filas h3, .sm-proyectos h3 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -.03em; }
 .sm-proyectos h3 span { font-weight: 450; color: var(--mut); }
-.sm-proyectos p { margin: 12px 0 14px; max-width: 72ch; color: var(--mut); font-size: 16px; line-height: 1.65; }
+.sm-filas p, .sm-proyectos p { margin: 12px 0 14px; max-width: 72ch; color: var(--mut); font-size: 16px; line-height: 1.65; }
 
 #contacto.sm-contacto { padding-block: 120px 150px; }
 .sm-contacto p { max-width: 46ch; margin: 18px auto 0; color: var(--mut); font-size: 17px; }

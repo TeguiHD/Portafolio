@@ -55,7 +55,12 @@ ${proyectos}
 
 ## Sobre el autor
 
-- [Sobre mí](${SITE_URL}/sobre-mi): biografía, stack y trayectoria.
+${SITE_NAME} es ingeniero en informática y desarrollador full stack en Chile.
+
+- Desde junio de 2026 es técnico de gestión y plataformas académicas en la Universidad Bernardo O'Higgins (UBO): aulas Moodle de pregrado, postgrado y educación continua; aulas del Departamento de Sostenibilidad en colaboración con la Universidad de Chile; plataformas para procesos docentes; y desarrollos para directores de carrera con SapIA, la Sección de Articulación y Promoción de la Inteligencia Artificial en la Academia (https://sapia.ubo.cl/).
+- Docente de los módulos 3 («¿Cómo optimizar tareas con IA?») y 4 («Creación de propuestas de soluciones innovadoras con IA») del Diplomado en Inteligencia Artificial Generativa Aplicada de la UBO, versiones 1 y 2: https://educacioncontinua.ubo.cl/diplomados/inteligencia-artificial-generativa-aplicada/
+- Coinventor de la solicitud de patente ZA 2025/10601 («Computerized system and method for real-time simulation and analysis of macroeconomic variables»), presentada en Sudáfrica por la UBO y la Universidad Estatal de Economía de San Petersburgo; publicada como solicitud en diciembre de 2025, aún no concedida.
+- [Sobre mí](${SITE_URL}/sobre-mi): biografía, trabajo en la UBO, stack y trayectoria.
 - [Cómo se hizo](${SITE_URL}/como-se-hizo): el método (medir, revisar a los mejores, decidir por escrito, comprobar con pruebas) y el estudio de cada parte del sitio y de cada herramienta.
 - GitHub: https://github.com/TeguiHD
 - LinkedIn: https://www.linkedin.com/in/nicoholas-lopetegui/

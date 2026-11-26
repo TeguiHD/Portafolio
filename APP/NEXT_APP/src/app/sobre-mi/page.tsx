@@ -10,6 +10,11 @@
  * técnico de `defaultTechnologies` en
  * `src/modules/landing/sections/AboutSection.tsx`.
  *
+ * La sección «En la UBO» (26-11-2026) sale de lo que dio el titular el 25-11 (cargo desde el 17-06-2026, Moodle,
+ * Sostenibilidad con la U. de Chile, procesos docentes, desarrollos con SapIA), del programa público del diplomado
+ * (módulos 3 y 4) y del sitio público de SapIA (nombre completo y dependencia). La patente es una SOLICITUD publicada en
+ * el boletín de la CIPC (vol. 58, n.º 12, dic. 2025): no se enlaza ese PDF porque trae la dirección particular del titular.
+ *
  * El título (Ingeniero en Informática), la práctica profesional en el SLEP
  * Santa Rosa y los dos proyectos (FloresDyD y la intranet/aula virtual para
  * una OTEC) los confirmó el titular del sitio de forma explícita el
@@ -35,7 +40,7 @@ import { SITE_NAME } from "@/lib/seo/metadata";
 export const metadata: Metadata = {
     title: { absolute: "Sobre mí | Nicoholas Lopetegui" },
     description:
-        "Nicoholas Lopetegui, Desarrollador Full Stack: quién construye y mantiene las herramientas de este sitio, su stack técnico y su trayectoria profesional.",
+        "Nicoholas Lopetegui: desarrollador full stack, técnico de plataformas académicas en la UBO y docente de IA generativa. Su trabajo, su stack y su trayectoria.",
     alternates: { canonical: "/sobre-mi" },
 };
 
@@ -71,7 +76,11 @@ const TIMELINE = [
     { year: "2021", event: "Práctica profesional en el SLEP Santa Rosa" },
     { year: "2023", event: "Especialización en automatizaciones" },
     { year: "2024", event: "ML Ops y pipelines de datos" },
+    { year: "2025", event: "Coinventor en una solicitud de patente presentada en Sudáfrica" },
+    { year: "2026", event: "Plataformas académicas y docencia de IA generativa en la UBO" },
 ];
+
+const DIPLOMADO = "https://educacioncontinua.ubo.cl/diplomados/inteligencia-artificial-generativa-aplicada/";
 
 /**
  * Sobre mí con el lenguaje de la portada (rediseño del 18-11-2026; el contenido es el mismo y sigue sustentado arriba):
@@ -94,10 +103,63 @@ export default function SobreMiPage() {
                             Soy <strong>{SITE_NAME}</strong>, ingeniero en informática y desarrollador full stack en Chile.
                         </p>
                         <p className="sm-desc" data-sube="" style={{ "--i": 2 } as CSSProperties}>
-                            Hago tiendas en línea, sistemas internos e intranets y herramientas web a medida, en Chile y a distancia,
-                            con Next.js, TypeScript, Node.js y PostgreSQL.
+                            Trabajo en las plataformas académicas de la Universidad Bernardo O&apos;Higgins y enseño IA generativa en su
+                            diplomado. Por mi cuenta hago tiendas en línea, sistemas internos e intranets y herramientas web a medida, en
+                            Chile y a distancia, con Next.js, TypeScript, Node.js y PostgreSQL.
                         </p>
                         <div id="ancla-firma" aria-hidden="true" />
+                    </Vista>
+                </section>
+
+                <section id="ubo" className="plano" data-forma="marco" aria-labelledby="sm-ubo">
+                    <Vista className="ancho">
+                        <h2 id="sm-ubo"><span className="linea-r"><span>En la UBO</span></span></h2>
+                        <p className="sm-intro" data-sube="" style={{ "--i": 1 } as CSSProperties}>
+                            Desde junio de 2026 soy técnico de gestión y plataformas académicas en la Universidad Bernardo O&apos;Higgins.
+                        </p>
+                        <div className="sm-filas" data-sube="" style={{ "--i": 2 } as CSSProperties}>
+                            <article>
+                                <h3>Aulas virtuales</h3>
+                                <p>
+                                    Gestiono las aulas Moodle de pregrado, postgrado y educación continua, y construyo las aulas del
+                                    Departamento de Sostenibilidad, en colaboración con la Universidad de Chile.
+                                </p>
+                            </article>
+                            <article>
+                                <h3>Procesos docentes</h3>
+                                <p>
+                                    Plataformas para la postulación de docentes premium y para la incorporación académica, y herramientas y
+                                    automatizaciones para el trabajo diario de la universidad.
+                                </p>
+                            </article>
+                            <article>
+                                <h3>Con SapIA</h3>
+                                <p>
+                                    Con la Sección de Articulación y Promoción de la Inteligencia Artificial en la Academia (SapIA) hago
+                                    desarrollos para los directores de carrera: un analizador de pitch y páginas para los docentes que postulan
+                                    a fondos de desarrollo.
+                                </p>
+                                <a className="enlace-ir" href="https://sapia.ubo.cl/" target="_blank" rel="noopener noreferrer">sapia.ubo.cl ↗</a>
+                            </article>
+                            <article>
+                                <h3>Docencia</h3>
+                                <p>
+                                    Enseño los módulos 3, «¿Cómo optimizar tareas con IA?», y 4, «Creación de propuestas de soluciones
+                                    innovadoras con IA», del Diplomado en Inteligencia Artificial Generativa Aplicada de la UBO: la versión 1
+                                    terminó en octubre de 2026 y la versión 2 está en curso.
+                                </p>
+                                <a className="enlace-ir" href={DIPLOMADO} target="_blank" rel="noopener noreferrer">El programa del diplomado ↗</a>
+                            </article>
+                            <article>
+                                <h3>Una solicitud de patente</h3>
+                                <p>
+                                    Soy coinventor de la solicitud de patente ZA 2025/10601, «Computerized system and method for real-time
+                                    simulation and analysis of macroeconomic variables», presentada en Sudáfrica por la UBO y la Universidad
+                                    Estatal de Economía de San Petersburgo (UNECON). Se publicó como solicitud en el boletín de patentes de la
+                                    CIPC de diciembre de 2025; todavía no es una patente concedida.
+                                </p>
+                            </article>
+                        </div>
                     </Vista>
                 </section>
 

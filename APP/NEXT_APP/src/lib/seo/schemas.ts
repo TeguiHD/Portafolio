@@ -22,6 +22,19 @@ const SAME_AS = [
     "https://www.linkedin.com/in/nicoholas-lopetegui/",
 ];
 
+/** Los dos cargos del autor: el oficio que ofrece y su puesto en la UBO (desde el 17-06-2026). El primero es el que se
+ * muestra cuando cabe uno solo. */
+export const CARGOS = ["Desarrollador full stack", "Técnico de gestión y plataformas académicas"] as const;
+
+/** La universidad donde trabaja y enseña. Los datos son los públicos de la propia UBO. */
+export const UBO = {
+    "@type": "CollegeOrUniversity",
+    name: "Universidad Bernardo O'Higgins",
+    alternateName: "UBO",
+    url: "https://www.ubo.cl/",
+    sameAs: ["https://es.wikipedia.org/wiki/Universidad_Bernardo_O%27Higgins"],
+} as const;
+
 export function personSchema(): JsonLdObject {
     return {
         "@context": CONTEXT,
@@ -30,11 +43,12 @@ export function personSchema(): JsonLdObject {
         name: SITE_NAME,
         // La página de autor es el ancla E-A-T: Person apunta ahí, no a la home.
         url: `${SITE_URL}/sobre-mi`,
-        jobTitle: "Desarrollador Full Stack",
-        // Hechos ya publicados en el sitio (servicios de la portada, llms.txt y el stack de /sobre-mi), dichos como una respuesta
-        // directa a «¿quién es?»: es lo que las IA leen y repiten.
+        jobTitle: [...CARGOS],
+        worksFor: UBO,
+        // La respuesta directa a «¿quién es?», que es lo que las IA leen y repiten. Todo está en /sobre-mi con su fuente.
+        // La patente es una SOLICITUD publicada (CIPC, diciembre de 2025), no una patente concedida: decirlo así.
         description:
-            "Desarrollador full stack e ingeniero en informática en Chile. Hace tiendas en línea, sistemas internos e intranets y herramientas web a medida, en Chile y a distancia, con Next.js, TypeScript, Node.js y PostgreSQL.",
+            "Desarrollador full stack e ingeniero en informática en Chile. Técnico de gestión y plataformas académicas en la Universidad Bernardo O'Higgins (UBO) desde 2026 y docente del Diplomado en Inteligencia Artificial Generativa Aplicada de la UBO. Coinventor de la solicitud de patente ZA 2025/10601, presentada en Sudáfrica por la UBO y la Universidad Estatal de Economía de San Petersburgo. Hace tiendas en línea, sistemas internos e intranets y herramientas web a medida, con Next.js, TypeScript, Node.js y PostgreSQL.",
         // Credencial confirmada por el titular el 2026-08-05. Sin institución
         // declarada: no se afirma alma mater porque no fue verificada.
         hasCredential: {
@@ -56,6 +70,9 @@ export function personSchema(): JsonLdObject {
             "Desarrollo Web Full Stack",
             "Automatización",
             "Arquitectura de Software",
+            "Inteligencia artificial generativa",
+            "Moodle",
+            "Plataformas académicas",
         ],
     };
 }

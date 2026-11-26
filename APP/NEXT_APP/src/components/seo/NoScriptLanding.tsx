@@ -13,11 +13,10 @@
 import Link from "next/link";
 import { TOOLS_SEO } from "@/lib/seo/tools-content";
 import { SITE_NAME } from "@/lib/seo/metadata";
-import { personSchema } from "@/lib/seo/schemas";
+import { CARGOS } from "@/lib/seo/schemas";
 
 export function NoScriptLanding() {
     const tools = Object.values(TOOLS_SEO);
-    const jobTitle = personSchema().jobTitle as string;
 
     return (
         <noscript>
@@ -34,7 +33,7 @@ export function NoScriptLanding() {
                 </ul>
 
                 <h2>Quién mantiene el sitio</h2>
-                <p>{SITE_NAME} — {jobTitle}. <Link href="/sobre-mi">Sobre mí</Link>.</p>
+                <p>{SITE_NAME}, {CARGOS[0].toLowerCase()} y {CARGOS[1].toLowerCase()} en la Universidad Bernardo O&apos;Higgins. <Link href="/sobre-mi">Sobre mí</Link>.</p>
 
                 <h2>Más del sitio</h2>
                 <ul>
