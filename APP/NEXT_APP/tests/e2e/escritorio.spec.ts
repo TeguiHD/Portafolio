@@ -24,7 +24,7 @@ test.describe("modo escritorio", () => {
             .toHaveText(["Proyectos", "Servicios", "Herramientas", "Sobre mí", "Blog", "Índice de la Web Chilena", "Conversemos"]);
     });
 
-    test("doble clic abre una ventana y la herramienta carga sin la barra ni el pie del sitio", async ({ page }) => {
+    test("la herramienta abre como app: sin la página alrededor y sin la dirección en la ventana", async ({ page }) => {
         await entrar(page);
         await page.getByRole("option", { name: "Herramientas" }).dblclick();
         const carpeta = ventana(page, "Herramientas");
@@ -32,13 +32,35 @@ test.describe("modo escritorio", () => {
         await carpeta.locator('[data-abrir="herramientas/qr"]').click();
         const qr = ventanaDe(page, "herramientas/qr");
         await expect(qr).toBeVisible();
+        await expect(qr.locator("header").first()).toContainText("Generador de QR");
+        await expect(qr.locator("header").first()).not.toContainText("nicoholas.dev/");
         const marco = qr.locator("iframe");
-        await expect(marco).toHaveAttribute("src", "/herramientas/qr");
+        await expect(marco).toHaveAttribute("src", "/escritorio/app/qr");
         const dentro = marco.contentFrame();
-        await expect(dentro.locator("h1")).toContainText("QR");
+        await expect(dentro.getByText("Tu código QR")).toBeVisible();
+        await expect(dentro.locator(".tool-page-heading")).toBeHidden();
+        await expect(dentro.getByRole("heading", { name: /Preguntas frecuentes/i })).toHaveCount(0);
+        await expect(dentro.locator('nav[aria-label="Ruta de navegación"]')).toHaveCount(0);
         await expect(dentro.locator("html")).toHaveAttribute("data-ventana", "");
-        await expect(dentro.locator(".nb")).toBeHidden();
-        await expect(dentro.locator(".suelo")).toBeHidden();
+    });
+
+    test("dentro de la app se escribe y la herramienta responde", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=herramientas/base64");
+        const app = ventanaDe(page, "herramientas/base64");
+        await expect(app).toBeVisible();
+        const dentro = app.locator("iframe").contentFrame();
+        await dentro.getByRole("textbox", { name: "Entrada", exact: true }).fill("hola");
+        await expect(dentro.getByRole("textbox", { name: "Resultado" })).toHaveValue("aG9sYQ==");
+    });
+
+    test("la ruta de app solo existe para herramientas públicas y fuera de una ventana lleva a la herramienta", async ({ page, request }) => {
+        expect((await request.get("/escritorio/app/no-existe")).status()).toBe(404);
+        const r = await request.get("/escritorio/app/qr");
+        expect(r.status()).toBe(200);
+        expect(r.headers()["content-security-policy"]).toMatch(/frame-ancestors 'self'|localhost/);
+        expect(await r.text()).toMatch(/<meta name="robots" content="noindex/);
+        await page.goto("/escritorio/app/qr");
+        await expect(page).toHaveURL(/\/herramientas\/qr$/);
     });
 
     test("se minimiza, vuelve desde la barra de tareas y se cierra", async ({ page }) => {

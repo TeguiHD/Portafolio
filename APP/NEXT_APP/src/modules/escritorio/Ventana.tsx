@@ -210,7 +210,8 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
     };
 
     const abrirAparte = () => {
-        const destino = enMarco ? ruta : app.enlace;
+        // Una herramienta abierta como app se abre aparte en su página del sitio, no en la ruta de app.
+        const destino = enMarco && !ruta?.startsWith("/escritorio/app/") ? ruta : app.enlace;
         if (destino) window.open(destino, "_blank", "noopener");
     };
     const accionMenu = (f: () => void) => () => { menu.current?.hidePopover(); f(); };
@@ -231,7 +232,7 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
                     </button>
                 )}
                 <h2 className="es-tit" id={idTitulo}>{app.titulo}</h2>
-                {enMarco && ruta ? <span className="es-dir" aria-hidden="true">nicoholas.dev{ruta}</span> : <span className="es-dir" aria-hidden="true" />}
+                <span className="es-dir" aria-hidden="true" />
                 <div className="es-ctl">
                     {(enMarco || app.enlace) && (
                         <button type="button" className="es-ctl-boton" aria-label="Abrir en una pestaña" title="Abrir en una pestaña" onClick={abrirAparte}><Glifo d={UI.aparte} /></button>

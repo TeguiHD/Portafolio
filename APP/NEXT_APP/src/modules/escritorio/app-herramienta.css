@@ -1,0 +1,20 @@
+/* Una herramienta abierta como app del modo escritorio (/escritorio/app/<slug>): llena su ventana con el fondo de la
+   ventana, sin la cabecera de la página ni los márgenes del sitio. Las reglas van sin capa: ganan a las utilidades de
+   Tailwind que algunas páginas traen en su <main> (p. ej. pt-20 en DNS). */
+:root { --app-fondo: #0f131b; }
+:root[data-tema="claro"] { --app-fondo: #fbfbf9; }
+
+html:has(.app-herramienta) {
+    background: var(--app-fondo);
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--txt) 28%, transparent) transparent;
+}
+body:has(.app-herramienta) { background: var(--app-fondo); }
+
+.app-herramienta { min-height: 100svh; --ancho-sitio: 100%; --ancho-h: 100%; --margen: 0px; }
+/* Una herramienta angosta (un formulario) no se estira de lado a lado si la ventana se maximiza. */
+.app-herramienta[data-ancho="estrecha"] { --ancho-h: min(56rem, 100%); }
+
+.app-herramienta .tool-page-heading { display: none; }
+.app-herramienta .tool-main { padding: 18px 20px 28px; }
+@media (max-width: 520px) { .app-herramienta .tool-main { padding: 12px 12px 20px; } }

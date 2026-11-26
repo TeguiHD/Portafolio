@@ -69,7 +69,8 @@ export const FAMILIAS = ["imágenes", "generación", "conversión", "productivid
 export function appHerramienta(t: HerramientaEscritorio): App {
     return {
         id: `herramientas/${t.slug}`, titulo: t.nombre, color: COLOR_CATEGORIA[t.familia] ?? "#5eead4", glifo: ICONOS[t.slug] ?? GLIFOS.herramientas,
-        ruta: `/herramientas/${t.slug}`, sigla: SIGLAS[t.slug] || t.nombre, tam: t.ancho === "ancha" ? [1220, 800] : [1000, 760],
+        // Como app: la herramienta sola (/escritorio/app); «Abrir en una pestaña» lleva a su página en el sitio.
+        ruta: `/escritorio/app/${t.slug}`, enlace: `/herramientas/${t.slug}`, sigla: SIGLAS[t.slug] || t.nombre, tam: t.ancho === "ancha" ? [1220, 800] : [1000, 760],
     };
 }
 
