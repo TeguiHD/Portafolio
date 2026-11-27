@@ -27,7 +27,8 @@ for (const id of lista) {
     // El dibujo corre dentro de la carga de la página: en 2560 px los paisajes tardan más de un minuto.
     await pagina.goto(`${pathToFileURL(join(AQUI, "fondos.html"))}?id=${id}&w=${w}&h=${h}`, { waitUntil: "commit", timeout: 600000 });
     await pagina.waitForFunction(() => window.listo === true, null, { timeout: 600000, polling: 1000 });
-    const png = Buffer.from((await pagina.evaluate(() => document.getElementById("c").toDataURL("image/png"))).split(",")[1], "base64");
+    // Un fondo nunca es transparente: lo que quedara sin pintar sale negro y no deja ver lo de atrás.
+    const png = await sharp(Buffer.from((await pagina.evaluate(() => document.getElementById("c").toDataURL("image/png"))).split(",")[1], "base64")).flatten({ background: "#000000" }).png().toBuffer();
     if (vista) { await sharp(png).toFile(join(vista, `${id}.png`)); console.log("vista", id); continue; }
     for (const ancho of [1280, 1920, 2560]) {
         const base = sharp(png).resize(ancho, Math.round((ancho * 9) / 16));

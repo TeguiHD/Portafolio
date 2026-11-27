@@ -150,6 +150,9 @@ const FONDOS = {
     const R = azar(11), n = ruido(11), hz = H * 0.6;
     ctx.fillStyle = degradado(0, hz, [[0, "#070a1f"], [0.38, "#1d1842"], [0.66, "#5a2a55"], [0.84, "#b6514f"], [0.95, "#ec8a55"], [1, "#f7b673"]]);
     ctx.fillRect(0, 0, W, hz + 4);
+    // Bajo el horizonte, la neblina: las dunas más lejanas empiezan unos píxeles más abajo y sin esto quedaba una franja
+    // sin pintar (transparente), por la que se asomaba lo que hubiera detrás del fondo.
+    ctx.fillStyle = "#e7896a"; ctx.fillRect(0, hz + 4, W, H - hz - 4);
     estrellas(R, 1100 * S * S + 600, hz * 0.62, 0.95);
     brillo(W * 0.7, hz, H * 0.75, "rgba(255,150,90,A)", 0.4);
     brillo(W * 0.7, hz, H * 0.2, "rgba(255,214,150,A)", 0.6);
