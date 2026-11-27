@@ -1,23 +1,28 @@
 import type { App } from "./apps";
 import type { Rect, Zona } from "./geometria";
 
+/** Lo que una app recibe al abrirse (la carpeta del Explorador, la foto de Fotos…). */
+export type Args = Record<string, string | number>;
+
 export interface VentanaAbierta {
     id: string;
     app: App;
+    args: Args;
     r: Rect;
-    /** El tamaño y lugar antes de encajarla o maximizarla, para volver a él. */
+    /** El tamaño y lugar antes de acoplarla o maximizarla, para volver a él. */
     previo: Rect | null;
     zona: Zona | null;
     min: boolean;
     /** Orden de apilado: la de z más alto (sin minimizar) es la activa. */
     z: number;
-    /** Mientras la materia escribe su nombre, todavía no se ve. */
-    naciendo: boolean;
     cerrando: boolean;
     /** Si al aparecer se lleva el foco (abierta por la persona, no restaurada de la sesión). */
     foco: boolean;
 }
 
+export interface HerramientaEscritorio { slug: string; nombre: string; familia: string; ancho?: "estrecha" | "ancha"; descripcion?: string }
+export interface ServicioEscritorio { slug: string; nombre: string; resumen: string }
+export interface VistaProyecto { nombre: string; escritorio: string; celular?: string }
 export interface ProyectoEscritorio {
     id: string;
     titulo: string;
@@ -28,13 +33,10 @@ export interface ProyectoEscritorio {
     cta: string;
     href: string;
     externo: boolean;
+    /** El dominio, para el acceso directo al sitio real. */
+    direccion?: string;
+    vistas?: VistaProyecto[];
 }
-
-export type Fondo = "olas" | "clima" | "firma" | "quieto";
-
-export const FONDOS: { id: Fondo; nombre: string }[] = [
-    { id: "olas", nombre: "Materia en olas" }, { id: "clima", nombre: "Clima de Santiago" }, { id: "firma", nombre: "Firma" }, { id: "quieto", nombre: "Quieto" },
-];
 
 /** Lo que una ventana le pide al escritorio. */
 export interface AccionesVentana {
@@ -50,4 +52,5 @@ export interface AccionesVentana {
     sacudida(id: string): void;
     guia(z: Zona | null): void;
     moviendo(v: boolean): void;
+    acerca(id: string): void;
 }

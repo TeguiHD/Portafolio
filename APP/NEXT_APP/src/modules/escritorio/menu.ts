@@ -12,15 +12,3 @@ export function navegarMenu(e: KeyboardEvent<HTMLElement>) {
     e.preventDefault();
     items[j].focus();
 }
-
-/** Pone un panel emergente (popover) junto a la barra de tareas: arriba de la cápsula, alineado con su botón. */
-export function colocarJuntoABarra(panel: HTMLElement, boton: HTMLElement | null, centrado: boolean) {
-    const barra = document.querySelector<HTMLElement>(".es-tareas")?.getBoundingClientRect();
-    const b = boton?.getBoundingClientRect();
-    const s = panel.style;
-    s.left = s.right = s.top = s.transform = "";
-    s.bottom = `${Math.max(8, innerHeight - (barra?.top ?? innerHeight - 76) + 10)}px`;
-    if (innerWidth <= 760) { s.left = "8px"; s.right = "8px"; return; }
-    if (centrado || !b) { s.left = "50%"; s.transform = "translateX(-50%)"; return; }
-    s.right = `${Math.max(8, innerWidth - b.right)}px`;
-}

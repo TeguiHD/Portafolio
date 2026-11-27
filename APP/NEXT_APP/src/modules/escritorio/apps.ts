@@ -1,86 +1,103 @@
-import { COLOR_CATEGORIA, ICONOS, SIGLAS } from "../landing/viva/siglas";
+import type { IconoApp } from "./iconos/Icono";
+import type { Args, HerramientaEscritorio, ServicioEscritorio } from "./tipos";
 
 /**
- * Lo que se abre en el modo escritorio. Cada app es una página real del sitio (en un iframe del mismo origen, sin la
- * barra ni el pie) o una vista propia del escritorio. Las herramientas salen del catálogo público.
+ * Lo que se abre en el modo escritorio. Hay tres clases de app:
+ *  · vista: una app propia del escritorio (Explorador, Fotos, Correo, Noticias, Configuración);
+ *  · herramienta: una herramienta del catálogo como app (/escritorio/app/<slug>, sin la página alrededor);
+ *  · página: una página del sitio en el Lector (iframe del mismo origen, sin la barra ni el pie).
  */
-export type Vista = "proyectos" | "herramientas" | "configuracion" | "atajos";
+export type VistaId = "explorador" | "fotos" | "correo" | "noticias" | "configuracion";
 
 export interface App {
     id: string;
     titulo: string;
-    color: string;
-    /** Contenido de un <svg viewBox="0 0 24 24"> de trazo. */
-    glifo: string;
-    /** La página que muestra la ventana. */
+    icono: IconoApp;
+    tipo: "vista" | "pagina" | "herramienta";
+    /** La página que muestra la ventana (páginas y herramientas). */
     ruta?: string;
-    /** O una vista propia del escritorio. */
-    vista?: Vista;
+    /** La app propia que muestra (vistas). */
+    vista?: VistaId;
+    /** Con qué abre si no se le dice otra cosa (la carpeta de un acceso al Explorador). */
+    args?: Args;
     /** Dónde se abre fuera del escritorio («Abrir en una pestaña»). */
     enlace?: string;
-    /** Lo que la materia escribe mientras la ventana aparece. */
-    sigla: string;
     /** Ancho y alto preferidos (px). */
     tam: [number, number];
+    descripcion?: string;
+    familia?: string;
 }
 
-export interface HerramientaEscritorio { slug: string; nombre: string; familia: string; ancho?: "estrecha" | "ancha" }
-
-export const GLIFOS = {
-    proyectos: '<rect x="3" y="7" width="14" height="12" rx="2"/><path d="M7 4h12a2 2 0 0 1 2 2v9"/><path d="M6 16l3-3 2 2 2.5-2.5L16 15"/>',
-    servicios: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 13h18"/>',
-    herramientas: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><circle cx="17" cy="7" r="3.5"/><path d="M7 13.5l3.5 6.5h-7z"/><rect x="13.5" y="13.5" width="7" height="7" rx="3.5"/>',
-    sobremi: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.4-3.6 4.2-5.5 7.5-5.5s6.1 1.9 7.5 5.5"/>',
-    blog: '<path d="M4 5h16M4 10h16M4 15h11M4 20h7"/>',
-    indice: '<path d="M4 20V11M9.5 20V5M15 20v-6M20.5 20V8M2.5 20.5h19"/>',
-    conversemos: '<path d="M20.5 11.5a8.5 8.5 0 0 1-12.3 7.6L3.5 20.5l1.4-4.5a8.5 8.5 0 1 1 15.6-4.5z"/>',
-    metodo: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8.5 12.5l2 2 4-4"/>',
-    documento: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
-    configuracion: '<path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/>',
-    atajos: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
-} as const;
+const explorador = (id: string, titulo: string, icono: IconoApp, carpeta: string, descripcion: string, enlace?: string): App =>
+    ({ id, titulo, icono, tipo: "vista", vista: "explorador", args: { carpeta }, tam: [1000, 640], descripcion, enlace });
+const pagina = (id: string, titulo: string, icono: IconoApp, ruta: string, descripcion: string, tam: [number, number] = [1100, 760]): App =>
+    ({ id, titulo, icono, tipo: "pagina", ruta, enlace: ruta, tam, descripcion });
 
 export const APPS: Record<string, App> = {
-    proyectos: { id: "proyectos", titulo: "Proyectos", color: "#fbbf24", glifo: GLIFOS.proyectos, vista: "proyectos", enlace: "/#proyectos", sigla: "Proyectos", tam: [920, 600] },
-    servicios: { id: "servicios", titulo: "Servicios", color: "#a78bfa", glifo: GLIFOS.servicios, ruta: "/servicios", sigla: "Servicios", tam: [1120, 740] },
-    herramientas: { id: "herramientas", titulo: "Herramientas", color: "#5eead4", glifo: GLIFOS.herramientas, vista: "herramientas", enlace: "/herramientas", sigla: "Herramientas", tam: [880, 640] },
-    "sobre-mi": { id: "sobre-mi", titulo: "Sobre mí", color: "#7dd3fc", glifo: GLIFOS.sobremi, ruta: "/sobre-mi", sigla: "Hola", tam: [1080, 760] },
-    blog: { id: "blog", titulo: "Blog", color: "#fb7185", glifo: GLIFOS.blog, ruta: "/blog", sigla: "Blog", tam: [1160, 780] },
-    indice: { id: "indice", titulo: "Índice de la Web Chilena", color: "#34d399", glifo: GLIFOS.indice, ruta: "/indice-web-chilena", sigla: "Índice", tam: [1160, 780] },
-    conversemos: { id: "conversemos", titulo: "Conversemos", color: "#5eead4", glifo: GLIFOS.conversemos, ruta: "/contacto", enlace: "/#contacto", sigla: "Hablemos", tam: [820, 660] },
-    "como-se-hizo": { id: "como-se-hizo", titulo: "Cómo se hizo", color: "#93a1b5", glifo: GLIFOS.metodo, ruta: "/como-se-hizo", sigla: "Método", tam: [1080, 760] },
-    privacidad: { id: "privacidad", titulo: "Privacidad", color: "#93a1b5", glifo: GLIFOS.documento, ruta: "/privacidad", sigla: "Privacidad", tam: [940, 720] },
-    terminos: { id: "terminos", titulo: "Términos", color: "#93a1b5", glifo: GLIFOS.documento, ruta: "/terminos", sigla: "Términos", tam: [940, 720] },
-    configuracion: { id: "configuracion", titulo: "Configuración", color: "#93a1b5", glifo: GLIFOS.configuracion, vista: "configuracion", sigla: "Ajustes", tam: [560, 640] },
-    atajos: { id: "atajos", titulo: "Atajos de teclado", color: "#93a1b5", glifo: GLIFOS.atajos, vista: "atajos", sigla: "Atajos", tam: [560, 560] },
+    explorador: explorador("explorador", "Explorador de archivos", "explorador", "", "Los proyectos, servicios, herramientas y documentos del sitio, en carpetas."),
+    proyectos: explorador("proyectos", "Proyectos", "carpeta-proyectos", "proyectos", "Los proyectos, con sus capturas y el sitio real de cada uno.", "/#proyectos"),
+    servicios: explorador("servicios", "Servicios", "carpeta-servicios", "servicios", "Lo que hago: tiendas, sistemas internos, sitios y más.", "/servicios"),
+    herramientas: explorador("herramientas", "Herramientas", "carpeta-herramientas", "herramientas", "Las herramientas gratis del sitio, por familia.", "/herramientas"),
+    documentos: explorador("documentos", "Documentos", "carpeta-documentos", "documentos", "Sobre mí, cómo se hizo el sitio, el índice y lo legal."),
+    correo: { id: "correo", titulo: "Correo", icono: "correo", tipo: "vista", vista: "correo", enlace: "/#contacto", tam: [780, 620], descripcion: "Escríbeme un mensaje; te respondo desde contacto@nicoholas.dev." },
+    noticias: { id: "noticias", titulo: "Noticias", icono: "noticias", tipo: "vista", vista: "noticias", enlace: "/blog", tam: [1060, 720], descripcion: "Titulares de seguridad, inteligencia artificial y desarrollo, de fuentes oficiales." },
+    fotos: { id: "fotos", titulo: "Fotos", icono: "fotos", tipo: "vista", vista: "fotos", tam: [1080, 740], descripcion: "Las capturas reales de los proyectos." },
+    configuracion: { id: "configuracion", titulo: "Configuración", icono: "configuracion", tipo: "vista", vista: "configuracion", tam: [1000, 680], descripcion: "Fondo, colores, barra de tareas, sonido y accesibilidad." },
+    "sobre-mi": pagina("sobre-mi", "Sobre mí", "perfil", "/sobre-mi", "Quién soy, qué hago y con quién he trabajado."),
+    blog: pagina("blog", "Blog", "noticias", "/blog", "Titulares, mercado y lo que estoy construyendo.", [1160, 780]),
+    indice: pagina("indice", "Índice de la Web Chilena", "grafico", "/indice-web-chilena", "Cómo están los sitios públicos de Chile, medidos.", [1160, 780]),
+    "como-se-hizo": pagina("como-se-hizo", "Cómo se hizo", "plano", "/como-se-hizo", "Con qué y cómo está hecho este sitio."),
+    privacidad: pagina("privacidad", "Privacidad", "documento", "/privacidad", "Qué datos se guardan y para qué.", [940, 720]),
+    terminos: pagina("terminos", "Términos", "documento", "/terminos", "Las condiciones de uso del sitio.", [940, 720]),
 };
-
-/** Los íconos del escritorio, en su orden de fábrica. */
-export const EN_ESCRITORIO = ["proyectos", "servicios", "herramientas", "sobre-mi", "blog", "indice", "conversemos"];
-/** Siempre en la barra de tareas, abiertas o no. */
-export const ANCLADAS = ["proyectos", "herramientas", "conversemos"];
-/** Las apps del menú de inicio, arriba de las herramientas. */
-export const EN_INICIO = ["proyectos", "servicios", "herramientas", "sobre-mi", "blog", "indice", "conversemos", "configuracion"];
-/** Las otras páginas del sitio, que el buscador del inicio también encuentra. */
-export const PAGINAS = ["como-se-hizo", "privacidad", "terminos", "atajos"];
-
-export const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"] as const;
 
 export function appHerramienta(t: HerramientaEscritorio): App {
     return {
-        id: `herramientas/${t.slug}`, titulo: t.nombre, color: COLOR_CATEGORIA[t.familia] ?? "#5eead4", glifo: ICONOS[t.slug] ?? GLIFOS.herramientas,
-        // Como app: la herramienta sola (/escritorio/app); «Abrir en una pestaña» lleva a su página en el sitio.
-        ruta: `/escritorio/app/${t.slug}`, enlace: `/herramientas/${t.slug}`, sigla: SIGLAS[t.slug] || t.nombre, tam: t.ancho === "ancha" ? [1220, 800] : [1000, 760],
+        id: `herramientas/${t.slug}`, titulo: t.nombre, icono: { herramienta: t.slug, familia: t.familia }, tipo: "herramienta",
+        // Como app: la herramienta sola; «Abrir en una pestaña» lleva a su página en el sitio.
+        ruta: `/escritorio/app/${t.slug}`, enlace: `/herramientas/${t.slug}`,
+        tam: t.ancho === "ancha" ? [1180, 780] : [920, 700], descripcion: t.descripcion, familia: t.familia,
     };
 }
+
+export function appServicio(s: ServicioEscritorio): App {
+    return pagina(`servicios/${s.slug}`, s.nombre, "documento", `/servicios/${s.slug}`, s.resumen);
+}
+
+/** Los íconos del escritorio, en su orden de fábrica (columnas desde arriba a la izquierda, como Windows). */
+export const EN_ESCRITORIO = ["proyectos", "servicios", "herramientas", "documentos", "sobre-mi", "correo", "noticias", "indice", "herramientas/qr", "herramientas/sueldo-liquido"];
+/** Los que en el escritorio son accesos directos (llevan su flechita). */
+export const ACCESOS = new Set(["herramientas/qr", "herramientas/sueldo-liquido"]);
+/** Ancladas a la barra de tareas de fábrica. */
+export const ANCLADAS_BARRA = ["explorador", "herramientas", "correo", "noticias"];
+/** «Anclado» en el inicio, de fábrica. */
+export const ANCLADAS_INICIO = [
+    "proyectos", "servicios", "herramientas", "correo", "noticias", "fotos",
+    "sobre-mi", "indice", "configuracion", "herramientas/qr", "herramientas/sueldo-liquido", "herramientas/comprimir-imagen",
+    "herramientas/quitar-fondo", "herramientas/claves", "herramientas/uf-utm", "herramientas/rut", "como-se-hizo", "explorador",
+];
+/** Si no hay nada reciente, el inicio recomienda esto. */
+export const SUGERIDAS = ["proyectos", "herramientas/qr", "noticias", "sobre-mi", "herramientas/sueldo-liquido", "correo"];
+
+/** Las familias del catálogo, con su carpeta en el Explorador. */
+export const FAMILIAS: { id: string; nombre: string; familia: string }[] = [
+    { id: "imagenes", nombre: "Imágenes", familia: "imágenes" }, { id: "generacion", nombre: "Generación", familia: "generación" },
+    { id: "conversion", nombre: "Conversión", familia: "conversión" }, { id: "productividad", nombre: "Productividad", familia: "productividad" },
+    { id: "seguridad", nombre: "Seguridad", familia: "seguridad" }, { id: "redes", nombre: "Redes", familia: "redes" },
+    { id: "chile", nombre: "Chile", familia: "chile" },
+];
 
 /** La ventana que corresponde a un enlace del sitio (null si no tiene una). */
 export function idDeRuta(ruta: string, hash: string): string | null {
     const p = ruta.replace(/\/+$/, "") || "/";
-    if (p === "/") return hash === "#proyectos" ? "proyectos" : hash === "#contacto" ? "conversemos" : null;
+    if (p === "/") return hash === "#proyectos" ? "proyectos" : hash === "#contacto" ? "correo" : null;
+    if (p === "/contacto") return "correo";
     const h = /^\/herramientas\/([a-z0-9-]+)$/.exec(p);
     if (h) return `herramientas/${h[1]}`;
+    const s = /^\/servicios\/([a-z0-9-]+)$/.exec(p);
+    if (s) return `servicios/${s[1]}`;
     if (p === "/herramientas") return "herramientas";
-    for (const a of Object.values(APPS)) if (a.ruta && (p === a.ruta || p.startsWith(`${a.ruta}/`))) return a.id;
+    if (p === "/servicios") return "servicios";
+    for (const a of Object.values(APPS)) if (a.tipo === "pagina" && a.ruta && (p === a.ruta || p.startsWith(`${a.ruta}/`))) return a.id;
     return null;
 }

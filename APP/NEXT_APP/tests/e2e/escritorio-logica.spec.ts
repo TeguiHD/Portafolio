@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import { enmarcableEnEscritorio } from "../../src/lib/escritorio/enmarcable";
 import { areaUtil, contener, rectZona, zonaEncaje, posicionInicial } from "../../src/modules/escritorio/geometria";
 import { idDeRuta } from "../../src/modules/escritorio/apps";
+import { arbol, buscarNodo, padre } from "../../src/modules/escritorio/aplicaciones/vfs";
+import { interpretarPrefs, PREFS_BASE } from "../../src/modules/escritorio/preferencias";
 import { centroide, duracionSobre, energiaEntre, sintetizarAviso, sintetizarClic, sintetizarTecla } from "../../src/modules/escritorio/sintesis";
 import { interpretarPreferencias } from "../../src/modules/escritorio/sonido";
 import { FONDOS, fondoPorDefecto, miniFondo, srcsetFondo } from "../../src/modules/escritorio/fondos";
@@ -21,23 +23,34 @@ test.describe("escritorio: lógica", () => {
         }
     });
 
-    test("el área útil deja libre la cápsula de tareas", () => {
+    test("el área útil deja libre la barra de tareas de abajo", () => {
         const a = areaUtil(1440, 900);
-        expect(a.x).toBeGreaterThanOrEqual(0);
-        expect(a.y + a.h).toBeLessThanOrEqual(900 - 70);
-        expect(a.w).toBeGreaterThan(1380);
+        expect(a).toEqual({ x: 0, y: 0, w: 1440, h: 900 - 48 });
+        expect(areaUtil(390, 844, true).h).toBeLessThan(844);
     });
 
-    test("arrastrar al borde encaja a la mitad o maximiza", () => {
-        expect(zonaEncaje(1, 400, 1440)).toBe("izq");
-        expect(zonaEncaje(1439, 400, 1440)).toBe("der");
-        expect(zonaEncaje(700, 0, 1440)).toBe("max");
-        expect(zonaEncaje(700, 400, 1440)).toBeNull();
-        const a = areaUtil(1440, 900), izq = rectZona("izq", a), der = rectZona("der", a);
-        expect(izq.x).toBe(a.x);
-        expect(der.x + der.w).toBe(a.x + a.w);
-        expect(izq.w).toBe(der.w);
-        expect(der.x).toBeGreaterThan(izq.x + izq.w);
+    test("arrastrar al borde encaja a la mitad, a una esquina un cuarto y arriba maximiza", () => {
+        expect(zonaEncaje(1, 400, 1440, 900)).toBe("izq");
+        expect(zonaEncaje(1439, 400, 1440, 900)).toBe("der");
+        expect(zonaEncaje(700, 0, 1440, 900)).toBe("max");
+        expect(zonaEncaje(1, 10, 1440, 900)).toBe("si");
+        expect(zonaEncaje(1439, 10, 1440, 900)).toBe("sd");
+        expect(zonaEncaje(1, 840, 1440, 900)).toBe("ii");
+        expect(zonaEncaje(1439, 840, 1440, 900)).toBe("id");
+        expect(zonaEncaje(10, 0, 1440, 900)).toBe("si");
+        expect(zonaEncaje(700, 400, 1440, 900)).toBeNull();
+    });
+
+    test("las zonas de acople llenan el área sin huecos ni encimarse", () => {
+        const a = areaUtil(1440, 900);
+        const izq = rectZona("izq", a), der = rectZona("der", a);
+        expect(izq.x).toBe(0); expect(izq.w + der.w).toBe(1440); expect(der.x).toBe(izq.w);
+        const [si, sd, ii, id] = (["si", "sd", "ii", "id"] as const).map((z) => rectZona(z, a));
+        expect(si.w + sd.w).toBe(1440); expect(si.h + ii.h).toBe(a.h); expect(id.x).toBe(si.w); expect(id.y).toBe(si.h);
+        const [t1, t2, t3] = (["t1", "t2", "t3"] as const).map((z) => rectZona(z, a));
+        expect(t1.w + t2.w + t3.w).toBe(1440); expect(t2.x).toBe(t1.w); expect(t3.x).toBe(t1.w + t2.w);
+        const t12 = rectZona("t12", a);
+        expect(t12.x).toBe(0); expect(t12.w).toBe(t1.w + t2.w);
         expect(rectZona("max", a)).toEqual(a);
     });
 
@@ -70,11 +83,37 @@ test.describe("escritorio: lógica", () => {
         expect(idDeRuta("/herramientas", "")).toBe("herramientas");
         expect(idDeRuta("/sobre-mi", "")).toBe("sobre-mi");
         expect(idDeRuta("/indice-web-chilena/metodologia", "")).toBe("indice");
+        expect(idDeRuta("/servicios", "")).toBe("servicios");
+        expect(idDeRuta("/servicios/tienda-online", "")).toBe("servicios/tienda-online");
         expect(idDeRuta("/", "#proyectos")).toBe("proyectos");
-        expect(idDeRuta("/", "#contacto")).toBe("conversemos");
-        expect(idDeRuta("/contacto", "")).toBe("conversemos");
+        expect(idDeRuta("/", "#contacto")).toBe("correo");
+        expect(idDeRuta("/contacto", "")).toBe("correo");
         expect(idDeRuta("/admin", "")).toBeNull();
         expect(idDeRuta("/cotizacion", "")).toBeNull();
+    });
+
+    test("el Explorador: proyectos con sus capturas y su sitio, herramientas por familia y documentos", () => {
+        const raiz = arbol({
+            herramientas: [{ slug: "qr", nombre: "Generador de QR", familia: "generación" }, { slug: "comprimir-imagen", nombre: "Comprimir imagen", familia: "imágenes" }, { slug: "redimensionar", nombre: "Redimensionar", familia: "imágenes" }],
+            proyectos: [{ id: "floresdyd", titulo: "FloresDyD", tipo: "Tienda en línea", texto: "Una tienda", imagen: "/a.webp", imagenAlt: "Portada", cta: "Visitar tienda", href: "https://floresdyd.cl", externo: true, direccion: "floresdyd.cl", vistas: [{ nombre: "Portada", escritorio: "/p.jpg", celular: "/pc.jpg" }, { nombre: "Catálogo", escritorio: "/c.jpg", celular: "/cc.jpg" }] }],
+            servicios: [{ slug: "tienda-online", nombre: "Tiendas en línea a medida", resumen: "Para vender" }],
+        });
+        expect(raiz.hijos?.map((h) => h.nombre)).toEqual(["Proyectos", "Servicios", "Herramientas", "Documentos"]);
+        const flores = buscarNodo(raiz, "proyectos/floresdyd");
+        expect(flores?.tipo).toBe("carpeta");
+        const imagenes = flores?.hijos?.filter((h) => h.tipo === "imagen") ?? [];
+        expect(imagenes.length).toBe(4);
+        expect(imagenes[0].abrir).toEqual({ app: "fotos", args: { proyecto: "floresdyd", indice: 0 } });
+        expect(flores?.hijos?.find((h) => h.tipo === "enlace")?.abrir).toEqual({ externo: "https://floresdyd.cl" });
+        const imgs = buscarNodo(raiz, "herramientas/imagenes");
+        expect(imgs?.hijos?.map((h) => h.nombre)).toEqual(["Comprimir imagen", "Redimensionar"]);
+        expect(imgs?.hijos?.[0].abrir).toEqual({ app: "herramientas/comprimir-imagen" });
+        expect(buscarNodo(raiz, "servicios")?.hijos?.[0].abrir).toEqual({ app: "servicios/tienda-online" });
+        expect(buscarNodo(raiz, "documentos")?.hijos?.map((h) => h.abrir && "app" in h.abrir ? h.abrir.app : "")).toContain("sobre-mi");
+        expect(buscarNodo(raiz, "no/existe")).toBeNull();
+        expect(padre("proyectos/floresdyd")).toBe("proyectos");
+        expect(padre("proyectos")).toBe("");
+        expect(padre("")).toBeNull();
     });
 });
 
@@ -166,6 +205,20 @@ test.describe("escritorio: fondos", () => {
             }
             expect(existsSync(`public${miniFondo(f.id).split("?")[0]}`), f.id).toBe(true);
         }
+    });
+
+    test("preferencias rotas o de la versión anterior caen a lo de fábrica", () => {
+        expect(interpretarPrefs(null)).toEqual(PREFS_BASE);
+        expect(interpretarPrefs("{roto")).toEqual(PREFS_BASE);
+        const p = interpretarPrefs(JSON.stringify({ fondo: "olas", solido: "red", alinear: "arriba", iconos: "enormes", animaciones: "si", anclados: ["correo", 3, null, "explorador"] }));
+        expect(p.fondo).toBeNull();
+        expect(p.solido).toBe(PREFS_BASE.solido);
+        expect(p.alinear).toBe("centro");
+        expect(p.iconos).toBe("medianos");
+        expect(p.animaciones).toBe(true);
+        expect(p.anclados).toEqual(["correo", "explorador"]);
+        expect(interpretarPrefs(JSON.stringify({ fondo: "pacifico", alinear: "izq", iconos: "grandes", noMolestar: true })))
+            .toMatchObject({ fondo: "pacifico", alinear: "izq", iconos: "grandes", noMolestar: true });
     });
 
     test("sin elección, el fondo sigue al tema", () => {

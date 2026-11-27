@@ -1,35 +1,78 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Modo escritorio (/escritorio): el sitio como un escritorio con ventanas. Pedido del dueño el 26-11-2026, inspirado en el
- * escritorio de bait.cl pero hecho con la identidad propia (materia de partículas, clics sintetizados, marca «n.»).
- * Las ventanas muestran las páginas reales del sitio en un iframe del mismo origen, sin la barra ni el pie.
+ * Modo escritorio (/escritorio), versión 2: un Windows 11 con la marca «n.» (pedido del dueño el 26-11-2026). Barra de
+ * tareas, inicio, ventanas con acople, Explorador, Fotos, Correo, Noticias, Widgets y Configuración; las herramientas
+ * como apps (/escritorio/app/<slug>) y las páginas del sitio en el Lector.
  */
-async function entrar(page: Page, ruta = "/escritorio") {
-    // Sin el encendido de la primera visita: las pruebas entran directo al escritorio.
-    await page.addInitScript(() => { try { localStorage.setItem("escritorio:visto", "1"); } catch { /* sin almacenamiento */ } });
-    await page.setViewportSize({ width: 1440, height: 900 });
+async function entrar(page: Page, ruta = "/escritorio", { bloqueo = false } = {}) {
+    // Sin el encendido ni la bienvenida de la primera visita; sin la pantalla de bloqueo, salvo que la prueba la quiera.
+    await page.addInitScript((b) => {
+        try {
+            localStorage.setItem("escritorio:visto", "1"); localStorage.setItem("escritorio:bienvenida", "1");
+            if (!b && !sessionStorage.getItem("escritorio:probando")) { sessionStorage.setItem("escritorio:dentro", "1"); sessionStorage.setItem("escritorio:probando", "1"); }
+        } catch { /* sin almacenamiento */ }
+    }, bloqueo);
+    if (!page.viewportSize() || page.viewportSize()!.width !== 1440) await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(ruta);
     await expect(page.getByRole("listbox", { name: "Íconos del escritorio" })).toBeVisible();
 }
 const ventana = (page: Page, nombre: string | RegExp) => page.getByRole("dialog", { name: nombre });
 const ventanaDe = (page: Page, id: string) => page.locator(`.es-ventana[data-app="${id}"]`);
+const barra = (page: Page) => page.getByRole("navigation", { name: "Barra de tareas" });
+/** Espera a que la ventana termine de aparecer (entra creciendo un poco, como en Windows 11). */
+const quieta = (v: ReturnType<typeof ventanaDe>) => v.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+
+// El service worker del sitio atiende los pedidos de las páginas ya controladas y se saltaría page.route.
+test.use({ serviceWorkers: "block" });
 
 test.describe("modo escritorio", () => {
-    test("la página no se indexa y muestra los íconos", async ({ page }) => {
+    test("no se indexa y muestra los íconos y la barra de tareas de Windows", async ({ page }) => {
         await entrar(page);
         await expect(page).toHaveTitle(/Modo escritorio/);
         await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
-        await expect(page.getByRole("listbox", { name: "Íconos del escritorio" }).getByRole("option"))
-            .toHaveText(["Proyectos", "Servicios", "Herramientas", "Sobre mí", "Blog", "Índice de la Web Chilena", "Conversemos"]);
+        const iconos = page.getByRole("listbox", { name: "Íconos del escritorio" }).getByRole("option");
+        await expect(iconos).toHaveCount(10);
+        await expect(iconos.nth(0)).toHaveText("Proyectos");
+        await expect(iconos.nth(5)).toHaveText("Correo");
+        for (const nombre of ["Inicio", "Buscar", "Explorador de archivos", "Herramientas", "Correo", "Noticias"]) {
+            await expect(barra(page).getByRole("button", { name: nombre, exact: true })).toBeVisible();
+        }
+        await expect(barra(page).locator(".es-reloj")).toContainText(/\d{2}:\d{2}/);
+    });
+
+    test("la primera vez de la sesión aparece la pantalla de bloqueo y una tecla la sube", async ({ page }) => {
+        await entrar(page, "/escritorio", { bloqueo: true });
+        const bloqueo = page.getByRole("dialog", { name: /Pantalla de bloqueo/ });
+        await expect(bloqueo).toBeVisible();
+        await expect(bloqueo).toContainText(/\d{2}:\d{2}/);
+        await page.waitForTimeout(450);
+        await page.keyboard.press("Enter");
+        await expect(bloqueo).toHaveCount(0);
+        await page.reload();
+        await expect(page.getByRole("listbox", { name: "Íconos del escritorio" })).toBeVisible();
+        await expect(page.getByRole("dialog", { name: /Pantalla de bloqueo/ })).toHaveCount(0);
+    });
+
+    test("el inicio: anclado, todas las apps y el buscador abren una herramienta como app", async ({ page }) => {
+        await entrar(page);
+        await barra(page).getByRole("button", { name: "Inicio", exact: true }).click();
+        const inicio = page.getByRole("dialog", { name: "Inicio" });
+        await expect(inicio.getByRole("heading", { name: "Anclado" })).toBeVisible();
+        await inicio.getByRole("button", { name: /Todas las apps/ }).click();
+        await expect(inicio.getByRole("heading", { name: "Todas las apps" })).toBeVisible();
+        await inicio.getByRole("searchbox", { name: "Buscar en el escritorio" }).fill("sueldo");
+        await expect(inicio.getByRole("heading", { name: "Mejor coincidencia" })).toBeVisible();
+        await page.keyboard.press("Enter");
+        const app = ventanaDe(page, "herramientas/sueldo-liquido");
+        await expect(app).toBeVisible();
+        await expect(app.locator("iframe")).toHaveAttribute("src", "/escritorio/app/sueldo-liquido");
+        await expect(inicio).toBeHidden();
     });
 
     test("la herramienta abre como app: sin la página alrededor y sin la dirección en la ventana", async ({ page }) => {
         await entrar(page);
-        await page.getByRole("option", { name: "Herramientas" }).dblclick();
-        const carpeta = ventana(page, "Herramientas");
-        await expect(carpeta).toBeVisible();
-        await carpeta.locator('[data-abrir="herramientas/qr"]').click();
+        await page.getByRole("option", { name: "Generador de QR" }).dblclick();
         const qr = ventanaDe(page, "herramientas/qr");
         await expect(qr).toBeVisible();
         await expect(qr.locator("header").first()).toContainText("Generador de QR");
@@ -63,211 +106,240 @@ test.describe("modo escritorio", () => {
         await expect(page).toHaveURL(/\/herramientas\/qr$/);
     });
 
-    test("se minimiza, vuelve desde la barra de tareas y se cierra", async ({ page }) => {
+    test("el Explorador recorre Proyectos hasta una captura que se abre en Fotos", async ({ page }) => {
         await entrar(page);
         await page.getByRole("option", { name: "Proyectos" }).dblclick();
-        const v = ventana(page, "Proyectos");
+        const ex = ventanaDe(page, "proyectos");
+        await expect(ex).toBeVisible();
+        const lista = ex.getByRole("listbox", { name: "Proyectos" });
+        await expect(lista.getByRole("option")).toHaveCount(3);
+        await lista.getByRole("option").first().dblclick();
+        const portada = ex.getByRole("option", { name: "Portada.jpg" });
+        await expect(portada).toBeVisible();
+        await expect(ex.getByRole("navigation", { name: "Dirección" })).toContainText("Proyectos");
+        await portada.dblclick();
+        const fotos = ventanaDe(page, "fotos");
+        await expect(fotos).toBeVisible();
+        await expect(fotos.locator(".fo-lienzo img")).toBeVisible();
+        await expect(fotos).toContainText("1 de");
+        await fotos.getByRole("button", { name: "Foto siguiente" }).click();
+        await expect(fotos).toContainText("2 de");
+        await fotos.getByRole("button", { name: "Cerrar" }).click();
+        await ex.getByRole("button", { name: "Atrás" }).click();
+        await expect(lista.getByRole("option")).toHaveCount(3);
+    });
+
+    test("se minimiza, vuelve desde la barra de tareas y se cierra", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=correo");
+        const v = ventanaDe(page, "correo");
         await expect(v).toBeVisible();
         await v.getByRole("button", { name: "Minimizar" }).click();
         await expect(v).toBeHidden();
-        await page.getByRole("navigation", { name: "Barra de tareas" }).getByRole("button", { name: "Proyectos" }).click();
+        await barra(page).getByRole("button", { name: "Correo", exact: true }).click();
         await expect(v).toBeVisible();
         await v.getByRole("button", { name: "Cerrar" }).click();
         await expect(v).toHaveCount(0);
     });
 
-    test("se arrastra por el título y se encaja en el borde", async ({ page }) => {
-        await entrar(page);
-        await page.getByRole("option", { name: "Proyectos" }).dblclick();
-        const v = ventana(page, "Proyectos");
+    test("al pasar por maximizar aparecen los diseños de acople y uno acopla la ventana", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=correo");
+        const v = ventanaDe(page, "correo");
         await expect(v).toBeVisible();
-        await expect(v).not.toHaveAttribute("data-naciendo", "");
-        // La ventana termina de armarse (animación de entrada) antes de medirla.
-        await expect.poll(() => v.evaluate((el) => el.getAnimations().length)).toBe(0);
-        const titulo = v.locator(".es-cab");
-        const a = (await v.boundingBox())!, t = (await titulo.boundingBox())!;
-        const sx = t.x + t.width / 2, sy = t.y + t.height / 2;
-        await page.mouse.move(sx, sy); await page.mouse.down();
-        await page.mouse.move(sx + 60, sy + 30, { steps: 4 }); await page.mouse.move(sx + 120, sy + 60, { steps: 4 });
-        await page.mouse.up();
-        await expect.poll(async () => { const b = (await v.boundingBox())!; return [Math.round(b.x - a.x), Math.round(b.y - a.y)]; }).toEqual([120, 60]);
-
-        const t2 = (await titulo.boundingBox())!;
-        await page.mouse.move(t2.x + t2.width / 2, t2.y + t2.height / 2); await page.mouse.down();
-        await page.mouse.move(300, 300, { steps: 5 }); await page.mouse.move(0, 300, { steps: 5 });
-        await page.mouse.up();
-        await expect.poll(async () => { const b = (await v.boundingBox())!; return b.x <= 12 && Math.abs(b.width - 706) <= 6; }).toBe(true);
+        await quieta(v);
+        await v.getByRole("button", { name: "Maximizar" }).hover();
+        const acople = page.getByRole("group", { name: "Diseños de acople" });
+        await expect(acople).toBeVisible();
+        await acople.getByRole("button", { name: "Acoplar en la mitad izquierda" }).click();
+        await expect(v).toHaveAttribute("data-zona", "izq");
+        await expect.poll(async () => (await v.boundingBox())?.width).toBeCloseTo(720, -1);
+        await expect.poll(async () => (await v.boundingBox())?.x).toBeCloseTo(0, -1);
     });
 
-    test("maximizada, sacada y vuelta a soltar arriba queda maximizada de verdad", async ({ page }) => {
-        await entrar(page);
-        await page.getByRole("option", { name: "Proyectos" }).dblclick();
-        const v = ventana(page, "Proyectos");
-        await expect(v).not.toHaveAttribute("data-naciendo", "");
-        await expect.poll(() => v.evaluate((el) => el.getAnimations().length)).toBe(0);
-        await v.locator(".es-tit").dblclick();
-        await expect(v).toHaveAttribute("data-zona", "max");
-        await expect.poll(async () => (await v.boundingBox())!.width).toBeGreaterThan(1400);
+    test("arrastrada a la esquina de arriba a la izquierda queda en un cuarto", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=correo");
+        const v = ventanaDe(page, "correo");
+        await expect(v).toBeVisible();
+        await quieta(v);
         const t = (await v.locator(".es-tit").boundingBox())!;
-        await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2); await page.mouse.down();
-        await page.mouse.move(700, 300, { steps: 6 }); await page.mouse.move(700, 0, { steps: 6 });
+        await page.mouse.move(t.x + 40, t.y + 10);
+        await page.mouse.down();
+        await page.mouse.move(300, 200, { steps: 6 });
+        await page.mouse.move(1, 8, { steps: 6 });
         await page.mouse.up();
-        await expect(v).toHaveAttribute("data-zona", "max");
-        await expect.poll(async () => (await v.boundingBox())!.width).toBeGreaterThan(1400);
+        await expect(v).toHaveAttribute("data-zona", "si");
+        await expect.poll(async () => { const b = await v.boundingBox(); return b ? [Math.round(b.width), Math.round(b.height)] : null; }).toEqual([720, 426]);
     });
 
-    test("estirar el borde de arriba no saca el título de la pantalla", async ({ page }) => {
-        await entrar(page);
-        await page.getByRole("option", { name: "Proyectos" }).dblclick();
-        const v = ventana(page, "Proyectos");
-        await expect(v).not.toHaveAttribute("data-naciendo", "");
-        await expect.poll(() => v.evaluate((el) => el.getAnimations().length)).toBe(0);
-        const b = (await v.locator('.es-borde[data-b="n"]').boundingBox())!;
-        await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
-        await page.mouse.move(b.x + b.width / 2, b.y - 400, { steps: 6 }); await page.mouse.move(b.x + b.width / 2, -50, { steps: 4 });
-        await page.mouse.up();
-        const r = (await v.boundingBox())!;
-        expect(r.y).toBeGreaterThanOrEqual(9);
-        expect(r.y + r.height).toBeLessThanOrEqual(900 - 84 + 1);
+    test("Configuración: el fondo y la barra a la izquierda se guardan", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=configuracion");
+        const cf = ventanaDe(page, "configuracion");
+        await cf.getByRole("radio", { name: "Pacífico" }).click();
+        await expect.poll(() => page.locator(".es > .es-fondo img").evaluate((i: HTMLImageElement) => i.currentSrc)).toContain("pacifico");
+        await cf.getByRole("combobox", { name: "Alineación de la barra de tareas" }).selectOption("izq");
+        await expect(barra(page)).toHaveAttribute("data-alinear", "izq");
+        await page.reload();
+        await expect(barra(page)).toHaveAttribute("data-alinear", "izq");
+        await expect.poll(() => page.locator(".es > .es-fondo img").evaluate((i: HTMLImageElement) => i.currentSrc)).toContain("pacifico");
     });
 
-    test("un clic dentro de una ventana cierra el inicio abierto", async ({ page }) => {
-        await entrar(page, "/escritorio?abrir=sobre-mi");
-        const dentro = ventana(page, "Sobre mí").locator("iframe").contentFrame();
-        await expect(dentro.locator("html")).toHaveAttribute("data-ventana", "");
-        await page.getByRole("button", { name: "Inicio" }).click();
-        await expect(page.getByRole("searchbox", { name: "Buscar en el escritorio" })).toBeVisible();
-        await dentro.locator("h1").click();
-        await expect(page.getByRole("searchbox", { name: "Buscar en el escritorio" })).toBeHidden();
-    });
-
-    test("una preferencia de sonido dañada no deja el escritorio mudo", async ({ page }) => {
-        await page.addInitScript(() => {
-            try { localStorage.setItem("escritorio:sonido", JSON.stringify({ tipo: "toString", volumen: 7, activo: "si" })); } catch { /* sin almacenamiento */ }
-            const w = window as unknown as { __clics: number };
-            w.__clics = 0;
-            const original = AudioBufferSourceNode.prototype.start;
-            AudioBufferSourceNode.prototype.start = function (this: AudioBufferSourceNode, ...a: Parameters<typeof original>) {
-                if (!(this.context instanceof OfflineAudioContext)) w.__clics++;
-                return original.apply(this, a);
-            };
-        });
-        await entrar(page);
-        await expect(page.locator(".es")).toHaveAttribute("data-sonido", "listo");
-        await page.mouse.click(760, 460);
-        await expect.poll(() => page.evaluate(() => (window as unknown as { __clics: number }).__clics)).toBeGreaterThanOrEqual(2);
-    });
-
-    test("con el teclado: Enter abre un ícono y Ctrl K busca una herramienta", async ({ page }) => {
-        await entrar(page);
-        await page.getByRole("option", { name: "Sobre mí" }).focus();
-        await page.keyboard.press("Enter");
-        await expect(ventana(page, "Sobre mí")).toBeVisible();
-        await page.keyboard.press("Control+k");
-        const buscar = page.getByRole("searchbox", { name: "Buscar en el escritorio" });
-        await expect(buscar).toBeFocused();
-        await buscar.fill("json");
-        await page.keyboard.press("Enter");
-        await expect(ventanaDe(page, "herramientas/json")).toBeVisible();
-    });
-
-    test("el clic suena al presionar y al soltar, y se puede apagar", async ({ page }) => {
+    test("el clic suena al presionar y al soltar, y se apaga desde la configuración rápida", async ({ page }) => {
         await page.addInitScript(() => {
             const w = window as unknown as { __clics: number };
             w.__clics = 0;
             const original = AudioBufferSourceNode.prototype.start;
-            AudioBufferSourceNode.prototype.start = function (this: AudioBufferSourceNode, ...a: Parameters<typeof original>) {
-                if (!(this.context instanceof OfflineAudioContext)) w.__clics++;
-                return original.apply(this, a);
-            };
+            AudioBufferSourceNode.prototype.start = function (this: AudioBufferSourceNode, ...a: Parameters<typeof original>) { w.__clics++; return original.apply(this, a); };
         });
         await entrar(page);
         await expect(page.locator(".es")).toHaveAttribute("data-sonido", "listo");
         const clics = () => page.evaluate(() => (window as unknown as { __clics: number }).__clics);
-        await page.mouse.click(760, 460);
+        await page.mouse.click(900, 420);
         await expect.poll(clics).toBeGreaterThanOrEqual(2);
-        await page.getByRole("button", { name: "Sonido", exact: true }).click();
-        await page.getByLabel("Sonido activado").uncheck();
+        await barra(page).getByRole("button", { name: /Configuración rápida/ }).click();
+        const rapida = page.getByRole("dialog", { name: "Configuración rápida" });
+        await rapida.getByRole("button", { name: "Sonido" }).click();
+        await expect(rapida.getByRole("button", { name: "Sonido" })).toHaveAttribute("aria-pressed", "false");
         await page.keyboard.press("Escape");
         const antes = await clics();
-        await page.mouse.click(760, 460);
+        await page.mouse.click(900, 420);
         await page.waitForTimeout(300);
         expect(await clics()).toBe(antes);
+        await page.reload();
+        await expect(page.locator(".es")).toHaveAttribute("data-sonido", "listo");
+        await page.mouse.click(900, 420);
+        await page.waitForTimeout(300);
+        expect(await clics()).toBe(0);
+    });
+
+    test("la hora abre las notificaciones y el calendario del mes", async ({ page }) => {
+        await entrar(page);
+        await barra(page).locator(".es-reloj").click();
+        const panel = page.getByRole("dialog", { name: "Notificaciones y calendario" });
+        await expect(panel).toBeVisible();
+        await expect(panel.locator('td[aria-current="date"]')).toHaveCount(1);
+        await expect(panel.getByText("Sin notificaciones nuevas")).toBeVisible();
+    });
+
+    test("Correo valida el mensaje corto y, al enviar, avisa con una notificación", async ({ page }) => {
+        let cuerpo: Record<string, unknown> | null = null;
+        // Nunca se envía de verdad: el servidor se reemplaza aquí.
+        await page.route("**/api/contact", (r) => { cuerpo = r.request().postDataJSON(); return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) }); });
+        await entrar(page, "/escritorio?abrir=correo");
+        const co = ventanaDe(page, "correo");
+        await co.getByRole("textbox", { name: "Tu correo" }).fill("persona@ejemplo.cl");
+        await co.getByRole("textbox", { name: "Mensaje" }).fill("hola");
+        await co.getByRole("button", { name: "Enviar" }).click();
+        await expect(co.getByRole("alert")).toContainText("al menos 10 caracteres");
+        await co.getByRole("textbox", { name: "Mensaje" }).fill("Hola, quiero una tienda en línea para mi pyme.");
+        await co.getByRole("button", { name: "Enviar" }).click();
+        await expect(co.getByRole("heading", { name: "Mensaje enviado" })).toBeVisible({ timeout: 10000 });
+        await expect(page.locator(".es-toast").getByText("Mensaje enviado")).toBeVisible();
+        expect(cuerpo).toMatchObject({ email: "persona@ejemplo.cl", website: "" });
+        expect(typeof (cuerpo as unknown as { formStartTime: unknown }).formStartTime).toBe("number");
+    });
+
+    test("Noticias y Widgets con las fuentes caídas lo dicen y ofrecen reintentar", async ({ page }) => {
+        await page.route("**/api/pulse/news*", (r) => r.fulfill({ status: 503, body: "{}" }));
+        await page.route("**/api/pulse/finance*", (r) => r.fulfill({ status: 503, body: "{}" }));
+        await entrar(page, "/escritorio?abrir=noticias");
+        await expect(ventanaDe(page, "noticias").getByRole("button", { name: "Reintentar" })).toBeVisible();
+        await barra(page).getByRole("button", { name: /^Widgets/ }).click();
+        const widgets = page.getByRole("dialog", { name: "Widgets" });
+        await expect(widgets.getByText("Las fuentes no respondieron ahora.")).toBeVisible();
+        await expect(widgets.getByText("El mercado no respondió ahora.")).toBeVisible();
+    });
+
+    test("preferencias de la versión anterior no rompen el escritorio", async ({ page }) => {
+        const errores: string[] = [];
+        page.on("pageerror", (e) => errores.push(e.message));
+        await page.addInitScript(() => {
+            localStorage.setItem("escritorio:sonido", JSON.stringify({ activo: true, volumen: 0.4, tipo: "suave", ventanas: true }));
+            localStorage.setItem("escritorio:iconos", JSON.stringify({ proyectos: [3, 9], conversemos: [0, 0] }));
+            localStorage.setItem("escritorio:fondo", "olas");
+            localStorage.setItem("escritorio:prefs", "{roto");
+            localStorage.setItem("escritorio:posiciones", JSON.stringify({ proyectos: [999, -2], noexiste: [0, 0] }));
+            sessionStorage.setItem("escritorio:sesion", JSON.stringify([{ id: "conversemos", r: { x: 0, y: 0, w: 500, h: 400 } }, { id: "atajos" }]));
+        });
+        await entrar(page);
+        await expect(page.locator(".es")).toHaveAttribute("data-sonido", "listo");
+        await expect(page.getByRole("option", { name: "Proyectos" })).toBeVisible();
+        expect(errores).toEqual([]);
+    });
+
+    test("en una pantalla de 1024 × 700 el inicio cabe completo sobre la barra", async ({ page }) => {
+        await entrar(page);
+        await page.setViewportSize({ width: 1024, height: 700 });
+        await barra(page).getByRole("button", { name: "Inicio", exact: true }).click();
+        const b = (await page.getByRole("dialog", { name: "Inicio" }).boundingBox())!;
+        expect(b.y).toBeGreaterThanOrEqual(0);
+        expect(b.y + b.height).toBeLessThanOrEqual(700 - 48);
+        expect(b.x).toBeGreaterThanOrEqual(0);
+        expect(b.x + b.width).toBeLessThanOrEqual(1024);
     });
 
     test("el tema cambia también dentro de las ventanas", async ({ page }) => {
-        await entrar(page);
-        await page.getByRole("option", { name: "Sobre mí" }).dblclick();
-        const dentro = ventana(page, "Sobre mí").locator("iframe").contentFrame();
-        await expect(dentro.locator("html")).toHaveAttribute("data-ventana", "");
-        const antes = await page.locator("html").getAttribute("data-tema");
-        const despues = antes === "claro" ? "oscuro" : "claro";
-        await page.getByRole("button", { name: "Cambiar entre tema claro y oscuro" }).click();
-        await expect(page.locator("html")).toHaveAttribute("data-tema", despues);
-        await expect(dentro.locator("html")).toHaveAttribute("data-tema", despues);
+        await entrar(page, "/escritorio?abrir=sobre-mi");
+        const html = ventanaDe(page, "sobre-mi").locator("iframe").contentFrame().locator("html");
+        await expect(html).toHaveAttribute("data-ventana", "");
+        await barra(page).getByRole("button", { name: /Configuración rápida/ }).click();
+        await page.getByRole("dialog", { name: "Configuración rápida" }).getByRole("button", { name: "Tema oscuro" }).click();
+        await expect(page.locator("html")).toHaveAttribute("data-tema", "claro");
+        await expect(html).toHaveAttribute("data-tema", "claro");
     });
 
-    test("un enlace dentro de una ventana abre su propia ventana", async ({ page }) => {
-        await entrar(page, "/escritorio?abrir=herramientas/qr");
-        const qr = ventanaDe(page, "herramientas/qr");
-        const dentro = qr.locator("iframe").contentFrame();
-        const enlace = dentro.locator('a[href="/herramientas/enlaces"]').first();
+    test("un enlace dentro de una página abre su propia ventana", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=sobre-mi");
+        const sobre = ventanaDe(page, "sobre-mi");
+        const enlace = sobre.locator("iframe").contentFrame().locator('a[href="/como-se-hizo"]').first();
         await enlace.scrollIntoViewIfNeeded();
-        await enlace.click();
-        await expect(ventanaDe(page, "herramientas/enlaces")).toBeVisible();
-        expect(await qr.locator("iframe").evaluate((f: HTMLIFrameElement) => f.contentWindow!.location.pathname)).toBe("/herramientas/qr");
+        await expect(async () => {
+            await enlace.click();
+            await expect(ventanaDe(page, "como-se-hizo")).toBeVisible({ timeout: 2000 });
+        }).toPass({ timeout: 15000 });
+        expect(await sobre.locator("iframe").evaluate((f: HTMLIFrameElement) => f.contentWindow!.location.pathname)).toBe("/sobre-mi");
     });
 
-    test("clic derecho en el fondo abre el menú del escritorio", async ({ page }) => {
+    test("clic derecho en el fondo abre el menú del escritorio y cambia el tamaño de los íconos", async ({ page }) => {
         await entrar(page);
-        await page.mouse.click(900, 520, { button: "right" });
+        await page.mouse.click(900, 420, { button: "right" });
         const menu = page.getByRole("menu", { name: "Menú del escritorio" });
         await expect(menu).toBeVisible();
-        await menu.getByRole("menuitemradio", { name: "Quieto" }).click();
-        await expect(menu).toBeHidden();
-        await page.mouse.click(900, 520, { button: "right" });
-        await expect(menu.getByRole("menuitemradio", { name: "Quieto" })).toHaveAttribute("aria-checked", "true");
+        await menu.getByRole("menuitemradio", { name: "Íconos grandes" }).click();
+        await expect(page.getByRole("listbox", { name: "Íconos del escritorio" })).toHaveAttribute("data-tam", "grandes");
     });
 
-    test("Conversemos abre el formulario de contacto real", async ({ page }) => {
-        await entrar(page);
-        await page.getByRole("option", { name: "Conversemos" }).dblclick();
-        const dentro = ventana(page, "Conversemos").locator("iframe").contentFrame();
-        await expect(dentro.getByRole("heading", { name: /Conversemos/ })).toBeVisible();
-        // La página de la ventana se pinta antes de hidratarse (en producción los scripts llegan por Cloudflare): se
-        // reintenta el clic hasta que el botón ya responde.
-        await expect(async () => {
-            await dentro.getByRole("button", { name: "Escribirme un mensaje" }).click();
-            await expect(dentro.getByRole("dialog", { name: "Escríbeme" })).toBeVisible({ timeout: 1500 });
-        }).toPass({ timeout: 20000 });
-    });
-
-    test("en el celular las ventanas ocupan la pantalla y Atrás las cierra", async ({ browser }) => {
+    test("en el celular las apps ocupan la pantalla y Atrás las cierra", async ({ browser }) => {
         const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
         const page = await ctx.newPage();
-        await page.addInitScript(() => { try { localStorage.setItem("escritorio:visto", "1"); } catch { /* sin almacenamiento */ } });
+        await page.addInitScript(() => { try { localStorage.setItem("escritorio:visto", "1"); localStorage.setItem("escritorio:bienvenida", "1"); sessionStorage.setItem("escritorio:dentro", "1"); } catch { /* sin almacenamiento */ } });
         await page.goto("/escritorio");
-        await page.getByRole("option", { name: "Proyectos" }).tap();
-        const v = ventana(page, "Proyectos");
+        await page.getByRole("option", { name: "Correo" }).tap();
+        const v = ventanaDe(page, "correo");
         await expect(v).toBeVisible();
+        await quieta(v);
         expect((await v.boundingBox())!.width).toBeGreaterThanOrEqual(388);
         await page.goBack();
         await expect(v).toHaveCount(0);
         await expect(page).toHaveURL(/\/escritorio$/);
-        // Dos ventanas: cada Atrás cierra la que abrió ese paso, aunque entremedio se haya cambiado de ventana.
         await page.getByRole("option", { name: "Proyectos" }).tap();
-        await expect(ventana(page, "Proyectos")).toBeVisible();
-        await page.getByRole("navigation", { name: "Barra de tareas" }).getByRole("button", { name: "Herramientas" }).tap();
-        await expect(ventana(page, "Herramientas")).toBeVisible();
-        await page.getByRole("navigation", { name: "Barra de tareas" }).getByRole("button", { name: "Proyectos" }).tap();
+        await expect(ventanaDe(page, "proyectos")).toBeVisible();
+        await barra(page).getByRole("button", { name: "Correo", exact: true }).tap();
+        await expect(ventanaDe(page, "correo")).toBeVisible();
         await page.goBack();
-        await expect(ventana(page, "Herramientas")).toHaveCount(0);
-        await expect(ventana(page, "Proyectos")).toHaveCount(1);
-        await page.goBack();
-        await expect(ventana(page, "Proyectos")).toHaveCount(0);
-        await expect(page).toHaveURL(/\/escritorio$/);
+        await expect(ventanaDe(page, "correo")).toHaveCount(0);
+        await expect(ventanaDe(page, "proyectos")).toHaveCount(1);
         await ctx.close();
     });
+
+    test("las páginas públicas se dejan enmarcar solo por el mismo sitio; el acceso no", async ({ request }) => {
+        const publica = await request.get("/herramientas/qr");
+        expect(publica.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");
+        expect(publica.headers()["x-frame-options"]).toBe("SAMEORIGIN");
+        const privada = await request.get("/acceso"), csp = privada.headers()["content-security-policy"] ?? "";
+        // El servidor local de pruebas abre la CSP a 'self' en todo (proxy.ts, isDev); ahí manda el encabezado, que sigue en DENY.
+        if (csp.includes("http://localhost:*")) expect(privada.headers()["x-frame-options"]).toBe("DENY");
+        else expect(csp).toContain("frame-ancestors 'none'");
+    });
+
 });
 
 test.describe("modo escritorio: el resto del sitio", () => {

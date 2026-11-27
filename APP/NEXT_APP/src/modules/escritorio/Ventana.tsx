@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as PE, type ReactNode } from "react";
-import { contener, MIN_ALTO, MIN_ANCHO, zonaEncaje, type Rect, type Zona } from "./geometria";
-import { Glifo, UI } from "./Glifo";
+import { ArrowLeft, Copy, ExternalLink, Info, LayoutGrid, Minus, Square, X } from "lucide-react";
+import { contener, DISENOS, MIN_ALTO, MIN_ANCHO, NOMBRE_ZONA, zonaEncaje, type Rect, type Zona } from "./geometria";
+import { IconoDe } from "./iconos/Icono";
 import { navegarMenu } from "./menu";
 import type { AccionesVentana, VentanaAbierta } from "./tipos";
 
 const PASO = 16;
 const BORDES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"] as const;
-const quieto = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const quieto = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.querySelector(".es")?.getAttribute("data-animaciones") === "no";
 const transformar = (r: Rect, extra = "") => `translate(${r.x}px, ${r.y}px) ${extra}`.trim();
+/** La curva de Windows 11 al abrir: rápida al principio y muy suave al llegar. */
+const DESACELERA = "cubic-bezier(0.1, 0.9, 0.2, 1)";
 
 /** Cuánto hay que correr la ventana para que su centro caiga en su botón de la barra de tareas. */
 function haciaTarea(id: string, r: Rect) {
@@ -18,18 +21,19 @@ function haciaTarea(id: string, r: Rect) {
 }
 
 /**
- * Una ventana: se arrastra por el título, se encaja al soltarla en un borde, cambia de tamaño por los bordes y se
- * mueve con las flechas desde su ícono (con Mayúsculas cambia de tamaño). El ícono abre además un menú con lo mismo,
- * para quien no puede arrastrar. Muestra una página del sitio en un iframe del mismo origen o una vista propia.
+ * Una ventana como las de Windows 11: barra de título con su ícono y su nombre, y a la derecha minimizar, maximizar
+ * (al pasar por encima ofrece los diseños de acople) y cerrar. Se arrastra por el título y se acopla al soltarla en un
+ * borde o una esquina; cambia de tamaño por los bordes; el ícono abre su menú y, con las flechas, la mueve (con
+ * Mayúsculas cambia su tamaño). Muestra una app propia, una herramienta como app o una página del sitio.
  */
 export function Ventana({ v, activa, celular, acciones, children }: { v: VentanaAbierta; activa: boolean; celular: boolean; acciones: AccionesVentana; children?: ReactNode }) {
-    const ref = useRef<HTMLElement>(null), marco = useRef<HTMLIFrameElement>(null), asa = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null);
-    const idTitulo = useId(), idMenu = useId();
+    const ref = useRef<HTMLElement>(null), marco = useRef<HTMLIFrameElement>(null), asa = useRef<HTMLButtonElement>(null);
+    const menu = useRef<HTMLDivElement>(null), acople = useRef<HTMLDivElement>(null), botonMax = useRef<HTMLButtonElement>(null);
+    const idTitulo = useId(), idMenu = useId(), idAcople = useId();
     const [cargada, setCargada] = useState(false);
-    const [ruta, setRuta] = useState(v.app.ruta ?? null);
     const { app } = v;
-    const enMarco = Boolean(app.ruta && !app.vista);
-    const encajada = v.zona !== null;
+    const enMarco = app.tipo !== "vista" && Boolean(app.ruta);
+    const acoplada = v.zona !== null;
 
     const poner = (r: Rect) => {
         const s = ref.current?.style;
@@ -46,23 +50,13 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
         if (v.zona) el.setAttribute("data-zona", v.zona); else el.removeAttribute("data-zona");
     }, [v]);
 
-    // Al aparecer: toma el foco si la abrió la persona y, si la materia no la arma, entra con un fundido corto.
+    // Al aparecer: toma el foco si la abrió la persona y entra como en Windows 11 (crece un poco y se aclara).
     useLayoutEffect(() => {
         const el = ref.current;
         if (!el) return;
         if (v.foco) el.focus({ preventScroll: true });
-        if (!v.naciendo && !v.min && !quieto()) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" });
+        if (!v.min && !quieto()) el.animate([{ opacity: 0, transform: transformar(v.r, "scale(.94)") }, { opacity: 1, transform: transformar(v.r) }], { duration: 190, easing: DESACELERA });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // La materia terminó de escribir su nombre: la ventana se arma en su lugar.
-    const nacia = useRef(v.naciendo);
-    useLayoutEffect(() => {
-        const el = ref.current;
-        if (el && nacia.current && !v.naciendo && !quieto()) {
-            el.animate([{ opacity: 0, transform: transformar(v.r, "translateY(14px) scale(.965)") }, { opacity: 1, transform: transformar(v.r) }], { duration: 340, easing: "cubic-bezier(.2,.8,.2,1)" });
-        }
-        nacia.current = v.naciendo;
-    }, [v.naciendo]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Minimizar y restaurar: se encoge hacia su botón de la barra de tareas y vuelve desde ahí.
     const minAntes = useRef(v.min), minAhora = useRef(v.min);
@@ -73,40 +67,67 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
         if (v.min === minAntes.current) { if (v.min) el.hidden = true; return; }
         minAntes.current = v.min;
         const { dx, dy } = haciaTarea(v.id, v.r);
-        const cuadros = [{ opacity: 1, transform: transformar(v.r) }, { opacity: 0, transform: `translate(${v.r.x + dx}px, ${v.r.y + dy}px) scale(.12)` }];
+        const cuadros = [{ opacity: 1, transform: transformar(v.r) }, { opacity: 0, transform: `translate(${v.r.x + dx}px, ${v.r.y + dy}px) scale(.18)` }];
         if (v.min) {
-            el.animate(cuadros, { duration: quieto() ? 1 : 260, easing: "cubic-bezier(.4,0,.7,.2)" }).finished
+            el.animate(cuadros, { duration: quieto() ? 1 : 210, easing: "cubic-bezier(.6,0,.9,.4)" }).finished
                 .then(() => { if (minAhora.current) el.hidden = true; }).catch(() => undefined);
         } else {
             el.hidden = false;
-            el.animate([...cuadros].reverse(), { duration: quieto() ? 1 : 300, easing: "cubic-bezier(.2,.8,.2,1)" });
+            el.animate([...cuadros].reverse(), { duration: quieto() ? 1 : 260, easing: DESACELERA });
         }
     }, [v.min]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Cerrar: se desvanece y recién entonces sale del escritorio. Si se vuelve a abrir mientras se desvanece, la animación
-    // se cancela y la ventana sigue ahí (el escritorio solo quita las que siguen cerrándose).
+    // Cerrar: se achica un poco y se desvanece; recién entonces sale del escritorio. Si se vuelve a abrir mientras tanto,
+    // la animación se cancela y la ventana sigue ahí (el escritorio solo quita las que siguen cerrándose).
     useEffect(() => {
         if (!v.cerrando) return;
         const el = ref.current;
         if (!el || quieto()) { acciones.cerrada(v.id); return; }
-        const an = el.animate([{ opacity: 1, transform: transformar(v.r) }, { opacity: 0, transform: transformar(v.r, "translateY(8px) scale(.97)") }], { duration: 170, easing: "ease-in", fill: "forwards" });
+        const an = el.animate([{ opacity: 1, transform: transformar(v.r) }, { opacity: 0, transform: transformar(v.r, "scale(.95)") }], { duration: 130, easing: "cubic-bezier(.6,0,.9,.4)", fill: "forwards" });
         an.finished.then(() => acciones.cerrada(v.id)).catch(() => undefined);
         return () => an.cancel();
     }, [v.cerrando]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // El menú de la ventana se abre bajo su ícono.
+    // El menú de la ventana se abre bajo su ícono; los diseños de acople, bajo el botón de maximizar.
     useEffect(() => {
-        const m = menu.current;
-        if (!m) return;
-        const antes = (e: Event) => {
-            if ((e as ToggleEvent).newState !== "open" || !asa.current) return;
-            const r = asa.current.getBoundingClientRect();
-            Object.assign(m.style, { left: `${Math.min(r.left, innerWidth - 240)}px`, top: `${r.bottom + 6}px` });
+        const m = menu.current, d = acople.current;
+        const colocar = (panel: HTMLElement, boton: HTMLElement | null, derecha: boolean) => (e: Event) => {
+            if ((e as ToggleEvent).newState !== "open" || !boton) return;
+            const r = boton.getBoundingClientRect(), ancho = panel.offsetWidth || 260;
+            const x = derecha ? Math.min(r.right - ancho + 46, innerWidth - ancho - 8) : Math.min(r.left, innerWidth - ancho - 8);
+            Object.assign(panel.style, { left: `${Math.max(8, x)}px`, top: `${r.bottom + 4}px` });
         };
-        const alAbrir = (e: Event) => { if ((e as ToggleEvent).newState === "open") m.querySelector<HTMLElement>("[role=menuitem]")?.focus(); };
-        m.addEventListener("beforetoggle", antes); m.addEventListener("toggle", alAbrir);
-        return () => { m.removeEventListener("beforetoggle", antes); m.removeEventListener("toggle", alAbrir); };
+        const enfocarPrimero = (panel: HTMLElement, sel: string) => (e: Event) => { if ((e as ToggleEvent).newState === "open" && panel.matches(":focus-within, [data-teclado]")) panel.querySelector<HTMLElement>(sel)?.focus(); };
+        const quitar: (() => void)[] = [];
+        if (m) {
+            const a = colocar(m, asa.current, false), b = (e: Event) => { if ((e as ToggleEvent).newState === "open") m.querySelector<HTMLElement>("[role=menuitem]")?.focus(); };
+            m.addEventListener("beforetoggle", a); m.addEventListener("toggle", b);
+            quitar.push(() => { m.removeEventListener("beforetoggle", a); m.removeEventListener("toggle", b); });
+        }
+        if (d) {
+            const a = colocar(d, botonMax.current, true), b = enfocarPrimero(d, "button");
+            d.addEventListener("beforetoggle", a); d.addEventListener("toggle", b);
+            quitar.push(() => { d.removeEventListener("beforetoggle", a); d.removeEventListener("toggle", b); });
+        }
+        return () => quitar.forEach((f) => f());
     }, [celular]);
+
+    // Pasar por maximizar un momento muestra los diseños de acople (como en Windows 11); salir de ambos los esconde.
+    const espera = useRef(0);
+    const mostrarAcople = (teclado = false) => {
+        const d = acople.current;
+        if (!d || celular) return;
+        d.toggleAttribute("data-teclado", teclado);
+        try { if (!d.matches(":popover-open")) d.showPopover(); } catch { /* sin popover */ }
+        if (teclado) d.querySelector<HTMLElement>("button")?.focus();
+    };
+    const entrarMax = () => { clearTimeout(espera.current); espera.current = window.setTimeout(() => mostrarAcople(), 480); };
+    const salirMax = () => {
+        clearTimeout(espera.current);
+        espera.current = window.setTimeout(() => { const d = acople.current; if (d && !d.matches(":hover, :focus-within")) { try { d.hidePopover(); } catch { /* ya cerrado */ } } }, 280);
+    };
+    useEffect(() => () => clearTimeout(espera.current), []);
+    const acoplar = (z: Zona) => { try { acople.current?.hidePopover(); } catch { /* ya cerrado */ } acciones.encajar(v.id, z, v.zona ? (v.previo ?? v.r) : v.r); };
 
     const arrastrar = (e: PE<HTMLElement>) => {
         if (celular || e.button !== 0 || (e.target as Element).closest("button, a")) return;
@@ -123,18 +144,18 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
                 acciones.moviendo(true);
                 ref.current?.classList.add("es-arrastrando");
                 if (v.zona) {
-                    // Sale del encaje: recupera su tamaño, con el puntero en el mismo lugar relativo del título.
+                    // Sale del acople: recupera su tamaño, con el puntero en el mismo lugar relativo del título.
                     const p = v.previo ?? { ...v.r, w: Math.round(v.r.w * 0.7), h: Math.round(v.r.h * 0.7) };
                     const rel = (ini.px - v.r.x) / v.r.w;
-                    actual = { ...p, x: Math.round(ev.clientX - rel * p.w), y: Math.round(ev.clientY - 22) };
+                    actual = { ...p, x: Math.round(ev.clientX - rel * p.w), y: Math.round(ev.clientY - 16) };
                     ini.r = { ...actual }; ini.px = ev.clientX; ini.py = ev.clientY;
                     ref.current?.removeAttribute("data-zona");
                 }
             }
             const a = acciones.area();
-            actual = { ...actual, x: Math.round(ini.r.x + ev.clientX - ini.px), y: Math.round(Math.max(a.y, Math.min(a.y + a.h - 44, ini.r.y + ev.clientY - ini.py))) };
+            actual = { ...actual, x: Math.round(ini.r.x + ev.clientX - ini.px), y: Math.round(Math.max(a.y, Math.min(a.y + a.h - 32, ini.r.y + ev.clientY - ini.py))) };
             poner(actual);
-            zona = zonaEncaje(ev.clientX, ev.clientY, innerWidth);
+            zona = zonaEncaje(ev.clientX, ev.clientY, innerWidth, innerHeight);
             acciones.guia(zona);
             const d = Math.sign(ev.clientX - xAnt);
             if (d && d !== dir) { if (dir && Math.abs(ev.clientX - xGiro) > 25) giros.push(ev.timeStamp); dir = d; xGiro = ev.clientX; }
@@ -157,7 +178,7 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
     };
 
     const redimensionar = (b: (typeof BORDES)[number]) => (e: PE<HTMLElement>) => {
-        if (e.button !== 0 || encajada) return;
+        if (e.button !== 0 || acoplada) return;
         e.preventDefault(); e.stopPropagation();
         const h = e.currentTarget;
         h.setPointerCapture(e.pointerId);
@@ -191,7 +212,7 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
         const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, [number, number]>)[e.key];
         if (!d || celular) return;
         e.preventDefault();
-        const base = encajada ? (v.previo ?? v.r) : v.r;
+        const base = acoplada ? (v.previo ?? v.r) : v.r;
         const r = e.shiftKey ? { ...base, w: base.w + d[0] * PASO, h: base.h + d[1] * PASO } : { ...base, x: base.x + d[0] * PASO, y: base.y + d[1] * PASO };
         acciones.mover(v.id, contener(r, acciones.area()));
     };
@@ -200,53 +221,42 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
         const f = marco.current;
         if (!f) return;
         setCargada(true);
-        const leer = () => {
-            try { const l = f.contentWindow?.location; if (l && l.origin === location.origin) setRuta(l.pathname + l.search); } catch { /* otra página: queda la última */ }
-        };
-        leer();
-        // Las páginas del sitio navegan sin recargar: la dirección se relee después de cada clic.
-        try { f.contentDocument?.addEventListener("click", () => setTimeout(leer, 400), true); } catch { /* sin acceso */ }
         acciones.cargar(v.id, f);
     };
 
     const abrirAparte = () => {
-        // Una herramienta abierta como app se abre aparte en su página del sitio, no en la ruta de app.
-        const destino = enMarco && !ruta?.startsWith("/escritorio/app/") ? ruta : app.enlace;
+        // La herramienta como app y las apps propias se abren aparte en su página del sitio; una página, donde esté ahora.
+        let destino = app.enlace;
+        if (app.tipo === "pagina") {
+            try { const l = marco.current?.contentWindow?.location; if (l && l.origin === location.origin) destino = l.pathname + l.search + l.hash; } catch { /* queda el enlace de la app */ }
+        }
         if (destino) window.open(destino, "_blank", "noopener");
     };
     const accionMenu = (f: () => void) => () => { menu.current?.hidePopover(); f(); };
 
-    const estilo = { "--x": `${v.r.x}px`, "--y": `${v.r.y}px`, "--w": `${v.r.w}px`, "--h": `${v.r.h}px`, "--c": app.color, zIndex: v.z } as CSSProperties;
+    const estilo = { "--x": `${v.r.x}px`, "--y": `${v.r.y}px`, "--w": `${v.r.w}px`, "--h": `${v.r.h}px`, zIndex: v.z } as CSSProperties;
     return (
         <section ref={ref} className="es-ventana" role="dialog" aria-modal="false" aria-labelledby={idTitulo} tabIndex={-1} style={estilo}
-            data-app={v.id} data-activa={activa || undefined} data-zona={v.zona ?? undefined} data-naciendo={v.naciendo || undefined}
+            data-app={v.id} data-tipo={app.tipo} data-activa={activa || undefined} data-zona={v.zona ?? undefined}
             onPointerDownCapture={() => acciones.enfocar(v.id)}>
             <header className="es-cab" onPointerDown={arrastrar} onDoubleClick={(e) => { if (!celular && !(e.target as Element).closest("button, a")) acciones.alternarMax(v.id); }}>
-                {celular ? (
-                    <button type="button" className="es-ctl-boton" aria-label="Volver" onClick={() => acciones.cerrar(v.id)}><Glifo d={UI.volver} /></button>
-                ) : (
-                    <button type="button" ref={asa} className="es-asa" popoverTarget={idMenu}
-                        aria-label={`Mover ${app.titulo}: flechas para moverla y Mayúsculas con flechas para cambiar su tamaño. Enter abre sus opciones.`}
-                        onKeyDown={conTeclas}>
-                        <Glifo d={app.glifo} />
-                    </button>
-                )}
+                {celular && <button type="button" className="es-volver" aria-label="Volver" onClick={() => acciones.cerrar(v.id)}><ArrowLeft size={18} aria-hidden="true" /></button>}
+                <button type="button" ref={asa} className="es-cab-icono" popoverTarget={celular ? undefined : idMenu} tabIndex={celular ? -1 : 0}
+                    aria-label={`Opciones de ${app.titulo}. Con las flechas se mueve la ventana y con Mayúsculas y flechas cambia su tamaño.`}
+                    onKeyDown={conTeclas}>
+                    <IconoDe icono={app.icono} tam={16} />
+                </button>
                 <h2 className="es-tit" id={idTitulo}>{app.titulo}</h2>
-                <span className="es-dir" aria-hidden="true" />
-                <div className="es-ctl">
-                    {(enMarco || app.enlace) && (
-                        <button type="button" className="es-ctl-boton" aria-label="Abrir en una pestaña" title="Abrir en una pestaña" onClick={abrirAparte}><Glifo d={UI.aparte} /></button>
-                    )}
-                    {!celular && (
-                        <>
-                            <button type="button" className="es-ctl-boton" aria-label="Minimizar" title="Minimizar" onClick={() => acciones.minimizar(v.id)}><Glifo d={UI.min} /></button>
-                            <button type="button" className="es-ctl-boton" aria-label={encajada ? "Restaurar" : "Maximizar"} title={encajada ? "Restaurar" : "Maximizar"} onClick={() => acciones.alternarMax(v.id)}>
-                                <Glifo d={encajada ? UI.restaurar : UI.max} />
-                            </button>
-                            <button type="button" className="es-ctl-boton es-cerrar" aria-label="Cerrar" title="Cerrar" onClick={() => acciones.cerrar(v.id)}><Glifo d={UI.cerrar} /></button>
-                        </>
-                    )}
-                </div>
+                {!celular && (
+                    <div className="es-ctl">
+                        <button type="button" className="es-ctl-b" aria-label="Minimizar" title="Minimizar" onClick={() => acciones.minimizar(v.id)}><Minus size={16} strokeWidth={1.25} aria-hidden="true" /></button>
+                        <button type="button" ref={botonMax} className="es-ctl-b" aria-label={acoplada ? "Restaurar" : "Maximizar"} title={acoplada ? "Restaurar" : "Maximizar"}
+                            onClick={() => acciones.alternarMax(v.id)} onPointerEnter={entrarMax} onPointerLeave={salirMax}>
+                            {acoplada ? <Copy size={13} strokeWidth={1.25} aria-hidden="true" style={{ transform: "scaleX(-1)" }} /> : <Square size={13} strokeWidth={1.25} aria-hidden="true" />}
+                        </button>
+                        <button type="button" className="es-ctl-b es-cerrar" aria-label="Cerrar" title="Cerrar" onClick={() => acciones.cerrar(v.id)}><X size={17} strokeWidth={1.25} aria-hidden="true" /></button>
+                    </div>
+                )}
             </header>
             <div className="es-cuerpo">
                 {enMarco ? (
@@ -256,16 +266,30 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
                     </>
                 ) : children}
             </div>
-            {!celular && BORDES.map((b) => <i key={b} className="es-borde" data-b={b} onPointerDown={redimensionar(b)} aria-hidden="true" />)}
+            {!celular && !acoplada && BORDES.map((b) => <i key={b} className="es-borde" data-b={b} onPointerDown={redimensionar(b)} aria-hidden="true" />)}
             {!celular && (
-                <div ref={menu} id={idMenu} popover="auto" role="menu" aria-label={`Opciones de ${app.titulo}`} className="es-panel es-menu" onKeyDown={navegarMenu}>
-                    <button type="button" role="menuitem" onClick={accionMenu(() => acciones.encajar(v.id, "izq", v.r))}>Acoplar a la izquierda</button>
-                    <button type="button" role="menuitem" onClick={accionMenu(() => acciones.encajar(v.id, "der", v.r))}>Acoplar a la derecha</button>
-                    <button type="button" role="menuitem" onClick={accionMenu(() => acciones.alternarMax(v.id))}>{encajada ? "Restaurar el tamaño" : "Maximizar"}</button>
-                    <button type="button" role="menuitem" onClick={accionMenu(() => acciones.minimizar(v.id))}>Minimizar</button>
-                    <hr />
-                    <button type="button" role="menuitem" onClick={accionMenu(() => acciones.cerrar(v.id))}>Cerrar</button>
-                </div>
+                <>
+                    <div ref={menu} id={idMenu} popover="auto" role="menu" aria-label={`Opciones de ${app.titulo}`} className="es-flota es-menu" onKeyDown={navegarMenu}>
+                        <button type="button" role="menuitem" disabled={!acoplada} onClick={accionMenu(() => acciones.alternarMax(v.id))}><Copy size={14} aria-hidden="true" />Restaurar</button>
+                        <button type="button" role="menuitem" onClick={accionMenu(() => acciones.minimizar(v.id))}><Minus size={14} aria-hidden="true" />Minimizar</button>
+                        <button type="button" role="menuitem" disabled={v.zona === "max"} onClick={accionMenu(() => acciones.encajar(v.id, "max", v.r))}><Square size={13} aria-hidden="true" />Maximizar</button>
+                        <button type="button" role="menuitem" onClick={accionMenu(() => mostrarAcople(true))}><LayoutGrid size={14} aria-hidden="true" />Diseños de acople</button>
+                        <hr />
+                        {app.enlace && <button type="button" role="menuitem" onClick={accionMenu(abrirAparte)}><ExternalLink size={14} aria-hidden="true" />Abrir en una pestaña</button>}
+                        {app.tipo === "herramienta" && <button type="button" role="menuitem" onClick={accionMenu(() => acciones.acerca(v.id))}><Info size={14} aria-hidden="true" />Acerca de {app.titulo}</button>}
+                        <hr />
+                        <button type="button" role="menuitem" onClick={accionMenu(() => acciones.cerrar(v.id))}><X size={14} aria-hidden="true" />Cerrar</button>
+                    </div>
+                    <div ref={acople} id={idAcople} popover="auto" className="es-flota es-acople" aria-label="Diseños de acople" role="group"
+                        onPointerEnter={() => clearTimeout(espera.current)} onPointerLeave={salirMax}>
+                        {DISENOS.map((d) => (
+                            <div key={d.nombre} className="es-diseno" role="group" aria-label={d.nombre} data-zonas={d.zonas.length}
+                                style={{ gridTemplateColumns: d.zonas[0] === "t12" ? "2fr 1fr" : `repeat(${d.zonas.length === 4 ? 2 : d.zonas.length}, 1fr)`, gridTemplateRows: d.zonas.length === 4 ? "1fr 1fr" : "1fr" }}>
+                                {d.zonas.map((z) => <button key={z} type="button" aria-label={`Acoplar en ${NOMBRE_ZONA[z]}`} title={`Acoplar en ${NOMBRE_ZONA[z]}`} onClick={() => acoplar(z)} />)}
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
         </section>
     );

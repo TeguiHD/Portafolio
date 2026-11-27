@@ -1,19 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent as ME, type PointerEvent as PE } from "react";
-import type { Clima, Motor } from "@/modules/materia/motor";
-import { climaDe } from "@/modules/pulse/blog/clima";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore, type MouseEvent as ME, type PointerEvent as PE } from "react";
+import { ExternalLink, FolderOpen, LayoutGrid, LogOut, Paintbrush, Pin, PinOff, RefreshCw, X } from "lucide-react";
+import type { Motor } from "@/modules/materia/motor";
+import type { PulseContextData } from "@/modules/pulse/types";
 import { enmarcableEnEscritorio } from "@/lib/escritorio/enmarcable";
-import { ANCLADAS, APPS, EN_ESCRITORIO, appHerramienta, idDeRuta, type App, type HerramientaEscritorio, type Vista } from "./apps";
-import { areaUtil, contener, posicionInicial, rectZona, type Rect, type Zona } from "./geometria";
-import { Glifo, UI } from "./Glifo";
+import { Configuracion } from "./aplicaciones/Configuracion";
+import { Correo } from "./aplicaciones/Correo";
+import { leerClima } from "./aplicaciones/datos";
+import { Explorador } from "./aplicaciones/Explorador";
+import { Fotos } from "./aplicaciones/Fotos";
+import { Noticias } from "./aplicaciones/Noticias";
+import { arbol, type Apertura } from "./aplicaciones/vfs";
+import { Widgets } from "./aplicaciones/Widgets";
+import { ACCESOS, ANCLADAS_BARRA, ANCLADAS_INICIO, APPS, EN_ESCRITORIO, appHerramienta, appServicio, idDeRuta, type App } from "./apps";
+import { Barra, type Tarea } from "./Barra";
+import { Bloqueo } from "./Bloqueo";
+import { Calendario, ConfiguracionRapida, type Aviso } from "./Flotantes";
+import { Fondo } from "./Fondo";
+import { fondoPorDefecto, type FondoId } from "./fondos";
+import { areaUtil, contener, NOMBRE_ZONA, posicionInicial, rectZona, ZONAS, type Rect, type Zona } from "./geometria";
+import { IconoDe } from "./iconos/Icono";
 import { Iconos } from "./Iconos";
-import { Calendario, Inicio, MenuEscritorio, PanelSonido, type ControlInicio, type ControlMenu } from "./Paneles";
+import { Inicio, type ControlInicio, type Reciente } from "./Inicio";
+import { MenuContextual, type PedidoMenu } from "./MenuContextual";
+import { Notificaciones } from "./Notificaciones";
+import { guardarPrefs, leerPrefs, PREFS_BASE, type PrefsEscritorio } from "./preferencias";
 import { SonidoEscritorio, leerPreferencias, type PreferenciasSonido } from "./sonido";
-import type { AccionesVentana, Fondo, ProyectoEscritorio, VentanaAbierta } from "./tipos";
+import type { AccionesVentana, Args, HerramientaEscritorio, ProyectoEscritorio, ServicioEscritorio, VentanaAbierta } from "./tipos";
 import { Ventana } from "./Ventana";
-import { VistaAtajos, VistaConfiguracion, VistaHerramientas, VistaProyectos, type Ajustes } from "./Vistas";
 import "./escritorio.css";
+import "./aplicaciones/aplicaciones.css";
 
 declare global {
     interface Window {
@@ -25,32 +42,32 @@ declare global {
 /* ---------- Estado de las ventanas ---------- */
 interface Estado { wins: VentanaAbierta[]; z: number }
 type Accion =
-    | { t: "abrir"; app: App; r: Rect; zona: Zona | null; naciendo: boolean; foco: boolean }
+    | { t: "abrir"; app: App; args: Args; r: Rect; zona: Zona | null; foco: boolean }
     | { t: "enfocar"; id: string }
-    | { t: "nacida"; id: string }
+    | { t: "args"; id: string; args: Args }
     | { t: "mover"; id: string; r: Rect }
     | { t: "encajar"; id: string; zona: Zona; desde: Rect; area: Rect }
     | { t: "alternarMax"; id: string; area: Rect }
     | { t: "minimizar"; id: string }
     | { t: "minimizarOtras"; id: string }
+    | { t: "minimizarTodas" }
+    | { t: "restaurarVarias"; ids: string[] }
     | { t: "cerrar"; id: string }
     | { t: "quitar"; id: string }
     | { t: "acomodar"; area: Rect; celular: boolean }
-    | { t: "restaurar"; wins: VentanaAbierta[] };
+    | { t: "restaurar"; wins: VentanaAbierta[] }
+    | { t: "vaciar" };
 
 function reducir(e: Estado, a: Accion): Estado {
     const cambiar = (id: string, f: (w: VentanaAbierta) => VentanaAbierta) => e.wins.map((w) => (w.id === id ? f(w) : w));
     switch (a.t) {
         case "abrir": {
             const z = e.z + 1;
-            if (e.wins.some((w) => w.id === a.app.id)) return { z, wins: cambiar(a.app.id, (w) => ({ ...w, min: false, cerrando: false, z, foco: a.foco })) };
-            return { z, wins: [...e.wins, { id: a.app.id, app: a.app, r: a.r, previo: null, zona: a.zona, min: false, z, naciendo: a.naciendo, cerrando: false, foco: a.foco }] };
+            if (e.wins.some((w) => w.id === a.app.id)) return { z, wins: cambiar(a.app.id, (w) => ({ ...w, args: { ...w.args, ...a.args }, min: false, cerrando: false, z, foco: a.foco })) };
+            return { z, wins: [...e.wins, { id: a.app.id, app: a.app, args: { ...(a.app.args ?? {}), ...a.args }, r: a.r, previo: null, zona: a.zona, min: false, z, cerrando: false, foco: a.foco }] };
         }
-        case "enfocar": {
-            const z = e.z + 1;
-            return { z, wins: cambiar(a.id, (w) => ({ ...w, min: false, z })) };
-        }
-        case "nacida": return { ...e, wins: cambiar(a.id, (w) => ({ ...w, naciendo: false })) };
+        case "enfocar": { const z = e.z + 1; return { z, wins: cambiar(a.id, (w) => ({ ...w, min: false, z })) }; }
+        case "args": return { ...e, wins: cambiar(a.id, (w) => ({ ...w, args: { ...w.args, ...a.args } })) };
         case "mover": return { ...e, wins: cambiar(a.id, (w) => ({ ...w, r: a.r, zona: null, previo: null })) };
         case "encajar": return { ...e, wins: cambiar(a.id, (w) => ({ ...w, previo: w.zona ? (w.previo ?? a.desde) : a.desde, zona: a.zona, r: rectZona(a.zona, a.area) })) };
         case "alternarMax": return {
@@ -60,12 +77,15 @@ function reducir(e: Estado, a: Accion): Estado {
         };
         case "minimizar": return { ...e, wins: cambiar(a.id, (w) => ({ ...w, min: true })) };
         case "minimizarOtras": return { ...e, wins: e.wins.map((w) => (w.id === a.id ? w : { ...w, min: true })) };
+        case "minimizarTodas": return { ...e, wins: e.wins.map((w) => ({ ...w, min: true })) };
+        case "restaurarVarias": return { ...e, wins: e.wins.map((w) => (a.ids.includes(w.id) ? { ...w, min: false } : w)) };
         case "cerrar": return { ...e, wins: cambiar(a.id, (w) => ({ ...w, cerrando: true })) };
         case "quitar": return { ...e, wins: e.wins.filter((w) => !(w.id === a.id && w.cerrando)) };
         case "acomodar": return {
             ...e, wins: e.wins.map((w) => (a.celular ? { ...w, zona: "max" as const, r: { ...a.area } } : w.zona ? { ...w, r: rectZona(w.zona, a.area) } : { ...w, r: contener(w.r, a.area) })),
         };
         case "restaurar": return { z: Math.max(e.z, ...a.wins.map((w) => w.z)), wins: a.wins };
+        case "vaciar": return { ...e, wins: [] };
     }
 }
 const activaDe = (e: Estado) => e.wins.filter((w) => !w.min && !w.cerrando).reduce<VentanaAbierta | null>((m, w) => (!m || w.z > m.z ? w : m), null);
@@ -74,130 +94,107 @@ const activaDe = (e: Estado) => e.wins.filter((w) => !w.min && !w.cerrando).redu
 const CONSULTA_CELULAR = "(max-width: 760px), (pointer: coarse) and (max-width: 1100px)";
 const suscribirCelular = (f: () => void) => { const m = matchMedia(CONSULTA_CELULAR); m.addEventListener("change", f); return () => m.removeEventListener("change", f); };
 const esCelular = () => matchMedia(CONSULTA_CELULAR).matches;
-const reducido = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-const FONDOS_VALIDOS: Fondo[] = ["olas", "clima", "firma", "quieto"];
-const HORA = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const CORTA = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", weekday: "short", day: "numeric", month: "short" });
-const climaPorHora = (): Clima => { const h = Number(new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", hour: "2-digit", hourCycle: "h23" }).format(new Date())); return h >= 7 && h < 21 ? "sol" : "noche"; };
 const CAMPO = "input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), textarea, [contenteditable='true']";
+/** Quien manda los avisos del propio escritorio (bienvenida, conexión). */
+const SISTEMA: App = { id: "sistema", titulo: "Escritorio", icono: "widgets", tipo: "vista", tam: [0, 0] };
 
 /**
- * El modo escritorio: nicoholas.dev como un escritorio con ventanas, sobre la materia de partículas del sitio.
- * Las ventanas muestran las páginas reales (iframe del mismo origen en «modo ventana») o vistas propias; suenan los
- * clics al presionar y al soltar (sintetizados), se arrastran, se encajan, se minimizan y recuerdan la sesión.
+ * El modo escritorio de nicoholas.dev, al estilo de Windows 11 con la marca «n.». Las ventanas muestran apps propias
+ * (Explorador, Fotos, Correo, Noticias, Configuración), las herramientas como apps y las páginas del sitio; suenan los
+ * clics al presionar y al soltar, se arrastran, se acoplan, se minimizan y recuerdan la sesión de la pestaña.
  */
-export function Escritorio({ herramientas, proyectos }: { herramientas: HerramientaEscritorio[]; proyectos: ProyectoEscritorio[] }) {
+export function Escritorio({ herramientas, proyectos, servicios }: { herramientas: HerramientaEscritorio[]; proyectos: ProyectoEscritorio[]; servicios: ServicioEscritorio[] }) {
     const [estado, despachar] = useReducer(reducir, { wins: [], z: 10 });
     const celular = useSyncExternalStore(suscribirCelular, esCelular, () => false);
-    const [arranque, setArranque] = useState<"espera" | "encendiendo" | "listo">("espera");
-    const [bloqueado, setBloqueado] = useState(false);
+    const [fase, setFase] = useState<"espera" | "encendido" | "bloqueo" | "listo">("espera");
     const [tema, setTema] = useState<"oscuro" | "claro">("oscuro");
-    const [fondo, setFondo] = useState<Fondo>("olas");
-    const [prefs, setPrefs] = useState<PreferenciasSonido | null>(null);
+    const [prefs, setPrefs] = useState<PrefsEscritorio>(PREFS_BASE);
+    const [sonidoPrefs, setSonidoPrefs] = useState<PreferenciasSonido | null>(null);
     const [sonidoListo, setSonidoListo] = useState(false);
-    const [recientes, setRecientes] = useState<string[]>([]);
+    const [recientes, setRecientes] = useState<Reciente[]>([]);
     const [ahora, setAhora] = useState<Date | null>(null);
-    const [tiempo, setTiempo] = useState<string | null>(null);
+    const [clima, setClima] = useState<PulseContextData | null>(null);
+    const [enLinea, setEnLinea] = useState(true);
+    const [avisos, setAvisos] = useState<Aviso[]>([]);
+    const [vistos, setVistos] = useState(0);
+    const [emergentes, setEmergentes] = useState<number[]>([]);
+    const [menu, setMenu] = useState<PedidoMenu | null>(null);
+    const [acerca, setAcerca] = useState<App | null>(null);
     const [anuncio, setAnuncio] = useState("");
     const [ordenar, setOrdenar] = useState(0);
 
-    const raiz = useRef<HTMLDivElement>(null), lienzo = useRef<HTMLCanvasElement>(null), frente = useRef<HTMLDivElement>(null), guia = useRef<HTMLDivElement>(null);
-    const anclaCentro = useRef<HTMLDivElement>(null), anclaFirma = useRef<HTMLDivElement>(null), anclaVentana = useRef<HTMLDivElement>(null);
-    const inicio = useRef<ControlInicio>(null), menu = useRef<ControlMenu>(null);
+    const raiz = useRef<HTMLDivElement>(null), guia = useRef<HTMLDivElement>(null), dialogoAcerca = useRef<HTMLDialogElement>(null);
+    const lienzo = useRef<HTMLCanvasElement>(null), frente = useRef<HTMLDivElement>(null);
+    const inicio = useRef<ControlInicio>(null);
     const motor = useRef<Motor | null>(null), sonido = useRef<SonidoEscritorio | null>(null);
-    const volverFondo = useRef(0), recientesListos = useRef(false), enlazados = useRef(new WeakSet<Document>());
+    const enlazados = useRef(new WeakSet<Document>()), ocultas = useRef<string[]>([]), numAviso = useRef(0), cargado = useRef(false);
     /** En el celular, las ventanas que abrieron un paso del historial (la última arriba). */
     const pila = useRef<string[]>([]);
     /** Lo último de cada cosa, para los oyentes que viven fuera de React (iframes, teclado global). */
-    const vivo = useRef({ estado, celular, fondo, arranque, clima: null as Clima | null, maxActiva: false });
+    const vivo = useRef({ estado, celular, prefs });
     const activa = activaDe(estado);
-    const maxActiva = !!activa && activa.zona === "max";
-    useLayoutEffect(() => { Object.assign(vivo.current, { estado, celular, fondo, arranque, maxActiva }); });
+    useLayoutEffect(() => { Object.assign(vivo.current, { estado, celular, prefs }); });
 
-    const herramientasApp = useMemo(() => new Map(herramientas.map((t) => [`herramientas/${t.slug}`, appHerramienta(t)])), [herramientas]);
-    const resolver = useCallback((id: string): App | null => APPS[id] ?? herramientasApp.get(id) ?? null, [herramientasApp]);
+    /* ---------- Las apps ---------- */
+    const dinamicas = useMemo(() => new Map<string, App>([
+        ...herramientas.map((t) => [`herramientas/${t.slug}`, appHerramienta(t)] as const),
+        ...servicios.map((s) => [`servicios/${s.slug}`, appServicio(s)] as const),
+    ]), [herramientas, servicios]);
+    const resolver = useCallback((id: string): App | null => APPS[id] ?? dinamicas.get(id) ?? null, [dinamicas]);
+    const todas = useMemo(() => [...Object.values(APPS), ...dinamicas.values()], [dinamicas]);
+    const raizArchivos = useMemo(() => arbol({ herramientas, proyectos, servicios }), [herramientas, proyectos, servicios]);
     const area = useCallback(() => areaUtil(innerWidth, innerHeight, vivo.current.celular), []);
     const anunciar = useCallback((t: string) => { setAnuncio(""); requestAnimationFrame(() => setAnuncio(t)); }, []);
 
-    /* ---------- La materia del fondo ---------- */
-    const aplicarFondo = useCallback(() => {
-        const m = motor.current;
-        if (!m) return;
-        const { fondo: f, clima, maxActiva: tapado } = vivo.current;
-        m.pausar(false);
-        if (f === "clima") { m.forma("olas"); m.clima(clima ?? climaPorHora()); }
-        else { m.clima(null); if (f === "firma" && anclaCentro.current) m.forma("firma", anclaCentro.current); else m.forma("olas"); }
-        // Quieta, o tapada por una ventana maximizada, no gasta: se detiene cuando termina de acomodarse.
-        if (f === "quieto" || tapado) setTimeout(() => { if (vivo.current.fondo === "quieto" || vivo.current.maxActiva) motor.current?.pausar(true); }, 1400);
+    /* ---------- Notificaciones ---------- */
+    const notificar = useCallback((app: App, titulo: string, texto: string, abrir?: Aviso["abrir"]) => {
+        const a: Aviso = { id: ++numAviso.current, app, titulo, texto, cuando: Date.now(), abrir };
+        setAvisos((l) => [a, ...l].slice(0, 20));
+        if (vivo.current.prefs.noMolestar) return;
+        setEmergentes((l) => [...l, a.id]);
+        sonido.current?.aviso("notificacion");
+        setTimeout(() => setEmergentes((l) => l.filter((x) => x !== a.id)), 6000);
     }, []);
 
-    const pedirTiempo = useCallback(async () => {
-        if (vivo.current.clima) return;
-        try {
-            const r = await fetch("/api/pulse/context?city=Santiago", { signal: AbortSignal.timeout(8000) });
-            if (!r.ok) return;
-            const d = (await r.json()) as { weatherCode?: number; isDay?: boolean; temperature?: number; weatherLabel?: string };
-            if (typeof d.weatherCode === "number") { vivo.current.clima = climaDe(d.weatherCode, d.isDay !== false); if (vivo.current.fondo === "clima") aplicarFondo(); }
-            if (typeof d.temperature === "number") setTiempo(`${Math.round(d.temperature)} °C${d.weatherLabel ? `, ${d.weatherLabel.toLowerCase()}` : ""}`);
-        } catch { /* sin tiempo: el fondo sigue la hora del día */ }
-    }, [aplicarFondo]);
-
-    const ponerFondo = useCallback((f: Fondo) => {
-        setFondo(f); vivo.current.fondo = f;
-        try { localStorage.setItem("escritorio:fondo", f); } catch { /* vale para esta visita */ }
-        if (f === "clima") void pedirTiempo();
-        aplicarFondo();
-    }, [aplicarFondo, pedirTiempo]);
-
     /* ---------- Abrir, enfocar, cerrar ---------- */
-    const abrir = useCallback((id: string, op: { historial?: boolean; foco?: boolean } = {}) => {
+    const abrir = useCallback((id: string, args: Args = {}, op: { historial?: boolean; foco?: boolean } = {}) => {
         const app = resolver(id);
         if (!app) return;
         const e = vivo.current.estado, cel = vivo.current.celular, a = areaUtil(innerWidth, innerHeight, cel);
         const ya = e.wins.find((w) => w.id === id && !w.cerrando);
         if (ya) {
-            despachar({ t: "abrir", app, r: ya.r, zona: ya.zona, naciendo: false, foco: op.foco ?? true });
-            if (ya.min) sonido.current?.efecto("abrir");
+            despachar({ t: "abrir", app, args, r: ya.r, zona: ya.zona, foco: op.foco ?? true });
             return;
         }
         const r = cel ? { ...a } : posicionInicial(e.wins.filter((w) => !w.cerrando).length, app.tam[0], app.tam[1], a);
-        const materializar = !!motor.current && !cel && vivo.current.fondo !== "quieto" && vivo.current.arranque === "listo" && !reducido();
-        despachar({ t: "abrir", app, r, zona: cel ? "max" : null, naciendo: materializar, foco: op.foco ?? true });
-        sonido.current?.efecto("abrir");
+        despachar({ t: "abrir", app, args, r, zona: cel ? "max" : null, foco: op.foco ?? true });
         anunciar(`${app.titulo}: ventana abierta`);
-        setRecientes((rs) => [id, ...rs.filter((x) => x !== id)].slice(0, 6));
-        if (materializar && motor.current && anclaVentana.current) {
-            // La materia escribe el nombre donde va a aparecer la ventana; después la ventana se arma encima.
-            const m = motor.current;
-            Object.assign(anclaVentana.current.style, { left: `${r.x + 30}px`, top: `${r.y + 50}px`, width: `${Math.max(120, r.w - 60)}px`, height: `${Math.max(80, r.h - 100)}px` });
-            m.pausar(false); m.escribir(app.sigla); m.forma("texto", anclaVentana.current); m.medir();
-            setTimeout(() => despachar({ t: "nacida", id: app.id }), 420);
-            clearTimeout(volverFondo.current);
-            volverFondo.current = window.setTimeout(aplicarFondo, 1350);
-        }
+        setRecientes((rs) => [{ id, cuando: Date.now() }, ...rs.filter((x) => x.id !== id)].slice(0, 8));
         if (cel && op.historial !== false) { pila.current.push(app.id); history.pushState({ escritorio: app.id }, "", `/escritorio?abrir=${app.id}`); }
-    }, [resolver, anunciar, aplicarFondo]);
+    }, [resolver, anunciar]);
 
-    const enfocar = useCallback((id: string) => {
-        if (activaDe(vivo.current.estado)?.id !== id) despachar({ t: "enfocar", id });
-    }, []);
+    const abrirApertura = useCallback((a: Apertura) => {
+        if ("app" in a) { abrir(a.app, a.args); return; }
+        if (a.externo.startsWith("/")) {
+            const u = new URL(a.externo, location.origin), id = idDeRuta(u.pathname, u.hash);
+            if (id) { abrir(id); return; }
+        }
+        window.open(a.externo, "_blank", "noopener");
+    }, [abrir]);
 
+    const enfocar = useCallback((id: string) => { if (activaDe(vivo.current.estado)?.id !== id) despachar({ t: "enfocar", id }); }, []);
     const cerrar = useCallback((id: string) => {
         const w = vivo.current.estado.wins.find((x) => x.id === id);
         if (!w || w.cerrando) return;
         // En el celular cada ventana es un paso del historial: cerrar la de más arriba es volver atrás (popstate la cierra).
         if (vivo.current.celular && pila.current.at(-1) === id) { history.back(); return; }
         despachar({ t: "cerrar", id });
-        sonido.current?.efecto("cerrar");
         anunciar(`${w.app.titulo}: ventana cerrada`);
     }, [anunciar]);
-
     const minimizar = useCallback((id: string) => {
         const w = vivo.current.estado.wins.find((x) => x.id === id);
         if (!w || w.min) return;
         despachar({ t: "minimizar", id });
-        sonido.current?.efecto("minimizar");
         anunciar(`${w.app.titulo}: minimizada`);
     }, [anunciar]);
 
@@ -214,14 +211,14 @@ export function Escritorio({ herramientas, proyectos }: { herramientas: Herramie
         if (enlazados.current.has(doc)) return;
         enlazados.current.add(doc);
         try { doc.documentElement.dataset.tema = document.documentElement.dataset.tema ?? "oscuro"; } catch { /* sin acceso */ }
-        doc.addEventListener("pointerdown", () => {
-            sonido.current?.presionar();
+        doc.addEventListener("pointerdown", (e) => {
+            if (e.pointerType !== "touch") sonido.current?.presionar();
             enfocar(id);
             try { document.querySelectorAll<HTMLElement>(":popover-open").forEach((p) => p.hidePopover()); } catch { /* sin paneles */ }
         }, true);
-        doc.addEventListener("pointerup", () => sonido.current?.soltar(), true);
+        doc.addEventListener("pointerup", (e) => { if (e.pointerType !== "touch") sonido.current?.soltar(); }, true);
         doc.addEventListener("keydown", (e) => {
-            if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); inicio.current?.alternar(); return; }
+            if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); inicio.current?.abrir(true); return; }
             sonarTecla(e);
         }, true);
         // Un enlace a otra parte del sitio abre su propia ventana; uno a la misma página sigue dentro de la ventana.
@@ -262,7 +259,7 @@ export function Escritorio({ herramientas, proyectos }: { herramientas: Herramie
         encajar: (id, zona, desde) => {
             despachar({ t: "encajar", id, zona, desde, area: area() });
             const w = vivo.current.estado.wins.find((x) => x.id === id);
-            if (w) anunciar(`${w.app.titulo}: ${zona === "max" ? "maximizada" : zona === "izq" ? "a la izquierda" : "a la derecha"}`);
+            if (w) anunciar(`${w.app.titulo}: en ${NOMBRE_ZONA[zona]}`);
         },
         alternarMax: (id) => despachar({ t: "alternarMax", id, area: area() }),
         minimizar,
@@ -272,7 +269,6 @@ export function Escritorio({ herramientas, proyectos }: { herramientas: Herramie
         sacudida: (id) => {
             if (!vivo.current.estado.wins.some((w) => w.id !== id && !w.min && !w.cerrando)) return;
             despachar({ t: "minimizarOtras", id });
-            sonido.current?.efecto("minimizar");
             anunciar("Las demás ventanas se minimizaron");
         },
         guia: (z) => {
@@ -284,11 +280,21 @@ export function Escritorio({ herramientas, proyectos }: { herramientas: Herramie
             g.setAttribute("data-ver", "");
         },
         moviendo: (v) => { raiz.current?.toggleAttribute("data-moviendo", v); },
-    }), [area, enfocar, minimizar, cerrar, enlazar, anunciar]);
+        acerca: (id) => { const a = resolver(id); if (a) setAcerca(a); },
+    }), [area, enfocar, minimizar, cerrar, enlazar, anunciar, resolver]);
 
-    /* ---------- Tema, encendido, bloqueo ---------- */
-    const alternarTema = useCallback(() => {
-        const nuevo = document.documentElement.dataset.tema === "claro" ? "oscuro" : "claro";
+    useEffect(() => {
+        const d = dialogoAcerca.current;
+        if (!d) return;
+        if (acerca && !d.open) d.showModal();
+        if (!acerca && d.open) d.close();
+    }, [acerca]);
+
+    /* ---------- Preferencias, tema y fondo ---------- */
+    const cambiarPrefs = useCallback((p: Partial<PrefsEscritorio>) => {
+        setPrefs((antes) => { const nuevas = { ...antes, ...p }; guardarPrefs(nuevas); vivo.current.prefs = nuevas; return nuevas; });
+    }, []);
+    const ponerTema = useCallback((nuevo: "oscuro" | "claro") => {
         document.documentElement.dataset.tema = nuevo;
         try { localStorage.setItem("tema", nuevo); } catch { /* vale para esta visita */ }
         setTema(nuevo);
@@ -296,66 +302,75 @@ export function Escritorio({ herramientas, proyectos }: { herramientas: Herramie
             try { if (f.contentDocument) f.contentDocument.documentElement.dataset.tema = nuevo; } catch { /* sin acceso */ }
         });
     }, []);
-
-    const encender = useCallback(() => {
-        setArranque("encendiendo"); vivo.current.arranque = "encendiendo";
-        if (motor.current && anclaCentro.current) { motor.current.pausar(false); motor.current.clima(null); motor.current.forma("firma", anclaCentro.current); }
-        let hecho = false;
-        const listo = () => {
-            if (hecho) return;
-            hecho = true;
-            clearTimeout(espera);
-            removeEventListener("pointerdown", listo, true); removeEventListener("keydown", listo, true);
-            try { localStorage.setItem("escritorio:visto", "1"); } catch { /* vale para esta visita */ }
-            setArranque("listo"); vivo.current.arranque = "listo";
-            aplicarFondo();
-        };
-        const espera = window.setTimeout(listo, reducido() ? 300 : 1700);
-        setTimeout(() => { if (!hecho) { addEventListener("pointerdown", listo, true); addEventListener("keydown", listo, true); } }, 250);
-    }, [aplicarFondo]);
-
-    const bloquear = useCallback(() => {
-        setBloqueado(true);
-        const m = motor.current;
-        if (m && anclaFirma.current) { m.pausar(false); m.clima(null); m.forma("firma", anclaFirma.current); }
+    const fondo: FondoId = prefs.fondo ?? fondoPorDefecto(tema);
+    const cambiarSonido = useCallback((p: Partial<PreferenciasSonido>) => {
+        const s = sonido.current;
+        if (!s) return;
+        s.cambiar(p);
+        setSonidoPrefs({ ...s.prefs });
     }, []);
+
+    // La materia viva: el motor de partículas solo existe si se eligió ese fondo, y descansa con una ventana maximizada.
     useEffect(() => {
-        if (!bloqueado) return;
-        document.querySelector<HTMLElement>(".es-bloqueo")?.focus();
-        let hecho = false;
-        const salir = (e: Event) => { if (hecho) return; hecho = true; e.preventDefault(); setBloqueado(false); aplicarFondo(); };
-        const t = setTimeout(() => { addEventListener("pointerdown", salir, true); addEventListener("keydown", salir, true); }, 350);
-        return () => { clearTimeout(t); removeEventListener("pointerdown", salir, true); removeEventListener("keydown", salir, true); };
-    }, [bloqueado, aplicarFondo]);
+        if (fondo !== "materia-viva" || fase === "espera") return;
+        let vigente = true;
+        void import("@/modules/materia/motor").then(({ crearMotor }) => {
+            if (!vigente || !lienzo.current || !frente.current) return;
+            motor.current = crearMotor(lienzo.current, { frente: frente.current, quieto: matchMedia("(prefers-reduced-motion: reduce)").matches });
+            motor.current.forma("olas");
+        });
+        return () => { vigente = false; motor.current?.destruir(); motor.current = null; };
+    }, [fondo, fase]);
+    const maxActiva = activa?.zona === "max";
+    useEffect(() => { motor.current?.pausar(maxActiva || fase !== "listo"); }, [maxActiva, fase]);
+
+    /* ---------- Encendido, bloqueo, reinicio ---------- */
+    const alListo = useCallback(() => {
+        setFase((f) => {
+            if (f === "encendido") { try { localStorage.setItem("escritorio:visto", "1"); } catch { /* vale para esta visita */ } return "bloqueo"; }
+            try { sessionStorage.setItem("escritorio:dentro", "1"); } catch { /* vale para esta visita */ }
+            return "listo";
+        });
+    }, []);
+    const faseAntes = useRef(fase);
+    useEffect(() => {
+        // Al entrar desde la pantalla de bloqueo suena el inicio de sesión; la primera vez, además, la bienvenida.
+        if (faseAntes.current === "bloqueo" && fase === "listo") {
+            sonido.current?.aviso("inicio");
+            let primera = false;
+            try { primera = !localStorage.getItem("escritorio:bienvenida"); localStorage.setItem("escritorio:bienvenida", "1"); } catch { /* sin almacenamiento */ }
+            if (primera) setTimeout(() => notificar(SISTEMA, "Este es mi escritorio", "Doble clic en un ícono para abrirlo, o busca cualquier cosa con Ctrl K."), 900);
+        }
+        faseAntes.current = fase;
+    }, [fase, notificar]);
+    const bloquear = useCallback(() => setFase("bloqueo"), []);
+    const reiniciar = useCallback(() => {
+        despachar({ t: "vaciar" });
+        try { sessionStorage.removeItem("escritorio:sesion"); sessionStorage.removeItem("escritorio:dentro"); } catch { /* sin almacenamiento */ }
+        setFase("encendido");
+    }, []);
+    const apagar = useCallback(() => { location.href = "/"; }, []);
 
     /* ---------- Al entrar ---------- */
     useEffect(() => {
         setTema(document.documentElement.dataset.tema === "claro" ? "claro" : "oscuro");
-        let f: Fondo = "olas";
-        try { const g = localStorage.getItem("escritorio:fondo") as Fondo | null; if (g && FONDOS_VALIDOS.includes(g)) f = g; } catch { /* de fábrica */ }
-        setFondo(f); vivo.current.fondo = f;
-        if (f === "clima") void pedirTiempo();
+        const p = leerPrefs();
+        setPrefs(p); vivo.current.prefs = p;
         try {
-            const r = JSON.parse(localStorage.getItem("escritorio:recientes") ?? "[]") as unknown;
-            if (Array.isArray(r)) setRecientes(r.filter((x): x is string => typeof x === "string").slice(0, 6));
+            const r = JSON.parse(localStorage.getItem("escritorio:recientes2") ?? "[]") as unknown;
+            if (Array.isArray(r)) setRecientes(r.filter((x): x is Reciente => !!x && typeof x.id === "string" && Number.isFinite(x.cuando)).slice(0, 8));
         } catch { /* nada reciente */ }
-        recientesListos.current = true;
+        cargado.current = true;
 
         const s = new SonidoEscritorio(leerPreferencias(matchMedia("(pointer: coarse)").matches));
         sonido.current = s;
-        setPrefs({ ...s.prefs });
+        setSonidoPrefs({ ...s.prefs });
         s.listo.then(() => setSonidoListo(true)).catch(() => undefined);
 
         setAhora(new Date());
         const reloj = setInterval(() => setAhora(new Date()), 15000);
-
-        let vigente = true;
-        void import("@/modules/materia/motor").then(({ crearMotor }) => {
-            if (!vigente || !lienzo.current || !frente.current) return;
-            motor.current = crearMotor(lienzo.current, { frente: frente.current, quieto: reducido() });
-            if (vivo.current.arranque === "encendiendo" && anclaCentro.current) motor.current.forma("firma", anclaCentro.current);
-            else aplicarFondo();
-        });
+        setEnLinea(navigator.onLine);
+        void leerClima().then((c) => { if (c) setClima(c); });
 
         // La sesión de esta pestaña: las ventanas que estaban abiertas vuelven donde estaban.
         try {
@@ -365,53 +380,50 @@ export function Escritorio({ herramientas, proyectos }: { herramientas: Herramie
             const wins: VentanaAbierta[] = Array.isArray(guardadas) ? guardadas.flatMap((g) => {
                 const app = typeof g.id === "string" ? resolver(g.id) : null;
                 if (!app || !num(g.r)) return [];
-                const zona = cel ? "max" : g.zona === "izq" || g.zona === "der" || g.zona === "max" ? g.zona : null;
-                return [{ id: app.id, app, r: zona ? rectZona(zona, a) : contener(g.r, a), previo: num(g.previo) ? g.previo : null, zona, min: g.min === true, z: Number(g.z) || 11, naciendo: false, cerrando: false, foco: false }];
+                const zona = cel ? "max" : ZONAS.includes(g.zona as Zona) ? (g.zona as Zona) : null;
+                const args = g.args && typeof g.args === "object" ? Object.fromEntries(Object.entries(g.args).filter(([, v]) => typeof v === "string" || typeof v === "number")) : {};
+                return [{ id: app.id, app, args: { ...(app.args ?? {}), ...args }, r: zona ? rectZona(zona, a) : contener(g.r, a), previo: num(g.previo) ? g.previo : null, zona, min: g.min === true, z: Number(g.z) || 11, cerrando: false, foco: false }];
             }) : [];
             if (wins.length) despachar({ t: "restaurar", wins });
         } catch { /* sesión rota: escritorio vacío */ }
 
         const pedida = new URLSearchParams(location.search).get("abrir");
-        let visto = false;
-        try { visto = localStorage.getItem("escritorio:visto") === "1"; } catch { /* sin almacenamiento */ }
-        if (!visto && !pedida) encender();
-        else { setArranque("listo"); vivo.current.arranque = "listo"; }
-        if (pedida) abrir(pedida, { historial: false });
+        let visto = false, dentro = false;
+        try { visto = localStorage.getItem("escritorio:visto") === "1"; dentro = sessionStorage.getItem("escritorio:dentro") === "1"; } catch { /* sin almacenamiento */ }
+        // Un enlace directo a una app entra sin encendido ni bloqueo: quien lo compartió quería mostrar eso.
+        setFase(pedida || (visto && dentro) ? "listo" : visto ? "bloqueo" : "encendido");
+        if (pedida) abrir(pedida === "conversemos" ? "correo" : pedida, {}, { historial: false });
 
-        return () => { vigente = false; clearInterval(reloj); motor.current?.destruir(); motor.current = null; s.cerrar(); };
+        return () => { clearInterval(reloj); s.cerrar(); };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        if (!recientesListos.current) return;
-        try { localStorage.setItem("escritorio:recientes", JSON.stringify(recientes)); } catch { /* vale para esta visita */ }
+        if (!cargado.current) return;
+        try { localStorage.setItem("escritorio:recientes2", JSON.stringify(recientes)); } catch { /* vale para esta visita */ }
     }, [recientes]);
-
     useEffect(() => {
-        if (arranque === "espera") return;
+        if (fase === "espera") return;
         try {
-            sessionStorage.setItem("escritorio:sesion", JSON.stringify(estado.wins.filter((w) => !w.cerrando).map(({ id, r, previo, zona, min, z }) => ({ id, r, previo, zona, min, z }))));
+            sessionStorage.setItem("escritorio:sesion", JSON.stringify(estado.wins.filter((w) => !w.cerrando).map(({ id, args, r, previo, zona, min, z }) => ({ id, args, r, previo, zona, min, z }))));
         } catch { /* sin almacenamiento */ }
-    }, [estado.wins, arranque]);
-
+    }, [estado.wins, fase]);
     // La dirección dice qué ventana está al frente (se puede copiar y compartir). En el celular la lleva el historial.
     const idActiva = activa?.id ?? null;
     useEffect(() => {
-        if (arranque === "espera" || celular) return;
+        if (fase === "espera" || celular) return;
         history.replaceState(history.state, "", idActiva ? `/escritorio?abrir=${idActiva}` : "/escritorio");
-    }, [idActiva, celular, arranque]);
-
-    // Ventana maximizada al frente: la materia de atrás no se ve, así que descansa.
-    useEffect(() => {
-        const m = motor.current;
-        if (!m || arranque !== "listo" || bloqueado) return;
-        if (maxActiva || fondo === "quieto") { const t = setTimeout(() => m.pausar(true), 600); return () => clearTimeout(t); }
-        m.pausar(false);
-    }, [maxActiva, fondo, arranque, bloqueado]);
+    }, [idActiva, celular, fase]);
 
     useEffect(() => {
-        const abajo = () => sonido.current?.presionar(), arriba = () => sonido.current?.soltar();
+        const abajo = (e: PointerEvent) => { if (e.pointerType !== "touch") sonido.current?.presionar(); };
+        const arriba = (e: PointerEvent) => { if (e.pointerType !== "touch") sonido.current?.soltar(); };
         const teclas = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") { e.preventDefault(); inicio.current?.alternar(); return; }
+            if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") {
+                e.preventDefault();
+                const p = document.getElementById("es-inicio");
+                if (p?.matches(":popover-open")) p.hidePopover(); else inicio.current?.abrir(true);
+                return;
+            }
             sonarTecla(e);
         };
         const visibilidad = () => sonido.current?.suspender(document.hidden);
@@ -421,127 +433,171 @@ export function Escritorio({ herramientas, proyectos }: { herramientas: Herramie
             if (!vivo.current.celular || location.pathname !== "/escritorio") return;
             const id = pila.current.pop();
             const w = id ? vivo.current.estado.wins.find((x) => x.id === id && !x.cerrando) : undefined;
-            if (w) { despachar({ t: "cerrar", id: w.id }); sonido.current?.efecto("cerrar"); anunciar(`${w.app.titulo}: ventana cerrada`); }
+            if (w) { despachar({ t: "cerrar", id: w.id }); anunciar(`${w.app.titulo}: ventana cerrada`); }
+        };
+        const red = () => {
+            setEnLinea(navigator.onLine);
+            if (navigator.onLine) notificar(SISTEMA, "Conexión de vuelta", "Ya hay internet: las páginas y los titulares vuelven a cargar.");
+            else notificar(SISTEMA, "Sin conexión", "Las apps abiertas siguen funcionando; lo que necesita internet espera a que vuelva.");
         };
         let cuadro = 0;
         const tamano = () => { cancelAnimationFrame(cuadro); cuadro = requestAnimationFrame(() => despachar({ t: "acomodar", area: areaUtil(innerWidth, innerHeight, esCelular()), celular: esCelular() })); };
         document.addEventListener("pointerdown", abajo, true); document.addEventListener("pointerup", arriba, true);
         document.addEventListener("keydown", teclas, true); document.addEventListener("visibilitychange", visibilidad);
-        addEventListener("popstate", atras); addEventListener("resize", tamano);
+        addEventListener("popstate", atras); addEventListener("resize", tamano); addEventListener("online", red); addEventListener("offline", red);
         return () => {
             document.removeEventListener("pointerdown", abajo, true); document.removeEventListener("pointerup", arriba, true);
             document.removeEventListener("keydown", teclas, true); document.removeEventListener("visibilitychange", visibilidad);
-            removeEventListener("popstate", atras); removeEventListener("resize", tamano); cancelAnimationFrame(cuadro);
+            removeEventListener("popstate", atras); removeEventListener("resize", tamano); removeEventListener("online", red); removeEventListener("offline", red);
+            cancelAnimationFrame(cuadro);
         };
-    }, [sonarTecla, anunciar]);
-
+    }, [sonarTecla, anunciar, notificar]);
     useEffect(() => { despachar({ t: "acomodar", area: areaUtil(innerWidth, innerHeight, celular), celular }); }, [celular]);
 
-    /* ---------- Lo que se ve ---------- */
-    const cambiarSonido = useCallback((p: Partial<PreferenciasSonido>) => {
-        const s = sonido.current;
-        if (!s) return;
-        s.cambiar(p);
-        setPrefs({ ...s.prefs });
-    }, []);
-    const ajustes: Ajustes = {
-        fondo, alFondo: ponerFondo, tema, alTema: alternarTema, prefs, cambiarSonido, muestra: () => sonido.current?.muestra(), alOrdenar: () => setOrdenar((n) => n + 1),
-    };
-    const vista = (v: Vista) => v === "proyectos" ? <VistaProyectos proyectos={proyectos} alAbrir={abrir} />
-        : v === "herramientas" ? <VistaHerramientas herramientas={herramientas} resolver={resolver} alAbrir={abrir} />
-            : v === "configuracion" ? <VistaConfiguracion a={ajustes} /> : <VistaAtajos />;
-
+    /* ---------- Barra de tareas y menús ---------- */
+    const ancladas = (prefs.anclados ?? ANCLADAS_BARRA).filter((id) => resolver(id));
+    const tareas: Tarea[] = [...ancladas, ...estado.wins.filter((w) => !w.cerrando && !ancladas.includes(w.id)).map((w) => w.id)]
+        .map((id) => ({ id, app: resolver(id) as App, abierta: estado.wins.some((w) => w.id === id && !w.cerrando), activa: activa?.id === id }));
+    const anclar = useCallback((id: string, si: boolean) => {
+        const actuales = vivo.current.prefs.anclados ?? ANCLADAS_BARRA;
+        cambiarPrefs({ anclados: si ? [...actuales.filter((x) => x !== id), id] : actuales.filter((x) => x !== id) });
+    }, [cambiarPrefs]);
     const tocarTarea = (id: string) => {
         const e = vivo.current.estado, w = e.wins.find((x) => x.id === id && !x.cerrando);
         if (!w) abrir(id);
-        else if (w.min) { despachar({ t: "abrir", app: w.app, r: w.r, zona: w.zona, naciendo: false, foco: true }); sonido.current?.efecto("abrir"); }
+        else if (w.min) despachar({ t: "abrir", app: w.app, args: {}, r: w.r, zona: w.zona, foco: true });
         else if (activaDe(e)?.id === id) minimizar(id);
         else despachar({ t: "enfocar", id });
     };
     const asomar = (id: string, si: boolean) => document.querySelector(`.es-ventana[data-app="${CSS.escape(id)}"]`)?.toggleAttribute("data-asoma", si);
-    const tareas = [...ANCLADAS, ...estado.wins.filter((w) => !w.cerrando && !ANCLADAS.includes(w.id)).map((w) => w.id)];
+    const mostrarEscritorio = () => {
+        const visibles = vivo.current.estado.wins.filter((w) => !w.min && !w.cerrando).map((w) => w.id);
+        if (visibles.length) { ocultas.current = visibles; despachar({ t: "minimizarTodas" }); anunciar("Escritorio a la vista"); }
+        else if (ocultas.current.length) { despachar({ t: "restaurarVarias", ids: ocultas.current }); ocultas.current = []; }
+    };
 
-    const alPresionarFondo = (e: PE<HTMLElement>) => { if (e.target === e.currentTarget && e.button === 0) motor.current?.sacudir(6); };
+    const cerrarMenu = useCallback(() => setMenu(null), []);
+    const menuTarea = (id: string, x: number, y: number) => {
+        const a = resolver(id);
+        if (!a) return;
+        const abierta = vivo.current.estado.wins.some((w) => w.id === id && !w.cerrando), anclada = (vivo.current.prefs.anclados ?? ANCLADAS_BARRA).includes(id);
+        setMenu({ x, y: y - 8, titulo: `Opciones de ${a.titulo}`, opciones: [
+            { texto: a.titulo, icono: <IconoDe icono={a.icono} tam={16} />, accion: () => abrir(id) },
+            "separador",
+            anclada ? { texto: "Desanclar de la barra de tareas", icono: <PinOff size={14} />, accion: () => anclar(id, false) } : { texto: "Anclar a la barra de tareas", icono: <Pin size={14} />, accion: () => anclar(id, true) },
+            ...(abierta ? [{ texto: "Cerrar ventana", icono: <X size={14} />, accion: () => cerrar(id) }] : []),
+        ] });
+    };
+    const menuIcono = (id: string | null, x: number, y: number) => {
+        if (!id) return;
+        const a = resolver(id);
+        if (!a) return;
+        const anclada = (vivo.current.prefs.anclados ?? ANCLADAS_BARRA).includes(id);
+        setMenu({ x, y, titulo: `Opciones de ${a.titulo}`, opciones: [
+            { texto: "Abrir", icono: <FolderOpen size={14} />, accion: () => abrir(id) },
+            ...(a.enlace ? [{ texto: "Abrir en una pestaña", icono: <ExternalLink size={14} />, accion: () => window.open(a.enlace, "_blank", "noopener") }] : []),
+            "separador",
+            anclada ? { texto: "Desanclar de la barra de tareas", icono: <PinOff size={14} />, accion: () => anclar(id, false) } : { texto: "Anclar a la barra de tareas", icono: <Pin size={14} />, accion: () => anclar(id, true) },
+        ] });
+    };
+    const menuFondo = (x: number, y: number) => setMenu({ x, y, titulo: "Menú del escritorio", opciones: [
+        { texto: "Íconos grandes", grupo: "ver", marcada: vivo.current.prefs.iconos === "grandes", accion: () => cambiarPrefs({ iconos: "grandes" }) },
+        { texto: "Íconos medianos", grupo: "ver", marcada: vivo.current.prefs.iconos === "medianos", accion: () => cambiarPrefs({ iconos: "medianos" }) },
+        { texto: "Íconos pequeños", grupo: "ver", marcada: vivo.current.prefs.iconos === "pequenos", accion: () => cambiarPrefs({ iconos: "pequenos" }) },
+        "separador",
+        { texto: "Ordenar los íconos", icono: <LayoutGrid size={14} />, accion: () => setOrdenar((n) => n + 1) },
+        { texto: "Actualizar", icono: <RefreshCw size={14} />, accion: () => anunciar("Escritorio actualizado") },
+        "separador",
+        { texto: "Personalizar", icono: <Paintbrush size={14} />, accion: () => abrir("configuracion", { seccion: "personalizacion" }) },
+        { texto: "Abrir el Explorador", icono: <FolderOpen size={14} />, accion: () => abrir("explorador") },
+        "separador",
+        { texto: "Volver al sitio", icono: <LogOut size={14} />, accion: apagar },
+    ] });
+
     // Clic derecho en el fondo: el menú se abre al soltar el botón (si se abriera al presionar, el mismo botón al soltarse
-    // lo cerraría: así cierra el navegador los paneles cuando se toca fuera). Con el teclado (tecla de menú o Mayús F10)
-    // no hay puntero: se abre junto a lo que tiene el foco.
+    // lo cerraría: así cierra el navegador los paneles cuando se toca fuera). Con el teclado se abre junto al foco.
     const derecho = useRef(0);
-    const sinMenu = (t: EventTarget | null) => !!(t as Element | null)?.closest?.(".es-ventana, .es-tareas, [popover], .es-bloqueo");
-    const alMenu = (e: ME<HTMLDivElement>) => {
-        if (sinMenu(e.target)) return;
+    const esFondo = (t: EventTarget | null) => { const el = t as Element | null; return !!el && (el.classList?.contains("es-mesa") || el.classList?.contains("es-iconos")); };
+    const alMenuNativo = (e: ME<HTMLDivElement>) => {
+        if ((e.target as Element).closest("iframe, input, textarea, [contenteditable=true]")) return;
         e.preventDefault();
-        if (performance.now() - derecho.current < 1500) return;
-        const r = (document.activeElement as HTMLElement | null)?.getBoundingClientRect?.();
-        menu.current?.abrirEn(r && r.width ? r.left + 12 : innerWidth / 2, r && r.height ? r.bottom - 8 : innerHeight / 2);
+        if (performance.now() - derecho.current < 1500 || !esFondo(e.target)) return;
+        menuFondo(innerWidth / 2, innerHeight / 2);
     };
     const alPresionarRaiz = (e: PE<HTMLDivElement>) => { if (e.button === 2) derecho.current = performance.now(); };
-    const alSoltarRaiz = (e: PE<HTMLDivElement>) => { if (e.button === 2 && !sinMenu(e.target)) menu.current?.abrirEn(e.clientX, e.clientY); };
+    const alSoltarRaiz = (e: PE<HTMLDivElement>) => { if (e.button === 2 && esFondo(e.target)) menuFondo(e.clientX, e.clientY); };
 
-    const hora = ahora ? HORA.format(ahora) : "--:--";
+    /* ---------- Lo que se ve ---------- */
+    const vista = (w: VentanaAbierta) => {
+        switch (w.app.vista) {
+            case "explorador": return <Explorador raiz={raizArchivos} inicial={String(w.args.carpeta ?? "")} alAbrir={abrirApertura} />;
+            case "fotos": return <Fotos proyectos={proyectos} proyecto={String(w.args.proyecto ?? "")} indice={Number(w.args.indice ?? 0)}
+                alCambiar={(p, i) => despachar({ t: "args", id: w.id, args: { proyecto: p, indice: i } })} alVisitar={(href) => window.open(href, "_blank", "noopener")} />;
+            case "correo": return <Correo alEnviado={(correo) => notificar(APPS.correo, "Mensaje enviado", `Te respondo a ${correo} lo antes posible.`)} />;
+            case "noticias": return <Noticias alAbrirBlog={() => abrir("blog")} />;
+            case "configuracion": return <Configuracion seccion={typeof w.args.seccion === "string" ? w.args.seccion : undefined} prefs={prefs} alPrefs={cambiarPrefs}
+                tema={tema} alTema={ponerTema} sonido={sonidoPrefs} cambiarSonido={cambiarSonido} muestra={() => sonido.current?.muestra()} alOrdenar={() => setOrdenar((n) => n + 1)} alAbrir={(id) => abrir(id)} />;
+            default: return null;
+        }
+    };
+    const climaBarra = clima ? { temperatura: Math.round(clima.temperature), texto: clima.weatherLabel, codigo: clima.weatherCode, dia: clima.isDay } : null;
+    const visiblesAvisos = avisos.filter((a) => emergentes.includes(a.id));
+    const nuevos = Math.max(0, avisos.length - vistos);
+
     return (
-        <div ref={raiz} className="es" data-arranque={arranque === "listo" ? undefined : arranque} data-celular={celular || undefined} data-sonido={sonidoListo ? "listo" : undefined}
-            onContextMenu={alMenu} onPointerDownCapture={alPresionarRaiz} onPointerUp={alSoltarRaiz}>
-            <canvas ref={lienzo} className="es-lienzo" aria-hidden="true" />
-            <div ref={frente} className="es-frente" aria-hidden="true" />
-            <div ref={anclaCentro} className="es-ancla es-ancla-centro" aria-hidden="true" />
-            <div ref={anclaFirma} className="es-ancla es-ancla-firma" aria-hidden="true" />
-            <div ref={anclaVentana} className="es-ancla" aria-hidden="true" />
+        <div ref={raiz} className="es" data-celular={celular || undefined} data-sonido={sonidoListo ? "listo" : undefined}
+            data-animaciones={prefs.animaciones ? undefined : "no"} data-fase={fase}
+            onContextMenu={alMenuNativo} onPointerDownCapture={alPresionarRaiz} onPointerUp={alSoltarRaiz}>
+            <Fondo id={fondo} solido={prefs.solido} lienzo={lienzo} frente={frente} prioridad />
 
-            <main className="es-mesa" aria-label="Escritorio" onPointerDown={alPresionarFondo}>
+            <main className="es-mesa" aria-label="Escritorio">
                 <h1 className="es-sr">nicoholas.dev en modo escritorio</h1>
-                <Iconos ids={EN_ESCRITORIO} resolver={resolver} celular={celular} alAbrir={abrir} ordenar={ordenar} />
+                <Iconos ids={EN_ESCRITORIO} resolver={resolver} accesos={ACCESOS} tam={prefs.iconos} celular={celular} ordenar={ordenar} alAbrir={(id) => abrir(id)} alMenu={menuIcono} />
                 <div ref={guia} className="es-guia" aria-hidden="true" />
                 <div className="es-ventanas">
                     {estado.wins.map((w) => (
                         <Ventana key={w.id} v={w} activa={activa?.id === w.id} celular={celular} acciones={acciones}>
-                            {w.app.vista ? vista(w.app.vista) : null}
+                            {w.app.tipo === "vista" ? vista(w) : null}
                         </Ventana>
                     ))}
                 </div>
             </main>
 
-            <nav className="es-tareas" aria-label="Barra de tareas">
-                <button type="button" className="es-tarea es-boton-inicio" popoverTarget="es-inicio" aria-label="Inicio" aria-expanded="false">n<i>.</i></button>
-                <span className="es-sep" aria-hidden="true" />
-                <div className="es-tareas-apps">
-                    {tareas.map((id) => {
-                        const a = resolver(id);
-                        if (!a) return null;
-                        const abierta = estado.wins.some((w) => w.id === id && !w.cerrando);
-                        return (
-                            <button key={id} type="button" className="es-tarea" data-tarea={id} aria-label={a.titulo} title={a.titulo} aria-pressed={activa?.id === id}
-                                data-abierta={abierta || undefined} style={{ "--c": a.color } as CSSProperties}
-                                onClick={() => tocarTarea(id)} onPointerEnter={() => asomar(id, true)} onPointerLeave={() => asomar(id, false)}>
-                                <Glifo d={a.glifo} />
-                            </button>
-                        );
-                    })}
-                </div>
-                <span className="es-sep" aria-hidden="true" />
-                <div className="es-bandeja">
-                    <button type="button" className="es-tarea es-tarea-chica" popoverTarget="es-sonido" aria-label="Sonido" aria-expanded="false">
-                        <Glifo d={prefs?.activo && prefs.volumen > 0 ? UI.sonido : UI.mudo} />
-                    </button>
-                    <button type="button" className="es-tarea es-tarea-chica" aria-label="Cambiar entre tema claro y oscuro" onClick={alternarTema}>
-                        <Glifo d={tema === "claro" ? UI.luna : UI.sol} />
-                    </button>
-                    <button type="button" className="es-reloj" popoverTarget="es-calendario" aria-label={`Son las ${hora} en Santiago. Abrir el calendario`} aria-expanded="false" onClick={() => void pedirTiempo()}>
-                        <b>{hora}</b><span>{ahora ? CORTA.format(ahora).replace(/\./g, "") : ""}</span>
-                    </button>
-                </div>
-            </nav>
+            <Barra tareas={tareas} alinear={celular ? "centro" : prefs.alinear} ahora={ahora} clima={climaBarra} enLinea={enLinea}
+                sonido={{ activo: !!sonidoPrefs?.activo, volumen: sonidoPrefs?.volumen ?? 0 }} avisos={nuevos}
+                alTocar={tocarTarea} alAsomar={asomar} alMenu={menuTarea} alBuscar={() => inicio.current?.abrir(true)} alEscritorio={mostrarEscritorio} />
 
-            <Inicio ref={inicio} herramientas={herramientas} recientes={recientes} resolver={resolver} alAbrir={abrir} alBloquear={bloquear} />
-            <PanelSonido prefs={prefs} cambiar={cambiarSonido} muestra={() => sonido.current?.muestra()} />
-            <Calendario ahora={ahora} tiempo={tiempo} />
-            <MenuEscritorio ref={menu} fondo={fondo} tema={tema} alFondo={ponerFondo} alTema={alternarTema} alAbrir={abrir} alOrdenar={() => setOrdenar((n) => n + 1)} alEncender={encender} />
+            <Inicio ref={inicio} todas={todas} resolver={resolver} anclados={ANCLADAS_INICIO} recientes={recientes} ancladasBarra={ancladas}
+                alinear={celular ? "centro" : prefs.alinear} alAbrir={(id, args) => abrir(id, args)} alAnclar={anclar} alBloquear={bloquear} alReiniciar={reiniciar} alApagar={apagar} />
+            <Widgets clima={clima} alNoticias={() => abrir("noticias")} />
+            <ConfiguracionRapida prefs={sonidoPrefs} cambiarSonido={cambiarSonido} muestra={() => sonido.current?.muestra()} tema={tema} alTema={() => ponerTema(tema === "claro" ? "oscuro" : "claro")}
+                animaciones={prefs.animaciones} alAnimaciones={() => cambiarPrefs({ animaciones: !prefs.animaciones })} noMolestar={prefs.noMolestar} alNoMolestar={() => cambiarPrefs({ noMolestar: !prefs.noMolestar })}
+                enLinea={enLinea} alConfiguracion={() => abrir("configuracion")} />
+            <div onFocusCapture={() => setVistos(avisos.length)} onPointerEnter={() => setVistos(avisos.length)}>
+                <Calendario ahora={ahora} avisos={avisos} alBorrar={() => { setAvisos([]); setVistos(0); }} alQuitar={(id) => setAvisos((l) => l.filter((a) => a.id !== id))}
+                    alAbrirAviso={(a) => { if (a.abrir) abrir(a.abrir.id, a.abrir.args); else if (a.app.id !== "sistema") abrir(a.app.id); }} />
+            </div>
+            <MenuContextual pedido={menu} alCerrar={cerrarMenu} />
+            <Notificaciones visibles={visiblesAvisos} alAbrir={(a) => { setEmergentes((l) => l.filter((x) => x !== a.id)); if (a.app.id !== "sistema") abrir(a.abrir?.id ?? a.app.id, a.abrir?.args); }}
+                alCerrar={(id) => setEmergentes((l) => l.filter((x) => x !== id))} />
 
-            {bloqueado && (
-                <div className="es-bloqueo" role="dialog" aria-modal="true" aria-label="Escritorio bloqueado" tabIndex={-1}>
-                    <p className="es-bloqueo-hora">{hora}</p>
-                    <p className="es-bloqueo-fecha">{ahora ? new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", weekday: "long", day: "numeric", month: "long" }).format(ahora) : ""}</p>
-                    <p className="es-bloqueo-pista">Haz clic o presiona una tecla para volver</p>
-                </div>
+            <dialog ref={dialogoAcerca} className="es-acerca" aria-label={acerca ? `Acerca de ${acerca.titulo}` : "Acerca de"} onClose={() => setAcerca(null)} {...{ closedby: "any" }}>
+                {acerca && (
+                    <>
+                        <IconoDe icono={acerca.icono} tam={64} />
+                        <h3>{acerca.titulo}</h3>
+                        {acerca.descripcion && <p>{acerca.descripcion}</p>}
+                        <p className="es-acerca-nota">Una herramienta gratis de nicoholas.dev. La página completa tiene la guía de uso y las preguntas frecuentes.</p>
+                        <div className="es-acerca-acciones">
+                            {acerca.enlace && <a className="es-boton-chico" href={acerca.enlace} target="_blank" rel="noopener"><ExternalLink size={14} aria-hidden="true" />Ver en el sitio</a>}
+                            <button type="button" className="es-primario" onClick={() => setAcerca(null)}>Cerrar</button>
+                        </div>
+                    </>
+                )}
+            </dialog>
+
+            {(fase === "encendido" || fase === "bloqueo") && (
+                <Bloqueo fase={fase} ahora={ahora} alListo={alListo} fondo={<Fondo id={fondo === "materia-viva" ? "materia" : fondo} solido={prefs.solido} />} />
             )}
             <p className="es-sr" aria-live="polite">{anuncio}</p>
         </div>
