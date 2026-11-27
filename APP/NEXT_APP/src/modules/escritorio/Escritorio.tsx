@@ -22,6 +22,7 @@ import { fondoPorDefecto, type FondoId } from "./fondos";
 import { areaUtil, contener, NOMBRE_ZONA, posicionInicial, rectZona, ZONAS, type Rect, type Zona } from "./geometria";
 import { IconoDe } from "./iconos/Icono";
 import { Iconos } from "./Iconos";
+import { LimiteApp } from "./LimiteApp";
 import { Inicio, type ControlInicio, type Reciente } from "./Inicio";
 import { MenuContextual, type PedidoMenu } from "./MenuContextual";
 import { Notificaciones } from "./Notificaciones";
@@ -131,9 +132,9 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
     /** En el celular, las ventanas que abrieron un paso del historial (la última arriba). */
     const pila = useRef<string[]>([]);
     /** Lo último de cada cosa, para los oyentes que viven fuera de React (iframes, teclado global). */
-    const vivo = useRef({ estado, celular, prefs });
+    const vivo = useRef({ estado, celular, prefs, fase });
     const activa = activaDe(estado);
-    useLayoutEffect(() => { Object.assign(vivo.current, { estado, celular, prefs }); });
+    useLayoutEffect(() => { Object.assign(vivo.current, { estado, celular, prefs, fase }); });
 
     /* ---------- Las apps ---------- */
     const dinamicas = useMemo(() => new Map<string, App>([
@@ -145,6 +146,7 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
     const raizArchivos = useMemo(() => arbol({ herramientas, proyectos, servicios }), [herramientas, proyectos, servicios]);
     const area = useCallback(() => areaUtil(innerWidth, innerHeight, vivo.current.celular), []);
     const anunciar = useCallback((t: string) => { setAnuncio(""); requestAnimationFrame(() => setAnuncio(t)); }, []);
+    const pedirClima = useCallback(() => { void leerClima().then((c) => { if (c) setClima(c); }); }, []);
 
     /* ---------- Notificaciones ---------- */
     const notificar = useCallback((app: App, titulo: string, texto: string, abrir?: Aviso["abrir"]) => {
@@ -163,7 +165,10 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
         const e = vivo.current.estado, cel = vivo.current.celular, a = areaUtil(innerWidth, innerHeight, cel);
         const ya = e.wins.find((w) => w.id === id && !w.cerrando);
         if (ya) {
+            const alFrente = activaDe(e)?.id !== id;
             despachar({ t: "abrir", app, args, r: ya.r, zona: ya.zona, foco: op.foco ?? true });
+            // En el celular, traer una app al frente es un paso del historial: Atrás cierra la que se ve.
+            if (cel && alFrente && op.historial !== false) { pila.current.push(id); history.pushState({ escritorio: id }, "", `/escritorio?abrir=${id}`); }
             return;
         }
         const r = cel ? { ...a } : posicionInicial(e.wins.filter((w) => !w.cerrando).length, app.tam[0], app.tam[1], a);
@@ -228,7 +233,8 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
             if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
             let url: URL;
             try { url = new URL(a.href, doc.baseURI); } catch { return; }
-            if (url.origin !== location.origin) return;
+            // Otro sitio no se deja enmarcar (la ventana quedaría en blanco): se abre en una pestaña nueva.
+            if (url.origin !== location.origin) { if (/^https?:$/.test(url.protocol)) { e.preventDefault(); e.stopPropagation(); window.open(url.href, "_blank", "noopener"); } return; }
             if (url.pathname === "/escritorio") { e.preventDefault(); e.stopPropagation(); return; }
             if (!enmarcableEnEscritorio(url.pathname)) { e.preventDefault(); e.stopPropagation(); window.open(url.href, "_blank", "noopener"); return; }
             const destino = idDeRuta(url.pathname, url.hash);
@@ -370,7 +376,7 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
         setAhora(new Date());
         const reloj = setInterval(() => setAhora(new Date()), 15000);
         setEnLinea(navigator.onLine);
-        void leerClima().then((c) => { if (c) setClima(c); });
+        pedirClima();
 
         // La sesión de esta pestaña: las ventanas que estaban abiertas vuelven donde estaban.
         try {
@@ -420,6 +426,7 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
         const teclas = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") {
                 e.preventDefault();
+                if (vivo.current.fase !== "listo") return;
                 const p = document.getElementById("es-inicio");
                 if (p?.matches(":popover-open")) p.hidePopover(); else inicio.current?.abrir(true);
                 return;
@@ -437,7 +444,7 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
         };
         const red = () => {
             setEnLinea(navigator.onLine);
-            if (navigator.onLine) notificar(SISTEMA, "Conexión de vuelta", "Ya hay internet: las páginas y los titulares vuelven a cargar.");
+            if (navigator.onLine) { notificar(SISTEMA, "Conexión de vuelta", "Ya hay internet de nuevo."); pedirClima(); }
             else notificar(SISTEMA, "Sin conexión", "Las apps abiertas siguen funcionando; lo que necesita internet espera a que vuelva.");
         };
         let cuadro = 0;
@@ -451,7 +458,7 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
             removeEventListener("popstate", atras); removeEventListener("resize", tamano); removeEventListener("online", red); removeEventListener("offline", red);
             cancelAnimationFrame(cuadro);
         };
-    }, [sonarTecla, anunciar, notificar]);
+    }, [sonarTecla, anunciar, notificar, pedirClima]);
     useEffect(() => { despachar({ t: "acomodar", area: areaUtil(innerWidth, innerHeight, celular), celular }); }, [celular]);
 
     /* ---------- Barra de tareas y menús ---------- */
@@ -464,10 +471,8 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
     }, [cambiarPrefs]);
     const tocarTarea = (id: string) => {
         const e = vivo.current.estado, w = e.wins.find((x) => x.id === id && !x.cerrando);
-        if (!w) abrir(id);
-        else if (w.min) despachar({ t: "abrir", app: w.app, args: {}, r: w.r, zona: w.zona, foco: true });
-        else if (activaDe(e)?.id === id) minimizar(id);
-        else despachar({ t: "enfocar", id });
+        if (!w || w.min || activaDe(e)?.id !== id) abrir(id);
+        else minimizar(id);
     };
     const asomar = (id: string, si: boolean) => document.querySelector(`.es-ventana[data-app="${CSS.escape(id)}"]`)?.toggleAttribute("data-asoma", si);
     const mostrarEscritorio = () => {
@@ -519,7 +524,8 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
     const derecho = useRef(0);
     const esFondo = (t: EventTarget | null) => { const el = t as Element | null; return !!el && (el.classList?.contains("es-mesa") || el.classList?.contains("es-iconos")); };
     const alMenuNativo = (e: ME<HTMLDivElement>) => {
-        if ((e.target as Element).closest("iframe, input, textarea, [contenteditable=true]")) return;
+        // Dentro de una app manda el menú del navegador (copiar un enlace, abrir una imagen); fuera, el del escritorio.
+        if ((e.target as Element).closest(".es-cuerpo, iframe, input, textarea, [contenteditable=true]")) return;
         e.preventDefault();
         if (performance.now() - derecho.current < 1500 || !esFondo(e.target)) return;
         menuFondo(innerWidth / 2, innerHeight / 2);
@@ -548,28 +554,28 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
         <div ref={raiz} className="es" data-celular={celular || undefined} data-sonido={sonidoListo ? "listo" : undefined}
             data-animaciones={prefs.animaciones ? undefined : "no"} data-fase={fase}
             onContextMenu={alMenuNativo} onPointerDownCapture={alPresionarRaiz} onPointerUp={alSoltarRaiz}>
-            <Fondo id={fondo} solido={prefs.solido} lienzo={lienzo} frente={frente} prioridad />
+            {fase !== "espera" && <Fondo id={fondo} solido={prefs.solido} lienzo={lienzo} frente={frente} prioridad />}
 
-            <main className="es-mesa" aria-label="Escritorio">
+            <main className="es-mesa" aria-label="Escritorio" inert={fase !== "listo"}>
                 <h1 className="es-sr">nicoholas.dev en modo escritorio</h1>
                 <Iconos ids={EN_ESCRITORIO} resolver={resolver} accesos={ACCESOS} tam={prefs.iconos} celular={celular} ordenar={ordenar} alAbrir={(id) => abrir(id)} alMenu={menuIcono} />
                 <div ref={guia} className="es-guia" aria-hidden="true" />
                 <div className="es-ventanas">
                     {estado.wins.map((w) => (
                         <Ventana key={w.id} v={w} activa={activa?.id === w.id} celular={celular} acciones={acciones}>
-                            {w.app.tipo === "vista" ? vista(w) : null}
+                            {w.app.tipo === "vista" ? <LimiteApp nombre={w.app.titulo}>{vista(w)}</LimiteApp> : null}
                         </Ventana>
                     ))}
                 </div>
             </main>
 
             <Barra tareas={tareas} alinear={celular ? "centro" : prefs.alinear} ahora={ahora} clima={climaBarra} enLinea={enLinea}
-                sonido={{ activo: !!sonidoPrefs?.activo, volumen: sonidoPrefs?.volumen ?? 0 }} avisos={nuevos}
+                sonido={{ activo: !!sonidoPrefs?.activo, volumen: sonidoPrefs?.volumen ?? 0 }} avisos={nuevos} inerte={fase !== "listo"}
                 alTocar={tocarTarea} alAsomar={asomar} alMenu={menuTarea} alBuscar={() => inicio.current?.abrir(true)} alEscritorio={mostrarEscritorio} />
 
             <Inicio ref={inicio} todas={todas} resolver={resolver} anclados={ANCLADAS_INICIO} recientes={recientes} ancladasBarra={ancladas}
                 alinear={celular ? "centro" : prefs.alinear} alAbrir={(id, args) => abrir(id, args)} alAnclar={anclar} alBloquear={bloquear} alReiniciar={reiniciar} alApagar={apagar} />
-            <Widgets clima={clima} alNoticias={() => abrir("noticias")} />
+            <Widgets clima={clima} alPedirClima={pedirClima} alNoticias={() => abrir("noticias")} />
             <ConfiguracionRapida prefs={sonidoPrefs} cambiarSonido={cambiarSonido} muestra={() => sonido.current?.muestra()} tema={tema} alTema={() => ponerTema(tema === "claro" ? "oscuro" : "claro")}
                 animaciones={prefs.animaciones} alAnimaciones={() => cambiarPrefs({ animaciones: !prefs.animaciones })} noMolestar={prefs.noMolestar} alNoMolestar={() => cambiarPrefs({ noMolestar: !prefs.noMolestar })}
                 enLinea={enLinea} alConfiguracion={() => abrir("configuracion")} />
@@ -587,6 +593,7 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
                         <IconoDe icono={acerca.icono} tam={64} />
                         <h3>{acerca.titulo}</h3>
                         {acerca.descripcion && <p>{acerca.descripcion}</p>}
+                        <p className="es-acerca-donde"><b>Dónde se procesa</b>{acerca.donde ?? "Funciona en tu navegador: lo que escribes o subes no sale de tu equipo."}</p>
                         <p className="es-acerca-nota">Una herramienta gratis de nicoholas.dev. La página completa tiene la guía de uso y las preguntas frecuentes.</p>
                         <div className="es-acerca-acciones">
                             {acerca.enlace && <a className="es-boton-chico" href={acerca.enlace} target="_blank" rel="noopener"><ExternalLink size={14} aria-hidden="true" />Ver en el sitio</a>}
@@ -596,6 +603,8 @@ export function Escritorio({ herramientas, proyectos, servicios }: { herramienta
                 )}
             </dialog>
 
+            {/* Hasta saber si toca encendido, bloqueo o escritorio (y qué fondo), una cubierta pareja: nada que salte. */}
+            {fase === "espera" && <div className="es-cubierta" aria-hidden="true" />}
             {(fase === "encendido" || fase === "bloqueo") && (
                 <Bloqueo fase={fase} ahora={ahora} alListo={alListo} fondo={<Fondo id={fondo === "materia-viva" ? "materia" : fondo} solido={prefs.solido} />} />
             )}

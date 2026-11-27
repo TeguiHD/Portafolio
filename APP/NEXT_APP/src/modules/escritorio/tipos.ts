@@ -20,7 +20,7 @@ export interface VentanaAbierta {
     foco: boolean;
 }
 
-export interface HerramientaEscritorio { slug: string; nombre: string; familia: string; ancho?: "estrecha" | "ancha"; descripcion?: string }
+export interface HerramientaEscritorio { slug: string; nombre: string; familia: string; ancho?: "estrecha" | "ancha"; descripcion?: string; donde?: string }
 export interface ServicioEscritorio { slug: string; nombre: string; resumen: string }
 export interface VistaProyecto { nombre: string; escritorio: string; celular?: string }
 export interface ProyectoEscritorio {

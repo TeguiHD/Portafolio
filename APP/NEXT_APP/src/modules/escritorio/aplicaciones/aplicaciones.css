@@ -122,7 +122,6 @@
 .no-item b { font-weight: 500; line-height: 1.4; }
 .no-destacada small, .no-item small { display: flex; gap: 8px; color: var(--es-texto-2); font-size: 12px; white-space: nowrap; overflow: hidden; }
 .no-destacada small span, .no-item small span { overflow: hidden; text-overflow: ellipsis; }
-.no-destacada small span::before, .no-item small span::before { content: "• "; opacity: .5; }
 .no-fantasma { height: 110px; border-radius: 8px; background: linear-gradient(90deg, var(--es-capa), var(--es-capa-2), var(--es-capa)); background-size: 200% 100%; animation: no-brillo 1.4s linear infinite; }
 @keyframes no-brillo { to { background-position: -200% 0; } }
 .no-vacio { grid-column: 1 / -1; margin: auto; padding: 40px 20px; display: grid; justify-items: center; gap: 14px; color: var(--es-texto-2); text-align: center; }
@@ -156,6 +155,7 @@
 .wi-titulares small { color: var(--es-texto-2); font-size: 11px; }
 .wi-tarjeta > .es-boton-chico { justify-self: start; }
 .wi-vacio { margin: 4px 0; color: var(--es-texto-2); }
+.wi-caido { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
 /* ---------- Configuración ---------- */
 .cf { flex-direction: row; }

@@ -330,19 +330,153 @@ test.describe("modo escritorio", () => {
         await ctx.close();
     });
 
-    test("las páginas públicas se dejan enmarcar solo por el mismo sitio; el acceso no", async ({ request }) => {
-        const publica = await request.get("/herramientas/qr");
-        expect(publica.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");
-        expect(publica.headers()["x-frame-options"]).toBe("SAMEORIGIN");
-        const privada = await request.get("/acceso"), csp = privada.headers()["content-security-policy"] ?? "";
-        // El servidor local de pruebas abre la CSP a 'self' en todo (proxy.ts, isDev); ahí manda el encabezado, que sigue en DENY.
-        if (csp.includes("http://localhost:*")) expect(privada.headers()["x-frame-options"]).toBe("DENY");
-        else expect(csp).toContain("frame-ancestors 'none'");
+    /* ---------- Hallazgos de la revisión independiente (26-11): cada uno con su prueba ---------- */
+    test("la app del QR puede pedir la ubicación dentro de su ventana", async ({ request }) => {
+        const r = await request.get("/escritorio/app/qr");
+        expect(r.headers()["permissions-policy"]).toContain("geolocation=(self)");
     });
 
-});
+    test("clic derecho en un botón de la barra abre su menú y se queda abierto", async ({ page }) => {
+        await entrar(page);
+        await barra(page).getByRole("button", { name: "Correo", exact: true }).click({ button: "right" });
+        await page.waitForTimeout(400);
+        const menu = page.getByRole("menu", { name: "Opciones de Correo" });
+        await expect(menu).toBeVisible();
+        await expect(menu.getByRole("menuitem", { name: "Desanclar de la barra de tareas" })).toBeVisible();
+    });
 
-test.describe("modo escritorio: el resto del sitio", () => {
+    test("antes de hidratar no se pinta un escritorio genérico que después salte", async ({ request }) => {
+        const html = await (await request.get("/escritorio")).text();
+        expect(html).toContain("es-cubierta");
+        expect(html).not.toContain("/escritorio/fondos/");
+        expect((html.match(/left:6px;top:6px/g) ?? []).length).toBeLessThanOrEqual(1);
+    });
+
+    test("los widgets piden el clima si faltaba y cada tarjeta caída ofrece reintentar", async ({ page }) => {
+        for (const api of ["news", "finance", "context"]) await page.route(`**/api/pulse/${api}*`, (r) => r.fulfill({ status: 503, body: "{}" }));
+        await entrar(page);
+        await expect(barra(page).getByRole("button", { name: "Widgets", exact: true })).toBeVisible();
+        await page.unroute("**/api/pulse/context*");
+        await page.unroute("**/api/pulse/news*");
+        await barra(page).getByRole("button", { name: /^Widgets/ }).click();
+        const w = page.getByRole("dialog", { name: "Widgets" });
+        await expect(w.getByRole("region", { name: "Clima en Santiago" })).toContainText("°");
+        await expect(w.getByRole("region", { name: "Titulares" }).getByRole("link").first()).toBeVisible();
+        const indicadores = w.getByRole("region", { name: "Indicadores" });
+        await expect(indicadores.getByRole("button", { name: "Reintentar" })).toBeVisible();
+        await page.unroute("**/api/pulse/finance*");
+        await indicadores.getByRole("button", { name: "Reintentar" }).click();
+        await expect(indicadores.getByRole("listitem").first()).toBeVisible();
+    });
+
+    test("el menú de la ventana se maneja con el teclado sin mover la ventana", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=correo");
+        const v = ventanaDe(page, "correo");
+        await quieta(v);
+        const antes = await v.boundingBox();
+        await v.getByRole("button", { name: /^Opciones de Correo/ }).focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByRole("menuitem", { name: "Minimizar" })).toBeFocused();
+        await page.keyboard.press("ArrowDown");
+        await expect(page.getByRole("menuitem", { name: "Maximizar" })).toBeFocused();
+        expect(await v.boundingBox()).toEqual(antes);
+    });
+
+    test("con la barra a la izquierda los widgets siguen a mano", async ({ page }) => {
+        await page.addInitScript(() => localStorage.setItem("escritorio:prefs", JSON.stringify({ alinear: "izq" })));
+        await entrar(page);
+        await expect(barra(page)).toHaveAttribute("data-alinear", "izq");
+        await expect(barra(page).getByRole("button", { name: /^Widgets/ })).toBeVisible();
+    });
+
+    test("en tema claro el botón principal se lee con contraste AA", async ({ page }) => {
+        await page.addInitScript(() => localStorage.setItem("tema", "claro"));
+        await entrar(page, "/escritorio?abrir=correo");
+        const contraste = await ventanaDe(page, "correo").getByRole("button", { name: "Enviar" }).evaluate((b) => {
+            const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+            const lum = (c: number[]) => { const [r, g, bl] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * bl; };
+            const s = getComputedStyle(b), a = lum(rgb(s.color)), f = lum(rgb(s.backgroundColor));
+            return (Math.max(a, f) + 0.05) / (Math.min(a, f) + 0.05);
+        });
+        expect(contraste).toBeGreaterThanOrEqual(4.5);
+    });
+
+    test("clic derecho dentro de una app deja el menú del navegador; en el fondo, el del escritorio", async ({ page }) => {
+        await page.route("**/api/pulse/news*", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [
+            { id: "1", title: "Titular uno", url: "https://ejemplo.cl/1", source: "Fuente", category: "ai", publishedAt: "2026-11-26T10:00:00Z", timestampLabel: "Hace 1 h" },
+            { id: "2", title: "Titular dos", url: "https://ejemplo.cl/2", source: "Fuente", category: "dev", publishedAt: "2026-11-26T09:00:00Z", timestampLabel: "Hace 2 h" },
+        ] }) }));
+        await entrar(page, "/escritorio?abrir=noticias");
+        await expect(page.locator(".no-item").first()).toBeVisible();
+        const prevenido = (sel: string) => page.locator(sel).first().evaluate((el) => { const e = new MouseEvent("contextmenu", { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; });
+        expect(await prevenido(".no-item")).toBe(false);
+        expect(await prevenido(".es-iconos")).toBe(true);
+        // Sin el punto entre la fuente y la hora: los datos se separan con espacio (regla de diseño del sitio).
+        expect(await page.locator(".no-item small span").first().evaluate((el) => getComputedStyle(el, "::before").content)).toBe("none");
+    });
+
+    test("un error dentro de una app no tumba el escritorio", async ({ page }) => {
+        await page.route("**/api/pulse/news*", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [
+            { id: "1", title: { roto: true }, url: "https://ejemplo.cl/1", source: "Fuente", category: "ai", publishedAt: "2026-11-26T10:00:00Z", timestampLabel: "Hace 1 h" },
+        ] }) }));
+        await entrar(page, "/escritorio?abrir=noticias");
+        await expect(ventanaDe(page, "noticias")).toContainText("Esta app tuvo un problema");
+        await expect(barra(page)).toBeVisible();
+        await expect(page.getByRole("heading", { name: /Algo falló/ })).toHaveCount(0);
+    });
+
+    test("con la pantalla bloqueada, el teclado no llega al escritorio de atrás", async ({ page }) => {
+        await entrar(page, "/escritorio", { bloqueo: true });
+        await expect(page.getByRole("dialog", { name: /Pantalla de bloqueo/ })).toBeVisible();
+        for (let i = 0; i < 4; i++) await page.keyboard.press("Tab");
+        expect(await page.evaluate(() => !!document.activeElement?.closest(".es-barra, .es-mesa"))).toBe(false);
+        await page.keyboard.press("Control+k");
+        await expect(page.getByRole("dialog", { name: "Inicio" })).toBeHidden();
+    });
+
+    test("Acerca de dice dónde se procesa la herramienta", async ({ page }) => {
+        await entrar(page, "/escritorio?abrir=herramientas/qr");
+        const v = ventanaDe(page, "herramientas/qr");
+        await v.getByRole("button", { name: /^Opciones de Generador de QR/ }).click();
+        await page.getByRole("menuitem", { name: /Acerca de Generador de QR/ }).click();
+        const acerca = page.getByRole("dialog", { name: "Acerca de Generador de QR" });
+        await expect(acerca).toContainText("Dónde se procesa");
+        await expect(acerca).toContainText("vista 3D");
+    });
+
+    test("un enlace externo dentro de una página se abre en una pestaña, no en la ventana", async ({ page, context }) => {
+        await context.route("https://ejemplo.cl/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<p>ok</p>" }));
+        await entrar(page, "/escritorio?abrir=sobre-mi");
+        const marco = ventanaDe(page, "sobre-mi").locator("iframe");
+        const dentro = marco.contentFrame();
+        await expect(dentro.locator("html")).toHaveAttribute("data-ventana", "");
+        await expect(async () => {
+            await dentro.locator("body").evaluate((b) => { if (!b.querySelector("#externo")) { const a = document.createElement("a"); a.id = "externo"; a.href = "https://ejemplo.cl/x"; a.textContent = "externo"; b.prepend(a); } });
+            const [pestana] = await Promise.all([page.waitForEvent("popup", { timeout: 2000 }), dentro.locator("#externo").click()]);
+            expect(pestana.url()).toContain("ejemplo.cl");
+        }).toPass({ timeout: 15000 });
+        expect(await marco.evaluate((f: HTMLIFrameElement) => f.contentWindow!.location.pathname)).toBe("/sobre-mi");
+    });
+
+    test("en el celular, Atrás cierra la app que se ve aunque se haya cambiado desde la barra", async ({ browser }) => {
+        const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: "block" });
+        const page = await ctx.newPage();
+        await page.addInitScript(() => { try { localStorage.setItem("escritorio:visto", "1"); localStorage.setItem("escritorio:bienvenida", "1"); sessionStorage.setItem("escritorio:dentro", "1"); } catch { /* sin almacenamiento */ } });
+        await page.goto("/escritorio");
+        await page.getByRole("option", { name: "Proyectos" }).tap();
+        await expect(ventanaDe(page, "proyectos")).toBeVisible();
+        // Un toque en el Explorador abre la carpeta (en pantallas táctiles no hace falta doble toque).
+        await ventanaDe(page, "proyectos").getByRole("option").first().tap();
+        await expect(ventanaDe(page, "proyectos").getByRole("option", { name: "Portada.jpg" })).toBeVisible();
+        await barra(page).getByRole("button", { name: "Correo", exact: true }).tap();
+        await expect(ventanaDe(page, "correo")).toBeVisible();
+        await barra(page).getByRole("button", { name: "Proyectos", exact: true }).tap();
+        await page.goBack();
+        await expect(ventanaDe(page, "proyectos")).toHaveCount(0);
+        await expect(ventanaDe(page, "correo")).toHaveCount(1);
+        await ctx.close();
+    });
+
     test("las páginas públicas se dejan enmarcar solo por el mismo sitio; el acceso no", async ({ request }) => {
         const publica = await request.get("/herramientas/qr");
         expect(publica.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");

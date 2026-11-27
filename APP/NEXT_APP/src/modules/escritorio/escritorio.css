@@ -17,7 +17,8 @@
     user-select: none; -webkit-user-select: none; background: #0b0f15; color-scheme: dark; touch-action: manipulation;
 }
 :root[data-tema="claro"] .es {
-    --es-acento: #0d9488; --es-acento-tinta: #ffffff; --es-acento-suave: #0d948824;
+    /* #0f766e: el texto blanco sobre el acento queda en 5,5:1 (AA); el verde azulado del sitio (#0d9488) daba 3,7:1. */
+    --es-acento: #0f766e; --es-acento-tinta: #ffffff; --es-acento-suave: #0f766e24;
     --es-texto: #1b1f25; --es-texto-2: #5a6370; --es-texto-3: #7a8390;
     --es-ventana: #f9fafb; --es-ventana-cab: #f1f3f6; --es-capa: #00000006; --es-capa-2: #0000000b;
     --es-borde: #0000001a; --es-borde-2: #0000002b;
@@ -175,7 +176,8 @@
 .es-barra-apps { display: flex; align-items: center; gap: 4px; grid-column: 2; grid-row: 1; }
 .es-barra[data-alinear="izq"] { grid-template-columns: auto 1fr auto; }
 .es-barra[data-alinear="izq"] .es-barra-apps { grid-column: 1; padding-left: 8px; }
-.es-barra[data-alinear="izq"] .es-widgets-b { display: none; }
+/* Con los íconos a la izquierda, los widgets van justo después de las apps (como en Windows 11). */
+.es-barra[data-alinear="izq"] .es-widgets-b { grid-column: 2; justify-self: start; margin-left: 6px; }
 .es-tarea { position: relative; width: 40px; height: 40px; }
 .es-tarea svg { transition: scale .12s; }
 .es-tarea:active svg, .es-tarea:active .es-marca { scale: .86; }
@@ -289,9 +291,17 @@
 .es-acerca h3 { margin: 12px 0 6px; font-size: 18px; }
 .es-acerca p { margin: 6px 0; color: var(--es-texto-2); line-height: 1.5; }
 .es-acerca-nota { font-size: 12px; }
+.es-acerca-donde { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 6px; background: var(--es-capa); }
+.es-acerca-donde b { color: var(--es-texto); font-weight: 600; font-size: 12px; }
+.es-fallo { flex: 1; display: grid; place-content: center; justify-items: center; gap: 6px; padding: 24px; text-align: center; color: var(--es-texto-2); }
+.es-fallo b { color: var(--es-texto); font-size: 15px; }
+/* En las apps, el contenido se puede seleccionar y copiar (el resto del escritorio no, como en un sistema). */
+.es-cuerpo :is(.no-lista, .fo-info, .cf-datos, .co-chip, .ex-detalle p, .es-fallo) { user-select: text; -webkit-user-select: text; }
 .es-acerca-acciones { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
 
 /* ---------- Encendido y bloqueo ---------- */
+.es-cubierta { position: absolute; inset: 0; z-index: 9950; background: #05070a; }
+:root[data-tema="claro"] .es-cubierta { background: #dfe6ee; }
 .es-encendido { position: absolute; inset: 0; z-index: 9900; display: grid; place-items: center; align-content: center; gap: 48px; background: #000; outline: none; }
 .es-marca-grande { font-size: 92px; color: #f8fafc; }
 .es-marca-media { font-size: 44px; }

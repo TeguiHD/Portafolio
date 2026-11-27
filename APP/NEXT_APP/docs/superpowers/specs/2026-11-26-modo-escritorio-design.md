@@ -1,5 +1,8 @@
 # Modo escritorio (/escritorio)
 
+> Reemplazado en lo visual y en la interacción por la versión 2, estilo Windows 11 (`2026-11-26-escritorio-windows-design.md`).
+> Sigue valiendo aquí: ventanas como páginas del mismo origen, seguridad del enmarcado, celular y entradas desde el sitio.
+
 26-11-2026. Pedido del dueño: «copiar y mejorar» el modo escritorio de bait.cl, con el clic que suena al presionar y al soltar,
 «lo más profesional posible», y «que se sienta más interactivo» tomando mejoras de escritorios web de código abierto. Eligió la
 opción B (modo opcional, el sitio normal sigue siendo la entrada) y delegó el resto de las decisiones («toma las decisiones tú»).

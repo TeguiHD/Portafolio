@@ -20,6 +20,8 @@ export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: st
     const [sel, setSel] = useState<string | null>(null);
     const [buscar, setBuscar] = useState("");
     const lista = useRef<HTMLDivElement>(null);
+    /** Con el dedo (o un lápiz) un toque abre, como en el resto del escritorio táctil; con el mouse, doble clic. */
+    const puntero = useRef("mouse");
 
     // Abrir de nuevo el mismo acceso (p. ej. «Proyectos» desde el escritorio) lleva a su carpeta.
     useEffect(() => { if (buscarNodo(raiz, inicial)) { setRuta(inicial); setSel(null); setBuscar(""); } }, [inicial, raiz]);
@@ -107,7 +109,9 @@ export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: st
                     {vista === "detalles" && items.length > 0 && <div className="ex-cabecera" aria-hidden="true"><span>Nombre</span><span>Tipo</span><span>Descripción</span></div>}
                     {items.map((n, i) => (
                         <div key={n.ruta} role="option" data-item="" aria-selected={sel === n.ruta} tabIndex={(sel ?? items[0]?.ruta) === n.ruta || (!sel && i === 0) ? 0 : -1}
-                            className="ex-item" onClick={() => setSel(n.ruta)} onDoubleClick={() => abrir(n)} onFocus={() => setSel(n.ruta)} title={n.descripcion}>
+                            className="ex-item" onPointerDown={(e) => { puntero.current = e.pointerType; }}
+                            onClick={() => { setSel(n.ruta); if (puntero.current !== "mouse") abrir(n); }} onDoubleClick={() => { if (puntero.current === "mouse") abrir(n); }}
+                            onFocus={() => setSel(n.ruta)} title={n.descripcion}>
                             <span className="ex-item-ico">
                                 {n.tipo === "imagen" && n.miniatura && vista === "iconos" ? <img src={n.miniatura} alt="" loading="lazy" decoding="async" /> : <IconoDe icono={n.icono} tam={vista === "iconos" ? 48 : 20} acceso={n.tipo === "enlace"} />}
                             </span>

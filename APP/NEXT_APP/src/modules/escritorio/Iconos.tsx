@@ -1,41 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as PE } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as PE } from "react";
 import type { App } from "./apps";
 import { IconoDe } from "./iconos/Icono";
+import { CLAVE_POSICIONES, leerPosiciones, ubicar, type Pos } from "./posiciones";
 
 export type TamIconos = "grandes" | "medianos" | "pequenos";
 /** Celda (ancho, alto) e ícono (px) de cada tamaño, como «Ver» en el escritorio de Windows. */
 const MEDIDAS: Record<TamIconos, { cw: number; ch: number; ic: number }> = {
     grandes: { cw: 116, ch: 124, ic: 64 }, medianos: { cw: 98, ch: 102, ic: 48 }, pequenos: { cw: 88, ch: 80, ic: 32 },
 };
-const CLAVE = "escritorio:posiciones";
 const MARGEN = 6;
-type Pos = [number, number];
-
-function leer(ids: string[]): Record<string, Pos> {
-    try {
-        const g = JSON.parse(localStorage.getItem(CLAVE) ?? "{}") as Record<string, unknown>;
-        return Object.fromEntries(Object.entries(g).filter(([id, p]) => ids.includes(id) && Array.isArray(p) && p.length === 2 && p.every((n) => Number.isInteger(n) && n >= 0 && n < 60))) as Record<string, Pos>;
-    } catch { return {}; }
-}
-
-/** Las posiciones finales: las guardadas que caben y, para el resto, la primera celda libre en columnas (como Windows). */
-function ubicar(ids: string[], guardadas: Record<string, Pos>, filas: number): Record<string, Pos> {
-    const usadas = new Set<string>(), out: Record<string, Pos> = {};
-    for (const id of ids) {
-        const p = guardadas[id];
-        if (p && p[1] < filas && !usadas.has(`${p[0]},${p[1]}`)) { out[id] = p; usadas.add(`${p[0]},${p[1]}`); }
-    }
-    let k = 0;
-    for (const id of ids) {
-        if (out[id]) continue;
-        while (usadas.has(`${Math.floor(k / filas)},${k % filas}`)) k++;
-        out[id] = [Math.floor(k / filas), k % filas];
-        usadas.add(`${out[id][0]},${out[id][1]}`);
-    }
-    return out;
-}
 
 /**
  * Los íconos del escritorio: en columnas desde arriba a la izquierda; un clic selecciona (con Ctrl suma, con Mayús un
@@ -54,28 +29,34 @@ export function Iconos({ ids, resolver, accesos, tam, celular, ordenar, alAbrir,
 }) {
     const caja = useRef<HTMLDivElement>(null), rect = useRef<HTMLDivElement>(null);
     const [filas, setFilas] = useState(8);
-    const [pos, setPos] = useState<Record<string, Pos>>({});
+    const [columnas, setColumnas] = useState(12);
+    // Lo guardado se lee después de hidratar; mientras, las posiciones de fábrica (las mismas en el servidor y en el cliente).
+    const [guardadas, setGuardadas] = useState<Record<string, Pos>>({});
+    const pos = useMemo(() => ubicar(ids, guardadas, filas, columnas), [ids, guardadas, filas, columnas]);
     const [sel, setSel] = useState<Set<string>>(new Set());
     const [foco, setFoco] = useState<string | null>(null);
     const ancla = useRef<string | null>(null), tactil = useRef(false);
     const { cw, ch, ic } = MEDIDAS[tam];
 
-    // Cuántas filas caben: cambia con el alto de la ventana y el tamaño de los íconos.
+    // Cuántas filas y columnas caben: cambia con el tamaño de la pantalla y de los íconos.
     useLayoutEffect(() => {
-        const medir = () => setFilas(Math.max(1, Math.floor(((caja.current?.clientHeight ?? 600) - MARGEN * 2) / ch)));
+        const medir = () => {
+            setFilas(Math.max(1, Math.floor(((caja.current?.clientHeight ?? 600) - MARGEN * 2) / ch)));
+            setColumnas(Math.max(1, Math.floor(((caja.current?.clientWidth ?? 1000) - MARGEN * 2) / cw)));
+        };
         medir();
         const o = new ResizeObserver(medir);
         if (caja.current) o.observe(caja.current);
         return () => o.disconnect();
-    }, [ch]);
-    useEffect(() => { setPos(ubicar(ids, leer(ids), filas)); }, [ids, filas]);
+    }, [ch, cw]);
+    useEffect(() => { setGuardadas(leerPosiciones(ids)); }, [ids]);
     // «Ordenar los íconos» vuelve al orden de fábrica.
     useEffect(() => {
         if (!ordenar) return;
-        try { localStorage.removeItem(CLAVE); } catch { /* sin almacenamiento */ }
-        setPos(ubicar(ids, {}, filas));
-    }, [ordenar]); // eslint-disable-line react-hooks/exhaustive-deps
-    const guardar = (p: Record<string, Pos>) => { setPos(p); try { localStorage.setItem(CLAVE, JSON.stringify(p)); } catch { /* vale para esta visita */ } };
+        try { localStorage.removeItem(CLAVE_POSICIONES); } catch { /* sin almacenamiento */ }
+        setGuardadas({});
+    }, [ordenar]);
+    const guardar = (p: Record<string, Pos>) => { setGuardadas(p); try { localStorage.setItem(CLAVE_POSICIONES, JSON.stringify(p)); } catch { /* vale para esta visita */ } };
 
     const enOrden = useCallback(() => [...ids].sort((a, b) => (pos[a]?.[0] ?? 0) - (pos[b]?.[0] ?? 0) || (pos[a]?.[1] ?? 0) - (pos[b]?.[1] ?? 0)), [ids, pos]);
     const enfocar = (id: string) => { setFoco(id); requestAnimationFrame(() => caja.current?.querySelector<HTMLElement>(`[data-icono="${CSS.escape(id)}"]`)?.focus({ preventScroll: true })); };
@@ -117,7 +98,7 @@ export function Iconos({ ids, resolver, accesos, tam, celular, ordenar, alAbrir,
             if (!dc && !dr) return;
             const p = { ...pos }, ocupada = (c: number, r: number) => Object.entries(p).find(([k, v]) => !grupo.includes(k) && v[0] === c && v[1] === r)?.[0];
             for (const g of grupo) {
-                const [c, r] = p[g] ?? [0, 0], nc = Math.max(0, c + dc), nr = Math.min(filas - 1, Math.max(0, r + dr));
+                const [c, r] = p[g] ?? [0, 0], nc = Math.min(columnas - 1, Math.max(0, c + dc)), nr = Math.min(filas - 1, Math.max(0, r + dr));
                 const otro = ocupada(nc, nr);
                 if (otro) p[otro] = [c, r]; // si está ocupada, cambian de lugar
                 p[g] = [nc, nr];

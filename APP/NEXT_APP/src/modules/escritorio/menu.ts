@@ -2,7 +2,8 @@ import type { KeyboardEvent } from "react";
 
 /** Flechas, Inicio y Fin recorren los elementos de un menú (role="menu") sin salir de él; Escape lo cierra el navegador. */
 export function navegarMenu(e: KeyboardEvent<HTMLElement>) {
-    const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
+    // Los deshabilitados se saltan: el foco nunca queda en uno que no responde.
+    const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]')].filter((el) => !(el as HTMLButtonElement).disabled);
     if (!items.length) return;
     const i = items.indexOf(document.activeElement as HTMLElement);
     const j = e.key === "ArrowDown" ? (i + 1) % items.length

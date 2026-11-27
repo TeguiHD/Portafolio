@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, MouseEvent as ME } from "react";
+import { useRef, type CSSProperties, type MouseEvent as ME, type PointerEvent as PE } from "react";
 import { Bell, Search, Volume1, Volume2, VolumeX, Wifi, WifiOff } from "lucide-react";
 import { IconoTiempo } from "@/modules/pulse/blog/IconoTiempo";
 import type { App } from "./apps";
@@ -18,7 +18,7 @@ const LARGA = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", w
  * buscar y las apps ancladas y abiertas; a la izquierda el clima, que abre los widgets; a la derecha la red, el volumen,
  * la hora y la fecha, y la franja de «mostrar escritorio».
  */
-export function Barra({ tareas, alinear, ahora, clima, enLinea, sonido, avisos, alTocar, alAsomar, alMenu, alBuscar, alEscritorio }: {
+export function Barra({ tareas, alinear, ahora, clima, enLinea, sonido, avisos, inerte = false, alTocar, alAsomar, alMenu, alBuscar, alEscritorio }: {
     tareas: Tarea[];
     alinear: "centro" | "izq";
     ahora: Date | null;
@@ -26,6 +26,8 @@ export function Barra({ tareas, alinear, ahora, clima, enLinea, sonido, avisos, 
     enLinea: boolean;
     sonido: { activo: boolean; volumen: number };
     avisos: number;
+    /** Bajo la pantalla de bloqueo, la barra no recibe el foco ni los clics. */
+    inerte?: boolean;
     alTocar(id: string): void;
     alAsomar(id: string, si: boolean): void;
     alMenu(id: string, x: number, y: number): void;
@@ -34,9 +36,23 @@ export function Barra({ tareas, alinear, ahora, clima, enLinea, sonido, avisos, 
 }) {
     const mudo = !sonido.activo || sonido.volumen === 0;
     const Volumen = mudo ? VolumeX : sonido.volumen < 0.5 ? Volume1 : Volume2;
-    const menuTarea = (id: string) => (e: ME<HTMLButtonElement>) => { e.preventDefault(); e.stopPropagation(); alMenu(id, e.clientX, e.clientY); };
+    // Clic derecho: el menú se abre al SOLTAR el botón. En Linux y macOS «contextmenu» llega al presionar, y abrirlo ahí
+    // hacía que el mismo botón, al soltarse, lo cerrara (cierre automático de los paneles). Con el teclado (tecla Menú o
+    // Mayús F10) no hay botón que soltar: se abre junto al botón.
+    const derecho = useRef(0);
+    const menuTarea = (id: string) => (e: ME<HTMLButtonElement>) => {
+        e.preventDefault(); e.stopPropagation();
+        if (performance.now() - derecho.current < 1500) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        alMenu(id, r.left + r.width / 2, r.top);
+    };
+    const soltarTarea = (id: string) => (e: PE<HTMLButtonElement>) => {
+        if (e.button !== 2) return;
+        e.stopPropagation();
+        alMenu(id, e.clientX, e.clientY);
+    };
     return (
-        <nav className="es-barra" aria-label="Barra de tareas" data-alinear={alinear}>
+        <nav className="es-barra" aria-label="Barra de tareas" data-alinear={alinear} inert={inerte}>
             <button type="button" className="es-b es-widgets-b" popoverTarget="es-widgets" aria-expanded="false"
                 aria-label={clima ? `Widgets. En Santiago hay ${clima.temperatura} grados, ${clima.texto.toLowerCase()}` : "Widgets"}>
                 {clima ? <IconoTiempo codigo={clima.codigo} dia={clima.dia} size={24} /> : <span className="es-widgets-vacio" aria-hidden="true" />}
@@ -53,7 +69,8 @@ export function Barra({ tareas, alinear, ahora, clima, enLinea, sonido, avisos, 
                 {tareas.map(({ id, app, abierta, activa }) => (
                     <button key={id} type="button" className="es-b es-tarea" data-tarea={id} aria-label={app.titulo} title={app.titulo}
                         aria-pressed={activa} data-abierta={abierta || undefined}
-                        onClick={() => alTocar(id)} onContextMenu={menuTarea(id)}
+                        onClick={() => alTocar(id)} onContextMenu={menuTarea(id)} onPointerUp={soltarTarea(id)}
+                        onPointerDown={(e) => { if (e.button === 2) derecho.current = performance.now(); }}
                         onPointerEnter={() => alAsomar(id, true)} onPointerLeave={() => alAsomar(id, false)}>
                         <IconoDe icono={app.icono} tam={24} />
                     </button>

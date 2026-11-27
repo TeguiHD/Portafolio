@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPublicTools } from "@/lib/public-tools.server";
 import { SERVICIOS } from "@/lib/servicios";
+import { DEFAULT_TOOL_REGISTRY } from "@/lib/tool-registry";
 import { casos } from "@/modules/landing/portada/datos/casos";
 import { Escritorio } from "@/modules/escritorio/Escritorio";
 import type { ProyectoEscritorio } from "@/modules/escritorio/tipos";
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
 
 export default async function PaginaEscritorio() {
     const tools = await getPublicTools();
-    const herramientas = tools.map((t) => ({ slug: t.slug, nombre: t.name, familia: t.category, ancho: t.ancho, descripcion: t.description }));
+    const donde = new Map(DEFAULT_TOOL_REGISTRY.map((t) => [t.slug, t.donde]));
+    const herramientas = tools.map((t) => ({ slug: t.slug, nombre: t.name, familia: t.category, ancho: t.ancho, descripcion: t.description, donde: donde.get(t.slug) }));
     const servicios = SERVICIOS.map((s) => ({ slug: s.slug, nombre: s.nombre, resumen: s.seo.description }));
     const proyectos: ProyectoEscritorio[] = casos.map((c) => {
         const v = c as typeof c & { tipo?: string; direccion?: string; vistas?: { nombre: string; escritorio: string; celular?: string }[] };

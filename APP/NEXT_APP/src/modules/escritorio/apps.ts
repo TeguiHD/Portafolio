@@ -26,6 +26,8 @@ export interface App {
     tam: [number, number];
     descripcion?: string;
     familia?: string;
+    /** Dónde se procesa lo que la persona escribe o sube (herramientas). */
+    donde?: string;
 }
 
 const explorador = (id: string, titulo: string, icono: IconoApp, carpeta: string, descripcion: string, enlace?: string): App =>
@@ -56,7 +58,7 @@ export function appHerramienta(t: HerramientaEscritorio): App {
         id: `herramientas/${t.slug}`, titulo: t.nombre, icono: { herramienta: t.slug, familia: t.familia }, tipo: "herramienta",
         // Como app: la herramienta sola; «Abrir en una pestaña» lleva a su página en el sitio.
         ruta: `/escritorio/app/${t.slug}`, enlace: `/herramientas/${t.slug}`,
-        tam: t.ancho === "ancha" ? [1180, 780] : [920, 700], descripcion: t.descripcion, familia: t.familia,
+        tam: t.ancho === "ancha" ? [1180, 780] : [920, 700], descripcion: t.descripcion, familia: t.familia, donde: t.donde,
     };
 }
 

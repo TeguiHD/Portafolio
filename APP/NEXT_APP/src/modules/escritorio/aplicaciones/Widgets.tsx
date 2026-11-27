@@ -13,16 +13,21 @@ const HORA = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", ho
  * Los widgets de Windows 11, con datos reales: el clima de Santiago y su pronóstico, los indicadores (UF, dólar, UTM y
  * cripto) y los titulares del día. Se abren desde el clima de la barra de tareas y piden los datos al abrirse.
  */
-export function Widgets({ clima, alNoticias }: { clima: PulseContextData | null; alNoticias(): void }) {
+export function Widgets({ clima, alPedirClima, alNoticias }: { clima: PulseContextData | null; alPedirClima(): void; alNoticias(): void }) {
     const ref = useRef<HTMLDivElement>(null);
     const [mercado, setMercado] = useState<PulseFinanceItem[] | null | "error">(null);
     const [noticias, setNoticias] = useState<PulseNewsItem[] | null | "error">(null);
     const [ahora, setAhora] = useState<Date | null>(null);
+    const cargarMercado = useCallback(async () => { setMercado(null); setMercado((await leerMercado()) ?? "error"); }, []);
+    const cargarNoticias = useCallback(async () => { setNoticias(null); setNoticias((await leerNoticias()) ?? "error"); }, []);
+    const climaRef = useRef(clima);
+    climaRef.current = clima;
+    // Al abrir: lo del día y, si el clima no llegó al entrar (sin red, o la fuente caída), se vuelve a pedir.
     const cargar = useCallback(async () => {
         setAhora(new Date());
-        const [m, n] = await Promise.all([leerMercado(), leerNoticias()]);
-        setMercado(m ?? "error"); setNoticias(n ?? "error");
-    }, []);
+        if (!climaRef.current) alPedirClima();
+        await Promise.all([cargarMercado(), cargarNoticias()]);
+    }, [alPedirClima, cargarMercado, cargarNoticias]);
     useEffect(() => {
         const p = ref.current;
         if (!p) return;
@@ -52,11 +57,15 @@ export function Widgets({ clima, alNoticias }: { clima: PulseContextData | null;
                             ))}
                         </ul>
                     </>
-                ) : <p className="wi-vacio">El clima no respondió. Vuelve a abrir los widgets en un rato.</p>}
+                ) : (
+                    <div className="wi-caido"><p className="wi-vacio">El clima no respondió.</p><button type="button" className="es-boton-chico" onClick={alPedirClima}>Reintentar</button></div>
+                )}
             </section>
             <section className="wi-tarjeta" aria-label="Indicadores">
                 <h3>Indicadores</h3>
-                {mercado === "error" ? <p className="wi-vacio">El mercado no respondió ahora.</p> : !mercado ? <p className="wi-vacio" aria-busy="true">Cargando…</p> : (
+                {mercado === "error" ? (
+                    <div className="wi-caido"><p className="wi-vacio">El mercado no respondió ahora.</p><button type="button" className="es-boton-chico" onClick={() => void cargarMercado()}>Reintentar</button></div>
+                ) : !mercado ? <p className="wi-vacio" aria-busy="true">Cargando…</p> : (
                     <ul className="wi-mercado">
                         {mercado.slice(0, 5).map((i) => (
                             <li key={i.id}>
@@ -69,7 +78,9 @@ export function Widgets({ clima, alNoticias }: { clima: PulseContextData | null;
             </section>
             <section className="wi-tarjeta" aria-label="Titulares">
                 <h3>Titulares</h3>
-                {noticias === "error" ? <p className="wi-vacio">Las fuentes no respondieron ahora.</p> : !noticias ? <p className="wi-vacio" aria-busy="true">Cargando…</p> : (
+                {noticias === "error" ? (
+                    <div className="wi-caido"><p className="wi-vacio">Las fuentes no respondieron ahora.</p><button type="button" className="es-boton-chico" onClick={() => void cargarNoticias()}>Reintentar</button></div>
+                ) : !noticias ? <p className="wi-vacio" aria-busy="true">Cargando…</p> : (
                     <ul className="wi-titulares">
                         {noticias.slice(0, 4).map((n) => <li key={n.id}><a href={n.url} target="_blank" rel="noopener noreferrer"><small>{n.source}</small>{n.title}</a></li>)}
                     </ul>

@@ -936,8 +936,9 @@ export async function proxy(request: NextRequest) {
     // Incrustable: sin X-Frame-Options (la CSP frame-ancestors * manda; con ella el navegador ignora ese encabezado).
     if (incrustable) response.headers.delete('X-Frame-Options')
     // El QR puede llenar la ubicación actual (con el permiso del navegador): solo esa página la pide; el resto la bloquea.
-    // En el modo escritorio el QR vive en una ventana: la página que lo enmarca también debe permitir la ubicación.
-    if (pathname === '/herramientas/qr' || pathname === '/escritorio') {
+    // En el modo escritorio el QR vive en una ventana (/escritorio/app/qr): la ventana y la página que la enmarca deben
+    // permitir la ubicación (manda la política del documento enmarcado, no el allow del iframe).
+    if (pathname === '/herramientas/qr' || pathname === '/escritorio' || pathname === '/escritorio/app/qr') {
         response.headers.set('Permissions-Policy', staticSecurityHeaders['Permissions-Policy'].replace('geolocation=()', 'geolocation=(self)'))
     }
 

@@ -100,7 +100,7 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
         const enfocarPrimero = (panel: HTMLElement, sel: string) => (e: Event) => { if ((e as ToggleEvent).newState === "open" && panel.matches(":focus-within, [data-teclado]")) panel.querySelector<HTMLElement>(sel)?.focus(); };
         const quitar: (() => void)[] = [];
         if (m) {
-            const a = colocar(m, asa.current, false), b = (e: Event) => { if ((e as ToggleEvent).newState === "open") m.querySelector<HTMLElement>("[role=menuitem]")?.focus(); };
+            const a = colocar(m, asa.current, false), b = (e: Event) => { if ((e as ToggleEvent).newState === "open") m.querySelector<HTMLElement>("[role=menuitem]:not(:disabled)")?.focus(); };
             m.addEventListener("beforetoggle", a); m.addEventListener("toggle", b);
             quitar.push(() => { m.removeEventListener("beforetoggle", a); m.removeEventListener("toggle", b); });
         }

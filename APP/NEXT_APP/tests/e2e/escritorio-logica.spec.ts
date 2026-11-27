@@ -7,7 +7,8 @@ import { interpretarPrefs, PREFS_BASE } from "../../src/modules/escritorio/prefe
 import { centroide, duracionSobre, energiaEntre, sintetizarAviso, sintetizarClic, sintetizarTecla } from "../../src/modules/escritorio/sintesis";
 import { interpretarPreferencias } from "../../src/modules/escritorio/sonido";
 import { FONDOS, fondoPorDefecto, miniFondo, srcsetFondo } from "../../src/modules/escritorio/fondos";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { ubicar } from "../../src/modules/escritorio/posiciones";
 
 /**
  * Modo escritorio (/escritorio): la lógica que no necesita navegador. Qué páginas se pueden abrir en una ventana,
@@ -228,5 +229,21 @@ test.describe("escritorio: fondos", () => {
         expect(FONDOS.find((f) => f.id === "cordillera")?.tema).toBe("claro");
         expect(FONDOS.some((f) => f.tipo === "vivo")).toBe(true);
         expect(FONDOS.some((f) => f.tipo === "solido")).toBe(true);
+    });
+});
+
+test.describe("escritorio: íconos y apps", () => {
+    test("las posiciones guardadas que no caben se reacomodan sin salirse ni encimarse", () => {
+        const p = ubicar(["a", "b", "c", "d"], { a: [9, 0], b: [0, 0], c: [1, 5] }, 2, 3);
+        const celdas = Object.values(p).map(([c, r]) => `${c},${r}`);
+        expect(new Set(celdas).size).toBe(4);
+        for (const [c, r] of Object.values(p)) { expect(c).toBeLessThan(3); expect(r).toBeLessThan(2); }
+        expect(p.b).toEqual([0, 0]);
+    });
+
+    test("cada herramienta del sitio tiene su app en el escritorio", () => {
+        const carpetas = readdirSync("src/app/herramientas", { withFileTypes: true }).filter((d) => d.isDirectory() && existsSync(`src/app/herramientas/${d.name}/page.tsx`)).map((d) => d.name).sort();
+        const mapa = [...readFileSync("src/modules/escritorio/herramientas-app.ts", "utf8").matchAll(/^\s+"([a-z0-9-]+)": /gm)].map((m) => m[1]).sort();
+        expect(mapa).toEqual(carpetas);
     });
 });
