@@ -11,6 +11,7 @@ import { coincide } from "./buscar-herramientas";
 import "./carcasa.css";
 import { sinCortes } from "@/lib/sin-cortes";
 import { useAtajo } from "@/hooks/useAtajo";
+import { contarVisita } from "@/lib/visita-herramienta";
 
 const FAMILIAS = ["imágenes", "generación", "conversión", "productividad", "seguridad", "redes", "chile"];
 const mayuscula = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -32,13 +33,7 @@ export function CarcasaHerramientas({ tools, relacionadas = {}, children }: { to
     // Una visita por herramienta y sesión, en las 29 por igual: con esto se ordenan «Las más usadas» del catálogo
     // (antes solo 8 registraban uso y el ranking habría medido solo a esas).
     const slugActual = actual?.slug;
-    useEffect(() => {
-        // Un navegador automatizado (pruebas, robots con Chrome) no cuenta: su agente no siempre dice «headless».
-        if (!slugActual || navigator.webdriver) return;
-        const clave = `visita:${slugActual}`;
-        try { if (sessionStorage.getItem(clave)) return; sessionStorage.setItem(clave, "1"); } catch { /* sin almacenamiento: se registra igual */ }
-        fetch(`/api/tools/public/${slugActual}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "view" }), keepalive: true }).catch(() => undefined);
-    }, [slugActual]);
+    useEffect(() => { if (slugActual) contarVisita(slugActual); }, [slugActual]);
     const sugeridas = actual ? (relacionadas[actual.slug] ?? []).flatMap((s) => tools.filter((t) => t.slug === s)) : [];
     const dialogo = useRef<HTMLDialogElement>(null), buscador = useRef<HTMLInputElement>(null);
     const atajo = useAtajo("K");

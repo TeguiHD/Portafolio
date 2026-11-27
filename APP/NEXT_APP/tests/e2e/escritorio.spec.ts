@@ -1,27 +1,11 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { barra, entrar, quieta, ventanaDe } from "./escritorio-ayudas";
 
 /**
  * Modo escritorio (/escritorio), versión 2: un Windows 11 con la marca «n.» (pedido del dueño el 26-11-2026). Barra de
  * tareas, inicio, ventanas con acople, Explorador, Fotos, Correo, Noticias, Widgets y Configuración; las herramientas
  * como apps (/escritorio/app/<slug>) y las páginas del sitio en el Lector.
  */
-async function entrar(page: Page, ruta = "/escritorio", { bloqueo = false } = {}) {
-    // Sin el encendido ni la bienvenida de la primera visita; sin la pantalla de bloqueo, salvo que la prueba la quiera.
-    await page.addInitScript((b) => {
-        try {
-            localStorage.setItem("escritorio:visto", "1"); localStorage.setItem("escritorio:bienvenida", "1");
-            if (!b && !sessionStorage.getItem("escritorio:probando")) { sessionStorage.setItem("escritorio:dentro", "1"); sessionStorage.setItem("escritorio:probando", "1"); }
-        } catch { /* sin almacenamiento */ }
-    }, bloqueo);
-    if (!page.viewportSize() || page.viewportSize()!.width !== 1440) await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(ruta);
-    await expect(page.getByRole("listbox", { name: "Íconos del escritorio" })).toBeVisible();
-}
-const ventana = (page: Page, nombre: string | RegExp) => page.getByRole("dialog", { name: nombre });
-const ventanaDe = (page: Page, id: string) => page.locator(`.es-ventana[data-app="${id}"]`);
-const barra = (page: Page) => page.getByRole("navigation", { name: "Barra de tareas" });
-/** Espera a que la ventana termine de aparecer (entra creciendo un poco, como en Windows 11). */
-const quieta = (v: ReturnType<typeof ventanaDe>) => v.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
 
 // El service worker del sitio atiende los pedidos de las páginas ya controladas y se saltaría page.route.
 test.use({ serviceWorkers: "block" });
@@ -105,7 +89,10 @@ test.describe("modo escritorio", () => {
         expect((await request.get("/escritorio/app/no-existe")).status()).toBe(404);
         const r = await request.get("/escritorio/app/qr");
         expect(r.status()).toBe(200);
-        expect(r.headers()["content-security-policy"]).toMatch(/frame-ancestors 'self'|localhost/);
+        const csp = r.headers()["content-security-policy"] ?? "";
+        expect(csp).toContain("frame-ancestors 'self'");
+        // El servidor local de pruebas abre la CSP a 'self' en todo (proxy.ts, isDev): ahí la que distingue es X-Frame-Options.
+        if (csp.includes("http://localhost:*")) expect(r.headers()["x-frame-options"]).toBe("SAMEORIGIN");
         expect(await r.text()).toMatch(/<meta name="robots" content="noindex/);
         await page.goto("/escritorio/app/qr");
         await expect(page).toHaveURL(/\/herramientas\/qr$/);

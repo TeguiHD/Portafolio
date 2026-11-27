@@ -1,4 +1,4 @@
-import { FAMILIAS } from "../apps";
+import { ACCESOS, APPS, appHerramienta, EN_ESCRITORIO, FAMILIAS, type App } from "../apps";
 import type { IconoApp } from "../iconos/Icono";
 import type { Args, HerramientaEscritorio, ProyectoEscritorio, ServicioEscritorio } from "../tipos";
 
@@ -16,6 +16,10 @@ export interface Nodo {
     miniatura?: string;
     /** Qué es, en palabras (la columna «Tipo» de la vista de detalles). */
     clase: string;
+    /** Un acceso a una carpeta: el Explorador la abre ahí mismo, en esa ruta (las carpetas de «Escritorio»). */
+    ir?: string;
+    /** Lleva la flechita de acceso directo, como en el escritorio. */
+    acceso?: boolean;
     descripcion?: string;
     hijos?: Nodo[];
 }
@@ -38,6 +42,30 @@ const DOCUMENTOS: { app: string; nombre: string; icono: IconoApp; clase: string 
     { app: "privacidad", nombre: "Privacidad", icono: "documento", clase: "Documento" },
     { app: "terminos", nombre: "Términos", icono: "documento", clase: "Documento" },
 ];
+
+/**
+ * «Escritorio»: los mismos íconos que el escritorio, en su orden. Sus carpetas son accesos que el Explorador abre ahí
+ * mismo (sin hijos propios, así buscar desde Inicio no repite lo que tienen dentro); el resto abre su app.
+ */
+function escritorioNodo(herramientas: HerramientaEscritorio[]): Nodo {
+    const resolver = (id: string): App | null => {
+        if (APPS[id]) return APPS[id];
+        const t = herramientas.find((h) => `herramientas/${h.slug}` === id);
+        return t ? appHerramienta(t) : null;
+    };
+    const hijos = EN_ESCRITORIO.flatMap((id): Nodo[] => {
+        const a = resolver(id);
+        if (!a) return [];
+        const ruta = `escritorio/${id.replace(/\//g, "-")}`;
+        if (a.vista === "explorador") return [{ ruta, nombre: a.titulo, tipo: "carpeta", icono: a.icono, clase: "Carpeta", descripcion: a.descripcion, ir: String(a.args?.carpeta ?? "") }];
+        const acceso = ACCESOS.has(id);
+        return [{
+            ruta, nombre: a.titulo, tipo: a.tipo === "pagina" ? "pagina" : "app", icono: a.icono, descripcion: a.descripcion, abrir: { app: id },
+            clase: acceso ? "Acceso directo" : a.tipo === "pagina" ? "Página" : "Aplicación", ...(acceso ? { acceso } : {}),
+        }];
+    });
+    return { ruta: "escritorio", nombre: "Escritorio", tipo: "carpeta", icono: "escritorio", clase: "Carpeta", hijos };
+}
 
 export function arbol({ herramientas, proyectos, servicios }: DatosArbol): Nodo {
     const proyectosNodo: Nodo = {
@@ -75,7 +103,7 @@ export function arbol({ herramientas, proyectos, servicios }: DatosArbol): Nodo 
         ruta: "documentos", nombre: "Documentos", tipo: "carpeta", icono: "carpeta-documentos", clase: "Carpeta",
         hijos: DOCUMENTOS.map((d) => ({ ruta: `documentos/${d.app}`, nombre: d.nombre, tipo: "pagina" as const, icono: d.icono, clase: d.clase, abrir: { app: d.app } })),
     };
-    return { ruta: "", nombre: "Inicio", tipo: "carpeta", icono: "explorador", clase: "Carpeta", hijos: [proyectosNodo, serviciosNodo, herramientasNodo, documentosNodo] };
+    return { ruta: "", nombre: "Inicio", tipo: "carpeta", icono: "explorador", clase: "Carpeta", hijos: [escritorioNodo(herramientas), proyectosNodo, serviciosNodo, herramientasNodo, documentosNodo] };
 }
 
 export function buscarNodo(raiz: Nodo, ruta: string): Nodo | null {

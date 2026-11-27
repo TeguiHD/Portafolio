@@ -84,7 +84,7 @@ export function Barra({ tareas, alinear, ahora, clima, enLinea, sonido, avisos, 
                     <Volumen size={16} strokeWidth={1.75} aria-hidden="true" />
                 </button>
                 <button type="button" className="es-b es-reloj" popoverTarget="es-calendario" aria-expanded="false"
-                    aria-label={ahora ? `${LARGA.format(ahora)}, ${HORA.format(ahora)} en Santiago. ${avisos ? `${avisos} notificaciones nuevas. ` : ""}Abrir el calendario y las notificaciones` : "Calendario"}>
+                    aria-label={ahora ? `${LARGA.format(ahora)}, ${HORA.format(ahora)} en Santiago. ${avisos ? `${avisos} ${avisos === 1 ? "notificación nueva" : "notificaciones nuevas"}. ` : ""}Abrir el calendario y las notificaciones` : "Calendario"}>
                     <span className="es-reloj-txt"><span>{ahora ? HORA.format(ahora) : "--:--"}</span><span>{ahora ? FECHA.format(ahora).replace(/\//g, "-") : ""}</span></span>
                     {avisos > 0 && <span className="es-campana" style={{ "--n": `"${avisos}"` } as CSSProperties}><Bell size={14} strokeWidth={1.75} aria-hidden="true" /></span>}
                 </button>

@@ -7,7 +7,12 @@ export type Args = Record<string, string | number>;
 export interface VentanaAbierta {
     id: string;
     app: App;
+    /** Con qué está abierta (la foto que muestra Fotos…): lo pedido al abrirla más lo que la app fue guardando. */
     args: Args;
+    /** Lo pedido la última vez que se abrió (la carpeta de un acceso, la sección de Configuración), y cuántas veces se
+     * volvió a abrir ya abierta: con cada pedido nuevo la app va a lo que se pidió, aunque sea lo mismo de antes. */
+    pedido: Args;
+    vez: number;
     r: Rect;
     /** El tamaño y lugar antes de acoplarla o maximizarla, para volver a él. */
     previo: Rect | null;

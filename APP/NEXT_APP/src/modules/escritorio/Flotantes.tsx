@@ -97,9 +97,11 @@ function hoyEnSantiago(d: Date) {
 }
 
 /** El panel de la hora: las notificaciones arriba y el calendario del mes abajo, como en Windows 11. */
-export function Calendario({ ahora, avisos, alBorrar, alQuitar, alAbrirAviso }: {
+export function Calendario({ ahora, avisos, alVer, alBorrar, alQuitar, alAbrirAviso }: {
     ahora: Date | null;
     avisos: Aviso[];
+    /** Al abrirse: lo que hay quedó visto y la campana se apaga. */
+    alVer(): void;
     alBorrar(): void;
     alQuitar(id: number): void;
     alAbrirAviso(a: Aviso): void;
@@ -110,10 +112,10 @@ export function Calendario({ ahora, avisos, alBorrar, alQuitar, alAbrirAviso }: 
     useEffect(() => {
         const p = ref.current;
         if (!p) return;
-        const abre = (e: Event) => { if ((e as ToggleEvent).newState === "open") setMes(null); };
+        const abre = (e: Event) => { if ((e as ToggleEvent).newState === "open") { setMes(null); alVer(); } };
         p.addEventListener("beforetoggle", abre);
         return () => p.removeEventListener("beforetoggle", abre);
-    }, [ref]);
+    }, [ref, alVer]);
     const visto = mes ?? (hoy ? { a: hoy.a, m: hoy.m } : null);
     const celdas: (number | null)[] = [];
     if (visto) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as PE, type ReactNode } from "react";
 import { ArrowLeft, Copy, ExternalLink, Info, LayoutGrid, Minus, Square, X } from "lucide-react";
+import { anclarPanel } from "./anclaje";
 import { contener, DISENOS, MIN_ALTO, MIN_ANCHO, NOMBRE_ZONA, zonaEncaje, type Rect, type Zona } from "./geometria";
 import { IconoDe } from "./iconos/Icono";
 import { navegarMenu } from "./menu";
@@ -88,26 +89,23 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
         return () => an.cancel();
     }, [v.cerrando]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // El menú de la ventana se abre bajo su ícono; los diseños de acople, bajo el botón de maximizar.
+    // El menú de la ventana se abre bajo su ícono; los diseños de acople, bajo el botón de maximizar. Cerca del borde de
+    // abajo (una ventana pegada abajo) se abren hacia arriba (anclarPanel).
     useEffect(() => {
         const m = menu.current, d = acople.current;
-        const colocar = (panel: HTMLElement, boton: HTMLElement | null, derecha: boolean) => (e: Event) => {
-            if ((e as ToggleEvent).newState !== "open" || !boton) return;
-            const r = boton.getBoundingClientRect(), ancho = panel.offsetWidth || 260;
-            const x = derecha ? Math.min(r.right - ancho + 46, innerWidth - ancho - 8) : Math.min(r.left, innerWidth - ancho - 8);
-            Object.assign(panel.style, { left: `${Math.max(8, x)}px`, top: `${r.bottom + 4}px` });
-        };
-        const enfocarPrimero = (panel: HTMLElement, sel: string) => (e: Event) => { if ((e as ToggleEvent).newState === "open" && panel.matches(":focus-within, [data-teclado]")) panel.querySelector<HTMLElement>(sel)?.focus(); };
         const quitar: (() => void)[] = [];
-        if (m) {
-            const a = colocar(m, asa.current, false), b = (e: Event) => { if ((e as ToggleEvent).newState === "open") m.querySelector<HTMLElement>("[role=menuitem]:not(:disabled)")?.focus(); };
-            m.addEventListener("beforetoggle", a); m.addEventListener("toggle", b);
-            quitar.push(() => { m.removeEventListener("beforetoggle", a); m.removeEventListener("toggle", b); });
+        const enfocarPrimero = (panel: HTMLElement, sel: string) => (e: Event) => { if ((e as ToggleEvent).newState === "open" && panel.matches(":focus-within, [data-teclado]")) panel.querySelector<HTMLElement>(sel)?.focus(); };
+        if (m && asa.current) {
+            quitar.push(anclarPanel(m, asa.current));
+            const b = (e: Event) => { if ((e as ToggleEvent).newState === "open") m.querySelector<HTMLElement>("[role=menuitem]:not(:disabled)")?.focus(); };
+            m.addEventListener("toggle", b);
+            quitar.push(() => m.removeEventListener("toggle", b));
         }
-        if (d) {
-            const a = colocar(d, botonMax.current, true), b = enfocarPrimero(d, "button");
-            d.addEventListener("beforetoggle", a); d.addEventListener("toggle", b);
-            quitar.push(() => { d.removeEventListener("beforetoggle", a); d.removeEventListener("toggle", b); });
+        if (d && botonMax.current) {
+            quitar.push(anclarPanel(d, botonMax.current, { borde: "der", corrimiento: 46 }));
+            const b = enfocarPrimero(d, "button");
+            d.addEventListener("toggle", b);
+            quitar.push(() => d.removeEventListener("toggle", b));
         }
         return () => quitar.forEach((f) => f());
     }, [celular]);
@@ -225,11 +223,13 @@ export function Ventana({ v, activa, celular, acciones, children }: { v: Ventana
     };
 
     const abrirAparte = () => {
-        // La herramienta como app y las apps propias se abren aparte en su página del sitio; una página, donde esté ahora.
+        // Aparte, en su página del sitio: una página, donde esté ahora; una herramienta, con lo que guarda en la dirección
+        // (el tipo de QR, la magnitud de Unidades); una app propia, en su enlace.
         let destino = app.enlace;
-        if (app.tipo === "pagina") {
-            try { const l = marco.current?.contentWindow?.location; if (l && l.origin === location.origin) destino = l.pathname + l.search + l.hash; } catch { /* queda el enlace de la app */ }
-        }
+        try {
+            const l = marco.current?.contentWindow?.location;
+            if (l && l.origin === location.origin) destino = app.tipo === "pagina" ? l.pathname + l.search + l.hash : `${app.enlace ?? l.pathname}${l.search}${l.hash}`;
+        } catch { /* queda el enlace de la app */ }
         if (destino) window.open(destino, "_blank", "noopener");
     };
     const accionMenu = (f: () => void) => () => { menu.current?.hidePopover(); f(); };

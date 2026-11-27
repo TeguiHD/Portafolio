@@ -1,7 +1,8 @@
 /**
  * Los sonidos del modo escritorio. Se fabrican con síntesis (sintesis.ts), sin descargar archivos: cuatro variantes por
  * golpe del clic y ocho teclas, para que no suene a grabación repetida. Las muestras se dibujan una vez, apenas carga la
- * página; el contexto de audio nace con el primer gesto, como exigen los navegadores, y se suspende con la pestaña oculta.
+ * página si el sonido está encendido (en una pantalla táctil parte apagado: se dibujan recién al encenderlo); el contexto
+ * de audio nace con el primer gesto, como exigen los navegadores, y se suspende con la pestaña oculta.
  * Como Windows, no hay sonidos al abrir, minimizar o cerrar ventanas: solo el clic, el teclado, las notificaciones y el
  * inicio de sesión.
  */
@@ -66,14 +67,22 @@ export class SonidoEscritorio {
     private clics: Partial<Record<TipoClic, { presionar: AudioBuffer[]; soltar: AudioBuffer[] }>> = {};
     private teclas: AudioBuffer[] = [];
     private avisos: Partial<Record<Aviso, AudioBuffer>> = {};
+    private preparando: Promise<void> | null = null;
+    /** Listo para sonar según lo elegido: con el sonido apagado no hay nada que preparar. */
     readonly listo: Promise<void>;
 
     constructor(public prefs: PreferenciasSonido) {
-        this.listo = this.preparar();
+        this.listo = prefs.activo ? this.preparar() : Promise.resolve();
+    }
+
+    /** Las muestras se fabrican una sola vez, la primera que hacen falta. */
+    private preparar(): Promise<void> {
+        this.preparando ??= this.fabricar();
+        return this.preparando;
     }
 
     /** Primero el clic elegido (el primer toque no espera a los demás); el resto, en pausas, sin trabar la página. */
-    private async preparar() {
+    private async fabricar() {
         if (typeof AudioBuffer === "undefined") return;
         const pausa = () => new Promise<void>((r) => setTimeout(r, 0));
         const orden = [this.prefs.tipo, ...TIPOS_CLIC.map((t) => t.id).filter((t) => t !== this.prefs.tipo)];
@@ -96,6 +105,7 @@ export class SonidoEscritorio {
     cambiar(p: Partial<PreferenciasSonido>) {
         this.prefs = { ...this.prefs, ...p };
         try { localStorage.setItem(CLAVE, JSON.stringify(this.prefs)); } catch { /* vale para esta visita */ }
+        if (this.prefs.activo) void this.preparar();
         this.ajustarVolumen();
     }
 
@@ -133,13 +143,13 @@ export class SonidoEscritorio {
     /** Enter, espacio y borrar suenan más fuerte que las letras. */
     tecla(fuerte: boolean) { if (this.prefs.teclas) this.tocar(this.alAzar(this.teclas), fuerte ? 0.75 : 0.5, 0.08); }
     aviso(a: Aviso) { if (this.prefs.avisos) this.tocar(this.avisos[a], 0.8, 0); }
-    /** Sin sonido: Windows no suena al abrir, minimizar o cerrar ventanas. Queda mientras el escritorio se rehace. */
-    efecto(_e: "abrir" | "cerrar" | "minimizar") { /* sin sonido */ }
     /** Para probar el tipo elegido: golpe y retorno, aunque el clic del mouse esté apagado. */
     muestra() {
-        const c = this.clics[this.prefs.tipo];
-        this.tocar(this.alAzar(c?.presionar), 1, 0.04);
-        setTimeout(() => this.tocar(this.alAzar(c?.soltar), 1, 0.04), 95);
+        void this.preparar().then(() => {
+            const c = this.clics[this.prefs.tipo];
+            this.tocar(this.alAzar(c?.presionar), 1, 0.04);
+            setTimeout(() => this.tocar(this.alAzar(c?.soltar), 1, 0.04), 95);
+        });
     }
     suspender(v: boolean) {
         if (this.ctx) void (v ? this.ctx.suspend() : this.ctx.resume()).catch(() => undefined);

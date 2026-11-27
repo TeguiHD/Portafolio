@@ -7,7 +7,7 @@
 export type FondoId = "pampa" | "pacifico" | "cordillera" | "austral" | "curvas" | "grafito" | "papel" | "materia" | "materia-viva" | "solido";
 export interface Fondo { id: FondoId; nombre: string; detalle: string; tema: "oscuro" | "claro"; tipo: "imagen" | "vivo" | "solido" }
 
-const VERSION = 1;
+const VERSION = 2;
 
 export const FONDOS: Fondo[] = [
     { id: "pampa", nombre: "Pampa", detalle: "Dunas del desierto de Atacama al atardecer", tema: "oscuro", tipo: "imagen" },
@@ -33,8 +33,13 @@ export function fondoPorDefecto(tema: "oscuro" | "claro"): FondoId {
     return tema === "claro" ? "cordillera" : "pampa";
 }
 
+/** Una imagen del fondo, con la versión: si se vuelven a generar, nadie ve la vieja guardada (tampoco en el respaldo). */
+export function imagenFondo(id: FondoId, w: 1280 | 1920 | 2560, formato: "avif" | "webp"): string {
+    return `/escritorio/fondos/${id}-${w}.${formato}?v=${VERSION}`;
+}
+
 export function srcsetFondo(id: FondoId, formato: "avif" | "webp"): string {
-    return [1280, 1920, 2560].map((w) => `/escritorio/fondos/${id}-${w}.${formato}?v=${VERSION} ${w}w`).join(", ");
+    return ([1280, 1920, 2560] as const).map((w) => `${imagenFondo(id, w, formato)} ${w}w`).join(", ");
 }
 
 export function miniFondo(id: FondoId): string {

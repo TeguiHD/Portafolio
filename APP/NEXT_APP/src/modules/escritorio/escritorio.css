@@ -160,7 +160,6 @@
 .es-menu button svg { flex: none; color: var(--es-texto-2); }
 .es-menu-ico { display: grid; place-items: center; width: 16px; flex: none; }
 .es-menu hr { margin: 4px 2px; border: 0; border-top: 1px solid var(--es-borde); }
-.es-menu-apagado { bottom: 64px; right: auto; }
 
 /* Diseños de acople: aparecen bajo maximizar. */
 .es-acople { display: grid; grid-template-columns: repeat(2, 104px); gap: 10px; padding: 12px; }
@@ -313,10 +312,18 @@
 @keyframes es-gira { from { rotate: 0deg; opacity: 1; } 75% { opacity: 1; } to { rotate: 720deg; opacity: 0; } }
 .es-bloqueo { position: absolute; inset: 0; z-index: 9900; outline: none; color: #fff; cursor: default; }
 .es-bloqueo .es-fondo { filter: brightness(.82); }
-.es-bloqueo-txt { position: absolute; inset: 9vh 0 auto 0; text-align: center; text-shadow: 0 2px 18px rgb(0 0 0 / .35); }
+/* Un velo suave detrás de la hora y de la pista: el blanco se lee también sobre los fondos claros (Cordillera, Papel y los
+   sólidos claros), con 3:1 la hora y la fecha y 4,5:1 la pista aunque detrás haya blanco puro (escritorio-detalles.spec). */
+.es-bloqueo::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background:
+        radial-gradient(70% 55% at 50% 24%, rgb(0 0 0 / .4), rgb(0 0 0 / .28) 45%, transparent 100%),
+        linear-gradient(to top, rgb(0 0 0 / .55), rgb(0 0 0 / .46) 10%, transparent 32%);
+}
+.es-bloqueo-txt { position: absolute; z-index: 1; inset: 9vh 0 auto 0; text-align: center; text-shadow: 0 2px 18px rgb(0 0 0 / .35); }
 .es-bloqueo-hora { margin: 0; font-size: clamp(72px, 11vw, 128px); font-weight: 600; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .es-bloqueo-fecha { margin: 10px 0 0; font-size: clamp(18px, 2vw, 24px); font-weight: 500; }
-.es-bloqueo-pista { position: absolute; inset: auto 0 6vh 0; margin: 0; text-align: center; font-size: 14px; opacity: .85; text-shadow: 0 1px 8px rgb(0 0 0 / .5); }
+.es-bloqueo-pista { position: absolute; z-index: 1; inset: auto 0 6vh 0; margin: 0; text-align: center; font-size: 14px; text-shadow: 0 1px 8px rgb(0 0 0 / .5); }
 
 /* ---------- Celular ---------- */
 .es[data-celular] .es-mesa { inset: 0 0 56px 0; }

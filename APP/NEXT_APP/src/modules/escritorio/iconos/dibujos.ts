@@ -6,7 +6,7 @@
 export type IconoSistema =
     | "carpeta" | "carpeta-proyectos" | "carpeta-servicios" | "carpeta-herramientas" | "carpeta-documentos"
     | "correo" | "noticias" | "fotos" | "configuracion" | "documento" | "grafico" | "perfil" | "plano"
-    | "explorador" | "imagen" | "enlace" | "widgets";
+    | "explorador" | "escritorio" | "imagen" | "enlace" | "widgets";
 
 const lineal = (id: string, a: string, b: string, x2 = 0, y2 = 1) =>
     `<linearGradient id="${id}" x1="0" y1="0" x2="${x2}" y2="${y2}"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>`;
@@ -33,6 +33,13 @@ export const DIBUJOS: Record<IconoSistema, (u: string) => string> = {
     "carpeta-documentos": (u) => carpeta(u, trazo("M20 21.5h6.5l3.5 3.5v9a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-11.5a1 1 0 0 1 1-1Z M22 29h6 M22 32h4")),
     // Explorador: la carpeta con la franja de una ventana.
     explorador: (u) => carpeta(u, `<rect x="4" y="30.5" width="40" height="9.5" rx="3.5" fill="url(#${u}c)"/><defs>${lineal(`${u}c`, "#2dd4bf", "#0f766e")}</defs><path d="M10 35.2h10" stroke="#ecfeff" stroke-width="2" stroke-linecap="round"/>`),
+
+    // Escritorio: la pantalla con dos íconos, sobre su pie.
+    escritorio: (u) => `<defs>${lineal(`${u}a`, "#5eead4", "#0e7490", 1, 1)}${lineal(`${u}b`, "#e2e8f0", "#94a3b8")}</defs>`
+        + `<path d="M20.5 35h7l1.4 4.6h-9.8Z" fill="url(#${u}b)"/><rect x="14" y="39" width="20" height="3" rx="1.5" fill="url(#${u}b)"/>`
+        + `<rect x="4" y="7" width="40" height="28.5" rx="4" fill="url(#${u}a)"/>`
+        + `<path d="M7.6 10.6h32.8" stroke="#fff" stroke-opacity=".5" stroke-width="1.1" stroke-linecap="round"/>`
+        + `<rect x="9" y="15" width="6" height="6" rx="1.5" fill="#ecfeff" fill-opacity=".9"/><rect x="9" y="24" width="6" height="6" rx="1.5" fill="#ecfeff" fill-opacity=".6"/>`,
 
     correo: (u) => `<defs>${lineal(`${u}a`, "#5eead4", "#0e7490", 1, 1)}${lineal(`${u}b`, "#ffffff", "#d9f7f2")}</defs>`
         + `<rect x="4" y="10" width="40" height="29" rx="5" fill="url(#${u}a)"/>`

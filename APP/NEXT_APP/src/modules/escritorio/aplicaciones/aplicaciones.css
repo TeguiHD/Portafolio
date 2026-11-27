@@ -51,6 +51,7 @@
 .ex-detalle b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .ex-detalle small { color: var(--es-texto-2); }
 .ex-detalle p { margin: 4px 0 10px; color: var(--es-texto-2); font-size: 12px; line-height: 1.5; text-align: left; }
+.ex-detalle .ex-detalle-vacio { margin: auto 0; text-align: center; }
 .ex-estado { display: flex; gap: 18px; height: 26px; align-items: center; padding: 0 12px; border-top: 1px solid var(--es-borde); color: var(--es-texto-2); font-size: 12px; }
 
 /* ---------- Fotos ---------- */

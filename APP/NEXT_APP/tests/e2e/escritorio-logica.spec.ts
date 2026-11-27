@@ -2,13 +2,16 @@ import { expect, test } from "@playwright/test";
 import { enmarcableEnEscritorio } from "../../src/lib/escritorio/enmarcable";
 import { areaUtil, contener, rectZona, zonaEncaje, posicionInicial } from "../../src/modules/escritorio/geometria";
 import { idDeRuta } from "../../src/modules/escritorio/apps";
-import { arbol, buscarNodo, padre } from "../../src/modules/escritorio/aplicaciones/vfs";
+import { aplanar, arbol, buscarNodo, padre } from "../../src/modules/escritorio/aplicaciones/vfs";
+import { activaDe, reducir, type Estado } from "../../src/modules/escritorio/ventanas";
+import type { App } from "../../src/modules/escritorio/apps";
 import { interpretarPrefs, PREFS_BASE } from "../../src/modules/escritorio/preferencias";
 import { centroide, duracionSobre, energiaEntre, sintetizarAviso, sintetizarClic, sintetizarTecla } from "../../src/modules/escritorio/sintesis";
 import { interpretarPreferencias } from "../../src/modules/escritorio/sonido";
 import { FONDOS, fondoPorDefecto, miniFondo, srcsetFondo } from "../../src/modules/escritorio/fondos";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { ubicar } from "../../src/modules/escritorio/posiciones";
+import sharp from "sharp";
 
 /**
  * Modo escritorio (/escritorio): la lógica que no necesita navegador. Qué páginas se pueden abrir en una ventana,
@@ -99,7 +102,7 @@ test.describe("escritorio: lógica", () => {
             proyectos: [{ id: "floresdyd", titulo: "FloresDyD", tipo: "Tienda en línea", texto: "Una tienda", imagen: "/a.webp", imagenAlt: "Portada", cta: "Visitar tienda", href: "https://floresdyd.cl", externo: true, direccion: "floresdyd.cl", vistas: [{ nombre: "Portada", escritorio: "/p.jpg", celular: "/pc.jpg" }, { nombre: "Catálogo", escritorio: "/c.jpg", celular: "/cc.jpg" }] }],
             servicios: [{ slug: "tienda-online", nombre: "Tiendas en línea a medida", resumen: "Para vender" }],
         });
-        expect(raiz.hijos?.map((h) => h.nombre)).toEqual(["Proyectos", "Servicios", "Herramientas", "Documentos"]);
+        expect(raiz.hijos?.map((h) => h.nombre)).toEqual(["Escritorio", "Proyectos", "Servicios", "Herramientas", "Documentos"]);
         const flores = buscarNodo(raiz, "proyectos/floresdyd");
         expect(flores?.tipo).toBe("carpeta");
         const imagenes = flores?.hijos?.filter((h) => h.tipo === "imagen") ?? [];
@@ -115,6 +118,38 @@ test.describe("escritorio: lógica", () => {
         expect(padre("proyectos/floresdyd")).toBe("proyectos");
         expect(padre("proyectos")).toBe("");
         expect(padre("")).toBeNull();
+    });
+
+    test("«Escritorio» en el Explorador: los íconos del escritorio, con las carpetas como accesos que se abren ahí mismo", () => {
+        const raiz = arbol({
+            herramientas: [{ slug: "qr", nombre: "Generador de QR", familia: "generación" }],
+            proyectos: [{ id: "floresdyd", titulo: "FloresDyD", tipo: "Tienda en línea", texto: "Una tienda", imagen: "/a.webp", imagenAlt: "Portada", cta: "Visitar tienda", href: "https://floresdyd.cl", externo: true }],
+            servicios: [],
+        });
+        const escritorio = buscarNodo(raiz, "escritorio");
+        // Sueldo líquido no viene en estos datos: lo que no existe no aparece.
+        expect(escritorio?.hijos?.map((h) => h.nombre)).toEqual(["Proyectos", "Servicios", "Herramientas", "Documentos", "Sobre mí", "Correo", "Noticias", "Índice de la Web Chilena", "Generador de QR"]);
+        expect(escritorio?.hijos?.[0]).toMatchObject({ tipo: "carpeta", ir: "proyectos" });
+        expect(escritorio?.hijos?.find((h) => h.nombre === "Correo")?.abrir).toEqual({ app: "correo" });
+        expect(escritorio?.hijos?.find((h) => h.nombre === "Generador de QR")).toMatchObject({ abrir: { app: "herramientas/qr" }, acceso: true });
+        // Buscar desde Inicio no muestra dos veces lo de las carpetas que también están en el escritorio.
+        expect(aplanar(raiz).filter((n) => n.nombre === "FloresDyD")).toHaveLength(1);
+    });
+
+    test("traer ventanas al frente una y otra vez no hace crecer el apilado sin tope", () => {
+        const app = (id: string) => ({ id, titulo: id, icono: "carpeta", tipo: "vista", tam: [600, 400] }) as App;
+        let e: Estado = { wins: [], z: 10 };
+        for (const id of ["a", "b", "c"]) e = reducir(e, { t: "abrir", app: app(id), args: {}, r: { x: 0, y: 0, w: 600, h: 400 }, zona: null, foco: true });
+        for (let i = 0; i < 20000; i++) e = reducir(e, { t: "enfocar", id: ["a", "b", "c"][i % 3] });
+        // Las ventanas quedan bajo la guía de acople (9000), la barra de tareas (9500) y el bloqueo (9900).
+        expect(Math.max(...e.wins.map((w) => w.z))).toBeLessThan(9000);
+        // Y en el orden en que se trajeron: la última arriba.
+        expect([...e.wins].sort((x, y) => x.z - y.z).map((w) => w.id)).toEqual(["c", "a", "b"]);
+        expect(activaDe(e)?.id).toBe("b");
+        // Una sesión guardada con números enormes (de antes de este tope) también vuelve dentro del tope.
+        const guardada = reducir({ wins: [], z: 10 }, { t: "restaurar", wins: e.wins.map((w, i) => ({ ...w, z: 50000 + i })) });
+        expect(Math.max(...guardada.wins.map((w) => w.z))).toBeLessThan(9000);
+        expect(activaDe(guardada)?.id).toBe(e.wins.at(-1)?.id);
     });
 });
 
@@ -191,6 +226,14 @@ test.describe("escritorio: sonido", () => {
 
 /** Los fondos son imágenes propias generadas por scripts/escritorio/fondos (no se descargan de ningún lado). */
 test.describe("escritorio: fondos", () => {
+    test("los fondos de imagen son opacos: nada de lo que hay detrás se asoma por ellos", async () => {
+        // Un fondo con píxeles transparentes deja ver lo de atrás (en el bloqueo, los íconos del escritorio).
+        const dir = "public/escritorio/fondos";
+        for (const f of readdirSync(dir).filter((x) => /-(1280\.(avif|webp)|mini\.webp)$/.test(x))) {
+            expect((await sharp(`${dir}/${f}`).stats()).isOpaque, f).toBe(true);
+        }
+    });
+
     test("cada fondo de imagen tiene sus tres tamaños en AVIF y WebP, y su miniatura", () => {
         const deImagen = FONDOS.filter((f) => f.tipo === "imagen");
         expect(deImagen.length).toBe(8);

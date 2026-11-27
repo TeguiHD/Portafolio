@@ -3,6 +3,7 @@
 import { useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, Lock, LogOut, Pin, PinOff, Power, RotateCcw, Search } from "lucide-react";
 import { SUGERIDAS, type App } from "./apps";
+import { anclarPanel } from "./anclaje";
 import { IconoDe } from "./iconos/Icono";
 import { navegarMenu } from "./menu";
 import type { Args } from "./tipos";
@@ -66,7 +67,7 @@ export function Inicio({ ref, todas, resolver, anclados, recientes, ancladasBarr
     alReiniciar(): void;
     alApagar(): void;
 }) {
-    const panel = useRef<HTMLDivElement>(null), buscador = useRef<HTMLInputElement>(null), apagado = useRef<HTMLDivElement>(null);
+    const panel = useRef<HTMLDivElement>(null), buscador = useRef<HTMLInputElement>(null), apagado = useRef<HTMLDivElement>(null), botonApagado = useRef<HTMLButtonElement>(null);
     const idApagado = useId(), idLista = useId();
     const [vista, setVista] = useState<"inicio" | "todas">("inicio");
     const [consulta, setConsulta] = useState("");
@@ -98,6 +99,28 @@ export function Inicio({ ref, todas, resolver, anclados, recientes, ancladasBarr
     }, [alinear]);
 
     const abrir = (id: string, args?: Args) => { try { panel.current?.hidePopover(); } catch { /* ya cerrado */ } alAbrir(id, args); };
+
+    // El menú de apagado: abierto con el teclado entra a su primera opción; abierto con el mouse, el foco se queda en el
+    // botón y la flecha abajo entra (abre el menú si estaba cerrado). Lo dice el clic que lo abre: el del teclado no tiene
+    // pulsaciones (detail 0), y llega antes de que el menú se abra.
+    const conPuntero = useRef(false);
+    const primeraDeApagado = () => apagado.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus();
+    useEffect(() => {
+        const m = apagado.current, b = botonApagado.current;
+        if (!m || !b) return;
+        const alCambiar = (e: Event) => { if ((e as ToggleEvent).newState === "open" && !conPuntero.current) primeraDeApagado(); conPuntero.current = false; };
+        m.addEventListener("toggle", alCambiar);
+        // Justo arriba del botón, alineado con su borde derecho (como el de Windows 11).
+        const soltar = anclarPanel(m, b, { borde: "der", prefiere: "arriba" });
+        return () => { m.removeEventListener("toggle", alCambiar); soltar(); };
+    }, []);
+    const flechaEnApagado = (e: KeyboardEvent<HTMLButtonElement>) => {
+        if (e.key !== "ArrowDown") return;
+        e.preventDefault();
+        const m = apagado.current;
+        if (!m) return;
+        if (!m.matches(":popover-open")) { conPuntero.current = false; e.currentTarget.click(); } else primeraDeApagado();
+    };
 
     const resultados = useMemo(() => {
         const q = normal(consulta.trim());
@@ -209,7 +232,8 @@ export function Inicio({ ref, todas, resolver, anclados, recientes, ancladasBarr
 
             <footer className="es-inicio-pie">
                 <span className="es-persona"><span className="es-avatar" aria-hidden="true">V</span>Visitante</span>
-                <button type="button" className="es-b es-apagar" popoverTarget={idApagado} aria-label="Apagado: bloquear, reiniciar o volver al sitio" title="Apagado">
+                <button ref={botonApagado} type="button" className="es-b es-apagar" popoverTarget={idApagado} aria-label="Apagado: bloquear, reiniciar o volver al sitio" title="Apagado"
+                    onClick={(e) => { conPuntero.current = e.detail > 0; }} onKeyDown={flechaEnApagado}>
                     <Power size={18} strokeWidth={1.75} aria-hidden="true" />
                 </button>
                 <div ref={apagado} id={idApagado} popover="auto" role="menu" aria-label="Apagado" className="es-flota es-menu es-menu-apagado" onKeyDown={navegarMenu}>

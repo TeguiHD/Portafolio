@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ArrowLeft, ArrowRight, ArrowUp, ChevronRight, ExternalLink, LayoutGrid, List, PanelRight, Search } from "lucide-react";
 import { IconoDe } from "../iconos/Icono";
 import { aplanar, buscarNodo, migas, padre, type Apertura, type Nodo } from "./vfs";
@@ -12,7 +12,7 @@ const normal = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").
  * de la carpeta; el panel de navegación; vista de íconos o de detalles; el panel de detalles con la vista previa; y la
  * barra de estado. Las carpetas son los proyectos, servicios, herramientas y documentos reales del sitio.
  */
-export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: string; alAbrir(a: Apertura): void }) {
+export function Explorador({ raiz, inicial, vez = 0, alAbrir }: { raiz: Nodo; inicial: string; vez?: number; alAbrir(a: Apertura): void }) {
     const [ruta, setRuta] = useState(buscarNodo(raiz, inicial) ? inicial : "");
     const [atras, setAtras] = useState<string[]>([]), [adelante, setAdelante] = useState<string[]>([]);
     const [vista, setVista] = useState<"iconos" | "detalles">("iconos");
@@ -23,9 +23,6 @@ export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: st
     /** Con el dedo (o un lápiz) un toque abre, como en el resto del escritorio táctil; con el mouse, doble clic. */
     const puntero = useRef("mouse");
 
-    // Abrir de nuevo el mismo acceso (p. ej. «Proyectos» desde el escritorio) lleva a su carpeta.
-    useEffect(() => { if (buscarNodo(raiz, inicial)) { setRuta(inicial); setSel(null); setBuscar(""); } }, [inicial, raiz]);
-
     const carpeta = buscarNodo(raiz, ruta) ?? raiz;
     const items = useMemo(() => {
         const q = normal(buscar.trim());
@@ -33,15 +30,31 @@ export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: st
     }, [carpeta, buscar]);
     const elegido = items.find((n) => n.ruta === sel) ?? null;
 
+    const enfocarLista = useRef(false);
     const ir = (r: string) => {
         if (r === ruta) return;
         setAtras((a) => [...a, ruta]); setAdelante([]); setRuta(r); setSel(null); setBuscar("");
-        requestAnimationFrame(() => lista.current?.querySelector<HTMLElement>("[data-item]")?.focus({ preventScroll: true }));
+        enfocarLista.current = true;
     };
+    // Al entrar a una carpeta, el foco va a su primer elemento apenas React la pinta (no antes: sería el de la carpeta vieja).
+    useLayoutEffect(() => {
+        if (!enfocarLista.current) return;
+        enfocarLista.current = false;
+        lista.current?.querySelector<HTMLElement>("[data-item]")?.focus({ preventScroll: true });
+    });
     const volver = () => { const r = atras.at(-1); if (r === undefined) return; setAtras((a) => a.slice(0, -1)); setAdelante((d) => [ruta, ...d]); setRuta(r); setSel(null); };
     const avanzar = () => { const r = adelante[0]; if (r === undefined) return; setAdelante((d) => d.slice(1)); setAtras((a) => [...a, ruta]); setRuta(r); setSel(null); };
     const subir = () => { const p = padre(ruta); if (p !== null) ir(p); };
-    const abrir = (n: Nodo) => { if (n.tipo === "carpeta") ir(n.ruta); else if (n.abrir) alAbrir(n.abrir); };
+    // Abrir de nuevo un acceso ya abierto (p. ej. «Proyectos» desde el escritorio o el inicio) lleva a su carpeta, aunque
+    // sea la misma de antes y la persona se haya movido; Atrás vuelve a donde estaba. Traerlo desde la barra no lo mueve.
+    const vezAntes = useRef(vez);
+    useEffect(() => {
+        if (vez === vezAntes.current) return;
+        vezAntes.current = vez;
+        if (!buscarNodo(raiz, inicial)) return;
+        if (inicial === ruta) { setSel(null); setBuscar(""); } else ir(inicial);
+    }, [vez]); // eslint-disable-line react-hooks/exhaustive-deps
+    const abrir = (n: Nodo) => { if (n.tipo === "carpeta") ir(n.ir ?? n.ruta); else if (n.abrir) alAbrir(n.abrir); };
 
     const alTeclado = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.altKey && e.key === "ArrowLeft") { e.preventDefault(); volver(); return; }
@@ -93,7 +106,9 @@ export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: st
                 </div>
                 <button type="button" className="es-boton-chico" aria-pressed={detalles} onClick={() => setDetalles((d) => !d)}><PanelRight size={14} aria-hidden="true" />Panel de detalles</button>
             </div>
-            <div className="ex-cuerpo" data-detalles={detalles && elegido ? "" : undefined}>
+            {/* Con el panel de detalles encendido, su columna queda siempre (como en Windows): si apareciera al elegir, la
+                grilla se correría entre los dos clics de un doble clic y se abriría otra cosa. */}
+            <div className="ex-cuerpo" data-detalles={detalles ? "" : undefined}>
                 <nav className="ex-nav" aria-label="Carpetas">
                     <button type="button" aria-current={ruta === "" ? "page" : undefined} onClick={() => ir("")}><IconoDe icono="explorador" tam={16} />Inicio</button>
                     {navegacion.map((n) => (
@@ -113,7 +128,7 @@ export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: st
                             onClick={() => { setSel(n.ruta); if (puntero.current !== "mouse") abrir(n); }} onDoubleClick={() => { if (puntero.current === "mouse") abrir(n); }}
                             onFocus={() => setSel(n.ruta)} title={n.descripcion}>
                             <span className="ex-item-ico">
-                                {n.tipo === "imagen" && n.miniatura && vista === "iconos" ? <img src={n.miniatura} alt="" loading="lazy" decoding="async" /> : <IconoDe icono={n.icono} tam={vista === "iconos" ? 48 : 20} acceso={n.tipo === "enlace"} />}
+                                {n.tipo === "imagen" && n.miniatura && vista === "iconos" ? <img src={n.miniatura} alt="" loading="lazy" decoding="async" /> : <IconoDe icono={n.icono} tam={vista === "iconos" ? 48 : 20} acceso={n.acceso || n.tipo === "enlace"} />}
                             </span>
                             <span className="ex-item-nombre">{n.nombre}</span>
                             {vista === "detalles" && <><span className="ex-item-clase">{n.clase}</span><span className="ex-item-desc">{n.descripcion}</span></>}
@@ -121,15 +136,17 @@ export function Explorador({ raiz, inicial, alAbrir }: { raiz: Nodo; inicial: st
                     ))}
                     {!items.length && <p className="ex-vacio">{buscar ? `Nada coincide con «${buscar.trim()}» en ${carpeta.nombre}.` : "Esta carpeta está vacía."}</p>}
                 </div>
-                {detalles && elegido && (
+                {detalles && (elegido ? (
                     <aside className="ex-detalle" aria-label={`Detalles de ${elegido.nombre}`}>
-                        {elegido.miniatura ? <img src={elegido.miniatura} alt="" decoding="async" /> : <IconoDe icono={elegido.icono} tam={72} acceso={elegido.tipo === "enlace"} />}
+                        {elegido.miniatura ? <img src={elegido.miniatura} alt="" decoding="async" /> : <IconoDe icono={elegido.icono} tam={72} acceso={elegido.acceso || elegido.tipo === "enlace"} />}
                         <b>{elegido.nombre}</b>
                         <small>{elegido.clase}</small>
                         {elegido.descripcion && <p>{elegido.descripcion}</p>}
                         <button type="button" className="es-primario" onClick={() => abrir(elegido)}>{elegido.tipo === "carpeta" ? "Abrir la carpeta" : elegido.tipo === "enlace" ? "Visitar el sitio" : "Abrir"}</button>
                     </aside>
-                )}
+                ) : (
+                    <aside className="ex-detalle" aria-label="Detalles"><p className="ex-detalle-vacio">Elige un elemento para ver sus detalles.</p></aside>
+                ))}
             </div>
             <footer className="ex-estado" aria-live="polite">
                 <span>{items.length} {items.length === 1 ? "elemento" : "elementos"}</span>

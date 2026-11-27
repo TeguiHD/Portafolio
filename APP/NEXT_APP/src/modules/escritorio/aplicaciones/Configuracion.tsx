@@ -61,8 +61,10 @@ function useEquipo() {
  * modo, barra de tareas e íconos), Sonido (tipo de clic, volumen y qué suena), Accesibilidad (animaciones y atajos) y
  * Acerca de. Todo se guarda en este navegador.
  */
-export function Configuracion({ seccion, prefs, alPrefs, tema, alTema, sonido, cambiarSonido, muestra, alOrdenar, alAbrir }: {
+export function Configuracion({ seccion, vez = 0, prefs, alPrefs, tema, alTema, sonido, cambiarSonido, muestra, alOrdenar, alAbrir }: {
     seccion?: string;
+    /** Cuántas veces se volvió a pedir Configuración: con cada pedido que trae sección, se va a ella. */
+    vez?: number;
     prefs: PrefsEscritorio;
     alPrefs(p: Partial<PrefsEscritorio>): void;
     tema: "oscuro" | "claro";
@@ -74,7 +76,8 @@ export function Configuracion({ seccion, prefs, alPrefs, tema, alTema, sonido, c
     alAbrir(id: string): void;
 }) {
     const [actual, setActual] = useState<Seccion>(SECCIONES.some((s) => s.id === seccion) ? (seccion as Seccion) : "personalizacion");
-    useEffect(() => { if (SECCIONES.some((s) => s.id === seccion)) setActual(seccion as Seccion); }, [seccion]);
+    // Cada vez que se pide una sección (el buscador, «Personalizar»), se va a ella, aunque sea la misma de la vez anterior.
+    useEffect(() => { if (SECCIONES.some((s) => s.id === seccion)) setActual(seccion as Seccion); }, [seccion, vez]);
     const equipo = useEquipo();
     const fondo: FondoId = prefs.fondo ?? fondoPorDefecto(tema);
     const reducido = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
