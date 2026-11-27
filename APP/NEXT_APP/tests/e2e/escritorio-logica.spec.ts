@@ -4,6 +4,8 @@ import { areaUtil, contener, rectZona, zonaEncaje, posicionInicial } from "../..
 import { idDeRuta } from "../../src/modules/escritorio/apps";
 import { centroide, duracionSobre, energiaEntre, sintetizarAviso, sintetizarClic, sintetizarTecla } from "../../src/modules/escritorio/sintesis";
 import { interpretarPreferencias } from "../../src/modules/escritorio/sonido";
+import { FONDOS, fondoPorDefecto, miniFondo, srcsetFondo } from "../../src/modules/escritorio/fondos";
+import { existsSync, statSync } from "node:fs";
 
 /**
  * Modo escritorio (/escritorio): la lógica que no necesita navegador. Qué páginas se pueden abrir en una ventana,
@@ -144,5 +146,34 @@ test.describe("escritorio: sonido", () => {
         expect(interpretarPreferencias(JSON.stringify({ tipo: "toString" }), false).tipo).toBe("mouse");
         expect(interpretarPreferencias("{roto", true).activo).toBe(false);
         expect(interpretarPreferencias(null, false).activo).toBe(true);
+    });
+});
+
+/** Los fondos son imágenes propias generadas por scripts/escritorio/fondos (no se descargan de ningún lado). */
+test.describe("escritorio: fondos", () => {
+    test("cada fondo de imagen tiene sus tres tamaños en AVIF y WebP, y su miniatura", () => {
+        const deImagen = FONDOS.filter((f) => f.tipo === "imagen");
+        expect(deImagen.length).toBe(8);
+        for (const f of deImagen) {
+            for (const formato of ["avif", "webp"] as const) {
+                const archivos = srcsetFondo(f.id, formato).split(", ").map((x) => x.split(" ")[0].split("?")[0]);
+                expect(archivos, f.id).toHaveLength(3);
+                for (const a of archivos) {
+                    const ruta = `public${a}`;
+                    expect(existsSync(ruta), ruta).toBe(true);
+                    expect(statSync(ruta).size, ruta).toBeLessThan(900_000);
+                }
+            }
+            expect(existsSync(`public${miniFondo(f.id).split("?")[0]}`), f.id).toBe(true);
+        }
+    });
+
+    test("sin elección, el fondo sigue al tema", () => {
+        expect(fondoPorDefecto("oscuro")).toBe("pampa");
+        expect(fondoPorDefecto("claro")).toBe("cordillera");
+        expect(FONDOS.find((f) => f.id === "pampa")?.tema).toBe("oscuro");
+        expect(FONDOS.find((f) => f.id === "cordillera")?.tema).toBe("claro");
+        expect(FONDOS.some((f) => f.tipo === "vivo")).toBe(true);
+        expect(FONDOS.some((f) => f.tipo === "solido")).toBe(true);
     });
 });

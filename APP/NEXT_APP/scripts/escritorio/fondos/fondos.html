@@ -1,0 +1,346 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fondos del modo escritorio</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<canvas id="c"></canvas>
+<script>
+/*
+ * Fondos del modo escritorio de nicoholas.dev, dibujados con código (sin fotos ni archivos de terceros).
+ * Se abre con ?id=<fondo>&w=2560&h=1440; al terminar deja window.listo = true. Lo usa generar.mjs.
+ * Cada fondo tiene semilla fija: volver a generarlo da la misma imagen.
+ */
+const q = new URLSearchParams(location.search);
+const ID = q.get("id") || "pampa", W = Number(q.get("w") || 2560), H = Number(q.get("h") || 1440);
+const c = document.getElementById("c"); c.width = W; c.height = H;
+const ctx = c.getContext("2d");
+const S = W / 2560; // escala: los tamaños se piensan para 2560 px
+
+function azar(semilla) { let a = semilla >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+/* Ruido de Perlin 2D con semilla. */
+function ruido(semilla) {
+  const r = azar(semilla), p = new Uint8Array(512), g = [];
+  const base = [...Array(256).keys()];
+  for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [base[i], base[j]] = [base[j], base[i]]; }
+  for (let i = 0; i < 512; i++) p[i] = base[i & 255];
+  for (let i = 0; i < 256; i++) { const a = r() * Math.PI * 2; g.push([Math.cos(a), Math.sin(a)]); }
+  const f = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+  const n = (x, y) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, X = xi & 255, Y = yi & 255;
+    const d = (ix, iy, dx, dy) => { const v = g[p[p[X + ix] + Y + iy]]; return v[0] * dx + v[1] * dy; };
+    const u = f(xf), v = f(yf);
+    const a = d(0, 0, xf, yf) + u * (d(1, 0, xf - 1, yf) - d(0, 0, xf, yf));
+    const b = d(0, 1, xf, yf - 1) + u * (d(1, 1, xf - 1, yf - 1) - d(0, 1, xf, yf - 1));
+    return a + v * (b - a);
+  };
+  n.fbm = (x, y, oct = 5, lac = 2, gan = 0.5) => { let s = 0, a = 1, fr = 1, t = 0; for (let i = 0; i < oct; i++) { s += a * n(x * fr, y * fr); t += a; a *= gan; fr *= lac; } return s / t; };
+  return n;
+}
+const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const mezcla = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const suave = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+function degradado(y0, y1, paradas) { const g = ctx.createLinearGradient(0, y0, 0, y1); paradas.forEach(([t, col]) => g.addColorStop(t, col)); return g; }
+function brillo(x, y, r, col, alfa) { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col.replace("A", alfa)); g.addColorStop(1, col.replace("A", 0)); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); }
+function estrellas(R, n, alto, fuerza = 1) {
+  for (let i = 0; i < n; i++) {
+    const x = R() * W, t = Math.pow(R(), 1.7), y = t * alto, a = (1 - t) * (0.25 + 0.75 * R()) * fuerza;
+    const r = (R() < 0.04 ? 1.5 : 0.75) * S * (0.7 + R() * 0.6);
+    ctx.fillStyle = `rgba(255,248,235,${a.toFixed(3)})`; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    if (r > 1.2 * S && a > 0.5) brillo(x, y, 7 * S, "rgba(255,240,220,A)", a * 0.25);
+  }
+}
+/*
+ * Capas de cerros o dunas, píxel a píxel: cada capa es una cresta (y por columna) con su color; la luz viene de un lado y
+ * cada ladera se aclara u oscurece según su pendiente; la neblina acerca las capas del fondo al color del horizonte.
+ */
+function capas(lista, luz, neblina, ruidoNieve) {
+  const img = ctx.getImageData(0, 0, W, H), d = img.data;
+  const crestas = lista.map((c) => { const y = new Float32Array(W); for (let x = 0; x < W; x++) y[x] = c.cresta(x); return y; });
+  // Pendiente promediada en ±10 px: sin esto, cada arruga de la cresta cambia la luz de una columna a otra y salen rayas.
+  const R = Math.max(3, Math.round(10 * S));
+  const pendientes = crestas.map((y) => { const p = new Float32Array(W); for (let x = 0; x < W; x++) p[x] = (y[Math.min(W - 1, x + R)] - y[Math.max(0, x - R)]) / (2 * R); return p; });
+  for (let x = 0; x < W; x++) {
+    const tope = Math.max(0, Math.floor(Math.min(...crestas.map((y) => y[x]))));
+    for (let py = tope; py < H; py++) {
+      let k = -1; for (let i = lista.length - 1; i >= 0; i--) if (py >= crestas[i][x]) { k = i; break; }
+      if (k < 0) continue;
+      const c = lista[k], cy = crestas[k];
+      // luz > 0: el sol está a la derecha y se iluminan las laderas que bajan hacia la derecha (y crece con x).
+      const lado = Math.tanh(pendientes[k][x] * luz * (c.contraste ?? 3));
+      const prof = Math.min(1, (py - cy[x]) / (c.cuerpo * H)); // bajando desde la cresta se oscurece
+      let col = mezcla(c.claro, c.oscuro, prof * 0.85);
+      col = lado > 0 ? mezcla(col, c.luz || [255, 230, 200], lado * (c.brilloLuz ?? 0.22) * (1 - 0.6 * prof)) : mezcla(col, c.sombra || [20, 10, 30], -lado * (c.oscuroSombra ?? 0.3));
+      if (c.cresta2 && py - cy[x] < 1.4 * S) col = mezcla(col, c.cresta2, 0.45 * Math.max(0, lado));
+      if (neblina) col = mezcla(col, neblina, c.neblina ?? 0);
+      if (c.nieve && ruidoNieve) {
+        const alto = Math.max(0, (c.nieve.y - cy[x]) / (c.nieve.y)); // qué tan alta es la cumbre
+        const borde = c.nieve.largo * H * alto * (0.75 + 0.5 * ruidoNieve(x / W * 26, py / H * 26));
+        if (py - cy[x] < borde) col = mezcla(col, lado < -0.25 ? c.nieve.sombra : c.nieve.col, 0.9);
+      }
+      const i = (py * W + x) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+/*
+ * Terreno en perspectiva (como los simuladores de vuelo de los noventa): por cada columna se avanza desde la cámara hacia
+ * el fondo, se mide la altura del terreno y se pinta lo que asoma sobre lo ya pintado. La luz sale de la normal del
+ * terreno, el color de la altura y la pendiente, y la neblina de la distancia. Con agua: lo bajo el nivel es un espejo.
+ */
+function terreno(o) {
+  const img = ctx.getImageData(0, 0, W, H), d = img.data, agua = o.agua ? new Float32Array(W * H).fill(-1) : null;
+  for (let sx = 0; sx < W; sx++) {
+    const dir = (sx / W - 0.5) * o.fov;
+    let yb = H, z = o.cerca, dz = o.paso;
+    while (z < o.lejos && yb > 0) {
+      const wx = o.cam[0] + dir * z, wz = o.cam[2] + z;
+      let h = o.alto(wx, wz), esAgua = false;
+      if (o.agua && h < o.agua.nivel) { h = o.agua.nivel; esAgua = true; }
+      const sy = o.horiz + ((o.cam[1] - h) / z) * o.escala;
+      if (sy < yb) {
+        let col = null;
+        if (!esAgua) {
+          const e = o.e * (1 + z / 800);
+          const hx = (o.alto(wx + e, wz) - o.alto(wx - e, wz)) / (2 * e), hz = (o.alto(wx, wz + e) - o.alto(wx, wz - e)) / (2 * e);
+          const l = Math.hypot(hx, 1, hz);
+          col = mezcla(o.color(wx, wz, h, -hx / l, 1 / l, -hz / l, z), o.niebla, 1 - Math.exp(-z * o.densidad));
+        }
+        const y0 = Math.max(0, Math.floor(sy)), y1 = Math.min(H, Math.ceil(yb));
+        for (let y = y0; y < y1; y++) {
+          const i = (y * W + sx) * 4;
+          if (esAgua) { agua[y * W + sx] = z; continue; }
+          const cob = y === y0 ? Math.min(1, y0 + 1 - sy) : 1;
+          d[i] += (col[0] - d[i]) * cob; d[i + 1] += (col[1] - d[i + 1]) * cob; d[i + 2] += (col[2] - d[i + 2]) * cob; d[i + 3] = 255;
+        }
+        yb = sy;
+      }
+      z += dz; dz *= o.crece;
+    }
+  }
+  if (agua) {
+    // El agua refleja lo que está sobre el horizonte, más oscuro y ondulado según la distancia.
+    const copia = new Uint8ClampedArray(d);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const z = agua[y * W + x]; if (z < 0) continue;
+      const onda = o.agua.ondas(x, y, z), ry = Math.round(2 * o.horiz - y + onda * 0.4), rx = Math.min(W - 1, Math.max(0, Math.round(x + onda)));
+      const i = (y * W + x) * 4, j = (Math.min(H - 1, Math.max(0, ry)) * W + rx) * 4;
+      const col = mezcla([copia[j], copia[j + 1], copia[j + 2]], o.agua.tinte, o.agua.mezcla);
+      d[i] = col[0] * o.agua.brillo; d[i + 1] = col[1] * o.agua.brillo; d[i + 2] = col[2] * o.agua.brillo; d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+/* Ruido de cordillera: crestas filosas que se suman en varias escalas. */
+function crestado(n, x, z, oct = 7) {
+  let s = 0, a = 0.5, f = 1, w = 1;
+  for (let i = 0; i < oct; i++) { let v = 1 - Math.abs(n(x * f, z * f)); v *= v; v *= w; w = Math.min(1, v * 2.2); s += v * a; f *= 2.03; a *= 0.5; }
+  return s;
+}
+const prod = (a, b, c, x, y, z) => a * x + b * y + c * z;
+
+/* Grano fino al final: evita los escalones de los degradados oscuros al comprimir. */
+function grano(fuerza = 2.2, semilla = 7) {
+  const R = azar(semilla), img = ctx.getImageData(0, 0, W, H), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const v = (R() - 0.5) * 2 * fuerza; d[i] += v; d[i + 1] += v; d[i + 2] += v; }
+  ctx.putImageData(img, 0, 0);
+}
+
+const FONDOS = {
+  /* Pampa: dunas del desierto de Atacama al atardecer, con el sol bajo y las primeras estrellas. */
+  pampa() {
+    const R = azar(11), n = ruido(11), hz = H * 0.6;
+    ctx.fillStyle = degradado(0, hz, [[0, "#070a1f"], [0.38, "#1d1842"], [0.66, "#5a2a55"], [0.84, "#b6514f"], [0.95, "#ec8a55"], [1, "#f7b673"]]);
+    ctx.fillRect(0, 0, W, hz + 4);
+    estrellas(R, 1100 * S * S + 600, hz * 0.62, 0.95);
+    brillo(W * 0.7, hz, H * 0.75, "rgba(255,150,90,A)", 0.4);
+    brillo(W * 0.7, hz, H * 0.2, "rgba(255,214,150,A)", 0.6);
+    ctx.fillStyle = "rgba(255,226,170,0.95)"; ctx.beginPath(); ctx.arc(W * 0.7, hz + H * 0.012, H * 0.052, 0, 7); ctx.fill();
+    // Dunas de verdad: crestas que suben despacio y caen corto (barlovento y sotavento), torcidas por el viento, con la
+    // luz rasante del sol bajo a la derecha. La neblina tibia las funde con el horizonte.
+    const alto = (x, z) => {
+      const giro = 520 * n.fbm(x / 3800, z / 3800, 3), u = (x * 0.9 + z * 0.44 + giro) / 760, t = u - Math.floor(u);
+      const perfil = t < 0.7 ? Math.pow(t / 0.7, 1.5) : Math.pow(1 - (t - 0.7) / 0.3, 1.1);
+      const amp = 120 + 130 * (n(x / 4200 + 4, z / 4200) + 0.5);
+      return amp * perfil + 22 * n.fbm(x / 500, z / 500, 2) + 0.9 * Math.sin((x * 0.3 + z) / 9);
+    };
+    const sol = [0.9, 0.2, 0.38], lsol = Math.hypot(...sol); sol.forEach((v, k) => (sol[k] = v / lsol));
+    terreno({
+      cam: [0, 460, 0], horiz: hz, escala: H * 0.9, fov: 1.2, cerca: 25, lejos: 20000, paso: 0.8, crece: 1.006, e: 3, densidad: 0.00009,
+      niebla: hex("#e7896a"), alto,
+      color: (x, z, h, nx, ny, nz) => {
+        const luz = Math.max(0, prod(nx, ny, nz, ...sol));
+        let col = mezcla(hex("#2c1233"), hex("#7c3a52"), 0.2 + 0.5 * ny);
+        col = mezcla(col, hex("#f39a6c"), Math.min(1, Math.pow(luz, 0.8) * 1.15));
+        return mezcla(col, hex("#ffd6a2"), Math.pow(luz, 5) * 0.7);
+      },
+    });
+    grano();
+  },
+
+  /* Pacífico: el mar de noche frente a la costa, con la luna, su reflejo y los cerros de la cordillera de la costa. */
+  pacifico() {
+    const R = azar(23), n = ruido(23), hz = H * 0.6;
+    ctx.fillStyle = degradado(0, hz, [[0, "#030712"], [0.55, "#0a1730"], [0.9, "#173458"], [1, "#24507a"]]);
+    ctx.fillRect(0, 0, W, hz + 2);
+    estrellas(R, 1400 * S * S + 600, hz * 0.85, 0.8);
+    const lx = W * 0.26, ly = H * 0.2, lr = H * 0.045;
+    brillo(lx, ly, H * 0.55, "rgba(140,190,255,A)", 0.16);
+    brillo(lx, ly, H * 0.16, "rgba(220,235,255,A)", 0.35);
+    ctx.fillStyle = "#eef4ff"; ctx.beginPath(); ctx.arc(lx, ly, lr, 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(170,190,220,0.35)"; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.arc(lx + (R() - 0.5) * lr * 1.2, ly + (R() - 0.5) * lr * 1.2, lr * (0.08 + R() * 0.16), 0, 7); ctx.fill(); }
+    const cerro = (base, amp, fr, sem) => (x) => base - amp * (0.55 + 0.45 * n.fbm(x / W * fr + sem, sem, 5)) * (0.35 + 0.65 * suave(W * 0.15, W, x));
+    capas([
+      { cresta: cerro(hz, H * 0.26, 2.0, 3.3), claro: hex("#0f2038"), oscuro: hex("#0b182b"), cuerpo: 0.2, neblina: 0.06, luz: hex("#5d7ea8"), brilloLuz: 0.06 },
+      { cresta: cerro(hz + 1, H * 0.13, 3.0, 8.8), claro: hex("#081221"), oscuro: hex("#050b16"), cuerpo: 0.1, neblina: 0, luz: hex("#4d6e98"), brilloLuz: 0.05 },
+    ], -1, hex("#24507a"));
+    // El mar: franjas horizontales que se juntan hacia el horizonte y el camino de luz de la luna.
+    const img = ctx.getImageData(0, Math.floor(hz), W, H - Math.floor(hz)), d = img.data, alto = H - Math.floor(hz);
+    for (let y = 0; y < alto; y++) {
+      const t = y / alto, base = mezcla(hex("#183c63"), hex("#030914"), Math.pow(t, 0.55));
+      for (let x = 0; x < W; x++) {
+        const ola = n(x / W * (60 - 40 * t) / (0.15 + t), y / H * 90 / (0.2 + t));
+        const camino = Math.exp(-Math.pow((x - lx) / (W * (0.018 + 0.09 * t)), 2));
+        const destello = Math.max(0, ola) * camino * (1.3 - t) * 1.4;
+        let col = mezcla(base, hex("#9fc0ea"), Math.min(0.9, destello));
+        col = mezcla(col, hex("#2b5f8f"), Math.max(0, ola) * 0.25 * (1 - t));
+        const i = (y * W + x) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, Math.floor(hz));
+    grano();
+  },
+
+  /* Cordillera: los Andes al amanecer, claros, con nieve en las cumbres, valles con neblina y el sol bajo a la izquierda. */
+  cordillera() {
+    const n = ruido(37), hz = H * 0.56;
+    ctx.fillStyle = degradado(0, hz, [[0, "#bcd2ea"], [0.55, "#dce5f0"], [0.85, "#f5e3d6"], [1, "#fbeadc"]]);
+    ctx.fillRect(0, 0, W, H);
+    brillo(W * 0.12, hz * 0.98, H * 0.7, "rgba(255,222,190,A)", 0.6);
+    const alto = (x, z) => 4200 * Math.pow(crestado(n, x / 3000 + 7, z / 3000 + 3), 1.35) * (0.1 + 0.9 * suave(900, 5200, z)) * (0.55 + 0.45 * (n(x / 7000, 5) + 0.5)) - 250;
+    const sol = [-0.78, 0.42, 0.46], ls = Math.hypot(...sol); sol.forEach((v, k) => (sol[k] = v / ls));
+    terreno({
+      cam: [800, 480, -900], horiz: hz, escala: H * 0.85, fov: 1.2, cerca: 40, lejos: 30000, paso: 1.2, crece: 1.006, e: 6, densidad: 0.000055,
+      niebla: hex("#e6ecf4"), alto,
+      color: (x, z, h, nx, ny, nz) => {
+        const luz = Math.max(0, prod(nx, ny, nz, ...sol)), pend = 1 - ny;
+        const roca = mezcla(hex("#6b7488"), hex("#9fa6b5"), Math.min(1, Math.max(0, h / 2200)));
+        const valle = 1 - suave(80, 420, h);
+        const nieve = suave(1500, 1900, h + 260 * n(x / 400, z / 400)) * (1 - suave(0.45, 0.7, pend));
+        let col = mezcla(mezcla(roca, hex("#7d8a83"), valle * 0.6), hex("#f7f9fc"), nieve);
+        col = mezcla(col, hex("#4a5a79"), 0.55 * (1 - luz));
+        return mezcla(col, nieve > 0.5 ? hex("#ffd6c4") : hex("#ffe3c8"), (0.5 + 0.2 * nieve) * Math.pow(luz, 1.5));
+      },
+    });
+    grano(1.6);
+  },
+
+  /* Austral: aurora sobre los cerros del sur, reflejada en un lago quieto. */
+  austral() {
+    const R = azar(41), n = ruido(41), hz = H * 0.68;
+    ctx.fillStyle = degradado(0, hz, [[0, "#020510"], [0.6, "#061226"], [1, "#0c2235"]]);
+    ctx.fillRect(0, 0, W, H);
+    estrellas(R, 1500 * S * S + 600, hz, 0.75);
+    // Cortinas: muchos trazos verticales suaves que siguen una curva, en verde azulado y violeta.
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.filter = `blur(${10 * S}px)`;
+    const cortina = (y0, amp, fr, sem, col, largo) => {
+      for (let x = -40; x < W + 40; x += 3 * S) {
+        const v = n.fbm(x / W * fr + sem, sem, 3), y = y0 + amp * v, fuerza = Math.pow(Math.max(0, n(x / W * fr * 1.7 + sem * 3, 0.5) + 0.35), 1.5);
+        const g = ctx.createLinearGradient(0, y - largo * H, 0, y);
+        g.addColorStop(0, col.replace("A", 0)); g.addColorStop(0.7, col.replace("A", (0.16 * fuerza).toFixed(3))); g.addColorStop(1, col.replace("A", (0.5 * fuerza).toFixed(3)));
+        ctx.fillStyle = g; ctx.fillRect(x, y - largo * H, 3 * S, largo * H);
+      }
+    };
+    cortina(H * 0.34, H * 0.13, 1.5, 2.2, "rgba(94,234,212,A)", 0.3);
+    cortina(H * 0.26, H * 0.1, 2.0, 6.4, "rgba(167,139,250,A)", 0.22);
+    cortina(H * 0.4, H * 0.08, 2.4, 9.9, "rgba(52,211,153,A)", 0.2);
+    ctx.filter = `blur(${2 * S}px)`; // una pasada fina encima: los rayos de la aurora
+    cortina(H * 0.34, H * 0.13, 1.5, 2.2, "rgba(153,246,228,A)", 0.24);
+    ctx.restore();
+    const alto = (x, z) => 2500 * Math.pow(crestado(n, x / 2800 + 2, z / 2800 + 9, 7), 1.6) * suave(700, 5200, z) * (0.45 + 0.55 * (n(x / 6000 + 3, 1) + 0.5)) - 140;
+    const luna = [0.15, 0.85, 0.5], ll = Math.hypot(...luna); luna.forEach((v, k) => (luna[k] = v / ll));
+    terreno({
+      cam: [0, 150, 0], horiz: hz, escala: H * 0.95, fov: 1.2, cerca: 30, lejos: 22000, paso: 1, crece: 1.006, e: 6, densidad: 0.00009,
+      niebla: hex("#0b1e2c"), alto,
+      color: (x, z, h, nx, ny, nz) => {
+        const luz = Math.max(0, prod(nx, ny, nz, ...luna));
+        const nieve = suave(620, 860, h + 120 * n(x / 300, z / 300)) * suave(0.55, 0.8, ny);
+        let col = mezcla(hex("#081019"), hex("#1f3644"), luz);
+        col = mezcla(col, hex("#8db3b9"), nieve * (0.25 + 0.75 * luz * luz));
+        return mezcla(col, hex("#3fd9c3"), 0.08 * ny * luz);
+      },
+      agua: { nivel: 0, tinte: hex("#071423"), mezcla: 0.35, brillo: 0.78, ondas: (x, y, z) => n(x / W * 30, y / H * 200 + z / 300) * 6 * S },
+    });
+    ctx.fillStyle = "rgba(160,220,210,0.08)"; ctx.fillRect(0, hz, W, 1 * S);
+    grano();
+  },
+
+  /* Curvas de nivel: la topografía de una quebrada del norte dibujada como en un plano. */
+  curvas() {
+    const n = ruido(53), img = ctx.createImageData(W, H), d = img.data;
+    const fondo = hex("#080d12"), linea = hex("#5eead4"), maestra = hex("#99f6e4");
+    const alto = (x, y) => n.fbm(x / W * 2.2, y / W * 2.2 + 3, 5) * 1.2 + 0.4 * n(x / W * 0.7 + 9, y / W * 0.7);
+    const paso = 1 / 46, e = 1.5 / W;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const h = alto(x, y), gx = (alto(x + 1.5, y) - h), gy = (alto(x, y + 1.5) - h), grad = Math.hypot(gx, gy) / 1.5 + 1e-6;
+      const v = h / paso, fr = Math.abs(v - Math.round(v)), dist = fr * paso / grad; // distancia en píxeles a la curva más cercana
+      const esMaestra = Math.round(v) % 5 === 0, ancho = (esMaestra ? 1.35 : 0.75) * S;
+      const a = Math.max(0, 1 - Math.max(0, dist - ancho * 0.5) / 0.9) * (esMaestra ? 0.72 : 0.32);
+      const brilloZona = 0.55 + 0.45 * Math.max(0, n(x / W * 1.1 + 4, y / W * 1.1));
+      let col = mezcla(fondo, hex("#0b1a20"), Math.max(0, n(x / W * 0.9, y / W * 0.9 + 7)) * 0.9);
+      col = mezcla(col, esMaestra ? maestra : linea, a * brilloZona);
+      const i = (y * W + x) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    grano(1.4);
+  },
+
+  /* Grafito: degradado oscuro de manchas grandes y lentas, verde azulado e índigo, con grano. */
+  grafito() {
+    ctx.fillStyle = "#07090e"; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.filter = `blur(${190 * S}px)`;
+    for (const [x, y, r, col] of [[0.18, 0.22, 0.42, "#0f4c48"], [0.78, 0.3, 0.38, "#1e1b4b"], [0.58, 0.82, 0.46, "#0c3a5c"], [0.12, 0.88, 0.3, "#2a1650"], [0.92, 0.9, 0.28, "#0f5a54"]]) {
+      ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x * W, y * H, r * W, r * H * 1.1, 0.4, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+    brillo(W * 0.3, H * 0.35, H * 0.5, "rgba(94,234,212,A)", 0.07);
+    grano(3.2);
+  },
+
+  /* Papel: la versión clara, manchas pastel muy suaves sobre un blanco frío. */
+  papel() {
+    ctx.fillStyle = "#eef2f4"; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.filter = `blur(${200 * S}px)`;
+    for (const [x, y, r, col] of [[0.2, 0.25, 0.4, "#c6efe6"], [0.8, 0.2, 0.36, "#e3dcfb"], [0.62, 0.85, 0.44, "#fde2d0"], [0.1, 0.85, 0.3, "#d6e7fb"], [0.95, 0.65, 0.25, "#cfeee8"]]) {
+      ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x * W, y * H, r * W, r * H * 1.1, -0.3, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+    grano(2.4);
+  },
+
+  /* Materia: un cuadro quieto de la materia del sitio, la malla de puntos que ondula como el mar. */
+  materia() {
+    const n = ruido(67);
+    ctx.fillStyle = degradado(0, H, [[0, "#05070b"], [0.55, "#070b11"], [1, "#0a1016"]]); ctx.fillRect(0, 0, W, H);
+    brillo(W * 0.5, H * 0.5, H * 0.75, "rgba(94,234,212,A)", 0.09);
+    const hz = H * 0.4, filas = 130, cols = 280;
+    for (let f = 0; f < filas; f++) {
+      const z = f / (filas - 1), prof = Math.pow(z, 1.9); // 0: horizonte, 1: cerca
+      const y0 = hz + prof * (H - hz) * 1.08, ancho = W * (0.9 + 1.6 * prof);
+      for (let k = 0; k < cols; k++) {
+        const u = k / (cols - 1) - 0.5, x = W / 2 + u * ancho;
+        if (x < -20 || x > W + 20) continue;
+        const h = n.fbm(u * 3.2 + 2, z * 2.8, 4) + 0.35 * Math.sin(u * 9 + z * 14);
+        const y = y0 - h * H * (0.03 + 0.11 * prof);
+        const luz = Math.max(0, Math.min(1, 0.5 + h * 0.9));
+        const a = Math.min(1, (0.2 + 1.05 * luz) * (0.3 + 0.7 * z)), r = (0.65 + 2.3 * prof) * S;
+        const col = mezcla(hex("#38506a"), hex("#7ff3df"), luz);
+        ctx.fillStyle = `rgba(${col.map(Math.round).join(",")},${a.toFixed(3)})`;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+      }
+    }
+    grano(1.8);
+  },
+};
+
+(FONDOS[ID] || FONDOS.pampa)();
+window.listo = true;
+</script>
