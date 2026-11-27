@@ -324,6 +324,12 @@
 .es[data-celular] .es-buscar { margin: 18px 16px 8px; }
 .es[data-celular] .es-inicio-cuerpo { padding: 8px 16px 14px; }
 .es[data-celular] .es-inicio-pie { padding: 0 18px; }
+/* En el celular los paneles van opacos (detrás están los íconos, no ventanas) y el reloj muestra solo la hora. */
+.es[data-celular] .es-flota { background: var(--es-ventana); }
+.es[data-celular] .es-calendario { background: transparent; }
+.es[data-celular] .es-reloj-txt span:last-child { display: none; }
+.es[data-celular] .es-barra-apps { gap: 0; }
+.es[data-celular] .es-tarea { width: 38px; }
 
 /* ---------- Movimiento ---------- */
 .es[data-animaciones="no"] *, .es[data-animaciones="no"] *::before, .es[data-animaciones="no"] *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
