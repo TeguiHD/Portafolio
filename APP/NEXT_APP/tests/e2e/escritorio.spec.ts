@@ -92,8 +92,13 @@ test.describe("modo escritorio", () => {
         const app = ventanaDe(page, "herramientas/base64");
         await expect(app).toBeVisible();
         const dentro = app.locator("iframe").contentFrame();
-        await dentro.getByRole("textbox", { name: "Entrada", exact: true }).fill("hola");
-        await expect(dentro.getByRole("textbox", { name: "Resultado" })).toHaveValue("aG9sYQ==");
+        // En producción la página de la herramienta puede terminar de hidratarse después de que se escribe: si lo escrito
+        // llegó antes que React, se vuelve a escribir (como hace una persona que ve que no pasó nada).
+        await expect(async () => {
+            await dentro.getByRole("textbox", { name: "Entrada", exact: true }).fill("");
+            await dentro.getByRole("textbox", { name: "Entrada", exact: true }).fill("hola");
+            await expect(dentro.getByRole("textbox", { name: "Resultado" })).toHaveValue("aG9sYQ==", { timeout: 2000 });
+        }).toPass({ timeout: 20000 });
     });
 
     test("la ruta de app solo existe para herramientas públicas y fuera de una ventana lleva a la herramienta", async ({ page, request }) => {
